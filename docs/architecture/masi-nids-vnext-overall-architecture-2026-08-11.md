@@ -5,6 +5,7 @@
 - 性质：非规范性架构说明；与需求冲突时，以 `../masi-nids-vnext-system-requirements-2026-08-09.md` 的稳定需求 ID 为准
 - 当前状态：架构已确认，仓库仍处初始化阶段；模块、E2E、性能和生产资格均为 `HOLD/NOT RUN`
 - 关键 ADR：ADR-0001、0003、0004、0005、0006、0007、0008、0009、0012、0013、0014、0015、0017、0018（ADR-0010/0011只保留模型模块化与启动绑定的历史来源，ADR-0016保留v1.13 Central GPU历史）
+- 详细设计入口：[`../design/README.md`](../design/README.md)；模块验收：[`../testing/module-e2e-acceptance-design.md`](../testing/module-e2e-acceptance-design.md)；正式集成：[`../integration/pairwise-and-system-integration-design.md`](../integration/pairwise-and-system-integration-design.md)
 
 ## 1. 一句话结论
 
