@@ -1,0 +1,17 @@
+ARG RUNNER_DEPS_IMAGE=masi-nids/p4-switch-runner-deps:local
+FROM ${RUNNER_DEPS_IMAGE}
+
+ARG SOURCE_DATE_EPOCH=1786406400
+LABEL org.opencontainers.image.title="MASI-NIDS P4 qualification runner" \
+      org.opencontainers.image.source="https://masi-nids.example/MASI-NIDS-vNext" \
+      io.masi-nids.source-date-epoch="${SOURCE_DATE_EPOCH}" \
+      io.masi-nids.runner-deps.digest="sha256:54d602c6947b0268a9c93e4e3ab06d9621f0a7b26aa32f6a85932db864c59552"
+
+COPY testkit/p4_switch/requirements-e2e.txt /usr/share/masi/requirements-e2e.txt
+
+WORKDIR /workspace
+ENV PYTHONPATH=/workspace
+ENTRYPOINT []
+CMD ["python", "--version"]
+
+USER 65532:65532

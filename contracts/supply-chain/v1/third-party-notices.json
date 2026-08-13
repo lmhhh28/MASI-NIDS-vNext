@@ -1,0 +1,17 @@
+{
+  "schema_version": "third-party-notices/v1",
+  "module": "p4-switch",
+  "notices": [
+    {"component": "p4c", "license": "Apache-2.0", "source": "https://github.com/p4lang/p4c"},
+    {"component": "BMv2 behavioral-model", "license": "Apache-2.0", "source": "https://github.com/p4lang/behavioral-model"},
+    {"component": "P4Runtime Python protos", "license": "Apache-2.0", "source": "https://github.com/p4lang/p4runtime"},
+    {"component": "PTF", "license": "Apache-2.0", "source": "https://github.com/p4lang/ptf"},
+    {"component": "Scapy", "license": "GPL-2.0-only", "source": "https://github.com/secdev/scapy"},
+    {"component": "Tcpreplay", "license": "GPL-3.0-only", "source": "https://github.com/appneta/tcpreplay"},
+    {"component": "Linux netem", "license": "GPL-2.0-only", "source": "https://www.kernel.org"},
+    {"component": "P4 qualification runner dependency image", "license": "aggregate-see-SPDX-and-third-party-notices", "source": "deploy/p4-switch/Dockerfile.runner-deps"},
+    {"component": "Syft", "license": "Apache-2.0", "source": "https://github.com/anchore/syft"},
+    {"component": "Trivy", "license": "Apache-2.0", "source": "https://github.com/aquasecurity/trivy"},
+    {"component": "Cosign", "license": "Apache-2.0", "source": "https://github.com/sigstore/cosign"}
+  ]
+}

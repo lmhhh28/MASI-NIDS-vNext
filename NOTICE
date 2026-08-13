@@ -1,0 +1,11 @@
+MASI-NIDS-vNext P4 Switch qualification notice
+
+This repository does not use this notice to grant a project-wide source-code
+license. The P4 Switch qualification and test assets invoke or redistribute
+third-party components under their own licenses. Exact versions, immutable
+digests, authority boundaries, failure behavior, rollback, and exit paths are
+recorded in contracts/supply-chain/v1/p4-switch-components.json. The canonical
+license/source notice set is contracts/supply-chain/v1/third-party-notices.json.
+
+No third-party component receives production P4 writer, scheduler, core fact,
+or authorization ownership by virtue of inclusion in the qualification bundle.

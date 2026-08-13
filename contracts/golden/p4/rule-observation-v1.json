@@ -1,0 +1,73 @@
+{
+  "schema_version": "p4-rule-observation/v1",
+  "observation_profile": "p4-rule-observation-bmv2/v1",
+  "target_id": "bmv2-test-1",
+  "device_id": 1,
+  "role": "masi-edge",
+  "assignment_generation": 1,
+  "application_generation": 1,
+  "effect_intent_id": "effect-golden-1",
+  "operation_id": "operation-golden-1",
+  "entity_id": "entity-golden-1",
+  "rule_id": "drop-ssh-from-test-net",
+  "logical_rule_digest": "sha256:112656a11c71821f2190c28f40cfde21a661cbdeb574a50025b2c70c4e8742d2",
+  "policy_revision_digest": "sha256:2f9cd8af50861c865f0ee6026e1a604636bc5fb9e8c89c633b84e7a9b5bb46c7",
+  "canonical_entry_digest": "sha256:437f8ed5626da0214ffa6d43edf412b3be1f8e46205b2563baeb5f2e78be0fa4",
+  "pipeline_identity": {
+    "p4info_digest": "sha256:23b6d3554ca11843b7e0324352ed09752f068a05abbecf16c16d08a9839d2241",
+    "pipeline_digest": "sha256:06b99f73133ff8a7d0bfbcfe2b023ecdd5a9458f8e41afd5f11275e5d99d00ea",
+    "capability_digest": "sha256:dc3c6678795f3bd96b14b9d7767d76d6530974cccad4aa24e5c1a6fae6e78d23"
+  },
+  "bank": 1,
+  "table_id": 33554692,
+  "direct_counter_id": 318767363,
+  "match_priority_action_digest": "sha256:9ffecd56b91f4e985384b9f3a6dd713df8a4f6655053b3b11d9928ccfc9bc9f0",
+  "installed_at": "2030-01-01T00:00:00Z",
+  "readback_at": "2030-01-01T00:00:00.100Z",
+  "expires_at": null,
+  "observation_epoch": 1,
+  "reset_epoch": 1,
+  "counter_semantics": {
+    "packet_width_bits": 64,
+    "byte_width_bits": 64,
+    "mode": "wrap",
+    "initial_value": 0,
+    "poll_clear": false
+  },
+  "sample": {
+    "sample_sequence": 2,
+    "read_started_at": "2030-01-01T00:00:01Z",
+    "read_completed_at": "2030-01-01T00:00:01.010Z",
+    "target_data_time": null,
+    "value": {"packets": 1, "bytes": 54},
+    "order_status": "in-order",
+    "gap_status": "none",
+    "trace_id": "trace-rule-golden-1"
+  },
+  "eligible_sample": {
+    "sample_sequence": 2,
+    "read_started_at": "2030-01-01T00:00:01Z",
+    "read_completed_at": "2030-01-01T00:00:01.010Z",
+    "target_data_time": null,
+    "value": {"packets": 2, "bytes": 108},
+    "order_status": "in-order",
+    "gap_status": "none",
+    "trace_id": "trace-rule-golden-1"
+  },
+  "installation_readback": "exact",
+  "packet_action_outcome": {
+    "status": "observed",
+    "oracle_id": "ptf-drop-oracle-1",
+    "window_start": "2030-01-01T00:00:00Z",
+    "window_end": "2030-01-01T00:00:02Z",
+    "expected": "dropped",
+    "actual": "dropped",
+    "evidence_digest": "sha256:3fde672004d636d2e36fbedcef913a068ebcb650665fdfff0d793d4e57876de2"
+  },
+  "formula": "direct_delta/eligible_delta",
+  "quality": {
+    "status": "valid",
+    "reasons": ["NONE"],
+    "coverage": 1.0
+  }
+}

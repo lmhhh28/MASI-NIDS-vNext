@@ -1,0 +1,190 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://masi-nids.example/contracts/telemetry/v1/schema.json",
+  "title": "P4 Bounded Aggregate Snapshot V1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "source_profile",
+    "source_profile_digest",
+    "telemetry_source_id",
+    "target_id",
+    "device_id",
+    "role",
+    "observation_domain",
+    "observation_point",
+    "pipeline_identity",
+    "application_generation",
+    "source_runtime_epoch",
+    "window",
+    "bank",
+    "epoch",
+    "source_sequence",
+    "snapshot",
+    "cell_count",
+    "reported_nonzero_cells",
+    "aggregate",
+    "cells",
+    "sampling",
+    "drops",
+    "clear_advance_condition",
+    "quality"
+  ],
+  "properties": {
+    "schema_version": {"const": "telemetry-p4-window/v1"},
+    "source_profile": {"const": "p4-bounded-aggregate-dual-bank/v1"},
+    "source_profile_digest": {"$ref": "#/$defs/digest"},
+    "telemetry_source_id": {"$ref": "#/$defs/identity"},
+    "target_id": {"$ref": "#/$defs/identity"},
+    "device_id": {"type": "integer", "minimum": 0},
+    "role": {"type": "string", "minLength": 1, "maxLength": 64},
+    "observation_domain": {"$ref": "#/$defs/identity"},
+    "observation_point": {"enum": ["p4-ingress-pre-firewall"]},
+    "pipeline_identity": {"$ref": "#/$defs/pipeline_identity"},
+    "application_generation": {"type": "integer", "minimum": 1},
+    "source_runtime_epoch": {"$ref": "#/$defs/identity"},
+    "window": {"$ref": "#/$defs/window"},
+    "bank": {"type": "integer", "minimum": 0, "maximum": 1},
+    "epoch": {"type": "integer", "minimum": 1},
+    "source_sequence": {"$ref": "#/$defs/sequence"},
+    "snapshot": {"$ref": "#/$defs/snapshot"},
+    "cell_count": {"const": 256},
+    "reported_nonzero_cells": {"type": "integer", "minimum": 0, "maximum": 256},
+    "aggregate": {"$ref": "#/$defs/counter"},
+    "cells": {
+      "type": "array",
+      "maxItems": 256,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["index", "packets", "bytes"],
+        "properties": {
+          "index": {"type": "integer", "minimum": 0, "maximum": 255},
+          "packets": {"type": "integer", "minimum": 0},
+          "bytes": {"type": "integer", "minimum": 0}
+        }
+      }
+    },
+    "sampling": {"$ref": "#/$defs/sampling"},
+    "drops": {"$ref": "#/$defs/drops"},
+    "clear_advance_condition": {"enum": ["frozen-bank-readback-then-explicit-clear", "not-cleared"]},
+    "quality": {"$ref": "#/$defs/quality"}
+  },
+  "$defs": {
+    "identity": {"type": "string", "minLength": 1, "maxLength": 128},
+    "digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "pipeline_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["p4_program_digest", "p4info_digest", "pipeline_digest"],
+      "properties": {
+        "p4_program_digest": {"$ref": "#/$defs/digest"},
+        "p4info_digest": {"$ref": "#/$defs/digest"},
+        "pipeline_digest": {"$ref": "#/$defs/digest"}
+      }
+    },
+    "window": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["window_id", "window_start", "window_end", "event_time_basis", "watermark", "allowed_lateness_ms", "finalized_at", "produced_at"],
+      "properties": {
+        "window_id": {"$ref": "#/$defs/identity"},
+        "window_start": {"type": "string", "format": "date-time"},
+        "window_end": {"type": "string", "format": "date-time"},
+        "event_time_basis": {"const": "target-aggregate-export-time"},
+        "watermark": {"type": "string", "format": "date-time"},
+        "allowed_lateness_ms": {"type": "integer", "minimum": 0, "maximum": 60000},
+        "finalized_at": {"type": "string", "format": "date-time"},
+        "produced_at": {"type": "string", "format": "date-time"}
+      }
+    },
+    "sequence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["expected_start", "expected_end", "observed_start", "observed_end", "gap_ranges"],
+      "properties": {
+        "expected_start": {"type": "integer", "minimum": 0},
+        "expected_end": {"type": "integer", "minimum": 0},
+        "observed_start": {"type": "integer", "minimum": 0},
+        "observed_end": {"type": "integer", "minimum": 0},
+        "gap_ranges": {
+          "type": "array",
+          "maxItems": 64,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["start", "end"],
+            "properties": {
+              "start": {"type": "integer", "minimum": 0},
+              "end": {"type": "integer", "minimum": 0}
+            }
+          }
+        }
+      }
+    },
+    "snapshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["strategy", "active_bank_after_flip", "frozen_bank", "sequence_before", "sequence_after", "expected_entries", "observed_entries", "consistency"],
+      "properties": {
+        "strategy": {"const": "dual-bank-sequence-before-after"},
+        "active_bank_after_flip": {"type": "integer", "minimum": 0, "maximum": 1},
+        "frozen_bank": {"type": "integer", "minimum": 0, "maximum": 1},
+        "sequence_before": {"type": "integer", "minimum": 0},
+        "sequence_after": {"type": "integer", "minimum": 0},
+        "expected_entries": {"const": 256},
+        "observed_entries": {"type": "integer", "minimum": 0, "maximum": 256},
+        "consistency": {"enum": ["consistent", "inconsistent", "not-measurable"]}
+      }
+    },
+    "counter": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["packets", "bytes"],
+      "properties": {
+        "packets": {"type": "integer", "minimum": 0},
+        "bytes": {"type": "integer", "minimum": 0}
+      }
+    },
+    "sampling": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["algorithm", "period_packets", "eligible_population", "expected_hints", "observed_hints", "coverage"],
+      "properties": {
+        "algorithm": {"const": "sequence-modulo"},
+        "period_packets": {"const": 1024},
+        "eligible_population": {"type": "integer", "minimum": 0},
+        "expected_hints": {"type": "integer", "minimum": 0},
+        "observed_hints": {"type": "integer", "minimum": 0},
+        "coverage": {"type": "number", "minimum": 0, "maximum": 1}
+      }
+    },
+    "drops": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["p4", "server", "channel", "client", "packet_in", "digest"],
+      "properties": {
+        "p4": {"type": "integer", "minimum": 0},
+        "server": {"type": "integer", "minimum": 0},
+        "channel": {"type": "integer", "minimum": 0},
+        "client": {"type": "integer", "minimum": 0},
+        "packet_in": {"type": "integer", "minimum": 0},
+        "digest": {"type": "integer", "minimum": 0}
+      }
+    },
+    "quality": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "reasons"],
+      "properties": {
+        "status": {"enum": ["valid", "partial", "gap", "stale", "not-covered", "not-measurable", "invalid"]},
+        "reasons": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {"enum": ["NONE", "SEQUENCE_GAP", "SOURCE_RESET", "APPLICATION_DRIFT", "PIPELINE_DRIFT", "SNAPSHOT_INCONSISTENT", "DIGEST_DROP", "PACKETIN_DROP", "SERVER_DROP", "CLIENT_DROP", "PARSE_ERROR", "TRUNCATED", "CHECKSUM_ERROR", "FRAGMENT", "LATE_AFTER_FINAL"]}
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,123 @@
+name: masi-p4-switch-module-e2e
+
+services:
+  compiler:
+    image: masi-nids/p4-switch-p4c@sha256:8c26666dfa1041b0f9a29b5051c92dbf4ce5df807273f80dd54b3aff5412c926
+    network_mode: none
+    command:
+      - p4c-bm2-ss
+      - --arch
+      - v1model
+      - --std
+      - p4-16
+      - --p4runtime-files
+      - /artifacts/masi_switch.p4info.txtpb
+      - --p4runtime-format
+      - text
+      - -o
+      - /artifacts/masi_switch.json
+      - /source/masi_switch.p4
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    volumes:
+      - artifacts:/artifacts
+      - ../../p4/src/masi_switch.p4:/source/masi_switch.p4:ro
+
+  switch:
+    image: ${MASI_P4_RUNTIME_IMAGE:-masi-nids/p4-switch-runtime@sha256:8b8655c2fb7bc5563706ee853fb668ba70457633cda7d93633d022b30b7ead42}
+    network_mode: none
+    stop_signal: SIGINT
+    stop_grace_period: 10s
+    cpuset: "0-3"
+    cpus: "4.0"
+    mem_limit: 2g
+    pids_limit: 256
+    entrypoint: ["/bin/bash", "/startup/start-switch.sh"]
+    user: "0:65532"
+    environment:
+      MASI_P4_LOG_LEVEL: ${MASI_P4_LOG_LEVEL:-warn}
+    sysctls:
+      net.ipv6.conf.all.disable_ipv6: "1"
+      net.ipv6.conf.default.disable_ipv6: "1"
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_RAW
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp:size=32m,mode=1777
+    volumes:
+      - ${MASI_P4_CERT_DIR:?set MASI_P4_CERT_DIR}:/certs:ro
+      - ./start-switch.sh:/startup/start-switch.sh:ro
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import socket; socket.create_connection(('127.0.0.1', 9559), 1).close()"]
+      interval: 1s
+      timeout: 1s
+      retries: 30
+      start_period: 1s
+
+  net-init:
+    image: masi-nids/p4-switch-e2e-runner:local
+    build:
+      context: ../..
+      dockerfile: deploy/p4-switch/Dockerfile.runner
+    network_mode: service:switch
+    # This bounded one-shot creates the isolated test veth pair; unlike the
+    # long-running switch and runner it requires uid 0 for namespace mutation.
+    user: "0:0"
+    depends_on:
+      switch:
+        condition: service_started
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    entrypoint: ["/bin/sh", "/startup/init-links.sh"]
+    volumes:
+      - ./init-links.sh:/startup/init-links.sh:ro
+
+  runner:
+    image: masi-nids/p4-switch-e2e-runner:local
+    build:
+      context: ../..
+      dockerfile: deploy/p4-switch/Dockerfile.runner
+    network_mode: service:switch
+    # PTF deliberately refuses non-root packet-oracle execution. This isolated
+    # test identity remains bounded by the explicit capabilities and limits.
+    user: "0:65532"
+    cpuset: "4-7"
+    cpus: "4.0"
+    mem_limit: 4g
+    pids_limit: 512
+    depends_on:
+      compiler:
+        condition: service_completed_successfully
+      net-init:
+        condition: service_completed_successfully
+      switch:
+        condition: service_healthy
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp:size=128m,mode=1777
+    volumes:
+      - artifacts:/artifacts:ro
+      - ../..:/workspace:ro
+      - ${MASI_P4_CERT_DIR:?set MASI_P4_CERT_DIR}:/certs:ro
+      - ${MASI_P4_EVIDENCE_DIR:?set MASI_P4_EVIDENCE_DIR}:/evidence
+
+volumes:
+  artifacts: {}

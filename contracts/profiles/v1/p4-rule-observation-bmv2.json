@@ -1,0 +1,33 @@
+{
+  "schema_version": "qualification-profile/v1",
+  "profile_id": "p4-rule-observation-bmv2/v1",
+  "target_profile_id": "p4-stateless-firewall/v1",
+  "p4runtime_capabilities_version": "1.3.0",
+  "test_client_proto_package_version": "1.4.1",
+  "counter": {
+    "packet_width_bits": 64,
+    "byte_width_bits": 64,
+    "mode": "wrap",
+    "initial_value": 0,
+    "poll_clear": false,
+    "reset": "explicit P4Runtime MODIFY or target application restart creates a new reset epoch",
+    "saturation_status": "not-applicable-to-wrap-mode"
+  },
+  "observation_points": {
+    "entry": "direct counter bound to exact response-overlay or active-baseline TableEntry",
+    "eligible": "same-stage ingress before table apply",
+    "outcome": "independent PTF ingress/egress/no-egress oracle"
+  },
+  "resources": {
+    "max_rules_per_sweep": 4096,
+    "max_entities_per_read": 256,
+    "max_response_bytes": 1048576,
+    "read_deadline_ms": 2000,
+    "max_in_flight_reads": 1,
+    "sample_retention_days": 30
+  },
+  "quality": ["valid", "partial", "gap", "stale", "no-eligible-traffic", "not-covered", "not-measurable", "invalid"],
+  "formula": "direct_delta/eligible_delta",
+  "unknown_capability": "not-measurable",
+  "generation_fence": ["assignment_generation", "application_generation", "pipeline_digest", "observation_epoch", "reset_epoch"]
+}

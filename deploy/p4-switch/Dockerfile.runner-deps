@@ -1,0 +1,41 @@
+FROM python@sha256:42825e7ec3437b3bce923c237484eb23d32128476e18307d2f48951bf86f1db2 AS python-builder
+
+RUN apk add --no-cache \
+      gcc=15.2.0-r5 \
+      linux-headers=7.0.0-r1 \
+      musl-dev=1.2.6-r2
+
+COPY testkit/p4_switch/requirements-e2e.txt /tmp/requirements-e2e.txt
+COPY testkit/p4_switch/scripts/modernize-p4runtime-protos.py /tmp/modernize-p4runtime-protos.py
+RUN export CFLAGS='-std=gnu17 -Wno-int-conversion' \
+    && python -m venv /opt/masi-venv \
+    && /opt/masi-venv/bin/pip install --no-cache-dir --requirement /tmp/requirements-e2e.txt \
+    && /opt/masi-venv/bin/pip check \
+    && /opt/masi-venv/bin/python /tmp/modernize-p4runtime-protos.py \
+       /opt/masi-venv/lib/python3.13/site-packages \
+    && /opt/masi-venv/bin/python -c \
+       'from p4.config.v1 import p4info_pb2; from p4.v1 import p4runtime_pb2; assert p4info_pb2.P4Info and p4runtime_pb2.WriteRequest' \
+    && rm -rf /opt/masi-venv/bin/pip* /opt/masi-venv/lib/python3.13/site-packages/pip*
+
+FROM python@sha256:42825e7ec3437b3bce923c237484eb23d32128476e18307d2f48951bf86f1db2
+
+RUN apk add --no-cache \
+      iproute2=7.0.0-r0 \
+      libgcc=15.2.0-r5 \
+      libpcap=1.10.6-r1 \
+      libstdc++=15.2.0-r5 \
+      nftables=1.1.6-r1 \
+      tcpdump=4.99.6-r1 \
+      tcpreplay=4.5.2-r1 \
+    && rm -rf /usr/local/bin/pip* /usr/local/lib/python3.13/ensurepip \
+       /usr/local/lib/python3.13/site-packages/pip*
+
+COPY --from=python-builder /opt/masi-venv /opt/masi-venv
+ENV PATH=/opt/masi-venv/bin:$PATH
+
+ARG SOURCE_DATE_EPOCH=1786406400
+LABEL org.opencontainers.image.title="MASI-NIDS P4 qualification runner dependencies" \
+      org.opencontainers.image.source="https://masi-nids.example/MASI-NIDS-vNext" \
+      io.masi-nids.source-date-epoch="${SOURCE_DATE_EPOCH}"
+
+USER 65532:65532

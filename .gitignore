@@ -1,0 +1,8 @@
+/out/
+/evidence/
+/.cache/
+/.masi-secrets/
+__pycache__/
+*.py[cod]
+*.pcap
+*.log

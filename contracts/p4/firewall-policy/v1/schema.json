@@ -1,0 +1,310 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://masi-nids.example/contracts/p4/firewall-policy/v1/schema.json",
+  "title": "P4 Stateless Firewall Policy, Compiled Plan, and Activation V1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "target_profile",
+    "target_class",
+    "target_id",
+    "device_id",
+    "role",
+    "assignment_generation",
+    "application_generation",
+    "pipeline_identity",
+    "revision_id",
+    "revision_digest",
+    "scope_digest",
+    "actor_ref",
+    "reason_code",
+    "active_bank",
+    "bank",
+    "default_action",
+    "rules",
+    "response_overlay",
+    "compiled_plan",
+    "activation",
+    "unsupported"
+  ],
+  "properties": {
+    "schema_version": {"const": "p4-firewall-policy/v1"},
+    "target_profile": {"const": "p4-stateless-firewall/v1"},
+    "target_class": {"const": "software-bmv2"},
+    "target_id": {"$ref": "#/$defs/identity"},
+    "device_id": {"type": "integer", "minimum": 0, "maximum": 18446744073709551615},
+    "role": {"type": "string", "minLength": 1, "maxLength": 64},
+    "assignment_generation": {"type": "integer", "minimum": 1},
+    "application_generation": {"type": "integer", "minimum": 1},
+    "pipeline_identity": {"$ref": "#/$defs/pipeline_identity"},
+    "revision_id": {"$ref": "#/$defs/identity"},
+    "revision_digest": {"$ref": "#/$defs/digest"},
+    "scope_digest": {"$ref": "#/$defs/digest"},
+    "actor_ref": {"$ref": "#/$defs/identity"},
+    "reason_code": {"$ref": "#/$defs/reason_code"},
+    "active_bank": {"type": "integer", "minimum": 0, "maximum": 1},
+    "bank": {"type": "integer", "minimum": 0, "maximum": 1},
+    "default_action": {"enum": ["permit-and-continue", "drop"]},
+    "rules": {
+      "type": "array",
+      "maxItems": 4096,
+      "items": {"$ref": "#/$defs/baseline_rule"}
+    },
+    "response_overlay": {
+      "type": "array",
+      "maxItems": 1024,
+      "items": {"$ref": "#/$defs/overlay_rule"}
+    },
+    "compiled_plan": {"$ref": "#/$defs/compiled_plan"},
+    "activation": {"$ref": "#/$defs/activation"},
+    "unsupported": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {"$ref": "#/$defs/rejection_reason"}
+    }
+  },
+  "$defs": {
+    "identity": {"type": "string", "minLength": 1, "maxLength": 128},
+    "digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "reason_code": {"type": "string", "pattern": "^[A-Z][A-Z0-9_]{0,63}$"},
+    "pipeline_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["p4runtime_version", "p4info_digest", "device_config_digest", "profile_digest", "cookie"],
+      "properties": {
+        "p4runtime_version": {"const": "1.3.0"},
+        "p4info_digest": {"$ref": "#/$defs/digest"},
+        "device_config_digest": {"$ref": "#/$defs/digest"},
+        "profile_digest": {"$ref": "#/$defs/digest"},
+        "cookie": {"type": "string", "pattern": "^(?:[1-9][0-9]{0,19})$"}
+      }
+    },
+    "ipv4_prefix": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["address", "prefix_length"],
+      "properties": {
+        "address": {"type": "string", "format": "ipv4"},
+        "prefix_length": {"type": "integer", "minimum": 0, "maximum": 32}
+      }
+    },
+    "port_match": {
+      "oneOf": [
+        {"const": "wildcard"},
+        {"type": "integer", "minimum": 0, "maximum": 65535}
+      ]
+    },
+    "baseline_rule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "rule_id",
+        "rule_revision",
+        "canonical_rule_digest",
+        "priority",
+        "ingress_port",
+        "src_ipv4",
+        "dst_ipv4",
+        "protocol",
+        "l4_present",
+        "src_port",
+        "dst_port",
+        "fragment_class",
+        "action",
+        "enabled",
+        "actor_ref",
+        "reason_code"
+      ],
+      "properties": {
+        "rule_id": {"$ref": "#/$defs/identity"},
+        "rule_revision": {"type": "integer", "minimum": 1},
+        "canonical_rule_digest": {"$ref": "#/$defs/digest"},
+        "priority": {"type": "integer", "minimum": 1, "maximum": 2147483647},
+        "ingress_port": {
+          "oneOf": [
+            {"const": "wildcard"},
+            {"type": "integer", "minimum": 0, "maximum": 510}
+          ]
+        },
+        "src_ipv4": {"$ref": "#/$defs/ipv4_prefix"},
+        "dst_ipv4": {"$ref": "#/$defs/ipv4_prefix"},
+        "protocol": {
+          "oneOf": [
+            {"const": "wildcard"},
+            {"type": "integer", "minimum": 0, "maximum": 255}
+          ]
+        },
+        "l4_present": {"enum": ["wildcard", false, true]},
+        "src_port": {"$ref": "#/$defs/port_match"},
+        "dst_port": {"$ref": "#/$defs/port_match"},
+        "fragment_class": {
+          "enum": ["wildcard", "unfragmented", "first-fragment", "non-initial-fragment"]
+        },
+        "action": {"enum": ["permit-and-continue", "drop"]},
+        "enabled": {"type": "boolean"},
+        "actor_ref": {"$ref": "#/$defs/identity"},
+        "reason_code": {"$ref": "#/$defs/reason_code"}
+      }
+    },
+    "overlay_rule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "rule_id",
+        "rule_revision",
+        "canonical_rule_digest",
+        "stage_precedence",
+        "src_ipv4",
+        "dst_ipv4",
+        "protocol",
+        "src_port",
+        "dst_port",
+        "action",
+        "enabled",
+        "expires_at",
+        "actor_ref",
+        "reason_code"
+      ],
+      "properties": {
+        "rule_id": {"$ref": "#/$defs/identity"},
+        "rule_revision": {"type": "integer", "minimum": 1},
+        "canonical_rule_digest": {"$ref": "#/$defs/digest"},
+        "stage_precedence": {"const": "before-baseline"},
+        "src_ipv4": {"type": "string", "format": "ipv4"},
+        "dst_ipv4": {"type": "string", "format": "ipv4"},
+        "protocol": {"enum": [6, 17]},
+        "src_port": {"type": "integer", "minimum": 0, "maximum": 65535},
+        "dst_port": {"type": "integer", "minimum": 0, "maximum": 65535},
+        "action": {"enum": ["permit-and-continue", "drop"]},
+        "enabled": {"type": "boolean"},
+        "expires_at": {"type": "string", "format": "date-time"},
+        "actor_ref": {"$ref": "#/$defs/identity"},
+        "reason_code": {"$ref": "#/$defs/reason_code"}
+      }
+    },
+    "compiled_entity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "logical_rule_id",
+        "expansion_index",
+        "bank",
+        "table_id",
+        "action_id",
+        "canonical_entry_digest",
+        "direct_counter_id",
+        "table_units",
+        "counter_units"
+      ],
+      "properties": {
+        "logical_rule_id": {"$ref": "#/$defs/identity"},
+        "expansion_index": {"type": "integer", "minimum": 0, "maximum": 4095},
+        "bank": {"type": "integer", "minimum": 0, "maximum": 1},
+        "table_id": {"type": "integer", "minimum": 1},
+        "action_id": {"type": "integer", "minimum": 1},
+        "canonical_entry_digest": {"$ref": "#/$defs/digest"},
+        "direct_counter_id": {"type": "integer", "minimum": 1},
+        "table_units": {"const": 1},
+        "counter_units": {"const": 1}
+      }
+    },
+    "resource_usage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["overlay_entries", "bank_0_entries", "bank_1_entries", "selector_entries", "direct_counter_units", "eligible_counter_units", "telemetry_cells", "total_physical_units"],
+      "properties": {
+        "overlay_entries": {"type": "integer", "minimum": 0, "maximum": 1024},
+        "bank_0_entries": {"type": "integer", "minimum": 0, "maximum": 4096},
+        "bank_1_entries": {"type": "integer", "minimum": 0, "maximum": 4096},
+        "selector_entries": {"type": "integer", "minimum": 0, "maximum": 1},
+        "direct_counter_units": {"type": "integer", "minimum": 0, "maximum": 9216},
+        "eligible_counter_units": {"const": 3},
+        "telemetry_cells": {"const": 512},
+        "total_physical_units": {"type": "integer", "minimum": 0, "maximum": 20000}
+      }
+    },
+    "rejection_reason": {
+      "enum": [
+        "UNKNOWN_MAJOR",
+        "UNKNOWN_FIELD",
+        "UNKNOWN_MATCH",
+        "UNKNOWN_ACTION",
+        "P4INFO_DRIFT",
+        "PIPELINE_DRIFT",
+        "CAPABILITY_DRIFT",
+        "UNSUPPORTED_IPV6_EFFECT",
+        "UNSUPPORTED_PORT_RANGE",
+        "UNSUPPORTED_L4_UNAVAILABLE",
+        "UNSUPPORTED_FRAGMENT",
+        "EQUAL_PRIORITY_CONFLICT",
+        "UNBOUNDED_EXPANSION",
+        "CAPACITY_EXCEEDED",
+        "ATOMICITY_UNSUPPORTED",
+        "READBACK_MISMATCH",
+        "SELECTOR_MISMATCH"
+      ]
+    },
+    "compiled_plan": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["canonicalization", "plan_digest", "atomicity", "active_bank", "inactive_bank", "selector", "entities", "resource_usage", "preflight_result", "rejection_reason"],
+      "properties": {
+        "canonicalization": {"const": "p4-firewall-canonical/v1"},
+        "plan_digest": {"$ref": "#/$defs/digest"},
+        "atomicity": {"enum": ["CONTINUE_ON_ERROR", "DATAPLANE_ATOMIC"]},
+        "active_bank": {"type": "integer", "minimum": 0, "maximum": 1},
+        "inactive_bank": {"type": "integer", "minimum": 0, "maximum": 1},
+        "selector": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["table_id", "expected_bank", "current_bank", "canonical_entry_digest"],
+          "properties": {
+            "table_id": {"const": 33554690},
+            "expected_bank": {"type": "integer", "minimum": 0, "maximum": 1},
+            "current_bank": {"type": "integer", "minimum": 0, "maximum": 1},
+            "canonical_entry_digest": {"$ref": "#/$defs/digest"}
+          }
+        },
+        "entities": {"type": "array", "maxItems": 5120, "items": {"$ref": "#/$defs/compiled_entity"}},
+        "resource_usage": {"$ref": "#/$defs/resource_usage"},
+        "preflight_result": {"enum": ["accepted", "rejected"]},
+        "rejection_reason": {
+          "oneOf": [
+            {"type": "null"},
+            {"$ref": "#/$defs/rejection_reason"}
+          ]
+        }
+      }
+    },
+    "activation_stage": {
+      "enum": [
+        "prepared",
+        "inactive_writing",
+        "inactive_verified",
+        "selector_switching",
+        "selector_verified",
+        "current_committed",
+        "previous_retained",
+        "cleanup"
+      ]
+    },
+    "activation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["operation_id", "current_stage", "completed_stages", "expected_entries", "observed_entries", "mismatched_entries", "default_readback", "selector_readback", "result", "reason_code"],
+      "properties": {
+        "operation_id": {"$ref": "#/$defs/identity"},
+        "current_stage": {"$ref": "#/$defs/activation_stage"},
+        "completed_stages": {"type": "array", "uniqueItems": true, "items": {"$ref": "#/$defs/activation_stage"}},
+        "expected_entries": {"type": "integer", "minimum": 0, "maximum": 4096},
+        "observed_entries": {"type": "integer", "minimum": 0, "maximum": 4096},
+        "mismatched_entries": {"type": "integer", "minimum": 0, "maximum": 4096},
+        "default_readback": {"enum": ["exact", "missing", "mismatch"]},
+        "selector_readback": {"enum": ["old-bank", "new-bank", "missing", "mismatch"]},
+        "result": {"enum": ["prepared", "applied", "reconciling", "hold"]},
+        "reason_code": {"$ref": "#/$defs/reason_code"}
+      }
+    }
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "profile_id": "p4-mininet-bmv2/v1",
+  "applicability": "BMv2 simple_switch_grpc software target only",
+  "mininet": {
+    "package_version": "2.3.0-1ubuntu1",
+    "controller": "none",
+    "topology": "two isolated host namespaces and one external P4 switch",
+    "link_type": "TCLink",
+    "link_rate_mbps": 100,
+    "max_queue_packets": 1000,
+    "mtu": 9500
+  },
+  "target": {
+    "runtime_profile": "simple-switch-grpc-v1model/v1",
+    "runtime_image": "masi-nids/p4-switch-runtime@sha256:8b8655c2fb7bc5563706ee853fb668ba70457633cda7d93633d022b30b7ead42",
+    "device_id": 1,
+    "p4runtime_transport": "mutual-tls",
+    "ports": {"masi-s1": 1, "masi-s2": 2}
+  },
+  "oracles": {
+    "sender": "AF_PACKET byte-count readback in h1 namespace",
+    "installation": "exact public P4Runtime entity readback",
+    "match": "per-entry P4Runtime direct-counter readback",
+    "outcome": "independent tcpdump capture in h2 namespace"
+  },
+  "faults": ["switch-side link down", "switch-side link recovery"],
+  "cleanup": ["bounded tcpdump", "force-remove isolated target container", "Mininet stop", "container absence readback"]
+}

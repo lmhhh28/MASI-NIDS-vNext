@@ -1,0 +1,75 @@
+{
+  "schema_version": "qualification-profile/v1",
+  "profile_id": "p4-bmv2-functional-reference/v1",
+  "requirement_ids": ["DEC-001", "DEC-042", "PERF-002", "PERF-P4-FW-001", "TEST-P4-FW-001"],
+  "environment_profile": "contracts/profiles/v1/performance-environment-p4-bmv2-wsl2.json",
+  "soak_profile": "contracts/profiles/v1/qualification-soak-3600s.json",
+  "frame_bytes": 256,
+  "statistics": {
+    "warmup_seconds": 60,
+    "independent_repeats": 5,
+    "measurement_window_seconds": 30,
+    "confidence_level": 0.95,
+    "confidence_method": "deterministic-bootstrap-seed-1",
+    "outlier_policy": "retain-all"
+  },
+  "workload_resource_bounds": {
+    "maximum_packets_per_run": 4000000,
+    "maximum_samples_per_run": 400,
+    "latency_samples_per_phase": 65536,
+    "latency_sampling_method": "deterministic-reservoir-splitmix64/v1",
+    "latency_exact_max": true
+  },
+  "packet_oracle_runtime": {
+    "sender_execution": "multiprocessing-spawn/v1",
+    "sender_progress_publish_packets": 64,
+    "sender_send_buffer_requested_bytes": 4194304,
+    "capture_execution": "af-packet-thread/v1",
+    "capture_receive_buffer_requested_bytes": 16777216,
+    "capture_packet_statistics_required": true,
+    "capture_drain_timeout_ms": 2000,
+    "capture_drain_stable_intervals": 5
+  },
+  "packet_thresholds": {
+    "minimum_achieved_pps": 1000,
+    "minimum_achieved_bps": 2048000,
+    "maximum_latency_ms": {"p50": 5, "p95": 20, "p99": 50, "max": 250}
+  },
+  "rule_thresholds": [
+    {"rule_count": 0, "write_ms": 50, "readback_ms": 100, "selector_flip_ms": 10},
+    {"rule_count": 128, "write_ms": 100, "readback_ms": 150, "selector_flip_ms": 10},
+    {"rule_count": 1024, "write_ms": 750, "readback_ms": 750, "selector_flip_ms": 15},
+    {"rule_count": 4096, "write_ms": 2500, "readback_ms": 2500, "selector_flip_ms": 25}
+  ],
+  "operation_thresholds_ms": {"compile": 60000, "preflight": 10000, "rollback": 2500, "cleanup": 10000},
+  "resource_thresholds": {
+    "switch": {"cpu_pct": 400, "rss_bytes": 1073741824, "fd_count": 256, "thread_count": 128},
+    "runner": {"cpu_pct": 400, "rss_bytes": 2147483648, "fd_count": 512, "thread_count": 256},
+    "p4rpc_entity_queue": 256,
+    "oom_events": 0,
+    "unexpected_action_errors": 0,
+    "unclassified_admitted_packet_loss": 0
+  },
+  "workloads": {
+    "policy_mix": ["baseline-only", "response-only", "mixed"],
+    "actions": ["permit", "drop", "default"],
+    "distributions": ["uniform", "hotspot", "miss"],
+    "packet_classes": ["normal", "fragment", "malformed"],
+    "counter_and_telemetry": "always-on",
+    "control_plane_contention": "required",
+    "response_overlay_max_rules": 1024,
+    "mixed_overlay_fraction": 0.25
+  },
+  "soak_workload": {
+    "steady_pps": 500,
+    "peak_pps": 1000,
+    "saturation_requested_pps": 1500,
+    "saturation_minimum_achieved_pps": 1000,
+    "activation_pps": 1000,
+    "activation_interval_seconds": 30,
+    "activation_cycles": 30,
+    "rss_growth_max_bytes": 67108864,
+    "post_recovery_positive_fd_thread_queue_residual": 0
+  },
+  "qualification_limits": ["exact-wsl2-software-scope-only", "not-hardware", "not-line-rate", "not-production-ha"]
+}

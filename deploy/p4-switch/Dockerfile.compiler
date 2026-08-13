@@ -1,0 +1,18 @@
+FROM p4lang/p4c@sha256:c6b2c2a049486377b90e4f6bb919179dcfb518f5bdfe3a6dd63d0c0d63b32030
+
+# The compiler executable does not consume kernel development headers or the
+# stale Python protobuf distribution shipped by the upstream build image.
+# Remove both from the qualified compile-only closure after p4c is built.
+RUN dpkg --purge --force-depends linux-libc-dev \
+    && rm -rf /usr/local/lib/python3.12/site-packages/google/protobuf \
+       /usr/local/lib/python3.12/site-packages/protobuf-*.dist-info \
+       /root/.cache/uv \
+    && install -d -o 65532 -g 65532 -m 0755 /artifacts
+
+ARG SOURCE_DATE_EPOCH=1786406400
+LABEL org.opencontainers.image.title="MASI-NIDS hardened P4 compiler" \
+      org.opencontainers.image.source="https://github.com/p4lang/p4c" \
+      io.masi-nids.upstream.digest="sha256:c6b2c2a049486377b90e4f6bb919179dcfb518f5bdfe3a6dd63d0c0d63b32030" \
+      io.masi-nids.source-date-epoch="${SOURCE_DATE_EPOCH}"
+
+USER 65532:65532

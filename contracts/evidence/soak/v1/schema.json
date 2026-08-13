@@ -1,0 +1,199 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://masi-nids.example/contracts/evidence/soak/v1/schema.json",
+  "title": "QualificationSoakEvidenceV1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "run_id",
+    "module",
+    "requirement_ids",
+    "level",
+    "applicability",
+    "result",
+    "qualification",
+    "profile_digest",
+    "claim_scope_digest",
+    "started_at",
+    "finished_at",
+    "monotonic_start_ns",
+    "monotonic_end_ns",
+    "warmup_elapsed_ms",
+    "duration_target_ms",
+    "qualified_elapsed_ms",
+    "sample_interval_ms",
+    "phases",
+    "samples",
+    "summary",
+    "interruption",
+    "cleanup",
+    "artifacts"
+  ],
+  "properties": {
+    "schema_version": {"const": "qualification-soak/v1"},
+    "run_id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$"},
+    "module": {"type": "string", "pattern": "^[a-z][a-z0-9-]{1,63}$"},
+    "requirement_ids": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 32,
+      "uniqueItems": true,
+      "items": {"type": "string", "pattern": "^[A-Z][A-Z0-9-]{2,63}$"}
+    },
+    "level": {"enum": ["REHEARSAL", "MODULE", "PAIRWISE", "SYSTEM_E2E", "PRODUCTION"]},
+    "applicability": {"enum": ["APPLICABLE", "NOT_APPLICABLE"]},
+    "result": {"enum": ["PASS", "FAIL", "HOLD", "NOT_RUN"]},
+    "qualification": {"enum": ["QUALIFIED", "NOT_QUALIFIED"]},
+    "profile_digest": {"$ref": "#/$defs/digest"},
+    "claim_scope_digest": {"$ref": "#/$defs/digest"},
+    "started_at": {"type": "string", "format": "date-time"},
+    "finished_at": {"type": "string", "format": "date-time"},
+    "monotonic_start_ns": {"type": "integer", "minimum": 0},
+    "monotonic_end_ns": {"type": "integer", "minimum": 1},
+    "warmup_elapsed_ms": {"type": "integer", "minimum": 0, "maximum": 60000},
+    "duration_target_ms": {"const": 3600000},
+    "qualified_elapsed_ms": {"type": "integer", "minimum": 0, "maximum": 3660000},
+    "sample_interval_ms": {"type": "integer", "minimum": 1, "maximum": 10000},
+    "phases": {
+      "type": "array",
+      "minItems": 4,
+      "maxItems": 4,
+      "prefixItems": [
+        {"allOf": [{"$ref": "#/$defs/phase"}, {"properties": {"name": {"const": "steady"}}}]},
+        {"allOf": [{"$ref": "#/$defs/phase"}, {"properties": {"name": {"const": "peak"}}}]},
+        {"allOf": [{"$ref": "#/$defs/phase"}, {"properties": {"name": {"const": "saturation"}}}]},
+        {"allOf": [{"$ref": "#/$defs/phase"}, {"properties": {"name": {"const": "recovery-or-activation"}}}]}
+      ],
+      "items": false
+    },
+    "samples": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 400,
+      "items": {"$ref": "#/$defs/sample"}
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["error_count", "unclassified_gap_count", "oom_events", "container_restarts", "oracle_mismatches", "resource_limit_violations"],
+      "properties": {
+        "error_count": {"type": "integer", "minimum": 0},
+        "unclassified_gap_count": {"type": "integer", "minimum": 0},
+        "oom_events": {"type": "integer", "minimum": 0},
+        "container_restarts": {"type": "integer", "minimum": 0},
+        "oracle_mismatches": {"type": "integer", "minimum": 0},
+        "resource_limit_violations": {"type": "integer", "minimum": 0},
+        "module_metrics": {"$ref": "#/$defs/moduleMetrics"}
+      }
+    },
+    "interruption": {"enum": ["NONE", "CANCEL", "TIMEOUT", "CRASH", "EVIDENCE_FAILURE"]},
+    "cleanup": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["attempted", "completed", "exit_code", "remaining_resources"],
+      "properties": {
+        "attempted": {"type": "boolean"},
+        "completed": {"type": "boolean"},
+        "exit_code": {"type": "integer", "minimum": 0, "maximum": 255},
+        "remaining_resources": {"type": "array", "maxItems": 64, "items": {"type": "string", "maxLength": 256}}
+      }
+    },
+    "artifacts": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 128,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "sha256", "bytes"],
+        "properties": {
+          "name": {"type": "string", "minLength": 1, "maxLength": 256},
+          "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+          "bytes": {"type": "integer", "minimum": 0, "maximum": 1073741824}
+        }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"result": {"const": "PASS"}}, "required": ["result"]},
+      "then": {
+        "properties": {
+          "level": {"not": {"const": "REHEARSAL"}},
+          "applicability": {"const": "APPLICABLE"},
+          "qualification": {"const": "QUALIFIED"},
+          "qualified_elapsed_ms": {"minimum": 3600000},
+          "warmup_elapsed_ms": {"const": 60000},
+          "sample_interval_ms": {"const": 10000},
+          "interruption": {"const": "NONE"},
+          "summary": {
+            "properties": {
+              "error_count": {"const": 0},
+              "unclassified_gap_count": {"const": 0},
+              "oom_events": {"const": 0},
+              "container_restarts": {"const": 0},
+              "oracle_mismatches": {"const": 0},
+              "resource_limit_violations": {"const": 0}
+            }
+          },
+          "cleanup": {
+            "properties": {
+              "attempted": {"const": true},
+              "completed": {"const": true},
+              "exit_code": {"const": 0},
+              "remaining_resources": {"maxItems": 0}
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {"properties": {"level": {"const": "REHEARSAL"}}, "required": ["level"]},
+      "then": {"properties": {"qualification": {"const": "NOT_QUALIFIED"}}}
+    }
+  ],
+  "$defs": {
+    "digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "phase": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "planned_ms", "elapsed_ms", "result", "requested_rate_pps", "achieved_rate_pps", "errors"],
+      "properties": {
+        "name": {"type": "string"},
+        "planned_ms": {"const": 900000},
+        "elapsed_ms": {"type": "integer", "minimum": 0, "maximum": 930000},
+        "result": {"enum": ["PASS", "FAIL", "HOLD", "NOT_RUN"]},
+        "requested_rate_pps": {"type": "number", "minimum": 0},
+        "achieved_rate_pps": {"type": "number", "minimum": 0},
+        "errors": {"type": "integer", "minimum": 0},
+        "module_metrics": {"$ref": "#/$defs/moduleMetrics"}
+      }
+    },
+    "sample": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["offset_ms", "phase", "quality", "cpu_pct", "rss_bytes", "fd_count", "thread_count", "queue_depth", "oom_events", "container_restarts", "oracle_errors", "gap_count"],
+      "properties": {
+        "offset_ms": {"type": "integer", "minimum": 0, "maximum": 3660000},
+        "phase": {"enum": ["warmup", "steady", "peak", "saturation", "recovery-or-activation", "cleanup"]},
+        "quality": {"enum": ["valid", "gap", "not_measurable"]},
+        "cpu_pct": {"type": "number", "minimum": 0, "maximum": 100000},
+        "rss_bytes": {"type": "integer", "minimum": 0},
+        "fd_count": {"type": "integer", "minimum": 0},
+        "thread_count": {"type": "integer", "minimum": 0},
+        "queue_depth": {"type": "integer", "minimum": 0},
+        "oom_events": {"type": "integer", "minimum": 0},
+        "container_restarts": {"type": "integer", "minimum": 0},
+        "oracle_errors": {"type": "integer", "minimum": 0},
+        "gap_count": {"type": "integer", "minimum": 0},
+        "module_metrics": {"$ref": "#/$defs/moduleMetrics"}
+      }
+    },
+    "moduleMetrics": {
+      "type": "object",
+      "maxProperties": 64,
+      "additionalProperties": {"type": ["number", "integer", "string", "boolean", "null"]}
+    }
+  }
+}

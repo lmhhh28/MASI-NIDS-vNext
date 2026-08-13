@@ -1,0 +1,151 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://masi-nids.example/contracts/p4/rule-observation/v1/schema.json",
+  "title": "P4 Rule Observation V1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "observation_profile",
+    "target_id",
+    "device_id",
+    "role",
+    "assignment_generation",
+    "application_generation",
+    "effect_intent_id",
+    "operation_id",
+    "entity_id",
+    "rule_id",
+    "logical_rule_digest",
+    "policy_revision_digest",
+    "canonical_entry_digest",
+    "pipeline_identity",
+    "bank",
+    "table_id",
+    "direct_counter_id",
+    "match_priority_action_digest",
+    "installed_at",
+    "readback_at",
+    "expires_at",
+    "observation_epoch",
+    "reset_epoch",
+    "counter_semantics",
+    "sample",
+    "eligible_sample",
+    "installation_readback",
+    "packet_action_outcome",
+    "formula",
+    "quality"
+  ],
+  "properties": {
+    "schema_version": {"const": "p4-rule-observation/v1"},
+    "observation_profile": {"const": "p4-rule-observation-bmv2/v1"},
+    "target_id": {"$ref": "#/$defs/identity"},
+    "device_id": {"type": "integer", "minimum": 0},
+    "role": {"type": "string", "minLength": 1, "maxLength": 64},
+    "assignment_generation": {"type": "integer", "minimum": 1},
+    "application_generation": {"type": "integer", "minimum": 1},
+    "effect_intent_id": {"$ref": "#/$defs/identity"},
+    "operation_id": {"$ref": "#/$defs/identity"},
+    "entity_id": {"$ref": "#/$defs/identity"},
+    "rule_id": {"$ref": "#/$defs/identity"},
+    "logical_rule_digest": {"$ref": "#/$defs/digest"},
+    "policy_revision_digest": {"$ref": "#/$defs/digest"},
+    "canonical_entry_digest": {"$ref": "#/$defs/digest"},
+    "pipeline_identity": {"$ref": "#/$defs/pipeline_identity"},
+    "bank": {"type": "integer", "minimum": 0, "maximum": 1},
+    "table_id": {"type": "integer", "minimum": 1},
+    "direct_counter_id": {"type": "integer", "minimum": 1},
+    "match_priority_action_digest": {"$ref": "#/$defs/digest"},
+    "installed_at": {"type": "string", "format": "date-time"},
+    "readback_at": {"type": "string", "format": "date-time"},
+    "expires_at": {"oneOf": [{"type": "null"}, {"type": "string", "format": "date-time"}]},
+    "observation_epoch": {"type": "integer", "minimum": 1},
+    "reset_epoch": {"type": "integer", "minimum": 1},
+    "counter_semantics": {"$ref": "#/$defs/counter_semantics"},
+    "sample": {"$ref": "#/$defs/cumulative_sample"},
+    "eligible_sample": {"$ref": "#/$defs/cumulative_sample"},
+    "installation_readback": {"enum": ["exact", "missing", "mismatch", "not-measurable"]},
+    "packet_action_outcome": {"$ref": "#/$defs/outcome"},
+    "formula": {"const": "direct_delta/eligible_delta"},
+    "quality": {"$ref": "#/$defs/quality"}
+  },
+  "$defs": {
+    "identity": {"type": "string", "minLength": 1, "maxLength": 128},
+    "digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "pipeline_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["p4info_digest", "pipeline_digest", "capability_digest"],
+      "properties": {
+        "p4info_digest": {"$ref": "#/$defs/digest"},
+        "pipeline_digest": {"$ref": "#/$defs/digest"},
+        "capability_digest": {"$ref": "#/$defs/digest"}
+      }
+    },
+    "counter": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["packets", "bytes"],
+      "properties": {
+        "packets": {"type": "integer", "minimum": 0},
+        "bytes": {"type": "integer", "minimum": 0}
+      }
+    },
+    "counter_semantics": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["packet_width_bits", "byte_width_bits", "mode", "initial_value", "poll_clear"],
+      "properties": {
+        "packet_width_bits": {"const": 64},
+        "byte_width_bits": {"const": 64},
+        "mode": {"enum": ["wrap", "saturate"]},
+        "initial_value": {"const": 0},
+        "poll_clear": {"const": false}
+      }
+    },
+    "cumulative_sample": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sample_sequence", "read_started_at", "read_completed_at", "value", "order_status", "gap_status", "trace_id"],
+      "properties": {
+        "sample_sequence": {"type": "integer", "minimum": 1},
+        "read_started_at": {"type": "string", "format": "date-time"},
+        "read_completed_at": {"type": "string", "format": "date-time"},
+        "target_data_time": {"oneOf": [{"type": "null"}, {"type": "string", "format": "date-time"}]},
+        "value": {"$ref": "#/$defs/counter"},
+        "order_status": {"enum": ["in-order", "duplicate", "out-of-order", "conflict"]},
+        "gap_status": {"enum": ["none", "gap", "reset-or-wrap", "ambiguous"]},
+        "trace_id": {"type": "string", "minLength": 1, "maxLength": 64}
+      }
+    },
+    "outcome": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "oracle_id", "window_start", "window_end", "expected", "actual", "evidence_digest"],
+      "properties": {
+        "status": {"enum": ["observed", "not-observed", "not-measurable", "stale", "invalid"]},
+        "oracle_id": {"oneOf": [{"type": "null"}, {"$ref": "#/$defs/identity"}]},
+        "window_start": {"type": "string", "format": "date-time"},
+        "window_end": {"type": "string", "format": "date-time"},
+        "expected": {"enum": ["forwarded", "dropped", "mirrored", "not-measurable"]},
+        "actual": {"enum": ["forwarded", "dropped", "mirrored", "not-observed", "not-measurable"]},
+        "evidence_digest": {"oneOf": [{"type": "null"}, {"$ref": "#/$defs/digest"}]}
+      }
+    },
+    "quality": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "reasons", "coverage"],
+      "properties": {
+        "status": {"enum": ["valid", "partial", "gap", "stale", "no-eligible-traffic", "not-covered", "not-measurable", "invalid"]},
+        "reasons": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {"enum": ["NONE", "RESET", "WRAP", "SATURATED", "GAP", "DUPLICATE", "OUT_OF_ORDER", "IDENTITY_DRIFT", "PIPELINE_DRIFT", "NO_ELIGIBLE_TRAFFIC", "NO_PACKET_ORACLE", "COUNTER_UNSUPPORTED", "EXPIRED"]}
+        },
+        "coverage": {"type": "number", "minimum": 0, "maximum": 1}
+      }
+    }
+  }
+}

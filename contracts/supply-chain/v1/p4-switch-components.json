@@ -1,0 +1,139 @@
+{
+  "schema_version": "supply-chain-component-registry/v1",
+  "module": "p4-switch",
+  "components": [
+    {
+      "name": "p4c",
+      "decision": "ADOPT",
+      "digest": "sha256:8c26666dfa1041b0f9a29b5051c92dbf4ce5df807273f80dd54b3aff5412c926",
+      "license": "Apache-2.0",
+      "authority": "compile-only",
+      "runtime_download": false,
+      "failure": "compile gate HOLD",
+      "rollback": "re-pin prior qualified image",
+      "exit": "replace compiler while preserving P4 contracts"
+    },
+    {
+      "name": "BMv2 behavioral-model",
+      "decision": "ADOPT",
+      "digest": "sha256:8b8655c2fb7bc5563706ee853fb668ba70457633cda7d93633d022b30b7ead42",
+      "upstream_digest": "sha256:85905a1ecad8c26e1f746efdf9e66d3600ee743588b32fe5b65d7d3ad1c0157d",
+      "source_commit": "693e69e634fedf007964a069fdd69acc441a5f80",
+      "source_archive_sha256": "sha256:4bb79a5fd931dbe9d5e5539f8763498d87af9ddae9495f0dd45e849b0481672f",
+      "patch_sha256": "sha256:0f0665b4db472680e17c5f2d9f5eddfa1e78201f4097f7cf5dd614a690b2597a",
+      "patch_scopes": [
+        "bounded-graceful-shutdown",
+        "virtualized-builder-synchronization-test-timing"
+      ],
+      "license": "Apache-2.0",
+      "authority": "isolated software P4 target",
+      "runtime_download": false,
+      "failure": "target unavailable; no fallback writer",
+      "rollback": "restart exact image and replay exact pipeline through P4Runtime",
+      "exit": "qualify another target profile"
+    },
+    {
+      "name": "P4Runtime Python protos",
+      "decision": "ADOPT",
+      "version": "1.4.1",
+      "license": "Apache-2.0",
+      "authority": "test-controller protocol adapter only",
+      "runtime_download": false,
+      "failure": "module E2E HOLD",
+      "rollback": "restore locked test image",
+      "exit": "replace test adapter without changing wire contract"
+    },
+    {
+      "name": "PTF",
+      "decision": "ADOPT",
+      "version": "0.12.0",
+      "license": "Apache-2.0",
+      "authority": "isolated packet oracle only",
+      "runtime_download": false,
+      "failure": "packet/action gate NOT_RUN",
+      "rollback": "restore locked test image",
+      "exit": "replace isolated packet harness"
+    },
+    {
+      "name": "Scapy",
+      "decision": "CONDITIONAL",
+      "version": "2.6.1",
+      "license": "GPL-2.0-only",
+      "authority": "isolated generated-packet construction only",
+      "runtime_download": false,
+      "failure": "packet/action gate NOT_RUN",
+      "rollback": "restore locked test image",
+      "exit": "replace isolated packet encoder"
+    },
+    {
+      "name": "Tcpreplay",
+      "decision": "CONDITIONAL",
+      "version": "4.5.1",
+      "license": "GPL-3.0-only",
+      "authority": "isolated curated-PCAP sender only",
+      "runtime_download": false,
+      "failure": "curated-pcap traffic mode NOT_RUN",
+      "rollback": "restore locked test image",
+      "exit": "replace isolated replay sender"
+    },
+    {
+      "name": "Linux netem",
+      "decision": "ADOPT",
+      "version": "host-kernel-bound",
+      "license": "GPL-2.0-only",
+      "authority": "isolated link impairment only",
+      "runtime_download": false,
+      "failure": "fault-injection gate HOLD",
+      "rollback": "delete exact qdisc in finally block",
+      "exit": "replace isolated impairment provider"
+    },
+    {
+      "name": "P4 qualification runner dependency image",
+      "decision": "ADOPT",
+      "digest": "sha256:54d602c6947b0268a9c93e4e3ab06d9621f0a7b26aa32f6a85932db864c59552",
+      "version": "2026-08-12",
+      "license": "aggregate-see-SPDX-and-third-party-notices",
+      "authority": "isolated test dependencies only",
+      "runtime_download": false,
+      "failure": "module E2E and supply-chain gates HOLD",
+      "rollback": "restore exact signed dependency image archive",
+      "exit": "rebuild the dependency closure and pin a new digest"
+    },
+    {
+      "name": "Syft",
+      "decision": "ADOPT",
+      "digest": "sha256:5145aaf0384ca6db481c95e093e5c3b31a3b3f3af3dd3aadfb7529df88578019",
+      "version": "1.50.0",
+      "license": "Apache-2.0",
+      "authority": "offline SBOM generation only",
+      "runtime_download": false,
+      "failure": "supply-chain gate HOLD",
+      "rollback": "restore exact qualified tool image",
+      "exit": "replace SBOM generator while preserving SPDX contract"
+    },
+    {
+      "name": "Trivy",
+      "decision": "ADOPT",
+      "digest": "sha256:c6e969c5662a546ad5de4a73c2a6b7a7c627f86d916903e175aa623af5b97ada",
+      "version": "0.72.0",
+      "license": "Apache-2.0",
+      "authority": "offline vulnerability, secret, and misconfiguration scan only",
+      "runtime_download": false,
+      "failure": "supply-chain gate HOLD or FAIL according to frozen policy",
+      "rollback": "restore exact tool and database snapshot",
+      "exit": "replace scanner while preserving raw findings and policy semantics"
+    },
+    {
+      "name": "Cosign",
+      "decision": "ADOPT",
+      "digest": "sha256:cdb23f652a55fef7b4b3c0f02fe0742e5a7017709c76c574e05be9febcf5d86e",
+      "version": "3.0.6",
+      "license": "Apache-2.0",
+      "authority": "local-key artifact signing and offline verification only",
+      "runtime_download": false,
+      "failure": "signature or trust-policy gate FAIL",
+      "rollback": "restore non-revoked prior release key and re-sign a new immutable manifest",
+      "exit": "migrate signatures and verifier policy to organization PKI"
+    }
+  ]
+}

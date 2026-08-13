@@ -1,0 +1,13 @@
+{
+  "schema_version": "local-cosign-key-policy/v1",
+  "key_id": "p4-switch-bootstrap-2026-08",
+  "public_key_path": "contracts/trust/v1/cosign.pub",
+  "public_key_sha256": "sha256:7aff4c5d9f3c5a149fc649bc4d1d24e5be23b640974a4ed0f3c72151efcc5676",
+  "private_key_location": ".masi-secrets/cosign/cosign.key",
+  "private_key_tracked": false,
+  "passwordless_local_key_owner_authorization": "2026-08-12",
+  "scope": "one-time v1.18 bootstrap qualification artifacts",
+  "allowed_algorithm": "ECDSA-P256-SHA256",
+  "revocation_file": "contracts/trust/v1/revoked-keys.json",
+  "rotation": "replace key for the next release baseline or immediately on compromise"
+}

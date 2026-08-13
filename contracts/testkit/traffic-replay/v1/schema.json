@@ -1,0 +1,236 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://masi-nids.example/contracts/testkit/traffic-replay/v1/schema.json",
+  "title": "P4 Traffic Replay Scenario Manifest V1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "fixture_id",
+    "fixture_revision",
+    "fixture_class",
+    "manifest_digest",
+    "source",
+    "capture_inventory",
+    "ground_truth",
+    "topology",
+    "transformation",
+    "execution",
+    "impairment_environment",
+    "oracles",
+    "phases"
+  ],
+  "properties": {
+    "schema_version": {"const": "p4-traffic-replay/v1"},
+    "fixture_id": {"$ref": "#/$defs/identity"},
+    "fixture_revision": {"type": "integer", "minimum": 1},
+    "fixture_class": {"enum": ["generated-packet", "synthetic-flow", "curated-pcap", "live-session"]},
+    "manifest_digest": {"$ref": "#/$defs/digest"},
+    "source": {"$ref": "#/$defs/source"},
+    "capture_inventory": {"oneOf": [{"type": "null"}, {"$ref": "#/$defs/capture_inventory"}]},
+    "ground_truth": {"$ref": "#/$defs/ground_truth"},
+    "topology": {"$ref": "#/$defs/topology"},
+    "transformation": {"$ref": "#/$defs/transformation"},
+    "execution": {"$ref": "#/$defs/execution"},
+    "impairment_environment": {"$ref": "#/$defs/environment"},
+    "oracles": {"$ref": "#/$defs/oracles"},
+    "phases": {
+      "const": ["prepare", "preflight-readback", "send-or-session", "observe-oracle", "cleanup"]
+    }
+  },
+  "$defs": {
+    "identity": {"type": "string", "minLength": 1, "maxLength": 128},
+    "digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["reference", "acquired_at", "sha256", "byte_size", "producer", "producer_version", "citation", "license", "use_conditions", "redistribution", "payload_status", "sensitive_data", "malware_content", "sanitization", "retention_days"],
+      "properties": {
+        "reference": {"type": "string", "minLength": 1, "maxLength": 512},
+        "acquired_at": {"type": "string", "format": "date-time"},
+        "sha256": {"$ref": "#/$defs/digest"},
+        "byte_size": {"type": "integer", "minimum": 0, "maximum": 1073741824},
+        "producer": {"$ref": "#/$defs/identity"},
+        "producer_version": {"type": "string", "minLength": 1, "maxLength": 64},
+        "citation": {"type": "string", "minLength": 1, "maxLength": 1024},
+        "license": {"type": "string", "minLength": 1, "maxLength": 64},
+        "use_conditions": {"type": "string", "minLength": 1, "maxLength": 512},
+        "redistribution": {"enum": ["approved", "local-only", "rejected"]},
+        "payload_status": {"enum": ["none", "synthetic", "sanitized", "raw"]},
+        "sensitive_data": {"enum": ["none", "synthetic-only", "contains-sensitive"]},
+        "malware_content": {"enum": ["none", "benign-synthetic", "contains-malware"]},
+        "sanitization": {"type": "string", "minLength": 1, "maxLength": 512},
+        "retention_days": {"type": "integer", "minimum": 0, "maximum": 3650}
+      }
+    },
+    "capture_inventory": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["format", "link_type", "timestamp_resolution_ns", "snaplen", "packet_count", "wire_bytes", "captured_bytes", "flow_count", "first_time", "last_time", "truncated_packets", "malformed_packets"],
+      "properties": {
+        "format": {"enum": ["pcap", "pcapng"]},
+        "link_type": {"const": "DLT_EN10MB"},
+        "timestamp_resolution_ns": {"type": "integer", "minimum": 1},
+        "snaplen": {"type": "integer", "minimum": 64, "maximum": 1048576},
+        "packet_count": {"type": "integer", "minimum": 1, "maximum": 1000000},
+        "wire_bytes": {"type": "integer", "minimum": 1, "maximum": 1073741824},
+        "captured_bytes": {"type": "integer", "minimum": 1, "maximum": 1073741824},
+        "flow_count": {"type": "integer", "minimum": 1, "maximum": 1000000},
+        "first_time": {"type": "string", "format": "date-time"},
+        "last_time": {"type": "string", "format": "date-time"},
+        "truncated_packets": {"type": "integer", "minimum": 0},
+        "malformed_packets": {"type": "integer", "minimum": 0}
+      }
+    },
+    "ground_truth": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["taxonomy", "producer", "method", "granularity", "coverage", "ambiguity", "expected_action", "expected_detection", "digest"],
+      "properties": {
+        "taxonomy": {"type": "string", "minLength": 1, "maxLength": 128},
+        "producer": {"$ref": "#/$defs/identity"},
+        "method": {"type": "string", "minLength": 1, "maxLength": 256},
+        "granularity": {"enum": ["packet", "flow", "window", "session"]},
+        "coverage": {"type": "number", "minimum": 0, "maximum": 1},
+        "ambiguity": {"enum": ["none", "background", "ambiguous", "conflict", "unknown"]},
+        "expected_action": {"enum": ["forward", "drop", "mirror", "mixed"]},
+        "expected_detection": {"enum": ["not-applicable", "none", "present", "mixed", "unknown"]},
+        "digest": {"$ref": "#/$defs/digest"}
+      }
+    },
+    "topology": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["target_class", "target_profile", "p4_program_digest", "p4info_digest", "runner_namespace", "switch_namespace", "ingress_interface", "ingress_port", "expected_egress_interface", "expected_egress_port", "direction", "client_side", "server_side", "port_map", "vlan", "mtu"],
+      "properties": {
+        "target_class": {"const": "bmv2-software"},
+        "target_profile": {"const": "p4-stateless-firewall/v1"},
+        "p4_program_digest": {"$ref": "#/$defs/digest"},
+        "p4info_digest": {"$ref": "#/$defs/digest"},
+        "runner_namespace": {"$ref": "#/$defs/identity"},
+        "switch_namespace": {"$ref": "#/$defs/identity"},
+        "ingress_interface": {"$ref": "#/$defs/identity"},
+        "ingress_port": {"type": "integer", "minimum": 1, "maximum": 510},
+        "expected_egress_interface": {"$ref": "#/$defs/identity"},
+        "expected_egress_port": {"type": "integer", "minimum": 1, "maximum": 510},
+        "direction": {"enum": ["port1-to-port2", "port2-to-port1", "bidirectional"]},
+        "client_side": {"enum": ["port1", "port2", "both", "not-applicable"]},
+        "server_side": {"enum": ["port1", "port2", "both", "not-applicable"]},
+        "port_map": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["1", "2", "510"],
+          "properties": {"1": {"const": "masi-s1"}, "2": {"const": "masi-s2"}, "510": {"const": "cpu"}}
+        },
+        "vlan": {"oneOf": [{"type": "null"}, {"type": "integer", "minimum": 1, "maximum": 4094}]},
+        "mtu": {"const": 9500}
+      }
+    },
+    "transformation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["original_digest", "direction_cache_digest", "rewrite_digest", "output_digest", "seed", "changes"],
+      "properties": {
+        "original_digest": {"$ref": "#/$defs/digest"},
+        "direction_cache_digest": {"oneOf": [{"type": "null"}, {"$ref": "#/$defs/digest"}]},
+        "rewrite_digest": {"$ref": "#/$defs/digest"},
+        "output_digest": {"$ref": "#/$defs/digest"},
+        "seed": {"type": "integer", "minimum": 0},
+        "changes": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["mac", "ip", "port", "vlan", "ttl", "sequence", "checksum", "length", "mtu"],
+          "properties": {
+            "mac": {"type": "integer", "minimum": 0}, "ip": {"type": "integer", "minimum": 0},
+            "port": {"type": "integer", "minimum": 0}, "vlan": {"type": "integer", "minimum": 0},
+            "ttl": {"type": "integer", "minimum": 0}, "sequence": {"type": "integer", "minimum": 0},
+            "checksum": {"type": "integer", "minimum": 0}, "length": {"type": "integer", "minimum": 0},
+            "mtu": {"type": "integer", "minimum": 0}
+          }
+        }
+      }
+    },
+    "execution": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["traffic_mode", "runner_profile_id", "runner_backend_id", "runner_image_digest", "requested_value", "loop_count", "max_duration_ms", "max_packets", "max_wire_bytes", "preload", "warmup_packets", "repeat", "seed", "deadline_ms"],
+      "properties": {
+        "traffic_mode": {"enum": ["recorded-timing", "multiplier", "fixed-pps", "fixed-mbps", "topspeed"]},
+        "runner_profile_id": {"const": "p4-traffic-replay-bmv2-compose/v1"},
+        "runner_backend_id": {"enum": ["ptf-scapy/v1", "tcpreplay/v1", "bounded-live-session/v1"]},
+        "runner_image_digest": {"$ref": "#/$defs/digest"},
+        "requested_value": {"type": "number", "minimum": 0},
+        "loop_count": {"type": "integer", "minimum": 1, "maximum": 1000},
+        "max_duration_ms": {"type": "integer", "minimum": 1, "maximum": 3600000},
+        "max_packets": {"type": "integer", "minimum": 1, "maximum": 1000000},
+        "max_wire_bytes": {"type": "integer", "minimum": 64, "maximum": 1073741824},
+        "preload": {"type": "boolean"},
+        "warmup_packets": {"type": "integer", "minimum": 0, "maximum": 100000},
+        "repeat": {"type": "integer", "minimum": 1, "maximum": 100},
+        "seed": {"type": "integer", "minimum": 0},
+        "deadline_ms": {"type": "integer", "minimum": 1, "maximum": 3600000}
+      }
+    },
+    "environment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["impairment_digest", "netem", "kernel_profile", "iproute2_version", "bmv2_image_digest", "mininet_version", "veth", "offloads", "mtu", "cpu_profile", "cgroup_profile"],
+      "properties": {
+        "impairment_digest": {"$ref": "#/$defs/digest"},
+        "netem": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["delay_ms", "jitter_ms", "loss_percent", "duplicate_percent", "reorder_percent", "corrupt_percent", "rate_mbps", "queue_limit", "seed", "direction"],
+          "properties": {
+            "delay_ms": {"type": "integer", "minimum": 0, "maximum": 60000},
+            "jitter_ms": {"type": "integer", "minimum": 0, "maximum": 60000},
+            "loss_percent": {"type": "number", "minimum": 0, "maximum": 100},
+            "duplicate_percent": {"type": "number", "minimum": 0, "maximum": 100},
+            "reorder_percent": {"type": "number", "minimum": 0, "maximum": 100},
+            "corrupt_percent": {"type": "number", "minimum": 0, "maximum": 100},
+            "rate_mbps": {"oneOf": [{"type": "null"}, {"type": "integer", "minimum": 1}]},
+            "queue_limit": {"type": "integer", "minimum": 1, "maximum": 1000000},
+            "seed": {"type": "integer", "minimum": 0},
+            "direction": {"enum": ["none", "ingress", "egress", "bidirectional"]}
+          }
+        },
+        "kernel_profile": {"$ref": "#/$defs/identity"},
+        "iproute2_version": {"const": "6.15.0-1"},
+        "bmv2_image_digest": {"$ref": "#/$defs/digest"},
+        "mininet_version": {"oneOf": [{"type": "null"}, {"const": "2.3.0-1.1"}]},
+        "veth": {"const": true},
+        "offloads": {"const": "disabled-or-not-applicable-to-raw-veth"},
+        "mtu": {"const": 9500},
+        "cpu_profile": {"$ref": "#/$defs/identity"},
+        "cgroup_profile": {"$ref": "#/$defs/identity"}
+      }
+    },
+    "layer_oracle": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "expected", "tolerance"],
+      "properties": {
+        "status": {"enum": ["required", "not-applicable"]},
+        "expected": {"type": "integer", "minimum": 0, "maximum": 1000000},
+        "tolerance": {"type": "integer", "minimum": 0, "maximum": 1000000}
+      }
+    },
+    "oracles": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sender_attempted", "sender_accepted", "test_ingress", "dut_ingress", "dut_egress", "dut_drop", "direct_counter", "eligible_counter", "independent_action_outcome", "detection_result"],
+      "properties": {
+        "sender_attempted": {"$ref": "#/$defs/layer_oracle"},
+        "sender_accepted": {"$ref": "#/$defs/layer_oracle"},
+        "test_ingress": {"$ref": "#/$defs/layer_oracle"},
+        "dut_ingress": {"$ref": "#/$defs/layer_oracle"},
+        "dut_egress": {"$ref": "#/$defs/layer_oracle"},
+        "dut_drop": {"$ref": "#/$defs/layer_oracle"},
+        "direct_counter": {"$ref": "#/$defs/layer_oracle"},
+        "eligible_counter": {"$ref": "#/$defs/layer_oracle"},
+        "independent_action_outcome": {"$ref": "#/$defs/layer_oracle"},
+        "detection_result": {"$ref": "#/$defs/layer_oracle"}
+      }
+    }
+  }
+}

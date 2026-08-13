@@ -1,0 +1,53 @@
+{
+  "schema_version": "qualification-profile/v1",
+  "profile_id": "telemetry-p4-window/v1",
+  "source_profile_id": "p4-bounded-aggregate-dual-bank/v1",
+  "target_profile_id": "p4-stateless-firewall/v1",
+  "observation_domain": "per-target",
+  "observation_point": "p4-ingress-pre-firewall",
+  "resources": {
+    "banks": 2,
+    "cells_per_bank": 256,
+    "class_counters_per_bank": 5,
+    "max_entities_per_read": 256,
+    "read_deadline_ms": 2000,
+    "max_snapshot_bytes": 1048576,
+    "max_in_flight_snapshots": 1,
+    "max_gap_ranges": 64
+  },
+  "p4_entities": {
+    "selector_table_id": 33554694,
+    "cell_counter_id": 301990147,
+    "bank_counter_id": 301990148,
+    "class_counter_id": 301990149,
+    "sequence_register_id": 369099032,
+    "sequence_register_p4runtime_readback": false,
+    "digest_id": 388467505,
+    "packet_in_metadata_id": 67109121
+  },
+  "snapshot": {
+    "strategy": "flip-active-bank then read frozen-bank aggregate sequence before/cells/sequence after",
+    "consistent_when": "sequence_before equals sequence_after and all 256 cells are observed",
+    "clear": "explicit zero MODIFY with exact zero readback after snapshot is durable upstream",
+    "inconsistent": "partial/not-measurable"
+  },
+  "window": {
+    "max_duration_ms": 60000,
+    "allowed_lateness_ms": 1000,
+    "watermark": "target-aggregate-export-time",
+    "final_required_for_inference": true
+  },
+  "sampling": {
+    "algorithm": "sequence-modulo",
+    "period_packets": 1024,
+    "digest_max_list_size": 16,
+    "digest_max_timeout_ns": 100000000,
+    "digest_ack_timeout_ns": 1000000000,
+    "stream_queue_messages": 4096,
+    "coverage": "explicit expected/observed/drop; never reliable or full by implication"
+  },
+  "quality": ["valid", "partial", "gap", "stale", "not-covered", "not-measurable", "invalid"],
+  "flow_identity": "bounded hash of IPv4/IPv6 header metadata; fragment has explicit class and unavailable L4",
+  "raw_payload": false,
+  "fallback": "none"
+}

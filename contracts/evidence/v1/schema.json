@@ -1,0 +1,111 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://masi-nids.example/contracts/evidence/v1/schema.json",
+  "title": "MASI Qualification Evidence V1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "module",
+    "run_id",
+    "started_at",
+    "finished_at",
+    "level",
+    "applicability",
+    "result",
+    "qualification",
+    "claim_scope",
+    "environment",
+    "tests",
+    "performance",
+    "remaining_holds"
+  ],
+  "properties": {
+    "schema_version": {"const": "qualification-evidence/v1"},
+    "module": {"const": "p4-switch"},
+    "run_id": {"type": "string", "minLength": 1, "maxLength": 128},
+    "started_at": {"type": "string", "format": "date-time"},
+    "finished_at": {"type": "string", "format": "date-time"},
+    "level": {"enum": ["REHEARSAL", "MODULE", "PAIRWISE", "SYSTEM_E2E", "PRODUCTION"]},
+    "applicability": {"enum": ["APPLICABLE", "NOT_APPLICABLE"]},
+    "result": {"enum": ["PASS", "FAIL", "HOLD", "NOT_RUN"]},
+    "qualification": {"enum": ["QUALIFIED", "NOT_QUALIFIED"]},
+    "claim_scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "release_id",
+        "target_profile",
+        "runtime_profile",
+        "availability_profile",
+        "deployment_tier",
+        "topology_profile",
+        "environment_profile_digest",
+        "runtime_digest",
+        "program_digest",
+        "p4info_digest",
+        "device_config_digest",
+        "config_digest",
+        "contract_set_digest"
+      ],
+      "properties": {
+        "release_id": {"type": "string", "minLength": 1, "maxLength": 128},
+        "target_profile": {"const": "p4-stateless-firewall/v1"},
+        "runtime_profile": {"const": "simple-switch-grpc-v1model/v1"},
+        "availability_profile": {"const": "availability-single/v1"},
+        "deployment_tier": {"const": "acceptance"},
+        "topology_profile": {"const": "p4-traffic-replay-bmv2-compose/v1"},
+        "environment_profile_digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+        "runtime_digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+        "program_digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+        "p4info_digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+        "device_config_digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+        "config_digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+        "contract_set_digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}
+      }
+    },
+    "environment": {"type": "object", "minProperties": 1},
+    "tests": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "requirement_ids", "level", "applicability", "result", "qualification", "evidence"],
+        "properties": {
+          "id": {"type": "string", "minLength": 1, "maxLength": 128},
+          "requirement_ids": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": {"type": "string", "pattern": "^[A-Z][A-Z0-9-]+$"}
+          },
+          "level": {"enum": ["REHEARSAL", "MODULE", "PAIRWISE", "SYSTEM_E2E", "PRODUCTION"]},
+          "applicability": {"enum": ["APPLICABLE", "NOT_APPLICABLE"]},
+          "result": {"enum": ["PASS", "FAIL", "HOLD", "NOT_RUN"]},
+          "qualification": {"enum": ["QUALIFIED", "NOT_QUALIFIED"]},
+          "duration_ms": {"type": "number", "minimum": 0},
+          "evidence": {"type": "object"}
+        }
+      }
+    },
+    "performance": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["rule_count", "write_ms", "readback_ms", "selector_flip_ms", "packet_oracle_pps", "result", "qualification"],
+        "properties": {
+          "rule_count": {"enum": [0, 128, 1024, 4096]},
+          "write_ms": {"type": "number", "minimum": 0},
+          "readback_ms": {"type": "number", "minimum": 0},
+          "selector_flip_ms": {"type": "number", "minimum": 0},
+          "packet_oracle_pps": {"type": "number", "minimum": 0},
+          "result": {"enum": ["PASS", "FAIL", "HOLD", "NOT_RUN"]},
+          "qualification": {"enum": ["QUALIFIED", "NOT_QUALIFIED"]}
+        }
+      }
+    },
+    "remaining_holds": {"type": "array", "items": {"type": "string", "minLength": 1}}
+  }
+}

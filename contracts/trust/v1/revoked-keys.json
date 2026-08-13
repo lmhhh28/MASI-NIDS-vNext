@@ -1,0 +1,5 @@
+{
+  "schema_version": "local-release-key-revocation/v1",
+  "updated_at": "2026-08-12T00:00:00Z",
+  "revoked_sha256_fingerprints": []
+}

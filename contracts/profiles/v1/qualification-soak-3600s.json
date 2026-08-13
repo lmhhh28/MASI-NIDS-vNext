@@ -1,0 +1,26 @@
+{
+  "schema_version": "qualification-profile/v1",
+  "profile_id": "qualification-soak-3600s/v1",
+  "evidence_schema": "contracts/evidence/soak/v1/schema.json",
+  "warmup_seconds": 60,
+  "qualified_duration_seconds": 3600,
+  "sample_interval_seconds": 10,
+  "max_samples": 400,
+  "phases": [
+    {"name": "steady", "duration_seconds": 900},
+    {"name": "peak", "duration_seconds": 900},
+    {"name": "saturation", "duration_seconds": 900},
+    {"name": "recovery-or-activation", "duration_seconds": 900}
+  ],
+  "formal_duration_override": "reject",
+  "short_run": "REHEARSAL/NOT_QUALIFIED",
+  "pass_requires": [
+    "monotonic-qualified-elapsed-at-least-3600s",
+    "all-four-phases-pass",
+    "no-unclassified-gap",
+    "no-unexpected-interruption",
+    "no-resource-limit-violation",
+    "cleanup-complete"
+  ],
+  "pass_scope": "closes-only-the-applicable-soak-gate"
+}

@@ -1,0 +1,13 @@
+{
+  "schema_version": "qualification-profile/v1",
+  "profile_id": "qualification-evidence/v1",
+  "schema": "contracts/evidence/v1/schema.json",
+  "orthogonal_fields": {
+    "level": ["REHEARSAL", "MODULE", "PAIRWISE", "SYSTEM_E2E", "PRODUCTION"],
+    "applicability": ["APPLICABLE", "NOT_APPLICABLE"],
+    "result": ["PASS", "FAIL", "HOLD", "NOT_RUN"],
+    "qualification": ["QUALIFIED", "NOT_QUALIFIED"]
+  },
+  "required_claim_scope": ["release", "module", "runtime", "availability", "deployment_tier", "topology", "environment_profile", "artifact_digest", "image_digest", "config_digest", "contract_digest"],
+  "unknown_major": "reject"
+}

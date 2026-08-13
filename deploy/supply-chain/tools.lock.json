@@ -1,0 +1,23 @@
+{
+  "schema_version": "supply-chain-tools-lock/v1",
+  "platform": "linux/amd64",
+  "tools": {
+    "syft": {
+      "version": "1.50.0",
+      "image": "anchore/syft@sha256:5145aaf0384ca6db481c95e093e5c3b31a3b3f3af3dd3aadfb7529df88578019",
+      "license": "Apache-2.0"
+    },
+    "trivy": {
+      "version": "0.72.0",
+      "image": "aquasec/trivy@sha256:c6e969c5662a546ad5de4a73c2a6b7a7c627f86d916903e175aa623af5b97ada",
+      "license": "Apache-2.0"
+    },
+    "cosign": {
+      "version": "3.0.6",
+      "image": "gcr.io/projectsigstore/cosign@sha256:cdb23f652a55fef7b4b3c0f02fe0742e5a7017709c76c574e05be9febcf5d86e",
+      "license": "Apache-2.0"
+    }
+  },
+  "network_policy": "formal verification runs all tools with --network none",
+  "mutable_tag_policy": "forbidden"
+}

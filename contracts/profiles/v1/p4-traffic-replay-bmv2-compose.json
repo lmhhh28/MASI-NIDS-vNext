@@ -1,0 +1,35 @@
+{
+  "schema_version": "qualification-profile/v1",
+  "profile_id": "p4-traffic-replay-bmv2-compose/v1",
+  "runner_profile_id": "e2e-runner-compose/v1",
+  "target_class": "bmv2-software",
+  "target_profile_id": "p4-stateless-firewall/v1",
+  "allowed_fixture_classes": ["generated-packet", "synthetic-flow", "curated-pcap", "live-session"],
+  "manifest_digest": {
+    "algorithm": "SHA-256",
+    "canonicalization": "UTF-8 sorted-key compact JSON with the manifest_digest member omitted"
+  },
+  "backends": {
+    "ptf-scapy/v1": {"ptf": "0.12.0", "scapy": "2.6.1"},
+    "tcpreplay/v1": {"tcpreplay": "4.5.1", "link_type": "DLT_EN10MB"},
+    "bounded-live-session/v1": {"implementation": "PTF exact bidirectional state transcript", "max_frames": 5}
+  },
+  "network": {
+    "port_map": {"1": "masi-s1", "2": "masi-s2", "510": "cpu"},
+    "peer_map": {"masi-p1": "masi-s1", "masi-p2": "masi-s2"},
+    "mtu": 9500,
+    "offloads": "disabled-or-not-applicable-to-raw-veth",
+    "max_packets": 4000000,
+    "max_wire_bytes": 1073741824,
+    "max_duration_ms": 3600000
+  },
+  "impairment": {
+    "tool": "Linux netem",
+    "iproute2_container_version": "6.15.0-1",
+    "exact_qdisc_readback": true,
+    "cleanup_required": true
+  },
+  "oracle_layers": ["sender_attempted", "sender_accepted", "test_ingress", "dut_ingress", "dut_egress", "dut_drop", "direct_counter", "eligible_counter", "independent_action_outcome", "detection_result"],
+  "scenario_order": ["prepare", "preflight-readback", "send-or-session", "observe-oracle", "cleanup"],
+  "backend_fallback": "forbidden"
+}

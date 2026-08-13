@@ -1,0 +1,76 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://masi-nids.example/contracts/performance-environment/v1/schema.json",
+  "title": "PerformanceEnvironmentV1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "profile_id", "claim_scope", "host", "container_runtime", "resource_partitions", "qualification_limits"],
+  "properties": {
+    "schema_version": {"const": "performance-environment/v1"},
+    "profile_id": {"type": "string", "pattern": "^[a-z0-9-]+/v1$"},
+    "claim_scope": {"enum": ["software-functional-reference"]},
+    "host": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["architecture", "cpu_model", "logical_cpus", "physical_cores_exposed", "numa_nodes", "memory_bytes", "hypervisor", "kernel", "operating_system", "microcode", "cpufreq_governor"],
+      "properties": {
+        "architecture": {"const": "x86_64"},
+        "cpu_model": {"const": "13th Gen Intel(R) Core(TM) i9-13980HX"},
+        "logical_cpus": {"const": 8},
+        "physical_cores_exposed": {"const": 4},
+        "numa_nodes": {"const": 1},
+        "memory_bytes": {"const": 16565002240},
+        "hypervisor": {"const": "Microsoft WSL2"},
+        "kernel": {"const": "6.18.33.2-microsoft-standard-WSL2"},
+        "operating_system": {"const": "Ubuntu 22.04.5 LTS"},
+        "microcode": {"const": "0xffffffff"},
+        "cpufreq_governor": {"const": "unavailable"}
+      }
+    },
+    "container_runtime": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["docker_engine", "docker_api", "compose", "cgroup_version", "cgroup_driver", "storage_driver"],
+      "properties": {
+        "docker_engine": {"const": "29.5.0"},
+        "docker_api": {"const": "1.54"},
+        "compose": {"const": "5.1.3"},
+        "cgroup_version": {"const": 2},
+        "cgroup_driver": {"const": "systemd"},
+        "storage_driver": {"const": "overlayfs"}
+      }
+    },
+    "resource_partitions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["switch", "runner"],
+      "properties": {
+        "switch": {"$ref": "#/$defs/partition"},
+        "runner": {"$ref": "#/$defs/partition"}
+      }
+    },
+    "qualification_limits": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["not_hardware", "not_line_rate", "not_native_linux", "not_production_ha"],
+      "properties": {
+        "not_hardware": {"const": true},
+        "not_line_rate": {"const": true},
+        "not_native_linux": {"const": true},
+        "not_production_ha": {"const": true}
+      }
+    }
+  },
+  "$defs": {
+    "partition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["cpuset", "memory_bytes", "pids"],
+      "properties": {
+        "cpuset": {"type": "string", "pattern": "^[0-9]+-[0-9]+$"},
+        "memory_bytes": {"type": "integer", "minimum": 268435456},
+        "pids": {"type": "integer", "minimum": 32, "maximum": 4096}
+      }
+    }
+  }
+}

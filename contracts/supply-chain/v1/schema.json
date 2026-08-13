@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://masi-nids.example/contracts/supply-chain/v1/schema.json",
+  "title": "SupplyChainComponentRegistryV1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "module", "components"],
+  "properties": {
+    "schema_version": {"const": "supply-chain-component-registry/v1"},
+    "module": {"const": "p4-switch"},
+    "components": {
+      "type": "array",
+      "minItems": 11,
+      "maxItems": 128,
+      "items": {
+        "type": "object",
+        "required": ["name", "decision", "license", "authority", "failure", "rollback", "exit"],
+        "properties": {
+          "name": {"type": "string", "minLength": 1},
+          "decision": {"enum": ["ADOPT", "CONDITIONAL", "REJECT"]},
+          "digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+          "version": {"type": "string", "minLength": 1},
+          "license": {"type": "string", "minLength": 1},
+          "authority": {"type": "string", "minLength": 1},
+          "failure": {"type": "string", "minLength": 1},
+          "rollback": {"type": "string", "minLength": 1},
+          "exit": {"type": "string", "minLength": 1},
+          "runtime_download": {"const": false}
+        },
+        "anyOf": [{"required": ["digest"]}, {"required": ["version"]}]
+      }
+    }
+  }
+}

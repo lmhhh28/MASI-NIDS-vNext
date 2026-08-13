@@ -1,0 +1,12 @@
+{
+  "schema_version": "trivy-qualification-policy/v1",
+  "database_max_age_seconds": 86400,
+  "block": {
+    "secrets": ["UNKNOWN", "LOW", "MEDIUM", "HIGH", "CRITICAL"],
+    "vulnerabilities": ["CRITICAL", "fixable-HIGH"],
+    "misconfigurations": ["HIGH", "CRITICAL"]
+  },
+  "unfixed_high": "requires exact Owner exception with scope, risk, expiry, remediation and max qualification level",
+  "unknown_or_missing_database": "HOLD",
+  "scanner_success_does_not_replace": ["license", "signature", "provenance", "functional", "performance"]
+}

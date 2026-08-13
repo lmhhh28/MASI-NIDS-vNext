@@ -1,0 +1,118 @@
+{
+  "schema_version": "p4-firewall-policy/v1",
+  "target_profile": "p4-stateless-firewall/v1",
+  "target_class": "software-bmv2",
+  "target_id": "bmv2-test-1",
+  "device_id": 1,
+  "role": "masi-edge",
+  "assignment_generation": 1,
+  "application_generation": 1,
+  "pipeline_identity": {
+    "p4runtime_version": "1.3.0",
+    "p4info_digest": "sha256:23b6d3554ca11843b7e0324352ed09752f068a05abbecf16c16d08a9839d2241",
+    "device_config_digest": "sha256:06b99f73133ff8a7d0bfbcfe2b023ecdd5a9458f8e41afd5f11275e5d99d00ea",
+    "profile_digest": "sha256:dc3c6678795f3bd96b14b9d7767d76d6530974cccad4aa24e5c1a6fae6e78d23",
+    "cookie": "731047109"
+  },
+  "revision_id": "baseline-golden-1",
+  "revision_digest": "sha256:eddf003623482d3295f73b02b7d25741d2e2bbe47d061f1b9c4c98bad20bfcce",
+  "scope_digest": "sha256:aa712ab67d05e9671468cf223784c635d0c7c6525da1fe3de234a2cc0aac2775",
+  "actor_ref": "oidc-subject:platform-admin-1",
+  "reason_code": "BASELINE_REVISION",
+  "active_bank": 0,
+  "bank": 1,
+  "default_action": "permit-and-continue",
+  "rules": [
+    {
+      "rule_id": "drop-ssh-from-test-net",
+      "rule_revision": 1,
+      "canonical_rule_digest": "sha256:e823ac9e95b2dfad68ba3fa7c7de4e921a89d284f1f0bd975119974988a53f05",
+      "priority": 100,
+      "ingress_port": 1,
+      "src_ipv4": {"address": "192.0.2.0", "prefix_length": 24},
+      "dst_ipv4": {"address": "198.51.100.10", "prefix_length": 32},
+      "protocol": 6,
+      "l4_present": true,
+      "src_port": "wildcard",
+      "dst_port": 22,
+      "fragment_class": "unfragmented",
+      "action": "drop",
+      "enabled": true,
+      "actor_ref": "oidc-subject:platform-admin-1",
+      "reason_code": "DROP_SSH"
+    }
+  ],
+  "response_overlay": [
+    {
+      "rule_id": "temporary-drop",
+      "rule_revision": 1,
+      "canonical_rule_digest": "sha256:bb9b54c075dd08ec1d06ffaca21d4959ed71896aec1675ed52c45af88ca49357",
+      "stage_precedence": "before-baseline",
+      "src_ipv4": "192.0.2.10",
+      "dst_ipv4": "198.51.100.10",
+      "protocol": 6,
+      "src_port": 40000,
+      "dst_port": 443,
+      "action": "drop",
+      "enabled": true,
+      "expires_at": "2030-01-01T00:00:00Z",
+      "actor_ref": "oidc-subject:operator-2",
+      "reason_code": "INCIDENT_RESPONSE"
+    }
+  ],
+  "compiled_plan": {
+    "canonicalization": "p4-firewall-canonical/v1",
+    "plan_digest": "sha256:e8f573d0f07397c6d0ce2b1bc7253896ebd7f358ec09d481068241e86e87cfb7",
+    "atomicity": "CONTINUE_ON_ERROR",
+    "active_bank": 0,
+    "inactive_bank": 1,
+    "selector": {
+      "table_id": 33554690,
+      "expected_bank": 1,
+      "current_bank": 0,
+      "canonical_entry_digest": "sha256:4e8a352aa99848165769e4e8cd59ec7942cf69be18b1e50ad05094460b14a240"
+    },
+    "entities": [
+      {
+        "logical_rule_id": "drop-ssh-from-test-net",
+        "expansion_index": 0,
+        "bank": 1,
+        "table_id": 33554692,
+        "action_id": 16777476,
+        "canonical_entry_digest": "sha256:c3e27cc41bffe1f436d0c038df12c0cddd77f5ab9e28f559a79f75b68025bd19",
+        "direct_counter_id": 318767363,
+        "table_units": 1,
+        "counter_units": 1
+      }
+    ],
+    "resource_usage": {
+      "overlay_entries": 1,
+      "bank_0_entries": 0,
+      "bank_1_entries": 1,
+      "selector_entries": 1,
+      "direct_counter_units": 2,
+      "eligible_counter_units": 3,
+      "telemetry_cells": 512,
+      "total_physical_units": 520
+    },
+    "preflight_result": "accepted",
+    "rejection_reason": null
+  },
+  "activation": {
+    "operation_id": "fw-activation-golden-1",
+    "current_stage": "inactive_verified",
+    "completed_stages": ["prepared", "inactive_writing", "inactive_verified"],
+    "expected_entries": 1,
+    "observed_entries": 1,
+    "mismatched_entries": 0,
+    "default_readback": "exact",
+    "selector_readback": "old-bank",
+    "result": "prepared",
+    "reason_code": "READY_FOR_SELECTOR"
+  },
+  "unsupported": [
+    "UNSUPPORTED_IPV6_EFFECT",
+    "UNSUPPORTED_PORT_RANGE",
+    "UNSUPPORTED_L4_UNAVAILABLE"
+  ]
+}

@@ -1,0 +1,169 @@
+{
+  "schema_version": "qualification-profile/v1",
+  "profile_id": "p4-stateless-firewall/v1",
+  "target_class": "software-bmv2",
+  "target": {
+    "architecture": "v1model",
+    "language": "P4_16",
+    "runtime": "simple_switch_grpc",
+    "runtime_version": "1.15.5+masi.shutdown.1.testtiming.2",
+    "runtime_image": "masi-nids/p4-switch-runtime@sha256:8b8655c2fb7bc5563706ee853fb668ba70457633cda7d93633d022b30b7ead42",
+    "upstream_source_commit": "693e69e634fedf007964a069fdd69acc441a5f80",
+    "source_archive_sha256": "sha256:4bb79a5fd931dbe9d5e5539f8763498d87af9ddae9495f0dd45e849b0481672f",
+    "qualified_source_patch_sha256": "sha256:0f0665b4db472680e17c5f2d9f5eddfa1e78201f4097f7cf5dd614a690b2597a",
+    "qualified_source_patch_scopes": [
+      "bounded-graceful-shutdown",
+      "virtualized-builder-synchronization-test-timing"
+    ],
+    "p4runtime_capabilities_version": "1.3.0",
+    "test_client_proto_package_version": "1.4.1",
+    "compiler": "p4c-bm2-ss 1.2.5.14",
+    "compiler_image": "masi-nids/p4-switch-p4c@sha256:8c26666dfa1041b0f9a29b5051c92dbf4ce5df807273f80dd54b3aff5412c926",
+    "compiler_flags": ["--arch", "v1model", "--std", "p4-16", "--p4runtime-format", "text"]
+  },
+  "artifact_digests": {
+    "p4_source": "sha256:4e38d5bc749f3742e38ce5362536ad9af2cab8f232d0644bdb53d1e2e17507ec",
+    "bmv2_json": "sha256:b228cf7423f083711d9f5c1ee4f097df868b452119d6c56a2f263e30c443823c",
+    "p4info": "sha256:23b6d3554ca11843b7e0324352ed09752f068a05abbecf16c16d08a9839d2241",
+    "device_config_wire": "sha256:06b99f73133ff8a7d0bfbcfe2b023ecdd5a9458f8e41afd5f11275e5d99d00ea"
+  },
+  "startup": {
+    "args": ["--no-p4", "--device-id", "1", "--max-port-count", "512", "--grpc-server-ssl", "--grpc-server-with-client-auth", "--cpu-port", "510"],
+    "pipeline_load": "P4Runtime VERIFY_AND_COMMIT followed by GetForwardingPipelineConfig ALL readback",
+    "digest_drift": "reject-write/HOLD",
+    "port_drift": "startup-fail",
+    "shutdown_signals": ["SIGINT", "SIGTERM"],
+    "shutdown_grace_ms": 10000,
+    "required_clean_cycles_per_signal": 10,
+    "sigkill_after_grace": "FAIL:FORCED_KILL_FORBIDDEN"
+  },
+  "port_map": {"1": "masi-s1", "2": "masi-s2", "510": "cpu"},
+  "pipeline": {
+    "tables": {
+      "response_overlay": {"id": 33554689, "size": 1024, "match": "exact", "direct_counter_id": 318767361},
+      "policy_selector": {"id": 33554690, "size": 1, "match": "exact"},
+      "baseline_bank_0": {"id": 33554691, "size": 4096, "match": "ternary", "direct_counter_id": 318767362},
+      "baseline_bank_1": {"id": 33554692, "size": 4096, "match": "ternary", "direct_counter_id": 318767363},
+      "l2_forward": {"id": 33554693, "size": 1024, "match": "exact"},
+      "telemetry_selector": {"id": 33554694, "size": 1, "match": "exact"},
+      "telemetry_accumulate": {"id": 33554695, "size": 1024, "const": true},
+      "telemetry_sample_gate": {"id": 33554696, "size": 1024, "const": true}
+    },
+    "actions": {
+      "overlay_permit_and_continue": 16777473,
+      "overlay_drop": 16777474,
+      "baseline_permit_and_continue": 16777475,
+      "baseline_drop": 16777476,
+      "select_policy_bank_0": 16777477,
+      "select_policy_bank_1": 16777478,
+      "select_telemetry_bank_0": 16777479,
+      "select_telemetry_bank_1": 16777480,
+      "forward_to_port": 16777481,
+      "forwarding_drop": 16777482,
+      "emit_supplemental_samples": 16777488
+    },
+    "counters": {
+      "response_overlay_eligible_counter": {"id": 301990145, "size": 1, "unit": "packets-and-bytes"},
+      "baseline_eligible_counter": {"id": 301990146, "size": 2, "unit": "packets-and-bytes"},
+      "telemetry_cell_counter": {"id": 301990147, "size": 512, "unit": "packets-and-bytes"},
+      "telemetry_bank_counter": {"id": 301990148, "size": 2, "unit": "packets-and-bytes"},
+      "telemetry_class_counter": {"id": 301990149, "size": 10, "unit": "packets", "non_contract_byte_projection": "ignore"}
+    },
+    "registers": {
+      "telemetry_bank_sequence": {"id": 369099032, "size": 2, "width_bits": 64, "p4runtime_readback": "unsupported-by-exact-bmv2-pi"}
+    },
+    "digest": {"telemetry_hint_t": {"id": 388467505, "max_list_size": 16, "max_timeout_ns": 100000000, "ack_timeout_ns": 1000000000}},
+    "packet_in": {"metadata_id": 67109121, "clone_session": 99, "max_queue_messages": 4096, "sample_period_packets": 1024}
+  },
+  "match_widths": {
+    "ingress_port": 9,
+    "ipv4": 32,
+    "protocol": 8,
+    "l4_present": 1,
+    "l4_port": 16,
+    "fragment_class": 2,
+    "selector": 1,
+    "epoch": 32,
+    "sequence": 64
+  },
+  "parser": {
+    "ethernet": true,
+    "ipv4_ihl": 5,
+    "ipv4_options": "drop",
+    "ipv4_checksum_error": "drop",
+    "truncated_header": "drop",
+    "unsupported_ethertype": "observe-as-non-ip-and-forward-only-by-explicit-l2-entry",
+    "non_initial_fragment_l4": "unavailable",
+    "ipv6_effect": "unsupported",
+    "ipv6_telemetry": "supported"
+  },
+  "atomicity_readback": {
+    "write_profiles": ["CONTINUE_ON_ERROR"],
+    "rollback_on_error": false,
+    "canonical_readback": "field-presence/mask/priority/action sorted by entity identity",
+    "max_updates_per_write": 256,
+    "max_entities_per_read": 256,
+    "read_deadline_ms": 2000,
+    "max_read_bytes": 1048576,
+    "max_in_flight_reads": 1
+  },
+  "counter_semantics": {
+    "packet_width_bits": 64,
+    "byte_width_bits": 64,
+    "mode": "wrap",
+    "initial_value": 0,
+    "write_reset_supported": true,
+    "poll_clear": false,
+    "inactive_bank_excluded_from_current": true
+  },
+  "capacity": {
+    "response_overlay_entries": 1024,
+    "baseline_entries_per_bank": 4096,
+    "baseline_banks": 2,
+    "selector_entries": 1,
+    "direct_counter_units": 9216,
+    "eligible_counter_units": 3,
+    "telemetry_cells_per_bank": 256,
+    "telemetry_banks": 2,
+    "telemetry_class_counters": 10
+  },
+  "security": {
+    "p4runtime_transport": "mutual-tls",
+    "server_identity": "masi-switch",
+    "production_writer_count": 1,
+    "test_controller_scope": "isolated-module-only",
+    "unknown_major": "reject",
+    "unknown_minor": "reject-unless-compatibility-matrix-qualified",
+    "host_firewall_backend": false
+  },
+  "stable_rejection_reasons": [
+    "UNKNOWN_MAJOR", "UNKNOWN_MINOR", "P4INFO_DRIFT", "PIPELINE_DRIFT", "CAPABILITY_DRIFT",
+    "ROLE_ELECTION_MISMATCH", "ATOMICITY_UNSUPPORTED", "PARTIAL_WRITE", "READBACK_MISMATCH",
+    "SELECTOR_MISMATCH", "CAPACITY_EXCEEDED", "EQUAL_PRIORITY_CONFLICT", "UNBOUNDED_EXPANSION",
+    "UNSUPPORTED_IPV6_EFFECT", "UNSUPPORTED_PORT_RANGE", "UNSUPPORTED_L4_UNAVAILABLE", "UNSUPPORTED_FRAGMENT"
+  ],
+  "supported": [
+    "ipv4-stateless",
+    "response-overlay-exact-five-tuple",
+    "baseline-dual-bank-selector",
+    "direct-counters",
+    "eligible-counters",
+    "bounded-aggregate-dual-bank",
+    "digest-best-effort-hint",
+    "packetin-best-effort-hint"
+  ],
+  "unsupported": [
+    "ipv6-effect", "stateful", "nat", "rate-limit", "port-range", "hardware-target",
+    "p4runtime-register-readback", "dataplane-atomic-write"
+  ],
+  "performance_gate": {
+    "required_rule_counts": [0, 128, 1024, 4096],
+    "required_dimensions": ["compile", "write", "readback", "selector-flip", "packet-oracle", "overlay-churn", "telemetry-and-counter-enabled", "control-plane-contention", "3600s-soak"],
+    "absolute_threshold_status": "OWNER_FROZEN",
+    "threshold_profile": "contracts/profiles/v1/p4-bmv2-functional-reference.json",
+    "environment_profile": "contracts/profiles/v1/performance-environment-p4-bmv2-wsl2.json",
+    "soak_profile": "contracts/profiles/v1/qualification-soak-3600s.json",
+    "soak_duration_seconds": 3600,
+    "qualification_without_exact_profile_match": "HOLD/NOT_QUALIFIED"
+  }
+}

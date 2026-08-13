@@ -1,0 +1,22 @@
+{
+  "schema_version": "source-lock/v1",
+  "component_id": "bmv2-simple-switch-grpc",
+  "upstream": "https://github.com/p4lang/behavioral-model",
+  "source_commit": "693e69e634fedf007964a069fdd69acc441a5f80",
+  "source_archive": {
+    "filename": "behavioral-model-693e69e634fedf007964a069fdd69acc441a5f80.tar.gz",
+    "sha256": "4bb79a5fd931dbe9d5e5539f8763498d87af9ddae9495f0dd45e849b0481672f",
+    "size_bytes": 1301748
+  },
+  "patch": {
+    "path": "deploy/p4-switch/bmv2/0001-bounded-graceful-shutdown.patch",
+    "sha256": "0f0665b4db472680e17c5f2d9f5eddfa1e78201f4097f7cf5dd614a690b2597a",
+    "scopes": [
+      "bounded-graceful-shutdown",
+      "virtualized-builder-synchronization-test-timing"
+    ]
+  },
+  "build_base": "p4lang/behavioral-model@sha256:85905a1ecad8c26e1f746efdf9e66d3600ee743588b32fe5b65d7d3ad1c0157d",
+  "platform": "linux/amd64",
+  "source_date_epoch": 1786406400
+}
