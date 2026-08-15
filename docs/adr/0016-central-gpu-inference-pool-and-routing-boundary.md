@@ -5,13 +5,13 @@
 - 决策者：Owner
 - 需求基线：`vNext-requirements-1.13`（历史决策；现行基线见ADR-0017）
 - `document_status`: `historical_partially_superseded`
-- `current_normative_source`: `../masi-nids-vnext-system-requirements-2026-08-09.md@vNext-requirements-1.17`、ADR-0017、ADR-0006
+- `current_normative_source`: `../masi-nids-vnext-system-requirements-2026-08-09.md@vNext-requirements-1.18`、ADR-0017、ADR-0006
 - `implementation_authority`: `current_normative_source_only`
 - `qualification_authority`: `current_normative_source_only`
 - `retained_invariants`: 中央架构、Edge无本地推理、startup binding、唯一route、WAL/fence/readback/CAS与禁止自动fallback；仅因现行需求再次规定而有效
 - 关联需求：`BASE-001`、`CORE-002`、`CORE-MODEL-001`、`ARCH-003`、`ARCH-005`、`ARCH-MODEL-001`、`ARCH-TELEMETRY-001`、`MOD-EDGE-001`、`MOD-INF-001`、`MOD-CTRL-001`、`CONTRACT-INFERENCE-001`、`CONTRACT-MODEL-001`、`CONTRACT-PROFILE-001`、`FUNC-INF-001`、`FUNC-INF-MODEL-001`、`DB-MODEL-001`、`PERF-INF-001`、`PERF-TEL-INF-001`、`REL-INF-001`、`REL-INF-POOL-001`、`SEC-TEL-INF-001`、`DEP-INF-001`、`DEP-TEL-INF-001`、`OBS-INF-001`、`OBS-TEL-INF-001`、`TEST-INF-001`、`TEST-TEL-INF-001`、`MIG-INF-001`、`MIG-TEL-INF-001`、`DEC-002`、`DEC-026`、`DEC-027`、`DEC-028`、`DEC-030`、`DEC-033`、`DEC-034`
 - 部分替代：ADR-0010、ADR-0011、ADR-0013 中的 Edge-local C++ placement、本机 SPSC transport、逐 shard 重启本地 C++ 与“不采用 Triton runtime”结论；其 immutable bundle、startup-bound load、Edge 唯一路由、WAL、fence、readback/CAS、无事务跨外部等待和无在线 shadow 等语义继续有效
-- 后续决策：ADR-0017/0006 与 `vNext-requirements-1.17` 替代本 ADR 的“CUDA 是唯一首期 runtime profile”“所有部署均强制 N+1”、资格聚合和正式 E2E 证据范围；本 ADR 所列保留不变量仅通过现行来源继续有效
+- 后续决策：ADR-0017/0006 与 `vNext-requirements-1.18` 替代本 ADR 的“CUDA 是唯一首期 runtime profile”“所有部署均强制 N+1”、资格聚合和正式 E2E 证据范围；本 ADR 所列保留不变量仅通过现行来源继续有效
 
 > **历史文档：不可作为实现或PASS依据。** 本文完整保留 v1.13 的决策上下文供追溯。现行实现不得从“拒绝 CPU fallback”推导出“拒绝显式 CPU 启动 profile”；只能依据ADR-0017/0006与v1.17需求实现和验收。
 
@@ -290,7 +290,7 @@ KServe官方架构包含控制面、数据面、Storage Initializer、queue-prox
 - idempotency：same request/same digest多attempt只产生一个Event；different digest/conflicting output拒绝；
 - rollout：new pool start/readback/capacity、逐sharddrain/CAS/commit、mixed、old drain、exact rollback；
 - recovery：Gateway/Triton/GPU/Edge/Go/DB crash、response loss、PITR incarnation和old worker late result；
-- performance：target observation→Event ACK端到端，分段网络/Gateway/Triton/ORT/GPU/copy/WAL/DB；steady/peak/N+1/rolling/saturation/24h soak；
+- performance：target observation→Event ACK端到端，分段网络/Gateway/Triton/ORT/GPU/copy/WAL/DB；steady/peak/N+1/rolling/saturation/3,600 秒 soak；
 - 所有绝对GPU、网络、batch、queue、WAL、p99、failure-domain和rollback门槛未冻结前保持`HOLD/NOT RUN`。
 
 ## 参考

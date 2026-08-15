@@ -1,0 +1,90 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://masi-nids.example/contracts/evidence/module-findings/v1/schema.json",
+  "title": "Module findings registry",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "module_id",
+    "decision_id",
+    "reviewed_at",
+    "review_scope",
+    "findings"
+  ],
+  "properties": {
+    "schema_version": {"const": "module-findings/v1"},
+    "module_id": {"const": "MOD-EDGE-001"},
+    "decision_id": {"const": "DEC-044"},
+    "reviewed_at": {"type": "string", "format": "date-time"},
+    "review_scope": {"type": "string", "minLength": 1, "maxLength": 512},
+    "findings": {
+      "type": "array",
+      "maxItems": 4096,
+      "uniqueItems": true,
+      "items": {"$ref": "#/$defs/finding"}
+    }
+  },
+  "$defs": {
+    "finding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "finding_id",
+        "severity",
+        "status",
+        "title",
+        "requirement_ids",
+        "evidence_refs",
+        "opened_at",
+        "closed_at",
+        "resolution"
+      ],
+      "properties": {
+        "finding_id": {"type": "string", "pattern": "^EDGE-[A-Z0-9][A-Z0-9-]{2,126}$"},
+        "severity": {"enum": ["P0", "P1", "P2", "P3"]},
+        "status": {"enum": ["OPEN", "CLOSED"]},
+        "title": {"type": "string", "minLength": 1, "maxLength": 256},
+        "requirement_ids": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 64,
+          "uniqueItems": true,
+          "items": {"type": "string", "pattern": "^[A-Z][A-Z0-9-]+-[0-9]{3}$"}
+        },
+        "evidence_refs": {
+          "type": "array",
+          "maxItems": 64,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 512,
+            "pattern": "^(?:edge-rs|contracts|docs)/[A-Za-z0-9._:/-]+$",
+            "not": {"pattern": "(?:^|/)\\.\\.(?:/|$)"}
+          }
+        },
+        "opened_at": {"type": "string", "format": "date-time"},
+        "closed_at": {"type": ["string", "null"], "format": "date-time"},
+        "resolution": {"type": ["string", "null"], "minLength": 1, "maxLength": 1024}
+      },
+      "allOf": [
+        {
+          "if": {"properties": {"status": {"const": "OPEN"}}, "required": ["status"]},
+          "then": {
+            "properties": {
+              "closed_at": {"type": "null"},
+              "resolution": {"type": "null"}
+            }
+          },
+          "else": {
+            "properties": {
+              "closed_at": {"type": "string", "format": "date-time"},
+              "resolution": {"type": "string", "minLength": 1, "maxLength": 1024}
+            }
+          }
+        }
+      ]
+    }
+  }
+}

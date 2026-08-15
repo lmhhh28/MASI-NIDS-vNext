@@ -3,7 +3,7 @@
 - 状态：Accepted
 - 日期：2026-08-10
 - 决策者：Owner
-- 需求基线：原始决策 `vNext-requirements-1.6`；当前适用基线 `vNext-requirements-1.17`
+- 需求基线：原始决策 `vNext-requirements-1.6`；当前适用基线 `vNext-requirements-1.18`
 - 关联需求：`CORE-PLUGIN-001`、`ARCH-003`、`ARCH-PLUGIN-001`、`MOD-CTRL-001`、`MOD-PLUGIN-001`、`CONTRACT-PLUGIN-001`、`CONTRACT-PLUGIN-002`、`PLUGIN-PLAT-001` 至 `PLUGIN-PLAT-006`、`DB-PLUGIN-001`、`PERF-PLUGIN-001`、`REL-PLUGIN-001`、`SEC-PLUGIN-001`、`SEC-PLUGIN-002`、`DEP-PLUGIN-001`、`TEST-PLUGIN-001`、`MIG-PLUGIN-001`
 
 ## 背景

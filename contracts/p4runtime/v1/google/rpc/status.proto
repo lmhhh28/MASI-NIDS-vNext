@@ -1,0 +1,11 @@
+// Wire-compatible subset of google.rpc.Status used by P4Runtime arbitration.
+// The details field intentionally remains opaque at the Edge boundary.
+syntax = "proto3";
+
+package google.rpc;
+
+message Status {
+  int32 code = 1;
+  string message = 2;
+  repeated bytes details = 3;
+}

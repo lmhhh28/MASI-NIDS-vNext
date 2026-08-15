@@ -147,5 +147,12 @@
         "coverage": {"type": "number", "minimum": 0, "maximum": 1}
       }
     }
-  }
+  },
+  "x-masi-semantic-constraints": [
+    {"constraint_id": "RULE-READBACK-TIME", "operator": "nondecreasing-time", "fields": ["/installed_at", "/readback_at", "/sample/read_started_at", "/sample/read_completed_at"]},
+    {"constraint_id": "RULE-SAMPLE-PAIR", "operator": "all-equal-pairs", "pairs": [["/sample/sample_sequence", "/eligible_sample/sample_sequence"], ["/sample/trace_id", "/eligible_sample/trace_id"]]},
+    {"constraint_id": "RULE-ELIGIBLE-DOMINATES", "left": "/sample/value", "operator": "counter-lte", "right": "/eligible_sample/value"},
+    {"constraint_id": "RULE-OUTCOME-WINDOW", "left": "/packet_action_outcome/window_start", "operator": "lt-time", "right": "/packet_action_outcome/window_end"},
+    {"constraint_id": "RULE-VALID-LAYERS", "operator": "valid-requires-exact-in-order-no-gap", "fields": ["/quality/status", "/installation_readback", "/sample/order_status", "/sample/gap_status"]}
+  ]
 }

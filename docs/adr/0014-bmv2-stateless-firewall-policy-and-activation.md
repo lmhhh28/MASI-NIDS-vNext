@@ -3,7 +3,7 @@
 - 状态：Accepted
 - 日期：2026-08-11
 - 决策者：Owner
-- 需求基线：`vNext-requirements-1.17`
+- 需求基线：`vNext-requirements-1.18`
 - 关联需求：`ARCH-FW-001`、`ARCH-003`、`ARCH-004`、`ARCH-REUSE-001`、`ARCH-TARGET-FLEET-001`、`MOD-SW-FW-001`、`MOD-TARGET-FLEET-001`、`CONTRACT-P4-001`、`CONTRACT-P4-FW-001`、`CONTRACT-RULE-001`、`CONTRACT-TRAFFIC-001`、`CONTRACT-TARGET-001`、`CONTRACT-FLEET-EFFECT-001`、`FUNC-EFFECT-001`、`FUNC-GOV-001`、`FUNC-FW-001`、`FUNC-TARGET-FLEET-001`、`WEB-FW-001`、`WEB-TARGET-FLEET-001`、`DB-FW-001`、`DB-TARGET-FLEET-001`、`PERF-P4-FW-001`、`PERF-TARGET-FLEET-001`、`REL-P4-FW-001`、`REL-TARGET-FLEET-001`、`SEC-P4-FW-001`、`SEC-TARGET-FLEET-001`、`DEP-P4-FW-001`、`OBS-P4-FW-001`、`TEST-P4-FW-001`、`TEST-TARGET-FLEET-001`、`MIG-P4-FW-001`、`ACCEPT-001`、`DEC-031`、`DEC-032`
 
 ## 背景
@@ -152,7 +152,7 @@ UI 必须明确显示 `draft/validated/authorized/activating/current/previous/un
 
 兼容性来自 normalized IR 与 target compiler 分离。未来硬件或另一 P4 architecture 实现自己的 compiler/profile，并复用 Go policy/governance/API；它必须以 old/new contract matrix、真实 target packet/counter/capacity/atomicity evidence 获得资格。首期不会为了“通用”预先实现未证实 target 的最低公分母。
 
-绝对门槛必须在 `performance-environment/v1` 与 `p4-target-fleet/v1` 冻结后测试每 target 0/128/1,024/4,096 normalized rules、最坏合法展开、compile、inactive write/readback、selector flip/readback、rollback/reconcile、overlay churn/expiry、packet p50/p95/p99、throughput、CPU/RSS，以及 0/1/2/N target、最大 wave/parallel child、一个慢/断连 target、公平隔离和 24 小时 soak。门槛或 N 未冻结时只能 `HOLD/NOT RUN`。
+绝对门槛必须在 `performance-environment/v1` 与 `p4-target-fleet/v1` 冻结后测试每 target 0/128/1,024/4,096 normalized rules、最坏合法展开、compile、inactive write/readback、selector flip/readback、rollback/reconcile、overlay churn/expiry、packet p50/p95/p99、throughput、CPU/RSS，以及 0/1/2/N target、最大 wave/parallel child、一个慢/断连 target、公平隔离和 3,600 秒 soak。门槛或 N 未冻结时只能 `HOLD/NOT RUN`。
 
 ### 9. 成熟方案复用矩阵
 
@@ -218,7 +218,7 @@ greenfield 不导入 legacy ACL runtime/schema/writer、host firewall rule 或�
 - raw TableEntry/P4 code/shell、Plugin/LLM/UI bypass、second writer credential negative；
 - host UFW/nftables/iptables/eBPF contamination negative；
 - installation/match/outcome 分层、no traffic/reset/gap/not measurable 与 Frontend timeline；
-- compile/write/readback/flip/reconcile packet performance、control-plane contention、resource saturation 和 24 小时 soak；
+- compile/write/readback/flip/reconcile packet performance、control-plane contention、resource saturation 和 3,600 秒 soak；
 - BMv2 software-only 与未来硬件 profile 证据不可互相提升。
 
 当前仓库尚处初始化阶段，上述实现和资格证据不存在；因此 ADR 已接受不代表模块或系统 PASS，状态保持 `HOLD/NOT RUN`。

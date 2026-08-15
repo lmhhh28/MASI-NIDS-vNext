@@ -14,6 +14,7 @@
     "result",
     "qualification",
     "profile_digest",
+    "claim_scope",
     "claim_scope_digest",
     "started_at",
     "finished_at",
@@ -25,6 +26,7 @@
     "sample_interval_ms",
     "phases",
     "samples",
+    "lease_renewals",
     "summary",
     "interruption",
     "cleanup",
@@ -46,12 +48,13 @@
     "result": {"enum": ["PASS", "FAIL", "HOLD", "NOT_RUN"]},
     "qualification": {"enum": ["QUALIFIED", "NOT_QUALIFIED"]},
     "profile_digest": {"$ref": "#/$defs/digest"},
+    "claim_scope": {"$ref": "#/$defs/claimScope"},
     "claim_scope_digest": {"$ref": "#/$defs/digest"},
     "started_at": {"type": "string", "format": "date-time"},
     "finished_at": {"type": "string", "format": "date-time"},
     "monotonic_start_ns": {"type": "integer", "minimum": 0},
     "monotonic_end_ns": {"type": "integer", "minimum": 1},
-    "warmup_elapsed_ms": {"type": "integer", "minimum": 0, "maximum": 60000},
+    "warmup_elapsed_ms": {"type": "integer", "minimum": 0, "maximum": 90000},
     "duration_target_ms": {"const": 3600000},
     "qualified_elapsed_ms": {"type": "integer", "minimum": 0, "maximum": 3660000},
     "sample_interval_ms": {"type": "integer", "minimum": 1, "maximum": 10000},
@@ -73,6 +76,11 @@
       "maxItems": 400,
       "items": {"$ref": "#/$defs/sample"}
     },
+    "lease_renewals": {
+      "type": "array",
+      "maxItems": 64,
+      "items": {"$ref": "#/$defs/leaseRenewal"}
+    },
     "summary": {
       "type": "object",
       "additionalProperties": false,
@@ -91,12 +99,13 @@
     "cleanup": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["attempted", "completed", "exit_code", "remaining_resources"],
+      "required": ["attempted", "completed", "exit_code", "remaining_resources", "checks"],
       "properties": {
         "attempted": {"type": "boolean"},
         "completed": {"type": "boolean"},
         "exit_code": {"type": "integer", "minimum": 0, "maximum": 255},
-        "remaining_resources": {"type": "array", "maxItems": 64, "items": {"type": "string", "maxLength": 256}}
+        "remaining_resources": {"type": "array", "maxItems": 64, "items": {"type": "string", "maxLength": 256}},
+        "checks": {"$ref": "#/$defs/cleanupChecks"}
       }
     },
     "artifacts": {
@@ -124,7 +133,7 @@
           "applicability": {"const": "APPLICABLE"},
           "qualification": {"const": "QUALIFIED"},
           "qualified_elapsed_ms": {"minimum": 3600000},
-          "warmup_elapsed_ms": {"const": 60000},
+          "warmup_elapsed_ms": {"minimum": 60000, "maximum": 90000},
           "sample_interval_ms": {"const": 10000},
           "interruption": {"const": "NONE"},
           "summary": {
@@ -142,11 +151,75 @@
               "attempted": {"const": true},
               "completed": {"const": true},
               "exit_code": {"const": 0},
-              "remaining_resources": {"maxItems": 0}
+              "remaining_resources": {"maxItems": 0},
+              "checks": {"$ref": "#/$defs/successfulCleanupChecks"}
             }
           }
         }
       }
+    },
+    {
+      "if": {
+        "properties": {
+          "level": {"const": "MODULE"},
+          "result": {"enum": ["PASS", "HOLD"]}
+        },
+        "required": ["level", "result"]
+      },
+      "then": {
+        "properties": {
+          "warmup_elapsed_ms": {"minimum": 60000, "maximum": 90000},
+          "qualified_elapsed_ms": {"minimum": 3600000},
+          "sample_interval_ms": {"const": 10000},
+          "interruption": {"const": "NONE"},
+          "phases": {
+            "prefixItems": [
+              {"allOf": [{"$ref": "#/$defs/formalPhase"}, {"properties": {"name": {"const": "steady"}}}]},
+              {"allOf": [{"$ref": "#/$defs/formalPhase"}, {"properties": {"name": {"const": "peak"}}}]},
+              {"allOf": [{"$ref": "#/$defs/formalPhase"}, {"properties": {"name": {"const": "saturation"}}}]},
+              {"allOf": [{"$ref": "#/$defs/formalPhase"}, {"properties": {"name": {"const": "recovery-or-activation"}}}]}
+            ]
+          },
+          "summary": {
+            "properties": {
+              "error_count": {"const": 0},
+              "unclassified_gap_count": {"const": 0},
+              "oom_events": {"const": 0},
+              "container_restarts": {"const": 0},
+              "oracle_mismatches": {"const": 0},
+              "resource_limit_violations": {"const": 0},
+              "module_metrics": {
+                "required": ["formal_schedule_executed", "absolute_threshold_status", "warmup_actual_ms"],
+                "properties": {
+                  "formal_schedule_executed": {"const": true},
+                  "absolute_threshold_status": {"type": "string", "minLength": 1},
+                  "warmup_actual_ms": {"minimum": 60000, "maximum": 90000}
+                }
+              }
+            }
+          },
+          "cleanup": {
+            "properties": {
+              "attempted": {"const": true},
+              "completed": {"const": true},
+              "exit_code": {"const": 0},
+              "remaining_resources": {"maxItems": 0},
+              "checks": {"$ref": "#/$defs/successfulCleanupChecks"}
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "module": {"const": "rust-edge-agent"},
+          "level": {"const": "MODULE"},
+          "result": {"enum": ["PASS", "HOLD"]}
+        },
+        "required": ["module", "level", "result"]
+      },
+      "then": {"properties": {"lease_renewals": {"minItems": 1}}}
     },
     {
       "if": {"properties": {"level": {"const": "REHEARSAL"}}, "required": ["level"]},
@@ -155,6 +228,175 @@
   ],
   "$defs": {
     "digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "cleanupChecks": {
+      "oneOf": [
+        {"$ref": "#/$defs/edgeCleanupChecks"},
+        {"$ref": "#/$defs/genericCleanupChecks"}
+      ]
+    },
+    "edgeCleanupChecks": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "edge_process_reaped",
+        "p4_server_task_joined",
+        "inference_server_task_joined",
+        "control_server_task_joined",
+        "p4_listener_released",
+        "inference_listener_released",
+        "control_listener_released"
+      ],
+      "properties": {
+        "edge_process_reaped": {"type": "boolean"},
+        "p4_server_task_joined": {"type": "boolean"},
+        "inference_server_task_joined": {"type": "boolean"},
+        "control_server_task_joined": {"type": "boolean"},
+        "p4_listener_released": {"type": "boolean"},
+        "inference_listener_released": {"type": "boolean"},
+        "control_listener_released": {"type": "boolean"}
+      }
+    },
+    "genericCleanupChecks": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["module_process_reaped", "provider_tasks_joined", "listeners_released"],
+      "properties": {
+        "module_process_reaped": {"type": "boolean"},
+        "provider_tasks_joined": {"type": "boolean"},
+        "listeners_released": {"type": "boolean"}
+      }
+    },
+    "successfulCleanupChecks": {
+      "oneOf": [
+        {
+          "allOf": [
+            {"$ref": "#/$defs/edgeCleanupChecks"},
+            {
+              "properties": {
+                "edge_process_reaped": {"const": true},
+                "p4_server_task_joined": {"const": true},
+                "inference_server_task_joined": {"const": true},
+                "control_server_task_joined": {"const": true},
+                "p4_listener_released": {"const": true},
+                "inference_listener_released": {"const": true},
+                "control_listener_released": {"const": true}
+              }
+            }
+          ]
+        },
+        {
+          "allOf": [
+            {"$ref": "#/$defs/genericCleanupChecks"},
+            {
+              "properties": {
+                "module_process_reaped": {"const": true},
+                "provider_tasks_joined": {"const": true},
+                "listeners_released": {"const": true}
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "leaseRenewal": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "offset_ms",
+        "observed_at_unix_ms",
+        "previous_expires_at_unix_ms",
+        "requested_expires_at_unix_ms",
+        "target_id",
+        "lease_id",
+        "trace_id",
+        "state",
+        "reason_code",
+        "actor_runtime_epoch"
+      ],
+      "properties": {
+        "offset_ms": {"type": "integer", "minimum": 1, "maximum": 3660000},
+        "observed_at_unix_ms": {"type": "integer", "minimum": 1},
+        "previous_expires_at_unix_ms": {"type": "integer", "minimum": 1},
+        "requested_expires_at_unix_ms": {"type": "integer", "minimum": 1},
+        "target_id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{1,127}$"},
+        "lease_id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{1,127}$"},
+        "trace_id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{1,127}$"},
+        "state": {"const": "PRIMARY"},
+        "reason_code": {"type": "string", "maxLength": 128},
+        "actor_runtime_epoch": {"type": "string", "minLength": 1, "maxLength": 128}
+      }
+    },
+    "resourceLimits": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "aggregate_target_queue_depth",
+        "source_wal_bytes",
+        "input_wal_bytes",
+        "result_wal_bytes",
+        "rss_bytes",
+        "fd_count",
+        "thread_count",
+        "process_threshold_status"
+      ],
+      "properties": {
+        "aggregate_target_queue_depth": {"type": "integer", "minimum": 1, "maximum": 100000},
+        "source_wal_bytes": {"type": "integer", "minimum": 1, "maximum": 1073741824},
+        "input_wal_bytes": {"type": "integer", "minimum": 1, "maximum": 2147483648},
+        "result_wal_bytes": {"type": "integer", "minimum": 1, "maximum": 2147483648},
+        "rss_bytes": {"type": "null"},
+        "fd_count": {"type": "null"},
+        "thread_count": {"type": "null"},
+        "process_threshold_status": {"const": "OBSERVED_ONLY_OWNER_NOT_FROZEN_DEC_001"}
+      }
+    },
+    "claimScope": {
+      "oneOf": [
+        {"$ref": "#/$defs/edgeClaimScope"},
+        {"$ref": "#/$defs/p4ClaimScope"}
+      ]
+    },
+    "edgeClaimScope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["module", "scope", "rule_counts", "target_counts", "threshold_status", "resource_limits"],
+      "properties": {
+        "module": {"const": "rust-edge-agent"},
+        "scope": {"const": "independent-module-soak"},
+        "rule_counts": {
+          "type": "array",
+          "prefixItems": [{"const": 0}, {"const": 128}, {"const": 1024}, {"const": 4096}],
+          "items": false
+        },
+        "target_counts": {
+          "type": "array",
+          "prefixItems": [{"const": 0}, {"const": 1}, {"const": 2}, {"const": "N"}],
+          "items": false
+        },
+        "threshold_status": {"type": "string", "minLength": 1, "maxLength": 128},
+        "resource_limits": {"$ref": "#/$defs/resourceLimits"}
+      }
+    },
+    "p4ClaimScope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["module", "scope", "rule_counts", "target_counts", "threshold_status"],
+      "properties": {
+        "module": {"const": "p4-switch"},
+        "scope": {"const": "independent-module-soak"},
+        "rule_counts": {
+          "type": "array",
+          "prefixItems": [{"const": 0}, {"const": 128}, {"const": 1024}, {"const": 4096}],
+          "items": false
+        },
+        "target_counts": {
+          "type": "array",
+          "prefixItems": [{"const": 1}],
+          "items": false
+        },
+        "threshold_status": {"type": "string", "minLength": 1, "maxLength": 128}
+      }
+    },
     "phase": {
       "type": "object",
       "additionalProperties": false,
@@ -169,6 +411,28 @@
         "errors": {"type": "integer", "minimum": 0},
         "module_metrics": {"$ref": "#/$defs/moduleMetrics"}
       }
+    },
+    "formalPhase": {
+      "allOf": [
+        {"$ref": "#/$defs/phase"},
+        {
+          "type": "object",
+          "required": ["module_metrics"],
+          "properties": {
+            "elapsed_ms": {"minimum": 900000},
+            "result": {"const": "PASS"},
+            "errors": {"const": 0},
+            "module_metrics": {
+              "required": ["phase_start_offset_ms", "phase_end_offset_ms", "planned_duration_met"],
+              "properties": {
+                "phase_start_offset_ms": {"type": "integer", "minimum": 0},
+                "phase_end_offset_ms": {"type": "integer", "minimum": 1},
+                "planned_duration_met": {"const": true}
+              }
+            }
+          }
+        }
+      ]
     },
     "sample": {
       "type": "object",

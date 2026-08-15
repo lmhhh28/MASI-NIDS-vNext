@@ -1,0 +1,152 @@
+{
+  "schema_version": "supply-chain-component-registry/v1",
+  "module": "rust-edge-agent",
+  "components": [
+    {
+      "name": "Rust stable toolchain",
+      "decision": "ADOPT",
+      "version": "1.97.1",
+      "license": "Apache-2.0 OR MIT",
+      "authority": "build-time compiler only; no runtime control authority",
+      "runtime_download": false,
+      "failure": "build and every Rust qualification gate stop",
+      "rollback": "rebuild with the prior qualified exact toolchain",
+      "exit": "replace through an explicit toolchain/profile revision and full Edge requalification"
+    },
+    {
+      "name": "Rust builder OCI image",
+      "decision": "ADOPT",
+      "digest": "sha256:408fe88047cef61a2087653b0c5255fa51c0f2d6d94ddedd7a2562a9b91a46f6",
+      "license": "aggregate-see-SPDX-and-third-party-notices",
+      "authority": "offline build stage only; never shipped in the runtime image",
+      "runtime_download": false,
+      "failure": "image build is unavailable",
+      "rollback": "restore the prior digest-pinned builder bundle",
+      "exit": "replace the digest and regenerate SBOM, provenance, and all language gates"
+    },
+    {
+      "name": "Distroless cc Debian 12 runtime OCI base",
+      "decision": "ADOPT",
+      "digest": "sha256:adcd20c7b4c988b73cbfbddb26d2eee574571e6d7c9ffea29b3821e0690efb77",
+      "license": "aggregate-see-SPDX-and-third-party-notices",
+      "authority": "minimal glibc/libgcc runtime userspace only; no shell, package manager, scheduler, P4, inference, or fact authority",
+      "runtime_download": false,
+      "failure": "Edge container cannot start",
+      "rollback": "restore the prior qualified runtime image digest",
+      "exit": "replace with a digest-pinned minimal base after image/security requalification"
+    },
+    {
+      "name": "Cargo.lock dependency closure",
+      "decision": "ADOPT",
+      "digest": "sha256:30dc546e3c448e5db6fb1fe542bbdd2e86fa07d5c0ab3789fef74ccfeed66ab6",
+      "license": "per-package SPDX license in source/image SBOM",
+      "authority": "library code only within Edge ownership; cannot create a second control plane",
+      "runtime_download": false,
+      "failure": "build fails or Edge fails closed at the affected boundary",
+      "rollback": "restore Cargo.lock and the matching source revision",
+      "exit": "remove or replace crates through locked dependency review, SBOM diff, and full Edge gates"
+    },
+    {
+      "name": "Tokio",
+      "decision": "ADOPT",
+      "version": "1.53.1",
+      "license": "MIT",
+      "authority": "bounded asynchronous execution only; TargetActor retains scheduling ownership",
+      "runtime_download": false,
+      "failure": "Edge process or actor task fails and readiness/liveness expose failure",
+      "rollback": "restore the Cargo.lock-pinned prior Tokio version",
+      "exit": "replace only with equivalent bounded async runtime after full concurrency qualification"
+    },
+    {
+      "name": "Tonic and Prost",
+      "decision": "ADOPT",
+      "version": "0.14.6/0.14.4",
+      "license": "MIT/Apache-2.0",
+      "authority": "versioned public gRPC/protobuf transport only; no business fact authority",
+      "runtime_download": false,
+      "failure": "public boundary fails closed with bounded deadline and durable retry",
+      "rollback": "restore the Cargo.lock-pinned transport versions and generated golden bytes",
+      "exit": "replace after wire, mTLS, deadline, cancellation, and golden compatibility requalification"
+    },
+    {
+      "name": "Serde and serde_json",
+      "decision": "ADOPT",
+      "version": "1.0.229/1.0.151",
+      "license": "MIT OR Apache-2.0",
+      "authority": "bounded startup configuration decoding only; protobuf remains the hot-path wire format",
+      "runtime_download": false,
+      "failure": "startup rejects malformed, oversized, or unknown configuration",
+      "rollback": "restore the Cargo.lock-pinned serialization versions",
+      "exit": "replace after configuration schema and negative-security regression"
+    },
+    {
+      "name": "sha2, crc32c, fs2, and uuid",
+      "decision": "ADOPT",
+      "version": "0.10.9/0.6.8/0.4.3/1.24.0",
+      "license": "MIT OR Apache-2.0",
+      "authority": "digest, WAL integrity, writer lock, and opaque identity primitives only",
+      "runtime_download": false,
+      "failure": "digest/WAL/lock validation fails closed",
+      "rollback": "restore the Cargo.lock-pinned integrity primitive versions",
+      "exit": "replace only with golden-compatible primitives and complete WAL recovery evidence"
+    },
+    {
+      "name": "rustls-ring TLS stack through Tonic",
+      "decision": "ADOPT",
+      "version": "Cargo.lock closure sha256:30dc546e3c448e5db6fb1fe542bbdd2e86fa07d5c0ab3789fef74ccfeed66ab6",
+      "license": "per-package SPDX license in source/image SBOM",
+      "authority": "mTLS authentication and encryption only; endpoint allowlist remains Edge-owned",
+      "runtime_download": false,
+      "failure": "connection and readiness fail closed; plaintext fallback is forbidden",
+      "rollback": "restore the prior Cargo.lock and image digest",
+      "exit": "replace after SAN, client-leaf allowlist, cipher, malformed handshake, and revocation qualification"
+    },
+    {
+      "name": "vendored protoc",
+      "decision": "ADOPT",
+      "version": "3.2.0",
+      "license": "MIT",
+      "authority": "build-time contract code generation only",
+      "runtime_download": false,
+      "failure": "build fails before an artifact is emitted",
+      "rollback": "restore the Cargo.lock-pinned protoc bundle",
+      "exit": "replace after protobuf breaking-change and cross-language golden qualification"
+    },
+    {
+      "name": "Syft",
+      "decision": "ADOPT",
+      "digest": "sha256:5145aaf0384ca6db481c95e093e5c3b31a3b3f3af3dd3aadfb7529df88578019",
+      "version": "1.50.0",
+      "license": "Apache-2.0",
+      "authority": "offline source/image SBOM generation only",
+      "runtime_download": false,
+      "failure": "supply-chain qualification is HOLD",
+      "rollback": "restore the frozen tool image bundle",
+      "exit": "replace after SBOM equivalence and verifier regression"
+    },
+    {
+      "name": "Trivy",
+      "decision": "ADOPT",
+      "digest": "sha256:c6e969c5662a546ad5de4a73c2a6b7a7c627f86d916903e175aa623af5b97ada",
+      "version": "0.72.0",
+      "license": "Apache-2.0",
+      "authority": "offline vulnerability, secret, and configuration scanning only",
+      "runtime_download": false,
+      "failure": "supply-chain qualification is HOLD",
+      "rollback": "restore the frozen scanner and database bundle",
+      "exit": "replace after policy-equivalent scan and tamper-negative regression"
+    },
+    {
+      "name": "Cosign",
+      "decision": "ADOPT",
+      "digest": "sha256:cdb23f652a55fef7b4b3c0f02fe0742e5a7017709c76c574e05be9febcf5d86e",
+      "version": "3.0.6",
+      "license": "Apache-2.0",
+      "authority": "offline Owner-key release-manifest signature and verification only",
+      "runtime_download": false,
+      "failure": "unsigned, untrusted, revoked, or tampered evidence is rejected",
+      "rollback": "restore the prior trusted signed manifest and immutable artifact digest",
+      "exit": "rotate through the trust contract and re-sign without granting runtime authority"
+    }
+  ]
+}

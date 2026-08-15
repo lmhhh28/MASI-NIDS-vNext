@@ -1,8 +1,8 @@
 # MASI-NIDS-vNext 模块独立 E2E 验收设计
 
 - 文档状态：`DRAFT`
-- 日期：2026-08-12
-- 需求基线：`vNext-requirements-1.17`
+- 日期：2026-08-14
+- 需求基线：`vNext-requirements-1.19`
 - 主要需求：`TEST-002`、`TEST-003`、`TEST-INF-001`、`TEST-WEB-001`、`TEST-PLUGIN-001`、`TEST-PLUGIN-STAT-001`、`TEST-GATE-001`、`TEST-REAL-E2E-001`、`TEST-007`、`TEST-008`、`TEST-009`、`TEST-010`、`TEST-RULE-001`、`TEST-P4-FW-001`、`TEST-TARGET-FLEET-001`、`TEST-TRAFFIC-001`、`TEST-REUSE-001`、`TEST-TEL-INF-001`
 - 证据语义：ADR-0006
 
@@ -31,7 +31,7 @@
 
 Claim scope至少绑定release、module、runtime、availability、deployment tier、topology、environment/profile、artifact/image/config/contract digest。CPU/CUDA、single/HA、BMv2/硬件和不同topology不得继承结果。
 
-Required且`APPLICABLE`的任一项为`FAIL|HOLD|NOT_RUN`，或缺少原始证据，都会阻断模块aggregate。`NOT_APPLICABLE`只用于未触发的条件能力，必须有稳定机器可读理由；不得用于release已声明支持的能力。
+Required且`APPLICABLE`的任一项为`FAIL|HOLD|NOT_RUN`，或缺少原始证据，都会阻断对应 exact scope 的资格 aggregate。`NOT_APPLICABLE`只用于未触发的条件能力，必须有稳定机器可读理由；不得用于release已声明支持的能力。Operational Module Complete 另按 `DEC-044` 派生：资格专属的 protected-baseline/dirty-tree/production-threshold/future-integration HOLD 不改变实际模块测试结论，也不充当 operational blocker。
 
 ## 3. 模块黑盒 E2E 的共同约束
 
@@ -146,7 +146,7 @@ Required且`APPLICABLE`的任一项为`FAIL|HOLD|NOT_RUN`，或缺少原始证�
 - Gateway admission、Triton dynamic batch/queue/instance group、CPU thread/NUMA或CUDA provider/copy/I/O Binding；
 - duplicate/retry/conflicting input/output、wrong/late generation；
 - Gateway/Triton/ORT crash/hang/OOM、full-pool outage、restart/quarantine；
-- cold/warm/steady/peak/rolling/saturation/24h soak。
+- cold/warm/steady/peak/rolling/saturation/3,600 秒 soak。
 
 ### 7.3 不变量与Oracle
 
@@ -368,7 +368,7 @@ Wasm hello-world、无sandbox负例、只校验manifest、Fake Host、或未证�
 
 每个适用模块冻结absolute capacity/SLO、environment profile、warm-up、measurement window、concurrency、data/model/config digest和repeat count。报告至少包含throughput、p50/p95/p99、error、CPU/RSS、queue/connection/FD/disk及适用GPU/VRAM/network/copy。
 
-Performance必须覆盖模块的min/typical/max、steady/peak/saturation/recovery和24h soak；soak检查资源是否持续增长。只有relative overhead、microbenchmark、缩小数据规模或未冻结绝对门槛，结果为HOLD而不是PASS。Production绝对性能/容量/HA门槛不可通过waiver提升为production qualified。
+Performance必须覆盖模块的min/typical/max、steady/peak/saturation/recovery和3,600 秒 soak；soak检查资源是否持续增长。只有relative overhead、microbenchmark、缩小数据规模或未冻结绝对门槛，结果为HOLD而不是PASS。Production绝对性能/容量/HA门槛不可通过waiver提升为production qualified。
 
 性能waiver是聚合规则的唯一受限例外，不改变原始性能`result`或`qualification`。有效waiver必须由Owner签署并绑定requirement、exact scope、risk、remediation、owner、expiry与`max_qualification_level`；默认最多允许Module aggregate继续。只有不影响contract、correctness、security、recovery及目标集成功能时，Owner才能明确放宽至非生产`PAIRWISE|SYSTEM_E2E`。Production绝对性能/容量/HA、安全、正确性或恢复门禁不可豁免；过期、scope漂移或补救未跟踪会立即使aggregate失效。Evidence摘要必须显式列出`waived`，不得把原结果重写为PASS。
 
@@ -388,19 +388,22 @@ Scanner、SBOM或签名任一项通过不替代功能、安全、许可证和资
 
 ## 17. Module Complete 聚合
 
-模块aggregate只有在以下全部成立时才能标记完成：
+Operational module aggregate 只有在以下全部成立时才能标记完成：
 
 - 本模块全部首期需求无TODO/placeholder/stub/临时成功路径；
 - language/static/unit/property/contract/golden通过；
 - 发布候选及实际runtime真实启动，公开边界黑盒E2E通过；
-- fault/recovery/security/compatibility/supply-chain通过；performance/soak通过，或仅该性能项存在第15节允许且覆盖当前aggregate level的有效waiver；
+- fault/recovery/security/compatibility/supply-chain、适用 performance 与精确 3,600 秒 soak 的 operational checks 均已实际执行并通过；
 - resource/input/output/queue均有界，unknown version fail closed；
 - OCI/startup/readiness/liveness/drain/shutdown和README可复制命令存在；
 - requirement→test→environment→evidence→artifact digest→owner映射完整；
 - rehearsal/fake/microbenchmark未被误标为正式PASS。
+- append-only findings registry 的 open P0 为0，真实启动/必需测试 blocker为0，并可从原始 evidence/digest 重新派生相同结论。
+
+受保护发布基线、dirty tree、production absolute threshold 或尚未开始的正式 pairwise/system 造成的 qualification-only `HOLD|NOT_RUN` 保持原值但不阻断 operational completion；它们仍阻断对应资格声明。任何实际模块测试未运行/失败、证据缺失、真实启动失败或 open P0 都阻断完成。`COMPLETE` 不能改名为 `MODULE PASS`、pairwise/system PASS 或 production qualified。
 
 九个模块的Module Complete都有效后，才允许进入正式pairwise。集成发现模块缺陷时，对应Module Complete立即失效并完整重验，而不是只修集成脚本。
 
 ## 18. 当前状态
 
-当前仓库尚无模块实现、runner、镜像或执行证据。本文所有required场景目前只能是`result=HOLD|NOT_RUN`、`qualification=NOT_QUALIFIED`；文档完成不改变该状态。
+截至 2026-08-14，Rust Edge 已建立实现、runner、真实 binary/OCI 与独立模块证据；其 operational completion 只以 `edge-rs/evidence/module-gates/latest.json` 指向且通过公开语义 validator 的 summary 为准。其余模块和全局 aggregate 仍分别依据自己的证据，不得从 Edge 继承完成或资格；本文本身不授予任何资格 PASS。

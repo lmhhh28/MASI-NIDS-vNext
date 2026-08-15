@@ -1,11 +1,11 @@
 # ADR-0010：在线检测模型模块化、绑定与安全切换
 
-- 状态：Partially Superseded；模型部署与切换机制先由ADR-0011收敛，v1.13 central-GPU历史由ADR-0016保留，现行Central Inference CPU/CUDA启动选择、路由、启动绑定、人工回滚、资格范围和真实服务E2E由ADR-0017/0006、`vNext-requirements-1.17`、`DEC-033`至`DEC-038`定义；在线遥测与推理传输由ADR-0013定义
+- 状态：Partially Superseded；模型部署与切换机制先由ADR-0011收敛，v1.13 central-GPU历史由ADR-0016保留，现行Central Inference CPU/CUDA启动选择、路由、启动绑定、人工回滚、资格范围和真实服务E2E由ADR-0017/0006、`vNext-requirements-1.18`、`DEC-033`至`DEC-038`定义；在线遥测与推理传输由ADR-0013定义
 - 日期：2026-08-10
 - 决策者：Owner
-- 需求基线：原始决策 `vNext-requirements-1.6`；当前适用边界 `vNext-requirements-1.17`
+- 需求基线：原始决策 `vNext-requirements-1.6`；当前适用边界 `vNext-requirements-1.18`
 - `document_status`: `historical_partially_superseded`
-- `current_normative_source`: `../masi-nids-vnext-system-requirements-2026-08-09.md@vNext-requirements-1.17`、ADR-0017、ADR-0006
+- `current_normative_source`: `../masi-nids-vnext-system-requirements-2026-08-09.md@vNext-requirements-1.18`、ADR-0017、ADR-0006
 - `implementation_authority`: `current_normative_source_only`
 - `qualification_authority`: `current_normative_source_only`
 - `retained_invariants`: immutable bundle、版本化feature/label/output合同、Go/PostgreSQL exact binding、供应链与effect安全边界；仅因现行需求再次规定而有效

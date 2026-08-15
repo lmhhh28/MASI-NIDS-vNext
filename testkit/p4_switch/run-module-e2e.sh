@@ -123,6 +123,18 @@ firewall_fingerprint() {
 firewall_before=$(firewall_fingerprint)
 
 set +e
+docker run --rm --network none --read-only --user 65532:65532 \
+  --cap-drop ALL --security-opt no-new-privileges:true \
+  --env PYTHONDONTWRITEBYTECODE=1 \
+  --volume "$repo_root:/workspace:ro" --volume "$evidence_dir:/evidence" \
+  "$runner_ref" python testkit/p4_switch/scripts/probe-runner-environment.py \
+  --repo /workspace --runner-digest "$runner_image" \
+  --output /evidence/runner-environment.json \
+  >"$evidence_dir/runner-environment.log" 2>&1
+runner_environment_status=$?
+set -e
+
+set +e
 python3 -m unittest discover \
   -s "$repo_root/testkit/p4_switch/tests" -p 'test_*.py' -v \
   >"$evidence_dir/unit.log" 2>&1
@@ -401,6 +413,7 @@ printf '%s\n' \
   "mode=$qualification_mode" \
   "runtime_image=$runtime_image" \
   "runner_image=$runner_image" \
+  "runner_environment_status=$runner_environment_status" \
   "unit_status=$unit_status" \
   "p4testgen_status=$p4testgen_status" \
   "mininet_compile_status=$mininet_compile_status" \
@@ -419,7 +432,8 @@ printf '%s\n' \
   "aggregate_status=$aggregate_status" \
   "evidence=$evidence_dir/qualification-evidence.json"
 
-if [ "$unit_status" -ne 0 ] \
+if [ "$runner_environment_status" -ne 0 ] \
+  || [ "$unit_status" -ne 0 ] \
   || [ "$p4testgen_status" -ne 0 ] \
   || [ "$mininet_compile_status" -ne 0 ] \
   || [ "$mininet_status" -ne 0 ] \

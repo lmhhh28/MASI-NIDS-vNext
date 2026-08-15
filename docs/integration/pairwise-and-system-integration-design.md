@@ -2,7 +2,7 @@
 
 - 文档状态：`DRAFT`
 - 日期：2026-08-12
-- 需求基线：`vNext-requirements-1.17`
+- 需求基线：`vNext-requirements-1.18`
 - 主要需求：`TEST-GATE-001`、`TEST-REAL-E2E-001`、`TEST-004`、`TEST-005`、`TEST-006`、`TEST-007`、`TEST-008`、`ACCEPT-001`
 - 前置文档：[`../design/00-system-decomposition-and-delivery-design.md`](../design/00-system-decomposition-and-delivery-design.md)、[`../testing/module-e2e-acceptance-design.md`](../testing/module-e2e-acceptance-design.md)
 

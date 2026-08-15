@@ -1,0 +1,33 @@
+{
+  "schema_version": "edge-deep-check-evidence/v1",
+  "test_id": "TEST-EDGE-RUST-DEEP-001",
+  "requirement_ids": ["MOD-EDGE-001", "TEST-003", "TEST-007", "TEST-009"],
+  "generated_at": "2026-08-14T00:00:00Z",
+  "level": "MODULE",
+  "applicability": "APPLICABLE",
+  "result": "PASS",
+  "qualification": "QUALIFIED",
+  "qualification_reason": "CLEAN_SOURCE_SNAPSHOT",
+  "scope": "Rust library unit state-space under Miri, AddressSanitizer, and ThreadSanitizer",
+  "nightly_commit": "c98d0cb27cc63afdd62602a52eb4feb8a1c682dd",
+  "target_triple": "x86_64-unknown-linux-gnu",
+  "source_revision": "0000000000000000000000000000000000000000",
+  "source_tree_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+  "working_tree_dirty": false,
+  "working_tree_status_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+  "artifact_digests": {
+    "cargo_lock": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+    "edge_contract": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+    "qualification_profile": "sha256:3333333333333333333333333333333333333333333333333333333333333333",
+    "miri_log": "sha256:4444444444444444444444444444444444444444444444444444444444444444",
+    "address_sanitizer_log": "sha256:5555555555555555555555555555555555555555555555555555555555555555",
+    "thread_sanitizer_log": "sha256:6666666666666666666666666666666666666666666666666666666666666666"
+  },
+  "checks": {
+    "miri_disable_isolation": "PASS",
+    "address_sanitizer": "PASS",
+    "thread_sanitizer": "PASS"
+  },
+  "public_boundary_blackbox_coverage": "recorded separately by run-module-gates.sh",
+  "overall_module_complete": false
+}

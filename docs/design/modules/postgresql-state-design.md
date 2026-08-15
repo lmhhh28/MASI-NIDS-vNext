@@ -126,7 +126,7 @@ PostgreSQL State是非普通常驻应用但独立qualification target。它以ex
 - partition、cursor/index、connection/pool/lock/deadlock/timeout/disk压力；
 - failover、backup、WAL archive、PITR/clone/rewind、incarnation轮换与隔离restore；
 - role/credential deny棋盘、TLS、审计和无外部mutation；
-- RPO/RTO、迁移/查询/retention/restore绝对性能及24小时soak。
+- RPO/RTO、迁移/查询/retention/restore绝对性能及3,600 秒 soak。
 
 ## 11. Module Complete 判定
 

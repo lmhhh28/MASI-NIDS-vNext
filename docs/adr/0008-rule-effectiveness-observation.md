@@ -3,7 +3,7 @@
 - 状态：Accepted
 - 日期：2026-08-10
 - 决策者：Owner
-- 需求基线：`vNext-requirements-1.17`（原始规则观测决策形成于 v1.9）
+- 需求基线：`vNext-requirements-1.18`（原始规则观测决策形成于 v1.9）
 - 关联需求：`ARCH-003`、`ARCH-TARGET-FLEET-001`、`CONTRACT-P4-001`、`CONTRACT-RULE-001`、`CONTRACT-TRAFFIC-001`、`CONTRACT-TARGET-001`、`CONTRACT-FLEET-EFFECT-001`、`FUNC-EFFECT-001`、`FUNC-RULE-001`、`FUNC-TRAFFIC-001`、`FUNC-TARGET-FLEET-001`、`WEB-RULE-001`、`WEB-TARGET-FLEET-001`、`DB-RULE-001`、`PERF-RULE-001`、`PERF-TRAFFIC-001`、`PERF-TARGET-FLEET-001`、`REL-RULE-001`、`OBS-RULE-001`、`TEST-RULE-001`、`TEST-TRAFFIC-001`、`TEST-TARGET-FLEET-001`、`DEC-024`、`DEC-029`、`DEC-032`
 
 ## 背景
@@ -139,7 +139,7 @@ greenfield 先冻结 P4Info/counter/profile、`traffic-replay/v1` 和 golden，�
 - wrap/saturate/reset、restart/generation/pipeline/revision、duplicate/split/order/gap；
 - counter hit + wrong packet outcome 的反例；
 - TTL/rollback/supersede/readback drift 和 late sample；
-- 4,096-rule sweep、queue saturation、24 小时 soak 与核心 p99/RSS 隔离；
+- 4,096-rule sweep、queue saturation、3,600 秒 soak 与核心 p99/RSS 隔离；
 - per-rule Prometheus cardinality rejection、Grafana/Alertmanager/Agent mutation rejection；
 - browser formula/coverage/state/a11y/表格替代与 no-hit 候选无 mutation。
 - generated/synthetic/PCAP/live-session fixture按 ADR-0012分型；sender accepted但 DUT未见、counter hit但错误outcome、软件 target不提升硬件资格的反例。

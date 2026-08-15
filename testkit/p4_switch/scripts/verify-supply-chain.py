@@ -144,6 +144,67 @@ def trivy_findings(paths: list[Path]) -> dict[str, list[dict[str, object]]]:
     return findings
 
 
+def extract_runner_package_records(
+    document: dict[str, Any], package_names: set[str]
+) -> dict[str, list[dict[str, object]]]:
+    records: dict[str, list[dict[str, object]]] = {
+        name: [] for name in package_names
+    }
+    packages = document.get("packages", [])
+    if not isinstance(packages, list):
+        return records
+    for package in packages:
+        if not isinstance(package, dict):
+            continue
+        name = str(package.get("name", ""))
+        if name not in records:
+            continue
+        references = package.get("externalRefs", [])
+        if not isinstance(references, list):
+            references = []
+        purls = [
+            str(reference.get("referenceLocator", ""))
+            for reference in references
+            if isinstance(reference, dict)
+            and reference.get("referenceType") == "purl"
+        ]
+        records[name].append(
+            {
+                "version": str(package.get("versionInfo", "")),
+                "purls": purls,
+            }
+        )
+    return records
+
+
+def runner_package_checks(
+    records: dict[str, list[dict[str, object]]],
+    expected_versions: dict[str, str],
+    expected_distro: str,
+) -> dict[str, bool]:
+    versions_exact = all(
+        records.get(name)
+        and {str(record["version"]) for record in records[name]}
+        == {expected_version}
+        for name, expected_version in expected_versions.items()
+    )
+    distro_exact = all(
+        records.get(name)
+        and all(
+            any(
+                f"distro={expected_distro}" in str(purl)
+                for purl in record.get("purls", [])
+            )
+            for record in records[name]
+        )
+        for name in expected_versions
+    )
+    return {
+        "runner_packages_exact": bool(versions_exact),
+        "runner_package_distro_exact": bool(distro_exact),
+    }
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--repo", type=Path, required=True)
@@ -164,6 +225,20 @@ def main() -> int:
     registry = load(registry_path)
     registry_schema = load(args.repo / "contracts/supply-chain/v1/schema.json")
     registry_errors = list(Draft202012Validator(registry_schema).iter_errors(registry))
+    runner_profile = load(
+        args.repo / "contracts/profiles/v1/e2e-runner-compose.json"
+    )
+    traffic_profile = load(
+        args.repo / "contracts/profiles/v1/p4-traffic-replay-bmv2-compose.json"
+    )
+    runner_environment = runner_profile["runner_environment"]
+    expected_runner_packages = {
+        "iproute2": str(runner_environment["iproute2"]["package_version"]),
+        "tcpreplay": str(runner_environment["tcpreplay"]["package_version"]),
+    }
+    expected_runner_distro = (
+        "alpine-" + str(runner_environment["distribution_version"])
+    )
     manifest = load(args.manifest)
     offline = load(args.offline_result)
     provenance_path = args.supply_dir / str(manifest["provenance"]["path"])
@@ -245,8 +320,12 @@ def main() -> int:
         "required_documents": len(sbom_paths) >= 3,
         "all_spdx": True,
         "all_have_packages": True,
+        "runner_document_present": any(path.name == "runner.spdx.json" for path in sbom_paths),
     }
     sbom_summary = []
+    runner_package_records: dict[str, list[dict[str, object]]] = {
+        name: [] for name in expected_runner_packages
+    }
     for path in sbom_paths:
         document = load(path)
         is_spdx = str(document.get("spdxVersion", "")).startswith("SPDX-")
@@ -259,6 +338,17 @@ def main() -> int:
         sbom_summary.append(
             {"path": path.name, "digest": sha256(path), "packages": package_count}
         )
+        if path.name == "runner.spdx.json":
+            runner_package_records = extract_runner_package_records(
+                document, set(expected_runner_packages)
+            )
+    sbom_checks.update(
+        runner_package_checks(
+            runner_package_records,
+            expected_runner_packages,
+            expected_runner_distro,
+        )
+    )
 
     scan_paths = sorted(args.supply_dir.glob("trivy-*.json"))
     findings = trivy_findings(scan_paths)
@@ -347,10 +437,60 @@ def main() -> int:
     notice = load(args.repo / "contracts/supply-chain/v1/third-party-notices.json")
     registered_names = {str(item["name"]) for item in registry["components"]}
     notice_names = {str(item["component"]) for item in notice["notices"]}
+    registered = {str(item["name"]): item for item in registry["components"]}
+    runner_base_digest = str(runner_profile["runner_base_image"]).split("@", 1)[1]
+    runner_os = (
+        f"{runner_environment['distribution']} "
+        f"{runner_environment['distribution_version']}"
+    )
+    tcpreplay_registration = registered.get("Tcpreplay", {})
+    iproute2_registration = registered.get("iproute2", {})
+    alpine_registration = registered.get("Alpine Linux runner base", {})
+    dependency_registration = registered.get(
+        "P4 qualification runner dependency image", {}
+    )
+    runner_environment_registry_exact = (
+        tcpreplay_registration.get("version")
+        == runner_environment["tcpreplay"]["tool_version"]
+        and tcpreplay_registration.get("package_version")
+        == runner_environment["tcpreplay"]["package_version"]
+        and tcpreplay_registration.get("runner_os") == runner_os
+        and iproute2_registration.get("version")
+        == runner_environment["iproute2"]["tool_version"]
+        and iproute2_registration.get("package_version")
+        == runner_environment["iproute2"]["package_version"]
+        and iproute2_registration.get("runner_os") == runner_os
+        and alpine_registration.get("version")
+        == runner_environment["distribution_version"]
+        and alpine_registration.get("digest") == runner_base_digest
+        and dependency_registration.get("base_image_digest") == runner_base_digest
+        and dependency_registration.get("runner_os") == runner_os
+        and dependency_registration.get("iproute2_package_version")
+        == runner_environment["iproute2"]["package_version"]
+        and dependency_registration.get("tcpreplay_package_version")
+        == runner_environment["tcpreplay"]["package_version"]
+    )
+    traffic_profile_environment_exact = (
+        traffic_profile.get("runner_environment") == runner_environment
+        and traffic_profile.get("backends", {}).get("tcpreplay/v1", {}).get(
+            "tool_version"
+        )
+        == runner_environment["tcpreplay"]["tool_version"]
+        and traffic_profile.get("backends", {}).get("tcpreplay/v1", {}).get(
+            "package_version"
+        )
+        == runner_environment["tcpreplay"]["package_version"]
+        and traffic_profile.get("impairment", {}).get("iproute2_tool_version")
+        == runner_environment["iproute2"]["tool_version"]
+        and traffic_profile.get("impairment", {}).get("iproute2_package_version")
+        == runner_environment["iproute2"]["package_version"]
+    )
     inventory_checks = {
         "registry_schema": not registry_errors,
         "notices_cover_registry": registered_names == notice_names,
         "notice_file_present": (args.repo / "NOTICE").is_file(),
+        "runner_environment_registry_exact": runner_environment_registry_exact,
+        "traffic_profile_environment_exact": traffic_profile_environment_exact,
         "no_runtime_download": all(
             item.get("runtime_download") is False for item in registry["components"]
         ),
@@ -390,6 +530,12 @@ def main() -> int:
             "inventory": inventory_checks,
         },
         "sboms": sbom_summary,
+        "runner_environment_binding": {
+            "profile": runner_environment,
+            "expected_sbom_packages": expected_runner_packages,
+            "expected_sbom_distro": expected_runner_distro,
+            "observed_sbom_packages": runner_package_records,
+        },
         "trivy": {
             "documents": [
                 {"path": path.name, "digest": sha256(path)} for path in scan_paths

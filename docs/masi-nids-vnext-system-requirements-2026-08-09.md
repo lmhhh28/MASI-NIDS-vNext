@@ -1,9 +1,9 @@
 # MASI-NIDS vNext 系统需求说明
 
 - 初始日期：2026-08-09
-- 最近修订：2026-08-12
-- 基线：vNext-requirements-1.17
-- 状态：Owner 已确认 v1.0 至 v1.17。首期生产在线推理保持 Central Inference 单架构及启动前显式二选一的 `model-runtime-central-cpu/v1`/`model-runtime-central-cuda/v1`；不得自动改选、运行期互切或按请求 fallback，Edge 不部署本地推理。v1.15 将资格证据拆成互不混装的 `level/applicability/result/qualification`；v1.16 澄清 `operational-single-domain` 不能取得 production qualification，以及独立 Analysis/service/Agent 的业务协议不经 Runtime Host 代理。v1.17 在不新增 plugin kind、部署模块或浏览器代码加载器的前提下，增加 `plugin-statistics/v1` 统计输出能力：Go 冻结输入并拥有调度、校验、PostgreSQL 投影与授权 API，插件只返回有界 typed Artifact，Vue 只用内置声明式 renderer 展示；核心统计、effect 与实时热路径不依赖插件。首期本地/CI 正式 E2E 固定使用 `e2e-runner-compose/v1`，每次正式运行仍须真实启动相关服务并走公开边界。仓库在形成首个受保护提交/tag/digest 前仍为 `HOLD/NOT QUALIFIED`，不得声称已有可审计发布基线
+- 最近修订：2026-08-14
+- 基线：vNext-requirements-1.19
+- 状态：Owner 已确认 v1.0 至 v1.19。首期生产在线推理保持 Central Inference 单架构及启动前显式二选一的 `model-runtime-central-cpu/v1`/`model-runtime-central-cuda/v1`；不得自动改选、运行期互切或按请求 fallback，Edge 不部署本地推理。v1.15 将资格证据拆成互不混装的 `level/applicability/result/qualification`；v1.16 澄清 `operational-single-domain` 不能取得 production qualification，以及独立 Analysis/service/Agent 的业务协议不经 Runtime Host 代理。v1.17 增加受控的 `plugin-statistics/v1` 统计输出能力。v1.18 将所有模块的正式稳定性 soak 统一冻结为 3,600 秒，并明确该 PASS 只关闭对应 soak gate；同时首次需求基线 bootstrap 可使用本地 SSH 签名 tag 与 Cosign 签名 digest manifest，资格上限为 `MODULE`，后续发布仍要求受保护远端。v1.19 将机器派生的 operational Module Complete 与资格聚合正交化：无 open P0、无真实启动/必需测试阻断且完整实现门禁实际通过时可完成；受保护基线、dirty tree、生产绝对门槛或尚未开始的正式 pairwise/system 只限制资格，不得伪装为 operational blocker，也不得被改写成资格 PASS。首期本地/CI 正式 E2E 固定使用 `e2e-runner-compose/v1`，每次正式运行仍须真实启动相关服务并走公开边界
 - 文档类型：目标需求基线，不是实现状态、运行授权或发布资格报告
 - 适用范围：MASI-NIDS vNext 模块化重写
 
@@ -43,6 +43,8 @@ Owner 已确认本文全部推荐默认值，并追加“所有首期模块必�
 | v1.15 | 2026-08-12 | 复核资格聚合、Central Inference rollout、Triton/ORT 运行语义与 E2E 可复现性：将 evidence 拆为 `level/applicability/result/qualification` 四个正交字段，并按 runtime、availability、deployment tier、拓扑和制品 digest 限定声明范围；明确 single 是单故障域而非单副本、CPU/CUDA 各自资格化、生产绝对性能不可豁免。修正模型切换顺序为 Edge route-withdraw/drain/WAL 后再 PG CAS/commit/resume；冻结 `GetLoadedModel/GetPoolStatus`、Triton NONE 仓库闭包、显式 instance group、CUDA profile 内受控 host-side operator placement及 `e2e-runner-compose/v1`，并要求 traffic scenario 精确选择 backend，不允许自动降级 |
 | v1.16 | 2026-08-12 | 不删减首期功能，仅消除两处语义漂移：将容易误导为“可生产但无 HA”的 `production-single-domain` 更名为 `operational-single-domain`，并规定只有 `production-ha` 可取得 `level=PRODUCTION`/production qualification；将插件运行面明确为两条并列路径——Runtime Host 执行 Wasm/显式 Host-managed service，独立 Analysis/service/Agent 由 Manager 管理 binding 但通过自身 A2A/MCP/gRPC 业务协议直连，不把 Host 作为业务代理。System E2E 仍真实启动 Host 与 Analysis，两者均为完整产品必需模块 |
 | v1.17 | 2026-08-12 | 根据 OpenTelemetry Metrics、Prometheus、Grafana DataFrame、ECharts dataset/ARIA、Backstage extension、Dapr/go-plugin/OTel Collector、Vega CSP 与 OWASP XSS/CSV 资料复核插件统计展示：不新增 plugin kind，以 `plugin-statistics/v1` 作为 `pure-transform`/`read-only-tool` 的可选输出能力；Go 拥有冻结输入、低频 run、校验、授权和 PostgreSQL 投影，Web 使用固定声明式组件与内部 ECharts dataset 渲染。禁止插件自调度、直写 DB/Prometheus、浏览器直连、UI 代码/路由、任意 ECharts/Vega/HTML；补齐资源、幂等、质量、故障、性能、安全、迁移和真实 E2E 门禁 |
+| v1.18 | 2026-08-12 | Owner 将所有模块正式 soak 的资格时长从 24 小时改为精确 3,600 秒：60 秒预热不计入，随后 steady、peak、saturation、recovery-or-activation 四阶段各 900 秒；soak PASS 只关闭对应门禁，不豁免功能、性能、故障、供应链或完整 E2E。首次 bootstrap 允许本地 SSH 签名 tag 与 Cosign 签名 digest manifest，最高 `MODULE`；后续发布仍要求受保护远端。P4 BMv2 WSL2 功能参考档的绝对门槛由 Owner 在资格运行前冻结，不外推原生 Linux、硬件、line-rate 或 production HA |
+| v1.19 | 2026-08-14 | Owner 冻结 `DEC-044`：Module Complete 是独立、机器派生的 operational completion，不是资格枚举或 `MODULE PASS` 的别名。完整实现、真实候选 binary/OCI、适用模块测试与 3,600 秒 soak 均已实际通过，且 findings registry 中 open P0 与真实启动/测试 blocker 均为 0 时标记完成；dirty tree、受保护基线、生产绝对门槛及尚未开展的正式 pairwise/system 继续诚实保持 qualification-only `HOLD/NOT_RUN`，但不阻断完成，也不得被提升为相应资格 PASS |
 
 本文使用以下规范用语：
 
@@ -1736,7 +1738,7 @@ Redis 全部丢失时，系统正确性必须不受影响。
 - rollout同时计入current active、new warming、old draining和Edge replay：切换任一shard前，必须证明新generation的`C_new >= H × λ_assigned,peak`，remaining current generation仍承载未切shard，CPU/RAM或GPU/VRAM及network均不超硬上限；每个shard同时满足`B_s,records >= λ_s,peak × T_unavailable,s`、`B_s,bytes >= λ_s,peak_bytes × T_unavailable,s`、`C_s > λ_s,peak`，并实测backlog在`T_replay,s`门槛内回到稳态watermark。公式左右必须使用相同时间单位并记录测量误差/峰值窗口。若资源不足以同时保持两generation资格容量，rollout必须HOLD，不得通过未声明CPU/CUDA或旧模型fallback完成；
 - Edge 为每个 restarting shard 在既有 WAL/checkpoint 域使用独立有界 pending sequence，profile 固定最大 window/bytes/age、high/critical watermark、overflow/drop/gap range、resume watermark 和恢复顺序。buffer age 在同 runtime epoch 使用 monotonic `delivery_time-window_completed_time`；跨 Edge epoch/时钟无法证明时 fail closed 为 stale/HOLD。超限必须 backpressure/显式 gap/HOLD，不得无界等待、跨 generation 拼接或把缺测补零；
 - pool/replica restart/recovery profile必须冻结max attempts、指数退避、总deadline、circuit/quarantine和解除权限；adapter不能在Go已quarantine后无限重启。预算耗尽只隔离该replica/pool并告警，不改变current revision；当remaining容量不足时availability为HOLD/unavailable并触发Edge背压/gap，不切换backend；
-- benchmark对CPU/CUDA分别覆盖cold/warm startup、steady active、最小/典型/最大dynamic batch与queue、repository/cache hit/miss、网络抖动、全池unavailable、drain/readback/CAS/resume、partial rollout、rolling rollback、CPU/RAM或GPU/VRAM/network saturation和24小时soak；HA profile另覆盖single replica/failure-domain loss。报告throughput/latency、CPU/RSS、适用的VRAM/GPU utilization、allocation/copy、queue/buffer、retry/dedupe、load/cache、numeric error和fence/drop reason；
+- benchmark对CPU/CUDA分别覆盖cold/warm startup、steady active、最小/典型/最大dynamic batch与queue、repository/cache hit/miss、网络抖动、全池unavailable、drain/readback/CAS/resume、partial rollout、rolling rollback、CPU/RAM或GPU/VRAM/network saturation和3,600 秒 soak；HA profile另覆盖single replica/failure-domain loss。报告throughput/latency、CPU/RSS、适用的VRAM/GPU utilization、allocation/copy、queue/buffer、retry/dedupe、load/cache、numeric error和fence/drop reason；
 - 首期默认每次只切换1个inference shard；只有current/new pool容量、Edge buffer和故障域证据通过的新profile才提高并发。rolling时核心p99/RSS/VRAM/network、可用容量和buffer age必须满足冻结门槛；性能不达标只能停止后续shard并`HOLD/failed`，不能跳过qualification/readback/CAS/fence或启用fallback；
 - Triton dynamic batching和instance group必须通过Model Analyzer或等价可重现benchmark搜索，但最终参数进入项目profile而非运行时自动漂移。增加instance count若只增加延迟/显存不得采用；Kubernetes GPU extended resource、node label/topology spread/PDB只实现placement/自愿中断约束，不证明N+1、rollout或应用可用性。
 
@@ -1778,7 +1780,7 @@ Redis 全部丢失时，系统正确性必须不受影响。
 
 - 统计计算是低频旁路，不得进入 packet、telemetry/window、InferenceResult、Event ingest、effect/P4、rule observation sweep 或核心 API 的同步依赖；只消费 Go 已形成的有界投影/冻结 bundle。禁止把全量 raw Event/packet 推给插件后再依赖插件分页或过滤；
 - 初始 absolute profile 采用 `CONTRACT-PLUGIN-STAT-001` 的每 plugin revision 32 definitions/128 KiB definition block/每 definition 64 field refs/1 external-source capability ref、2 MiB input、1 MiB Artifact、每 Artifact 32 metrics、64 series、10,000 points、每 histogram point 64 buckets、2,000 rows、200 evidence refs、64 KiB total text、4 KiB scalar string、depth 8、in-flight 2、queue 32、deadline 10 秒；每个 schedule 的最小 interval、每 scope on-demand rate 和全局并发必须在 `performance-environment/v1` 冻结。未冻结或只依赖 worker 数量/平均时延时为 `HOLD/NOT RUN`；
-- benchmark 至少覆盖 pure-transform 与获准 read-only-tool 的 empty/min/typical/max bundle、1/8/32 definitions、1/64 series、zero/no-data/gap/reset、max points/rows/text、queue saturation、timeout/cancel/crash/revoke、DB/API/SSE 慢和 24 小时 soak；分别报告 schedule wait、freeze/query、dispatch、Host/RPC、execute、schema/security validate、transaction/CAS、API、browser render；
+- benchmark 至少覆盖 pure-transform 与获准 read-only-tool 的 empty/min/typical/max bundle、1/8/32 definitions、1/64 series、zero/no-data/gap/reset、max points/rows/text、queue saturation、timeout/cancel/crash/revoke、DB/API/SSE 慢和 3,600 秒 soak；分别报告 schedule wait、freeze/query、dispatch、Host/RPC、execute、schema/security validate、transaction/CAS、API、browser render；
 - statistics list/current API 在目标 profile p95 ≤100 ms，24 小时/30 天 bounded history p95 ≤250 ms；Web 单 view 继续满足 `WEB-PERF-001` 的 INP/heap/DOM/points 门槛。达不到时只能由 Go 聚合、分页、降采样或收紧 profile，不得把无界序列交给浏览器、增加第二 cache fact source 或执行插件自带代码；
 - 最大统计插件负载、crash/restart/revoke storm 叠加核心峰值时，核心检测/处置及原生 Rule Effectiveness p99 相对统计插件全部禁用基线不得回退超过 5%，核心进程 RSS 不得增加超过 10%，且不突破 PostgreSQL connection/WAL、Host queue、FD/thread/task、HTTP/SSE 和 Web heap budget；
 - 统计性能不达标只使相应 binding/definition `HOLD/unavailable`；不得降低核心数据质量、延长 effect deadline、跳过 result validation、开放高基数 Prometheus series 或将旧 Artifact 伪装为 fresh。
@@ -1790,7 +1792,7 @@ Redis 全部丢失时，系统正确性必须不受影响。
 - 单 entry freshness 超过 75 秒为 stale；恢复后必须从新 cumulative baseline 开启有效窗口，不能把断档前后直接相减。目标能力、规则容量或 P4Runtime 延迟不能满足上述 profile 时，该 observation 显示 `not_measurable`，对应 target profile 的资格状态为 `HOLD`；只能以新的 target profile 和 benchmark 调整，不得采样一部分却显示 100% coverage；
 - Edge→Go observation batch 最多 256 条、1 MiB；per target bounded queue 最多 8 batch。队列满时不得阻塞 P4 写/readback，也不得静默丢弃：记录 exact sequence gap、丢弃低优先级未持久 sample 并使受影响窗口 invalid/stale；恢复后的第一条只建立 baseline；
 - Go 只维护 current projection、append-only status event 和 5 分钟 rollup；列表默认 50/最多 200，Top-N 默认/最多 20，单图/单页点数继续受 `WEB-PERF-001` 约束。current/list API p95 目标 ≤100 ms，24 小时/7 天趋势 p95 目标 ≤250 ms；不得用逐规则 P4/Prometheus 查询、N+1 SQL 或浏览器全量计算达成页面；
-- benchmark 至少覆盖 0/128/1,024/4,096 rules、1/最大 target、零命中/热点/均匀/重置/过期、正常/2 秒 timeout、队列 saturation 和 24 小时 soak；报告 P4 Read RPC/QPS/bytes/error、full-sweep/freshness、Edge CPU/RSS/allocation/queue、Go ingest/SQL rows/WAL/index、API latency、Frontend render 和 gap/stale coverage；
+- benchmark 至少覆盖 0/128/1,024/4,096 rules、1/最大 target、零命中/热点/均匀/重置/过期、正常/2 秒 timeout、队列 saturation 和 3,600 秒 soak；报告 P4 Read RPC/QPS/bytes/error、full-sweep/freshness、Edge CPU/RSS/allocation/queue、Go ingest/SQL rows/WAL/index、API latency、Frontend render 和 gap/stale coverage；
 - 4,096-rule 最大观测负载叠加核心峰值时，相对规则观测关闭基线，核心检测和 effect write/readback p99 均不得回退超过 5%，Edge/Go RSS 各不得增加超过 10%，不得突破 P4 RPC、PostgreSQL connection/WAL、SSE/HTTP、FD/thread/task 预算；未通过只能降低 profile 容量/频率或暂时 `not_measurable`，不能牺牲唯一 writer、readback、generation fence 或数据库耐久性。
 
 ### 9.7a BMv2 无状态防火墙性能与容量（PERF-P4-FW-001）
@@ -1805,7 +1807,7 @@ Redis 全部丢失时，系统正确性必须不受影响。
 ### 9.7b 多 Target/Fleet 性能与公平预算（PERF-TARGET-FLEET-001）
 
 - `p4-target-fleet/v1` 必须冻结 `max_targets_per_edge/max_targets_per_control/max_targets_per_fleet_operation/max_targets_per_wave/max_parallel_children`，以及每 target/global P4 RPC、StreamChannel message、FD/task/thread、journal/WAL/disk、queue、memory、Go/DB connection/row/WAL、API page/SSE/UI matrix 的绝对上限；任一值或目标硬件未冻结时只能 `HOLD/NOT RUN`；
-- benchmark 至少覆盖 0/1/2/N targets、每 target 0/128/1,024/4,096 rules、同 profile/混合可拒绝 profile、全部健康/一个 slow/unreachable/restarting/drift、并发 telemetry/effect/readback/observation、single large fleet activation、多个互不相交 operation 与 24 小时 soak；单 target结果不得线性外推N target；
+- benchmark 至少覆盖 0/1/2/N targets、每 target 0/128/1,024/4,096 rules、同 profile/混合可拒绝 profile、全部健康/一个 slow/unreachable/restarting/drift、并发 telemetry/effect/readback/observation、single large fleet activation、多个互不相交 operation 与 3,600 秒 soak；单 target结果不得线性外推N target；
 - Edge 分段报告 supervisor/actor startup、arbitration、P4 snapshot/effect/readback/observation latency，per-target/global queue age、scheduler wait、CPU/RSS/allocation、FD/task、journal/fsync、reconnect/backoff和fairness。一个target timeout/满队列时，其他健康target的source/effect p99相对同规模无故障基线回退不得超过已冻结阈值，且不能越过其deadline；默认阈值未冻结时不得用通用5%推定PASS；
 - Fleet control面报告 target-set canonicalization/preflight、Decision+parent+child transaction、wave gate、claim/finalize、parent projection、API/UI render 的 p50/p95/p99/max、rows/WAL/locks/connections/bytes；必须证明事务和payload在最大 target set下仍有界，且任何 P4/gNMI等待期间数据库active transaction/held connection为零；
 - priority/fairness 必须证明 effect journal/readback与mastership不会被full-sweep/gNMI subscription/fleet compile压制；read-only gNMI queue满只丢/合并低优先级观测并标gap/stale，不阻塞P4Runtime。提高 target/wave 并发只能创建新profile并重跑资源、故障和恢复矩阵；
@@ -1828,7 +1830,7 @@ Redis 全部丢失时，系统正确性必须不受影响。
 - source覆盖必须分层报告P4 generated/read/snapshot、digest generated/sent/received/acked/drop、PacketIn、mirror NIC/kernel/ring/user、window admitted/final、inference admitted/completed、result/Event durable。相邻层数量不能互相替代，采样流量还必须报告eligible population、rate与coverage；
 - 首期默认只资格化一个`telemetry-p4-window/v1`主源和一个`inference-central-grpc-batch/v1`主传输；每个pool generation只绑定一个显式CPU或CUDA执行profile。PACKET_MMAP只有feature/target条件触发；AF_XDP只有PACKET_MMAP在同硬件/同功能合同下无法达到冻结容量时触发；DPDK只有AF_XDP仍无法满足hardware line-rate时触发。Edge-local inference、CPU↔CUDA/TensorRT自动fallback与未触发capture候选不得为了“备用”常驻；
 - AF_XDP profile必须分别测XDP_DRV/XDP_SKB、zero-copy/copy、RSS queue/core、NUMA-local/remote、UMEM/ring/batch/need-wakeup、multi-buffer、busy-poll和fallback拒绝；只允许profile声明的exact模式获得PASS。生产要求zero-copy时bind失败必须readiness失败，不能自动copy后仍沿用原性能资格；
-- saturated/peak/full-pool-unavailable/24小时soak必须分别证明CPU/CUDA source→window/input WAL→Edge gRPC admission→Gateway/Triton/selected runtime→result WAL→Go/DB的backpressure闭环；HA profile另覆盖single-replica/failure-domain loss。任一queue满只允许按合同拒绝、背压或形成exact gap/HOLD，不能OOM、切换runtime/backend/model、阻塞P4 effect readback、丢失已durable result或无界增加延迟；
+- saturated/peak/full-pool-unavailable/3,600 秒 soak必须分别证明CPU/CUDA source→window/input WAL→Edge gRPC admission→Gateway/Triton/selected runtime→result WAL→Go/DB的backpressure闭环；HA profile另覆盖single-replica/failure-domain loss。任一queue满只允许按合同拒绝、背压或形成exact gap/HOLD，不能OOM、切换runtime/backend/model、阻塞P4 effect readback、丢失已durable result或无界增加延迟；
 - 与telemetry/capture关闭基线相比，开启默认source的绝对目标及对effect write/readback、rule observation、Go ingest的最大p99/CPU/RSS回退必须由`DEC-001`冻结。相对`PERF-003`只能发现回归，不能代替目标packet/window/Event率、coverage和端到端p99门槛。
 
 ## 10. 可靠性与失败语义
@@ -2525,7 +2527,7 @@ Plugin Statistics 能力必须在 Contracts、Go、PostgreSQL、Plugin Host/对�
 - `result` 只允许 `PASS|FAIL|HOLD|NOT_RUN`。`HOLD` 表示前置/profile/环境/证据不完整或不兼容，`NOT_RUN` 表示没有执行；
 - `qualification` 只允许 `QUALIFIED|NOT_QUALIFIED`，并绑定精确 claim scope。`REHEARSAL` 永远为 `NOT_QUALIFIED`；适用项只有 result PASS 且同 scope 的全部前置有效时才可 `QUALIFIED`。
 
-`REHEARSAL/NOT QUALIFIED`、`MODULE PASS`、`SYSTEM E2E PASS` 等是由上述字段生成的人类显示摘要，不是 wire enum。本文历史短语 `HOLD/NOT RUN` 表示 result 的两个可能值而不是一个复合状态。模块聚合只排除有稳定理由的 `NOT_APPLICABLE` 项；其他 required applicable 项的 `FAIL/HOLD/NOT_RUN` 均阻断对应 PASS。CPU、CUDA、single-domain、HA 和不同 topology 的结果按精确 scope 独立聚合，不得继承。
+`REHEARSAL/NOT QUALIFIED`、`MODULE PASS`、`SYSTEM E2E PASS` 等是由上述字段生成的人类显示摘要，不是 wire enum。本文历史短语 `HOLD/NOT RUN` 表示 result 的两个可能值而不是一个复合状态。资格 aggregate 只排除有稳定理由的 `NOT_APPLICABLE` 项；其他 required applicable 项的 `FAIL/HOLD/NOT_RUN` 均阻断对应 scope 的资格 PASS。CPU、CUDA、single-domain、HA 和不同 topology 的结果按精确 scope 独立聚合，不得继承。`DEC-044` 的 operational Module Complete 单独按下述规则派生，不改变任何原始资格字段。
 
 性能例外不改变原始性能 result，也不把未达到的门槛写成 PASS。例外必须由 Owner 签署并绑定 requirement、精确 scope、风险、补救、owner、expiry 和 `max_qualification_level`；默认最高只能到 `MODULE`。只有不影响契约、正确性、安全、恢复及目标集成功能时，Owner 才可显式将非生产例外上限设为 `PAIRWISE` 或 `SYSTEM_E2E`。任何绝对 production 性能/容量门槛、HA门槛或已经失败的安全/正确性/恢复门禁均不得被豁免为 `PRODUCTION`；过期、scope漂移或补救未跟踪会立即使聚合回到 `NOT_QUALIFIED`。
 
@@ -2536,7 +2538,8 @@ Module Complete 必须表示：
 3. 允许使用fake/mock模拟尚未接入的外部模块，但fake/mock必须遵守正式契约且不能替代被测模块内部逻辑；这种Module证据不能被改名为对应pairwise/system E2E PASS；
 4. 被测可部署模块使用发布候选binary/OCI和实际runtime真实启动；语言级验证、契约/golden、独立黑盒E2E、故障恢复、性能、镜像启动和文档全部通过Module DoD；仅有进程存在、readiness、mock调用或microbenchmark不满足本条；
 5. 每个模块形成独立、可复核的完成证据包，统一门禁报告列出版本、镜像 digest、配置、四维资格字段、claim scope、测试结果和未决例外；
-6. 只有符合上段范围且 `max_qualification_level>=MODULE` 的有效性能例外可以让 Module aggregate 继续；原性能证据仍为原 result/`NOT_QUALIFIED` 并在摘要中显式列为 waived，其他例外或 scope 不符时模块仍视为未完成。
+6. append-only findings registry 中 open `P0` 必须为 0，真实 binary/OCI startup 与全部适用的模块公开边界、故障、安全、性能和 3,600 秒 soak 测试不得存在未执行、失败、证据缺失或其他实际 blocker；完成状态必须由公开 evidence schema 和语义 validator 重新派生，禁止手工改写；
+7. 受保护发布基线、dirty tree、生产绝对性能/容量/HA 门槛或依开发顺序尚未开展的正式 pairwise/system 所产生的 qualification-only `HOLD/NOT_RUN` 不阻断 operational completion，但原始 result/`NOT_QUALIFIED` 必须保留，也不得借完成状态宣称 `MODULE PASS`、pairwise、system 或 production qualification。实际模块测试的 `FAIL/HOLD/NOT_RUN`、open P0、真实启动失败或缺失证据仍一律阻断完成。
 
 模块实现阶段可以提前完成契约设计、generated client、golden vectors、fake server 和 test harness，也可以执行受控的真实 boundary rehearsal：使用真实生成 client/server、TLS/mTLS、UDS、framing、容器和真实 PostgreSQL test 实例验证 wire compatibility，但必须同时满足：
 
@@ -2787,11 +2790,11 @@ Go authorized canonical projection + exact source generation
 - plugin statistics benchmark 必须覆盖 `PERF-PLUGIN-STAT-001` 的 schedule/freeze/dispatch/execute/validate/project/API/render、min/typical/max metrics-series-points-tables、quality/reset/gap、queue/deadline、revoke/crash、DB/SSE慢、browser heap/DOM/long-task/soak与全部统计插件禁用基线；
 - Frontend benchmark 必须使用 production build，覆盖 `WEB-PERF-001` 的 bundle/route/CWV/heap/DOM/chart/request/cache/SSE 预算、cold/warm、资格化浏览器、scope/session 切换和长时间 dashboard/list/detail 导航；
 - rule observation benchmark 必须覆盖 `PERF-RULE-001` 的 rule/target 矩阵、full sweep/freshness、P4 Read/queue/gap、5 分钟 rollup/retention、Top-N/list/trend、Frontend state timeline 和叠加核心峰值隔离；
-- firewall benchmark 必须覆盖 `PERF-P4-FW-001` 的 0/128/1,024/4,096 normalized rule、最坏合法展开、cold/warm compile、inactive-bank write/readback、selector flip/readback、overlay churn/expiry、rollback/reconcile、packet throughput/latency/drop correctness、control-plane contention 和 24 小时 soak；
-- target/fleet benchmark 必须覆盖 `PERF-TARGET-FLEET-001` 的 0/1/2/N target、每 target 规则/telemetry/effect 叠加、一个 slow/unreachable target、公平/优先调度、最大 parent/child/wave transaction、partial/reconcile/rollback、API/UI 矩阵和 24 小时 soak；单 target 性能结果不得复制为 fleet PASS；
+- firewall benchmark 必须覆盖 `PERF-P4-FW-001` 的 0/128/1,024/4,096 normalized rule、最坏合法展开、cold/warm compile、inactive-bank write/readback、selector flip/readback、overlay churn/expiry、rollback/reconcile、packet throughput/latency/drop correctness、control-plane contention 和 3,600 秒 soak；
+- target/fleet benchmark 必须覆盖 `PERF-TARGET-FLEET-001` 的 0/1/2/N target、每 target 规则/telemetry/effect 叠加、一个 slow/unreachable target、公平/优先调度、最大 parent/child/wave transaction、partial/reconcile/rollback、API/UI 矩阵和 3,600 秒 soak；单 target 性能结果不得复制为 fleet PASS；
 - traffic replay benchmark 必须覆盖 `PERF-TRAFFIC-001` 的 recorded/multiplier/fixed-pps/fixed-mbps/topspeed、small/typical/max bounded fixture、preload on/off、offload profile、netem delay/loss/reorder、sender-vs-DUT-vs-capture count、resource saturation、cleanup 和 software-target-only 声明；
-- online model benchmark必须分别覆盖`PERF-INF-001`的Gateway/Triton/ORT CPU与CUDA profile、dynamic batch/instance group、cold/warm/cache-hit/cache-miss startup-to-min-ready、steady/peak/rolling capacity、full-pool outage、network、route-withdraw/drain/buffer/gap/replay、active/warming/draining资源峰值、start/termination/readback/CAS/commit/resume/restart/quarantine/rollback、partial/mixed rollout、CPU/RAM或GPU/VRAM saturation、backend/device/optimization matrix和24小时soak；HA profile另覆盖N+1、single replica/failure-domain loss；
-- online telemetry/hotpath benchmark必须分别覆盖`PERF-TEL-INF-001`的P4 aggregate snapshot、Digest/PacketIn supplemental loss、event-time window、Edge gRPC batch/RTT/retry、Gateway/Triton/selected runtime queue、actual copy、input/result WAL、Edge→Go/DB ACK端到端分段、peak/saturation/outage/24小时soak；条件capture profile分别覆盖PACKET_MMAP和已触发AF_XDP/DPDK，不能用gRPC/Triton/ORT microbenchmark替代packet/window→Event资格；
+- online model benchmark必须分别覆盖`PERF-INF-001`的Gateway/Triton/ORT CPU与CUDA profile、dynamic batch/instance group、cold/warm/cache-hit/cache-miss startup-to-min-ready、steady/peak/rolling capacity、full-pool outage、network、route-withdraw/drain/buffer/gap/replay、active/warming/draining资源峰值、start/termination/readback/CAS/commit/resume/restart/quarantine/rollback、partial/mixed rollout、CPU/RAM或GPU/VRAM saturation、backend/device/optimization matrix和3,600 秒 soak；HA profile另覆盖N+1、single replica/failure-domain loss；
+- online telemetry/hotpath benchmark必须分别覆盖`PERF-TEL-INF-001`的P4 aggregate snapshot、Digest/PacketIn supplemental loss、event-time window、Edge gRPC batch/RTT/retry、Gateway/Triton/selected runtime queue、actual copy、input/result WAL、Edge→Go/DB ACK端到端分段、peak/saturation/outage/3,600 秒 soak；条件capture profile分别覆盖PACKET_MMAP和已触发AF_XDP/DPDK，不能用gRPC/Triton/ORT microbenchmark替代packet/window→Event资格；
 - destructive test 只能使用名称含 `test` 且显式确认的数据库；
 - test run 使用唯一前缀并精确清理；
 - 禁止 benchmark、retention 和其他测试同时操作同一 DB。
@@ -2840,7 +2843,7 @@ Rule Observation 在 P4、Edge、Go、DB 与 Web 各自 Module Complete 中必�
 5. counter 32/64-bit（按 target profile）、wrap、saturate、显式/隐式 reset、target/Edge restart、generation/pipeline/P4Info/rule revision、duplicate/order/split/gap/timeout/oversize 和 clock step 均不产生负 delta、跨代拼接、精确伪时间或错误 0%；
 6. TTL expiry、rollback、supersede、readback drift、数据库 failover/PITR/retention、late sample 和 concurrent projection update 保持唯一 epoch/current projection，并可沿原 effect operation reconcile；
 7. no-hit/dead-rule/overlap 诊断只生成只读候选；测试从 Prometheus alert、Alertmanager、Grafana data link/action、Analysis Artifact 和 Frontend chart 尝试 mutation 时均被架构/凭据/API 拒绝，P4Runtime writer 始终只有 Edge；
-8. `PERF-RULE-001` 的 0/128/1,024/4,096-rule、最大 target、热点/均匀/reset storm、队列 saturation、24 小时 soak 和核心峰值叠加通过；任何缩小容量/频率只在新 profile 下重跑，不能把未覆盖 rule 隐藏为成功；
+8. `PERF-RULE-001` 的 0/128/1,024/4,096-rule、最大 target、热点/均匀/reset storm、队列 saturation、3,600 秒 soak 和核心峰值叠加通过；任何缩小容量/频率只在新 profile 下重跑，不能把未覆盖 rule 隐藏为成功；
 9. Rule Effectiveness 的 URL/filter/cursor、三层状态、公式/分母/coverage、state timeline/Top-N/table、gap/reset/no-traffic/not-measurable、键盘/ARIA/等价表格、权限与导出在 `TEST-WEB-001` 浏览器矩阵通过；
 10. 所有 evidence 绑定 P4 program/P4Info/target/profile、`traffic-replay/v1` fixture/transformation/run、rule/effect/generation、counter mode、environment、source/image/config/contract digest；在真实 target、硬件 byte-count 语义和规模未资格化前只能报告 `HOLD/NOT RUN`，不得用 BMv2 PASS 声称硬件生产资格。
 
@@ -2857,7 +2860,7 @@ P4、Edge、Go、PostgreSQL 与 Web 的 Module Complete 必须分别证明：
 7. Admin maker/Operator checker、R3 typed change API、step-up/exact diff/default/scope/expiry、self-approval/stale/capacity/P4Info drift 和零 Edge RPC reject path 通过；raw P4Runtime/P4 source/shell、Plugin/Artifact/LLM/Frontend bypass 与第二 writer 被协议、身份和部署负例拒绝；
 8. Frontend 显示 draft/validated/authorized/activating/current/previous/unknown/reconciling/failed/HOLD、compiled impact、shadow/conflict、capacity、default、exact approval与三层规则表现；浏览器刷新、SSE gap、timeout query 和重复点击不创建第二 operation；
 9. test namespace 的 UFW/nftables/iptables/eBPF/XDP/bridge/qdisc/route 状态有机器可读 pre/post evidence，非被测过滤路径关闭或隔离；故意打开 host drop 的负例必须产生 environment-invalid/HOLD，不能获得 P4 outcome PASS；
-10. `PERF-P4-FW-001` 的 compile/expand/write/readback/flip/rollback、steady packet p50/p95/p99、throughput/drop correctness、overlay churn、observation sweep、control-plane contention、资源饱和与 24 小时 soak 达到冻结绝对门槛；BMv2 结果只授予 exact software profile，硬件/IPv6/stateful 等未资格能力稳定拒绝。
+10. `PERF-P4-FW-001` 的 compile/expand/write/readback/flip/rollback、steady packet p50/p95/p99、throughput/drop correctness、overlay churn、observation sweep、control-plane contention、资源饱和与 3,600 秒 soak 达到冻结绝对门槛；BMv2 结果只授予 exact software profile，硬件/IPv6/stateful 等未资格能力稳定拒绝。
 11. firewall schema/migration matrix 覆盖 empty/上一受支持版本到 current、重复/中断/checksum drift、expand/contract rollback、并发 activation、failover/PITR/restore；迁移后引用链、唯一约束和 old/new reader-writer 矩阵一致，且 migration/restore 对 P4 零 mutation、恢复 binding 仍须 Edge readback 后才能成为 current。
 
 ### 14.14b 多 Target/Fleet 独立门禁（TEST-TARGET-FLEET-001）
@@ -2875,7 +2878,7 @@ P4、Edge、Go、PostgreSQL 与 Web 的 Module Complete 必须分别证明：
 9. PostgreSQL failover、PITR/restore/clone/rewind通过target-control incarnation轮换、old assignment/preflight/claim fence和逐targetread-only reconcile；恢复出的registry/wave/current不能自行打开writer或下一wave；
 10. Managed Targets/Fleet Operations页面通过URL/cursor、target×stage矩阵、wave timeline、all states、step-up/maker-checker、original-operation query、SSE gap/cache purge、WCAG和大fleet性能；页面无raw CLI/gNMI Set/automatic takeover、无单一绿色聚合；
 11. `target-gnmi-readonly/v1`未触发时有NOT_APPLICABLE证据；触发时exact gNMI spec/proto/model/path/target profile、mTLS、Capabilities/Get/Subscribe、rate/queue/gap/freshness和Set拒绝通过。Stratum只作target-side；ONOS/厂商controller/P4Runtime Shell daemon无writer credential；
-12. `PERF-TARGET-FLEET-001`的0/1/2/N、最大rule/target/operation/wave、故障公平、DB/API/UI和24小时soak达到冻结绝对门槛；N或门槛未冻结时为`HOLD/NOT RUN`，不以单target、BMv2 demo或第三方平台成熟度替代。
+12. `PERF-TARGET-FLEET-001`的0/1/2/N、最大rule/target/operation/wave、故障公平、DB/API/UI和3,600 秒 soak达到冻结绝对门槛；N或门槛未冻结时为`HOLD/NOT RUN`，不以单target、BMv2 demo或第三方平台成熟度替代。
 
 ### 14.15 流量生成与回放独立门禁（TEST-TRAFFIC-001）
 
@@ -2926,7 +2929,7 @@ P4、Edge、Central Inference、Go与适用部署profile在Module Complete前必
 10. CPU/CUDA分别真实启动并证明selected=observed；Edge→Gateway、Gateway→Triton和适用的host↔device分别报告actual copy。Triton shared memory/I/O Binding/device tensor/lifetime/stream/sync只有exact CUDA profile通过才可声称copy优化；CPU profile另验thread/affinity/NUMA/arena。preallocation与numeric golden同时通过，不以Triton/ORT执行时间替代端到端；
 11. telemetry/source WAL→final window/input WAL→central result/dedupe→result WAL→Edge→Go→PostgreSQL Event commit→canonical ACK→checkpoint/compaction每个边界都注入crash/timeout/duplicate/response loss；证明零永久丢失、零双Event，same identity+same digest幂等，same identity+different digest冲突；
 12. PACKET_MMAP条件profile覆盖TPACKET_V3 block/ring/fanout、flow affinity、snaplen/truncation/checksum/offload、kernel/user drop、interface drift与资源上限；AF_XDP触发时另覆盖XDP_DRV/XDP_SKB、zero-copy/copy、RSS queue/core/NUMA、UMEM/ring/need-wakeup/multi-buffer和fallback拒绝。未触发条件profile不要求实现，但必须由registry证明不影响当前feature/target/SLO；
-13. `PERF-TEL-INF-001`对CPU/CUDA分别在0/typical/max target/flow/window/batch、steady/peak/saturation/full-pool outage、source/drop/gap、network/Go/DB slowdown和24小时soak下通过；HA profile另验N+1、single replica/failure-domain loss。报告observation point→Event ACK端到端p99、throughput、CPU/RSS及适用的VRAM/GPU、network、allocation/copy、queue/WAL/coverage，绝对门槛未冻结时只能`HOLD/NOT RUN`；
+13. `PERF-TEL-INF-001`对CPU/CUDA分别在0/typical/max target/flow/window/batch、steady/peak/saturation/full-pool outage、source/drop/gap、network/Go/DB slowdown和3,600 秒 soak下通过；HA profile另验N+1、single replica/failure-domain loss。报告observation point→Event ACK端到端p99、throughput、CPU/RSS及适用的VRAM/GPU、network、allocation/copy、queue/WAL/coverage，绝对门槛未冻结时只能`HOLD/NOT RUN`；
 14. security/ownership负例证明只有Edge拥有P4/capture/source/window/canonical router，Gateway只验证/适配，Triton/ORT只batch/execute，Go只收result且commit后ACK；无raw payload进入inference/DB/log/metric/Frontend，无第二P4/source/router/queue，无Edge-local或CPU↔CUDA/异构backend静默fallback；
 15. BMv2、software mirror、Central Inference CPU/CUDA与hardware/NIC profile证据严格分开；BMv2/gRPC/Triton/ORT microbenchmark或Digest收包成功不能被重命名为hardware coverage、line-rate或production-qualified end-to-end inference。
 
@@ -3073,7 +3076,7 @@ vNext 完成时必须证明：
 49. `CONTRACT-P4-FW-001`、ADR-0014 与 `p4-stateless-firewall/v1` 将首期防火墙固定为 BMv2 `simple_switch_grpc`/v1model 的 IPv4 无状态软件 profile；response overlay、baseline 双 bank/selector、priority/default/fragment、permit-and-continue/drop、容量和 unsupported 语义均有 digest-pinned contract/profile/golden。
 50. baseline policy revision 由 scoped Platform Admin 创建、不同 scoped Operator 以 phishing-resistant step-up 对 exact diff/default/target/P4Info/compiled-plan digest 做 R3 授权；response overlay 继续使用 R0/R1/R2 处置链。两者只产生现有、逐 target 的 `effect_intent`；fleet parent 不可执行，Rust Edge 始终是唯一 P4 writer，Web/插件/LLM/测试工具不能绕过。
 51. baseline activation 在任意 partial write、readback mismatch、selector response loss、Edge/Go/PostgreSQL/BMv2 crash、CAS conflict、old generation/P4Info/bank epoch 和 rollback 下仍只有一个可证明 current；unknown 只沿原 operation readback/reconcile，绝不盲写。response overlay 的 TTL/删除为 durable fact，不依赖内存 timer 或 idle notification。
-52. `TEST-P4-FW-001` 通过 0/128/1,024/4,096 normalized rules、最坏合法展开、generated/PTF packet/action/direct-counter oracle、fault/performance/24-hour soak、Frontend timeline 与规则表现门禁；绝对性能门槛未冻结或未达时为 `HOLD/NOT RUN`，不能只报告相对 overhead。
+52. `TEST-P4-FW-001` 通过 0/128/1,024/4,096 normalized rules、最坏合法展开、generated/PTF packet/action/direct-counter oracle、fault/performance/3,600 秒 soak、Frontend timeline 与规则表现门禁；绝对性能门槛未冻结或未达时为 `HOLD/NOT RUN`，不能只报告相对 overhead。
 53. UFW/nftables/iptables 不作为 BMv2 dataplane backend、fallback、策略事实源或 outcome oracle；test pre/post evidence 证明没有 host/eBPF/bridge/qdisc 过滤制造假 PASS。Linux 主机加固如存在，使用独立运维 profile 和所有权，不进入 MASI P4 policy/readback/effectiveness。
 54. official P4 tutorial Bloom-filter firewall 不作为精确阻断实现；p4c/P4Tools/PTF/P4Testgen 可作为固定版本测试链，p4-constraints 仅在资格化后作为 defense-in-depth preflight/CI，任何工具不得成为第二 writer、运行时事实源或生产正确性依赖。
 55. IPv6 detection/telemetry 可以继续存在，但首期 IPv6 firewall effect、stateful tracking、NAT、rate limit/meter、VLAN/tunnel-aware policy 和硬件 target 均稳定返回 unsupported/HOLD；只有新契约/profile/ADR、真实 target 容量/原子性/counter/outcome evidence 后才能启用。
@@ -3084,7 +3087,7 @@ vNext 完成时必须证明：
 60. Frontend Managed Targets/Fleet Operations通过identity/assignment/P4Info/freshness详情、target×stage矩阵、wave timeline、exact maker-checker/step-up、cursor/SSE/原operation/a11y/performance门禁；页面不提供raw P4/gNMI Set/SSH console或单一绿色fleet状态。
 61. P4Runtime 1.4.1仍是生产P4 table读写与arbitration协议；条件`target-gnmi-readonly/v1`只允许exact OpenConfig Capabilities/Get/Subscribe且Set被身份/API/部署负例拒绝。gNOI、完整NMS、端口/VLAN/QoS/routing/OS/reboot/证书mutation不被暗中实现或宣称支持。
 62. Stratum只有target-side exact profile可条件采用；NetBox/CMDB只产生经人工diff确认的candidate；Ansible/Nornir只作离线provisioning/test/read-only核验；ONOS/厂商controller/P4Runtime Shell daemon不持有production writer/scheduler credential。关闭全部条件组件后target/fleet/effect正确性保持完整。
-63. `TEST-TARGET-FLEET-001`/`PERF-TARGET-FLEET-001`的0/1/2/N target、最大rule/operation/wave、故障公平、DB/API/UI与24小时soak达到`DEC-001`冻结的绝对门槛；N或任一门槛未冻结/未实测时为`HOLD/NOT RUN`，单target/BMv2/第三方产品demo不得外推PASS。
+63. `TEST-TARGET-FLEET-001`/`PERF-TARGET-FLEET-001`的0/1/2/N target、最大rule/operation/wave、故障公平、DB/API/UI与3,600 秒 soak达到`DEC-001`冻结的绝对门槛；N或任一门槛未冻结/未实测时为`HOLD/NOT RUN`，单target/BMv2/第三方产品demo不得外推PASS。
 64. 声明production HA的Central Inference pool必须使用同一exact CPU或CUDA profile跨profile冻结的failure domain并具static N+1；same-generation单replica/failure-domain故障保持冻结SLO，全池故障只形成bounded WAL/backpressure/HOLD/gap且P4职责继续。任何`availability-single/v1`单域部署和三机共置都明确不获得production HA PASS，即使域内配置了多个replica。
 65. Triton固定startup-only`model-control-mode=none`、strict readiness、auto-complete disabled、只读digest repository/backend目录和非公开model-control/HTTP；Gateway是唯一Edge mTLS入口且无durable queue/第二batch timer。CPU/CUDA由startup envelope显式选择，probe不自动改选；KServe/Ray/TF Serving/MLflow不拥有route/current。
 66. `TEST-REAL-E2E-001`通过：实现阶段真实启动每个被测模块；正式pairwise和system E2E在干净环境启动相关发布候选服务，至少覆盖真实BMv2/P4Runtime、Edge、所选Central Inference runtime、Go、PostgreSQL、Plugin Host、Analysis Plugin和Web公开边界。CPU/CUDA分别形成独立证据；fake/mock、readiness、microbenchmark与rehearsal均未被当成正式PASS。
@@ -3099,7 +3102,7 @@ vNext 完成时必须证明：
 
 ## 17. Owner 已确认的架构决策
 
-Owner于2026-08-09确认v1.0默认值，于2026-08-10确认v1.1至v1.10，于2026-08-11确认v1.11 BMv2/P4无状态防火墙、v1.12受控多target/fleet和v1.13 Central GPU方向，并于2026-08-12确认v1.14 Central Inference CPU/CUDA启动前显式选择及真实服务E2E硬门禁、v1.15资格字段/声明范围、single-domain语义、E2E runner和Central Inference启动闭包修正、v1.16 deployment tier命名/production资格和插件双运行路径澄清，以及v1.17插件统计与声明式Web投影。以下决定现已成为v1.17内容基线，不再是开放项；在首个受保护提交/tag/digest形成前，发布审计状态仍为`HOLD/NOT QUALIFIED`：
+Owner于2026-08-09确认v1.0默认值，于2026-08-10确认v1.1至v1.10，于2026-08-11确认v1.11 BMv2/P4无状态防火墙、v1.12受控多target/fleet和v1.13 Central GPU方向，并于2026-08-12确认v1.14至v1.17的运行、资格和插件统计边界，以及v1.18全模块3,600秒soak与首次本地签名bootstrap例外。以下决定现已成为v1.18内容基线，不再是开放项：
 
 | ID | 决策事项 | 已确认值 |
 |---|---|---|
@@ -3144,6 +3147,9 @@ Owner于2026-08-09确认v1.0默认值，于2026-08-10确认v1.1至v1.10，于202
 | `DEC-039` | 单故障域完整部署与 production qualification 如何避免名称和资格冲突 | `deployment-tier/v1` 使用 `operational-single-domain` 表示完整可运维、接受一个故障域的非生产资格部署；它最多形成 `SYSTEM_E2E` 级证据。只有 `production-ha` 可进入 `level=PRODUCTION` 门禁，并且必须通过 `availability-ha/v1`、生产绝对性能/容量、PostgreSQL HA/PITR 和全部适用生产门禁；tier 名称本身不自动授予资格 |
 | `DEC-040` | Runtime Host 与独立 Analysis/service/Agent 的控制和业务路径如何区分 | Go Plugin Manager 统一拥有准入、资格、binding、generation 和撤销；Runtime Host 执行 Wasm 与显式 Host-managed service。独立 Analysis/service/Agent 使用自身 A2A/MCP/gRPC typed adapter 直连，不经 Host 代理；System E2E 仍真实启动并分别验证 Host 与 Analysis，二者都是完整产品必需模块 |
 | `DEC-041` | 后续统计插件如何计算并在前端展示且不开放浏览器代码执行 | 不新增plugin kind；增加`plugin-statistics/v1`作为`pure-transform`默认、`read-only-tool`条件支持的输出能力。每个统计项以immutable `PluginStatisticsDefinitionV1`随revision资格化，只引用host-owned projection/field ID或`read-only-tool`已批准external-source capability ID，不接受runtime registration、endpoint/credential、SQL/PromQL/JSONPath/表达式。Go唯一拥有冻结输入、schedule/run/idempotency、Artifact校验、PostgreSQL current/history、read/export授权；Web只用固定route、内置声明式renderer与内部ECharts dataset。拒绝插件自调度、直写DB/Prometheus、浏览器直连、UI代码/路由、HTML/URL及任意ECharts/Vega配置；核心统计和实时/effect链不依赖插件 |
+| `DEC-042` | 全模块正式 soak 的统一时长和完成语义 | 精确运行3,600秒，60秒预热不计入；steady、peak、saturation、recovery-or-activation各900秒。正式PASS要求monotonic qualified elapsed不少于3,600秒、阶段完整、无未分类gap/异常且cleanup成功；该PASS只关闭soak gate，不豁免其他资格门禁。短时运行只能是`REHEARSAL/NOT_QUALIFIED` |
+| `DEC-043` | 首次可审计基线在尚无受保护远端时如何bootstrap | v1.18首次bootstrap可使用独立Ed25519 SSH签名commit/tag与Cosign签名canonical digest manifest，签名私钥不得入库，公开key、fingerprint、撤销清单和验证证据必须入库；该例外最高只授予`MODULE`，后续发布仍要求受保护远端，不能把本地tag永久解释为production发布保护 |
+| `DEC-044` | Module Complete 与资格 HOLD/NOT_RUN 如何避免互相污染 | Module Complete 是独立、机器派生的 operational completion：完整实现与适用模块门禁实际通过、真实候选 binary/OCI 启动通过、open P0=0 且真实启动/测试 blocker=0 时为 `COMPLETE`。dirty tree、受保护基线、生产绝对门槛及按顺序尚未执行的正式 pairwise/system 只限制资格，不阻断完成；原四维证据保持原值，完成不得重命名为 `MODULE PASS`、pairwise/system PASS 或 production qualified。实际测试未运行/失败、证据缺失、真实启动失败或 open P0 仍阻断完成；findings 与证据 digest 必须公开、append-only 并可重派生 |
 
 实现团队不得自行把上述决策扩大为新核心依赖、第二状态机或第二 effect path。任何改变必须提升需求基线并记录理由、影响和迁移方案。
 

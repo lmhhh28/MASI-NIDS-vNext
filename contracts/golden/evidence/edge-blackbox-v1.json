@@ -1,0 +1,11 @@
+{
+  "schema_version": "edge-module-e2e-evidence/v1",
+  "test_id": "TEST-EDGE-MODULE-E2E-001",
+  "requirement_ids": ["MOD-EDGE-001", "TEST-003"],
+  "level": "MODULE",
+  "applicability": "APPLICABLE",
+  "result": "PASS",
+  "qualification": "QUALIFIED",
+  "public_boundary": "mutual-tls-gRPC",
+  "real_binary": true
+}

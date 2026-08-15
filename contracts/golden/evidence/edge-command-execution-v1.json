@@ -1,0 +1,22 @@
+{
+  "schema_version": "edge-command-execution/v1",
+  "run_id": "edge-gate-golden",
+  "command_id": "tests",
+  "started_at": "2026-08-14T00:00:00Z",
+  "finished_at": "2026-08-14T00:00:01Z",
+  "duration_ms": 1000,
+  "working_directory": "edge-rs",
+  "argv": ["cargo", "test", "--all-targets", "--locked"],
+  "exit_code": 0,
+  "result": "PASS",
+  "qualification": "QUALIFIED",
+  "source_tree_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+  "working_tree_status_digest": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+  "stable_reason": null,
+  "log": {
+    "path": "tests.log",
+    "sha256": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+    "bytes": 1,
+    "media_type": "text/plain"
+  }
+}

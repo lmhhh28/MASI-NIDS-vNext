@@ -18,6 +18,14 @@
       "license": "Apache-2.0"
     }
   },
+  "trivy_checks_bundle": {
+    "version": "2",
+    "reference": "mirror.gcr.io/aquasec/trivy-checks@sha256:1583562f8b90ed2a071b99f0e5ffff6b57e4ceb6ca3e4796577b4e6a339eb74c",
+    "content_digest_algorithm": "sorted-file-sha256-json/v1",
+    "content_digest": "sha256:ec4f8f0c3541b706bc095142c303b7a23c825afe57aa7d5264086ea93df3187b",
+    "file_count": 641,
+    "license": "Apache-2.0"
+  },
   "network_policy": "formal verification runs all tools with --network none",
   "mutable_tag_policy": "forbidden"
 }

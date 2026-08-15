@@ -1,0 +1,170 @@
+{
+  "schema_version": "rust-edge-agent-supply-verification/v1",
+  "test_id": "SEC-SUPPLY-001",
+  "requirement_ids": ["MOD-EDGE-001", "ARCH-REUSE-001", "SEC-SUPPLY-001", "TEST-010"],
+  "run_id": "rust-edge-agent-supply-public-golden-001",
+  "level": "MODULE",
+  "applicability": "APPLICABLE",
+  "result": "PASS",
+  "qualification": "QUALIFIED",
+  "source_revision": "0000000000000000000000000000000000000000",
+  "source_tree_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+  "working_tree_dirty": false,
+  "working_tree_status_digest": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+  "manifest_digest": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+  "registry_digest": "sha256:3333333333333333333333333333333333333333333333333333333333333333",
+  "signature_bundle_digest": "sha256:4444444444444444444444444444444444444444444444444444444444444444",
+  "checks": {
+    "inventory": {
+      "cargo_lock_digest_exact": true,
+      "component_names_unique": true,
+      "component_registry_digest_exact": true,
+      "module_exact": true,
+      "no_runtime_download": true,
+      "notices_cover_registry": true,
+      "registry_schema": true,
+      "third_party_notices_digest_exact": true,
+      "working_tree_status_digest_exact": true
+    },
+    "offline_bundle": {
+      "all_files_exact": true,
+      "checksums_digest_exact": true,
+      "checksums_inventory_exact": true,
+      "file_set_exact": true,
+      "filesystem_structure_safe": true,
+      "paths_safe": true,
+      "paths_unique": true,
+      "resource_bounds": true,
+      "resource_contract_exact": true,
+      "source_tree_digest_exact": true,
+      "tar_archives_safe": true,
+      "unchanged_during_verification": true
+    },
+    "offline_rebuild": {
+      "binary_digest_match": true,
+      "cargo_locked_offline": true,
+      "network_none": true,
+      "source_tree_digest_exact": true
+    },
+    "provenance": {
+      "archive_config_blob_digest_exact": true,
+      "archive_config_path_digest_exact": true,
+      "archive_config_path_safe": true,
+      "archive_tag_exact": true,
+      "image_archive_index_digest_exact": true,
+      "image_archive_index_subject_exact": true,
+      "image_archive_tar_safe": true,
+      "image_binary_subject_exact": true,
+      "image_config_subject_exact": true,
+      "image_manifest_subject_exact": true,
+      "image_source_revision_label_exact": true,
+      "image_source_tree_digest_label_exact": true,
+      "inventory_file_digests_exact": true,
+      "manifest_digest_exact": true,
+      "oci_archive_binary_exact": true,
+      "oci_archive_config_evidence_exact": true,
+      "oci_archive_has_no_embedded_attestation": true,
+      "oci_archive_index_evidence_exact": true,
+      "oci_archive_inspection_exact": true,
+      "oci_archive_inspector_passed": true,
+      "oci_archive_manifest_exact": true,
+      "offline_binary_subject_exact": true,
+      "offline_result_digest_exact": true,
+      "predicate_type": true,
+      "recorded_image_repo_digest_exact": true,
+      "source_revision_exact": true,
+      "source_tree_digest_exact": true,
+      "source_tree_subject_exact": true,
+      "statement_type": true,
+      "subjects_exact": true,
+      "working_tree_state_exact": true,
+      "working_tree_status_digest_exact": true,
+      "working_tree_status_subject_exact": true
+    },
+    "sbom": {
+      "all_have_packages": true,
+      "all_spdx": true,
+      "cargo_lock_registry_closure_exact": true,
+      "image_and_source_present": true,
+      "image_subject_exact": true,
+      "source_subject_exact": true
+    },
+    "scan": {
+      "checks_bundle_content_digest_exact": true,
+      "checks_bundle_file_count_exact": true,
+      "checks_bundle_lock_semantics_exact": true,
+      "checks_bundle_manifest_exact": true,
+      "checks_bundle_metadata_digest_exact": true,
+      "checks_bundle_reference_digest_pinned": true,
+      "checks_bundle_resource_bounds": true,
+      "config_scan_loaded_pinned_cache": true,
+      "config_scan_no_bundle_download": true,
+      "config_scan_no_embedded_fallback": true,
+      "config_source_subject_exact": true,
+      "database_fresh": true,
+      "database_present": true,
+      "image_archive_subject_exact": true,
+      "image_config_subject_exact": true,
+      "image_tag_subject_exact": true,
+      "java_database_fresh": true,
+      "java_database_present": true,
+      "no_critical": true,
+      "no_fixable_high": true,
+      "no_high_critical_misconfiguration": true,
+      "no_secrets": true,
+      "required_documents": true,
+      "secret_source_subject_exact": true
+    },
+    "signature": {
+      "allowed_algorithm_exact": true,
+      "manifest_public_key_digest_exact": true,
+      "mutated_manifest_rejected": true,
+      "owner_authorization_present": true,
+      "positive_verification": true,
+      "public_key_digest_exact": true,
+      "public_key_not_revoked": true,
+      "scope_explicit": true,
+      "wrong_publisher_rejected": true
+    },
+    "tool_images": {
+      "builder_base_image_repo_digest_exact": true,
+      "cosign_image_repo_digest_exact": true,
+      "manifest_tools_exact": true,
+      "release_image_manifest_repo_digest_exact": true,
+      "runtime_base_image_repo_digest_exact": true,
+      "syft_image_repo_digest_exact": true,
+      "tools_lock_shape_exact": true,
+      "trivy_image_repo_digest_exact": true
+    }
+  },
+  "failure_reasons": [],
+  "hold_reasons": [],
+  "negative_verification": {
+    "mutated_exit_code": 1,
+    "wrong_publisher_exit_code": 1
+  },
+  "sboms": [
+    {
+      "digest": "sha256:5555555555555555555555555555555555555555555555555555555555555555",
+      "packages": 11,
+      "path": "image.spdx.json"
+    },
+    {
+      "digest": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+      "packages": 269,
+      "path": "source.spdx.json"
+    }
+  ],
+  "trivy": {
+    "database_age_seconds": 1,
+    "java_database_age_seconds": 1,
+    "findings": {
+      "critical": [],
+      "fixable_high": [],
+      "misconfig_high_critical": [],
+      "secrets": [],
+      "unfixed_high": []
+    }
+  },
+  "overall_module_complete": false
+}

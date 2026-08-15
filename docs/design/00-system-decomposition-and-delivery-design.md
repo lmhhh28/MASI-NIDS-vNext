@@ -1,9 +1,9 @@
 # MASI-NIDS-vNext 系统拆分与交付设计
 
 - 文档状态：`DRAFT`
-- 日期：2026-08-12
-- 需求基线：`vNext-requirements-1.17`
-- 核心需求：`ARCH-001`、`ARCH-002`、`ARCH-003`、`MOD-REGISTRY-001`、`TEST-003`、`TEST-GATE-001`、`TEST-REAL-E2E-001`、`TEST-004`、`TEST-005`、`TEST-006`、`TEST-010`、`ACCEPT-001`
+- 日期：2026-08-14
+- 需求基线：`vNext-requirements-1.19`
+- 核心需求：`ARCH-001`、`ARCH-002`、`ARCH-003`、`MOD-REGISTRY-001`、`TEST-003`、`TEST-GATE-001`、`TEST-REAL-E2E-001`、`TEST-004`、`TEST-005`、`TEST-006`、`TEST-010`、`ACCEPT-001`、`DEC-044`
 - 主要 ADR：ADR-0001、ADR-0003、ADR-0004、ADR-0005、ADR-0006、ADR-0009、ADR-0013、ADR-0014、ADR-0015、ADR-0017、ADR-0018
 
 ## 1. 设计结论
@@ -127,7 +127,7 @@ frozen public contract/profile/golden
 
 Module Complete 的含义是该模块被分配的首期功能全部实现；邻居 fake 只能代替未接入模块，不能代替被测模块内部职责。仅有 schema、stub、健康端点、microbenchmark、静态页面或 rehearsal 都不满足完成条件。
 
-模块状态至少记录：module/release/profile/artifact digest、required requirement set、证据 ID、`level/applicability/result/qualification`、claim scope、waiver 和未决项。任何 required applicable 项为 `FAIL|HOLD|NOT_RUN` 时模块未完成；唯一聚合例外是满足`TEST-GATE-001`、scope/expiry/`max_qualification_level`均有效的性能waiver，且原始性能result与`NOT_QUALIFIED`不得改写。条件能力只有稳定、机器可读的 `NOT_APPLICABLE` 才能排除。
+模块状态至少记录：module/release/profile/artifact digest、required requirement set、证据 ID、`level/applicability/result/qualification`、claim scope、waiver、append-only findings 和未决项。`DEC-044` 的 operational Module Complete 由完整实现、真实候选 binary/OCI、适用模块门禁的实际执行结果、open P0=0 与真实启动/测试 blocker=0 共同重派生；实际测试 `FAIL|HOLD|NOT_RUN`、缺失证据或启动失败都阻断完成。受保护基线、dirty tree、生产绝对门槛或尚未开展的正式 pairwise/system 只形成 qualification-only HOLD，不阻断 operational completion，原资格 result/`NOT_QUALIFIED` 不得改写。条件能力只有稳定、机器可读的 `NOT_APPLICABLE` 才能排除。
 
 ## 9. 正式集成门禁
 
@@ -179,4 +179,4 @@ Module Complete 的含义是该模块被分配的首期功能全部实现；邻�
 
 ## 12. 当前状态
 
-本文是实现前详细设计，尚未建立 `contracts/`、模块 binary/OCI、真实 runtime、测试结果或性能证据。九个模块及系统 aggregate 当前均不得标记 PASS；进入实现后，每个模块以自己的详细设计和 [`../testing/module-e2e-acceptance-design.md`](../testing/module-e2e-acceptance-design.md) 建立独立证据，全部完成后再依 [`../integration/pairwise-and-system-integration-design.md`](../integration/pairwise-and-system-integration-design.md) 正式集成。
+截至 2026-08-14，仓库已经建立公开 contracts 与部分模块实现/证据；Rust Edge 的 operational completion 由其 latest module-gate evidence 独立判定。其完成不授予资格 PASS，也不改变其他八个首期模块或系统 aggregate；九个模块各自完成后，才依 [`../integration/pairwise-and-system-integration-design.md`](../integration/pairwise-and-system-integration-design.md) 正式集成。

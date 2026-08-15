@@ -3,7 +3,7 @@
   "fixture_id": "live-session-v1",
   "fixture_revision": 1,
   "fixture_class": "live-session",
-  "manifest_digest": "sha256:3ac34a93adee5c1067cb95b210ee333ae73103348a839a985c602e5bb6fa1df0",
+  "manifest_digest": "sha256:599d320f96f8223d076b38c16119dfe7301e13353da7451904dfcdd42c557107",
   "source": {
     "reference": "repo-generated://testkit/p4_switch/ptf/bounded-live-session",
     "acquired_at": "2026-08-12T00:00:00Z",
@@ -63,7 +63,7 @@
     "traffic_mode": "fixed-pps",
     "runner_profile_id": "p4-traffic-replay-bmv2-compose/v1",
     "runner_backend_id": "bounded-live-session/v1",
-    "runner_image_digest": "sha256:bceda8879d3f320388f654d36dfa0730a68a15c43beeb83dfb0de2051ada94e5",
+    "runner_image_digest": "sha256:f0b02a81a6fc7e13b3d10695311663eb54aaf25e4487920e7de93b3b211d42dc",
     "requested_value": 100,
     "loop_count": 1,
     "max_duration_ms": 30000,
@@ -79,7 +79,19 @@
     "impairment_digest": "sha256:7639dbf0af7ae96cff188ca729ddf0d49d0c8321d49b3e279946eda9d6eb6c36",
     "netem": {"delay_ms": 0, "jitter_ms": 0, "loss_percent": 0, "duplicate_percent": 0, "reorder_percent": 0, "corrupt_percent": 0, "rate_mbps": null, "queue_limit": 1000, "seed": 1, "direction": "none"},
     "kernel_profile": "e2e-runner-compose-v1-host-kernel",
-    "iproute2_version": "6.15.0-1",
+    "runner_environment": {
+      "distribution": "Alpine Linux",
+      "distribution_version": "3.24.1",
+      "architecture": "x86_64",
+      "iproute2": {
+        "tool_version": "7.0.0",
+        "package_version": "7.0.0-r0"
+      },
+      "tcpreplay": {
+        "tool_version": "4.5.2",
+        "package_version": "4.5.2-r1"
+      }
+    },
     "bmv2_image_digest": "sha256:8b8655c2fb7bc5563706ee853fb668ba70457633cda7d93633d022b30b7ead42",
     "mininet_version": null,
     "veth": true,

@@ -1,0 +1,262 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://masi-nids.example/contracts/supply-chain/v1/rust-edge-agent-release.schema.json",
+  "title": "Rust Edge Agent supply release manifest v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "release_id",
+    "created_at",
+    "source_revision",
+    "source_tree_digest",
+    "working_tree_dirty",
+    "working_tree_status_digest",
+    "image_ref",
+    "image_manifest_digest",
+    "image_archive_index_digest",
+    "image_config_digest",
+    "base_images",
+    "subjects",
+    "inventory",
+    "offline_bundle",
+    "provenance",
+    "offline_rebuild",
+    "trust",
+    "tools",
+    "trivy_checks_bundle",
+    "vulnerability_database",
+    "java_vulnerability_database",
+    "environment",
+    "resource_limits"
+  ],
+  "properties": {
+    "schema_version": {"const": "rust-edge-agent-supply-release/v1"},
+    "release_id": {"type": "string", "pattern": "^rust-edge-agent-supply-[A-Za-z0-9][A-Za-z0-9._-]{0,127}$", "maxLength": 160},
+    "created_at": {"type": "string", "format": "date-time", "maxLength": 64},
+    "source_revision": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "source_tree_digest": {"$ref": "#/$defs/sha256"},
+    "working_tree_dirty": {"type": "boolean"},
+    "working_tree_status_digest": {"$ref": "#/$defs/sha256"},
+    "image_ref": {"type": "string", "pattern": "^[^\\s]{1,512}$"},
+    "image_manifest_digest": {"$ref": "#/$defs/sha256"},
+    "image_archive_index_digest": {"$ref": "#/$defs/sha256"},
+    "image_config_digest": {"$ref": "#/$defs/sha256"},
+    "base_images": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["builder", "runtime"],
+      "properties": {
+        "builder": {"$ref": "#/$defs/pinnedImage"},
+        "runtime": {"$ref": "#/$defs/pinnedImage"}
+      }
+    },
+    "subjects": {
+      "type": "array",
+      "minItems": 9,
+      "maxItems": 32,
+      "uniqueItems": true,
+      "items": {"$ref": "#/$defs/subject"}
+    },
+    "inventory": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["component_registry", "third_party_notices", "cargo_lock", "working_tree_status", "sboms", "scans", "evidence_inputs"],
+      "properties": {
+        "component_registry": {"$ref": "#/$defs/digestFile"},
+        "third_party_notices": {"$ref": "#/$defs/digestFile"},
+        "cargo_lock": {"$ref": "#/$defs/digestFile"},
+        "working_tree_status": {"$ref": "#/$defs/digestFile"},
+        "sboms": {"type": "array", "minItems": 2, "maxItems": 8, "uniqueItems": true, "items": {"$ref": "#/$defs/sizedDigestFile"}},
+        "scans": {"type": "array", "minItems": 3, "maxItems": 16, "uniqueItems": true, "items": {"$ref": "#/$defs/sizedDigestFile"}},
+        "evidence_inputs": {"type": "array", "minItems": 4, "maxItems": 16, "uniqueItems": true, "items": {"$ref": "#/$defs/sizedDigestFile"}}
+      }
+    },
+    "offline_bundle": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["directory", "checksums_path", "checksums_digest", "files"],
+      "properties": {
+        "directory": {"$ref": "#/$defs/safePath"},
+        "checksums_path": {"const": "SHA256SUMS"},
+        "checksums_digest": {"$ref": "#/$defs/sha256"},
+        "files": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 32768,
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/bundleFile"}
+        }
+      }
+    },
+    "provenance": {"$ref": "#/$defs/digestFile"},
+    "offline_rebuild": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "digest", "network"],
+      "properties": {
+        "path": {"$ref": "#/$defs/safePath"},
+        "digest": {"$ref": "#/$defs/sha256"},
+        "network": {"const": "none"}
+      }
+    },
+    "trust": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["public_key", "public_key_digest", "signing_config", "signing_config_digest", "transparency_log", "revocation_file"],
+      "properties": {
+        "public_key": {"$ref": "#/$defs/safePath"},
+        "public_key_digest": {"$ref": "#/$defs/sha256"},
+        "signing_config": {"$ref": "#/$defs/safePath"},
+        "signing_config_digest": {"$ref": "#/$defs/sha256"},
+        "transparency_log": {"type": "string", "minLength": 1, "maxLength": 256},
+        "revocation_file": {"$ref": "#/$defs/safePath"}
+      }
+    },
+    "tools": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["syft", "trivy", "cosign"],
+      "properties": {
+        "syft": {"$ref": "#/$defs/tool"},
+        "trivy": {"$ref": "#/$defs/tool"},
+        "cosign": {"$ref": "#/$defs/tool"}
+      }
+    },
+    "trivy_checks_bundle": {"$ref": "#/$defs/checksBundle"},
+    "vulnerability_database": {"$ref": "#/$defs/database"},
+    "java_vulnerability_database": {"$ref": "#/$defs/database"},
+    "environment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["docker", "kernel", "machine", "uid"],
+      "properties": {
+        "docker": {"type": "object", "maxProperties": 32},
+        "kernel": {"type": "string", "minLength": 1, "maxLength": 256},
+        "machine": {"type": "string", "minLength": 1, "maxLength": 128},
+        "uid": {"type": "integer", "minimum": 0, "maximum": 4294967295}
+      }
+    },
+    "resource_limits": {"$ref": "#/$defs/resourceLimits"}
+  },
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "safePath": {"type": "string", "pattern": "^(?!\\.{1,2}(?:/|$))(?!.*\\/\\.{1,2}(?:/|$))[-A-Za-z0-9._+@=()]+(?:/[-A-Za-z0-9._+@=()]+)*$", "minLength": 1, "maxLength": 1024},
+    "pinnedImage": {"type": "string", "pattern": "^[^\\s@]+@sha256:[0-9a-f]{64}$", "maxLength": 512},
+    "digestFile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "digest"],
+      "properties": {
+        "path": {"$ref": "#/$defs/safePath"},
+        "digest": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "sizedDigestFile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "digest", "bytes"],
+      "properties": {
+        "path": {"$ref": "#/$defs/safePath"},
+        "digest": {"$ref": "#/$defs/sha256"},
+        "bytes": {"type": "integer", "minimum": 1, "maximum": 67108864}
+      }
+    },
+    "bundleFile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "digest", "bytes"],
+      "properties": {
+        "path": {"$ref": "#/$defs/safePath"},
+        "digest": {"$ref": "#/$defs/sha256"},
+        "bytes": {"type": "integer", "minimum": 1, "maximum": 4294967296}
+      }
+    },
+    "subject": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "digest"],
+      "properties": {
+        "name": {"$ref": "#/$defs/safePath"},
+        "digest": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["sha256"],
+          "properties": {"sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}}
+        }
+      }
+    },
+    "tool": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["version", "image", "license"],
+      "properties": {
+        "version": {"type": "string", "minLength": 1, "maxLength": 64},
+        "image": {"$ref": "#/$defs/pinnedImage"},
+        "license": {"type": "string", "minLength": 1, "maxLength": 128}
+      }
+    },
+    "checksBundle": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["version", "reference", "content_digest_algorithm", "content_digest", "file_count", "license", "metadata", "metadata_digest"],
+      "properties": {
+        "version": {"const": "2"},
+        "reference": {"$ref": "#/$defs/pinnedImage"},
+        "content_digest_algorithm": {"const": "sorted-file-sha256-json/v1"},
+        "content_digest": {"$ref": "#/$defs/sha256"},
+        "file_count": {"type": "integer", "minimum": 1, "maximum": 4096},
+        "license": {"type": "string", "minLength": 1, "maxLength": 128},
+        "metadata": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["Digest", "DownloadedAt", "MajorVersion"],
+          "properties": {
+            "Digest": {"$ref": "#/$defs/sha256"},
+            "DownloadedAt": {"type": "string", "format": "date-time", "maxLength": 64},
+            "MajorVersion": {"const": 2}
+          }
+        },
+        "metadata_digest": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "database": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["metadata", "metadata_digest", "database_digest", "database_bytes"],
+      "properties": {
+        "metadata": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["DownloadedAt", "NextUpdate", "UpdatedAt", "Version"],
+          "properties": {
+            "DownloadedAt": {"type": "string", "format": "date-time", "maxLength": 64},
+            "NextUpdate": {"type": "string", "format": "date-time", "maxLength": 64},
+            "UpdatedAt": {"type": "string", "format": "date-time", "maxLength": 64},
+            "Version": {"type": "integer", "minimum": 1, "maximum": 16}
+          }
+        },
+        "metadata_digest": {"$ref": "#/$defs/sha256"},
+        "database_digest": {"$ref": "#/$defs/sha256"},
+        "database_bytes": {"type": "integer", "minimum": 1, "maximum": 4294967296}
+      }
+    },
+    "resourceLimits": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["manifest_bytes", "json_input_bytes", "offline_bundle_files", "offline_bundle_total_bytes", "offline_bundle_file_bytes", "tar_members", "tar_expanded_bytes", "checks_bundle_files", "checks_bundle_total_bytes", "path_bytes"],
+      "properties": {
+        "manifest_bytes": {"const": 8388608},
+        "json_input_bytes": {"const": 67108864},
+        "offline_bundle_files": {"const": 32768},
+        "offline_bundle_total_bytes": {"const": 8589934592},
+        "offline_bundle_file_bytes": {"const": 4294967296},
+        "tar_members": {"const": 65536},
+        "tar_expanded_bytes": {"const": 8589934592},
+        "checks_bundle_files": {"const": 4096},
+        "checks_bundle_total_bytes": {"const": 67108864},
+        "path_bytes": {"const": 1024}
+      }
+    }
+  }
+}

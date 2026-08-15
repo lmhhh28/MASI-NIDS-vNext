@@ -1,0 +1,19 @@
+{
+  "schema_version": "rust-edge-agent-supply-verification/v1",
+  "test_id": "SEC-SUPPLY-001",
+  "requirement_ids": ["MOD-EDGE-001", "ARCH-REUSE-001", "SEC-SUPPLY-001", "TEST-010"],
+  "run_id": "supply-gate-explicitly-skipped",
+  "level": "MODULE",
+  "applicability": "APPLICABLE",
+  "result": "NOT_RUN",
+  "qualification": "NOT_QUALIFIED",
+  "source_revision": "0000000000000000000000000000000000000000",
+  "source_tree_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+  "working_tree_dirty": false,
+  "working_tree_status_digest": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+  "overall_module_complete": false,
+  "manifest_digest": null,
+  "checks": {},
+  "failure_reasons": [],
+  "hold_reasons": ["SUPPLY_GATE_EXPLICITLY_SKIPPED"]
+}

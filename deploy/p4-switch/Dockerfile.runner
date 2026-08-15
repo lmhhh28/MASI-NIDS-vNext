@@ -5,7 +5,13 @@ ARG SOURCE_DATE_EPOCH=1786406400
 LABEL org.opencontainers.image.title="MASI-NIDS P4 qualification runner" \
       org.opencontainers.image.source="https://masi-nids.example/MASI-NIDS-vNext" \
       io.masi-nids.source-date-epoch="${SOURCE_DATE_EPOCH}" \
-      io.masi-nids.runner-deps.digest="sha256:54d602c6947b0268a9c93e4e3ab06d9621f0a7b26aa32f6a85932db864c59552"
+      io.masi-nids.runner-deps.digest="sha256:54d602c6947b0268a9c93e4e3ab06d9621f0a7b26aa32f6a85932db864c59552" \
+      io.masi-nids.runner-base.digest="sha256:42825e7ec3437b3bce923c237484eb23d32128476e18307d2f48951bf86f1db2" \
+      io.masi-nids.runner-os="Alpine Linux 3.24.1" \
+      io.masi-nids.iproute2.tool-version="7.0.0" \
+      io.masi-nids.iproute2.package-version="7.0.0-r0" \
+      io.masi-nids.tcpreplay.tool-version="4.5.2" \
+      io.masi-nids.tcpreplay.package-version="4.5.2-r1"
 
 COPY testkit/p4_switch/requirements-e2e.txt /usr/share/masi/requirements-e2e.txt
 

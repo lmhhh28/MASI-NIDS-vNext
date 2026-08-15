@@ -1,0 +1,6 @@
+{
+  "schema_version": "edge-contract-golden/v1",
+  "protobuf_message": "masi.edge.v1.TelemetryFlowIdentity",
+  "protobuf_hex": "080110011a0d0a04c00002011205080110b960220d0a04c63364021205080110bb032806320408011064",
+  "protobuf_sha256": "sha256:4045f25b231779aa5ff31ee19e99cbf1bd5bdb1115091b70f06626545a726d63"
+}

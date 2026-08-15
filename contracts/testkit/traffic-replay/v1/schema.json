@@ -174,7 +174,7 @@
     "environment": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["impairment_digest", "netem", "kernel_profile", "iproute2_version", "bmv2_image_digest", "mininet_version", "veth", "offloads", "mtu", "cpu_profile", "cgroup_profile"],
+      "required": ["impairment_digest", "netem", "kernel_profile", "runner_environment", "bmv2_image_digest", "mininet_version", "veth", "offloads", "mtu", "cpu_profile", "cgroup_profile"],
       "properties": {
         "impairment_digest": {"$ref": "#/$defs/digest"},
         "netem": {
@@ -195,7 +195,7 @@
           }
         },
         "kernel_profile": {"$ref": "#/$defs/identity"},
-        "iproute2_version": {"const": "6.15.0-1"},
+        "runner_environment": {"$ref": "#/$defs/runner_environment"},
         "bmv2_image_digest": {"$ref": "#/$defs/digest"},
         "mininet_version": {"oneOf": [{"type": "null"}, {"const": "2.3.0-1.1"}]},
         "veth": {"const": true},
@@ -203,6 +203,34 @@
         "mtu": {"const": 9500},
         "cpu_profile": {"$ref": "#/$defs/identity"},
         "cgroup_profile": {"$ref": "#/$defs/identity"}
+      }
+    },
+    "runner_environment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["distribution", "distribution_version", "architecture", "iproute2", "tcpreplay"],
+      "properties": {
+        "distribution": {"const": "Alpine Linux"},
+        "distribution_version": {"const": "3.24.1"},
+        "architecture": {"const": "x86_64"},
+        "iproute2": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["tool_version", "package_version"],
+          "properties": {
+            "tool_version": {"const": "7.0.0"},
+            "package_version": {"const": "7.0.0-r0"}
+          }
+        },
+        "tcpreplay": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["tool_version", "package_version"],
+          "properties": {
+            "tool_version": {"const": "4.5.2"},
+            "package_version": {"const": "4.5.2-r1"}
+          }
+        }
       }
     },
     "layer_oracle": {

@@ -3,9 +3,9 @@
 - 状态：Partially Superseded；本机per-shard C++部署、路由与滚动重启机制先由ADR-0016的central-GPU pool替代，现行CPU/CUDA启动profile、资格范围与真实服务E2E由ADR-0017/0006定义
 - 日期：2026-08-10
 - 决策者：Owner
-- 需求基线：原始决策形成于 v1.8，最后适用本机方案为 `vNext-requirements-1.10`；当前边界 `vNext-requirements-1.17`
+- 需求基线：原始决策形成于 v1.8，最后适用本机方案为 `vNext-requirements-1.10`；当前边界 `vNext-requirements-1.18`
 - `document_status`: `historical_partially_superseded`
-- `current_normative_source`: `../masi-nids-vnext-system-requirements-2026-08-09.md@vNext-requirements-1.17`、ADR-0017、ADR-0006
+- `current_normative_source`: `../masi-nids-vnext-system-requirements-2026-08-09.md@vNext-requirements-1.18`、ADR-0017、ADR-0006
 - `implementation_authority`: `current_normative_source_only`
 - `qualification_authority`: `current_normative_source_only`
 - `retained_invariants`: startup-bound exact binding、无runtime load/unload、Edge唯一route、readback/CAS/fence、显式rollback与WAL gap；仅因现行需求再次规定而有效
@@ -199,7 +199,7 @@ ADR-0010 的旧 candidate/shadow/control method schema不得作为兼容层保�
 - 两个以上 shard 的 old/new mixed、late result fence、跨 generation merge拒绝、mixed-sensitive policy/effect HOLD；
 - partial failure/`rollout_failed_mixed`、explicit rolling rollback、previous revoked/missing/incompatible；
 - 无损PostgreSQL failover保持incarnation，PITR/restore/clone/rewind轮换incarnation；C++/Edge/Go restart和旧node/readback/同数字generation不能制造同shard双route/current；
-- steady/peak/rolling qualified capacity、p99、CPU/RSS/VRAM、startup stages、active/warming/terminating/replay资源、per-shard unavailable、buffer age/depth/overflow/gap、restart/quarantine、group mixed duration和24小时soak的绝对门槛；
+- steady/peak/rolling qualified capacity、p99、CPU/RSS/VRAM、startup stages、active/warming/terminating/replay资源、per-shard unavailable、buffer age/depth/overflow/gap、restart/quarantine、group mixed duration和3,600 秒 soak的绝对门槛；
 - systemd/Podman/Kubernetes全部作为 adapter时，deployment state均不能绕过 Go readback/CAS。
 
 当前仓库仍处于初始化阶段。本文只记录已被部分替代的v1.10决策来源，不构成当前实现或资格声明；现行ADR-0017、contract、Central Inference、Edge routing/WAL、Go rollout/recovery、Web、真实服务E2E或生产资格在证据形成前均为`HOLD/NOT RUN`。

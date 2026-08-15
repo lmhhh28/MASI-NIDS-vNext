@@ -1,0 +1,31 @@
+{
+  "schema_version": "qualification-profile/v1",
+  "profile_id": "edge-feature-p4-window/v1",
+  "source_profile": "telemetry-p4-window/v1",
+  "observation_point": "p4-ingress-pre-firewall",
+  "window": {
+    "interval": "[start,end)",
+    "default_duration_ms": 10000,
+    "event_time": "target-aggregate-export-time",
+    "allowed_lateness_ms": 1000,
+    "final_required": true,
+    "valid_required": true,
+    "reopen_after_final": false,
+    "zero_fill": false
+  },
+  "tensor": {
+    "dtype": "uint64-le",
+    "shape": [1, 6],
+    "order": [
+      "aggregate_packets",
+      "aggregate_bytes",
+      "reported_nonzero_cells",
+      "max_cell_packets",
+      "max_cell_bytes",
+      "snapshot_count"
+    ],
+    "bytes": 48
+  },
+  "missing_or_invalid": "withhold inference and emit exact quality/gap evidence",
+  "raw_payload": false
+}

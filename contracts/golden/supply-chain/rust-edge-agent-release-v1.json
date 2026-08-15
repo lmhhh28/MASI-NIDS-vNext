@@ -1,0 +1,105 @@
+{
+  "schema_version": "rust-edge-agent-supply-release/v1",
+  "release_id": "rust-edge-agent-supply-golden0001",
+  "created_at": "2026-08-09T00:00:00Z",
+  "source_revision": "1111111111111111111111111111111111111111",
+  "source_tree_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "working_tree_dirty": false,
+  "working_tree_status_digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "image_ref": "masi-edge@sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+  "image_manifest_digest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+  "image_archive_index_digest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+  "image_config_digest": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+  "base_images": {
+    "builder": "rust@sha256:1111111111111111111111111111111111111111111111111111111111111111",
+    "runtime": "distroless@sha256:2222222222222222222222222222222222222222222222222222222222222222"
+  },
+  "subjects": [
+    {"name": "source-tree.tar", "digest": {"sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}},
+    {"name": "masi-nids/rust-edge-agent-oci-manifest", "digest": {"sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"}},
+    {"name": "masi-nids/rust-edge-agent-docker-archive-index", "digest": {"sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"}},
+    {"name": "masi-nids/rust-edge-agent-oci-config", "digest": {"sha256": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"}},
+    {"name": "usr/local/bin/masi-edge", "digest": {"sha256": "3333333333333333333333333333333333333333333333333333333333333333"}},
+    {"name": "offline-rebuild/masi-edge", "digest": {"sha256": "3333333333333333333333333333333333333333333333333333333333333333"}},
+    {"name": "edge-rs/Cargo.lock", "digest": {"sha256": "4444444444444444444444444444444444444444444444444444444444444444"}},
+    {"name": "edge-rs/Dockerfile", "digest": {"sha256": "5555555555555555555555555555555555555555555555555555555555555555"}},
+    {"name": "working-tree-status.txt", "digest": {"sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"}}
+  ],
+  "inventory": {
+    "component_registry": {"path": "contracts/supply-chain/v1/rust-edge-agent-components.json", "digest": "sha256:1111111111111111111111111111111111111111111111111111111111111111"},
+    "third_party_notices": {"path": "contracts/supply-chain/v1/rust-edge-agent-third-party-notices.json", "digest": "sha256:2222222222222222222222222222222222222222222222222222222222222222"},
+    "cargo_lock": {"path": "edge-rs/Cargo.lock", "digest": "sha256:4444444444444444444444444444444444444444444444444444444444444444"},
+    "working_tree_status": {"path": "working-tree-status.txt", "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"},
+    "sboms": [
+      {"path": "image.spdx.json", "digest": "sha256:1111111111111111111111111111111111111111111111111111111111111111", "bytes": 1},
+      {"path": "source.spdx.json", "digest": "sha256:2222222222222222222222222222222222222222222222222222222222222222", "bytes": 1}
+    ],
+    "scans": [
+      {"path": "trivy-image.json", "digest": "sha256:3333333333333333333333333333333333333333333333333333333333333333", "bytes": 1},
+      {"path": "trivy-config.json", "digest": "sha256:4444444444444444444444444444444444444444444444444444444444444444", "bytes": 1},
+      {"path": "trivy-source-secret.json", "digest": "sha256:5555555555555555555555555555555555555555555555555555555555555555", "bytes": 1}
+    ],
+    "evidence_inputs": [
+      {"path": "image-archive-manifest.json", "digest": "sha256:6666666666666666666666666666666666666666666666666666666666666666", "bytes": 1},
+      {"path": "image-config.json", "digest": "sha256:7777777777777777777777777777777777777777777777777777777777777777", "bytes": 1},
+      {"path": "trivy-config.log", "digest": "sha256:8888888888888888888888888888888888888888888888888888888888888888", "bytes": 1},
+      {"path": "working-tree-status.txt", "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "bytes": 1}
+    ]
+  },
+  "offline_bundle": {
+    "directory": "rust-edge-agent-golden0001",
+    "checksums_path": "SHA256SUMS",
+    "checksums_digest": "sha256:9999999999999999999999999999999999999999999999999999999999999999",
+    "files": [{"path": "vendor/example/output.repr(C).rs", "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "bytes": 1}]
+  },
+  "provenance": {"path": "provenance.intoto.json", "digest": "sha256:1111111111111111111111111111111111111111111111111111111111111111"},
+  "offline_rebuild": {"path": "offline-rebuild.json", "digest": "sha256:2222222222222222222222222222222222222222222222222222222222222222", "network": "none"},
+  "trust": {
+    "public_key": "contracts/trust/v1/cosign.pub",
+    "public_key_digest": "sha256:3333333333333333333333333333333333333333333333333333333333333333",
+    "signing_config": "deploy/supply-chain/cosign-offline-signing-config.json",
+    "signing_config_digest": "sha256:4444444444444444444444444444444444444444444444444444444444444444",
+    "transparency_log": "disabled for Owner-authorized local bootstrap",
+    "revocation_file": "contracts/trust/v1/revoked-keys.json"
+  },
+  "tools": {
+    "syft": {"version": "1.50.0", "image": "syft@sha256:1111111111111111111111111111111111111111111111111111111111111111", "license": "Apache-2.0"},
+    "trivy": {"version": "0.72.0", "image": "trivy@sha256:2222222222222222222222222222222222222222222222222222222222222222", "license": "Apache-2.0"},
+    "cosign": {"version": "3.0.6", "image": "cosign@sha256:3333333333333333333333333333333333333333333333333333333333333333", "license": "Apache-2.0"}
+  },
+  "trivy_checks_bundle": {
+    "version": "2",
+    "reference": "trivy-checks@sha256:4444444444444444444444444444444444444444444444444444444444444444",
+    "content_digest_algorithm": "sorted-file-sha256-json/v1",
+    "content_digest": "sha256:5555555555555555555555555555555555555555555555555555555555555555",
+    "file_count": 641,
+    "license": "Apache-2.0",
+    "metadata": {"Digest": "sha256:4444444444444444444444444444444444444444444444444444444444444444", "DownloadedAt": "2026-08-09T00:00:00Z", "MajorVersion": 2},
+    "metadata_digest": "sha256:6666666666666666666666666666666666666666666666666666666666666666"
+  },
+  "vulnerability_database": {
+    "metadata": {"DownloadedAt": "2026-08-09T00:00:00Z", "NextUpdate": "2026-08-10T00:00:00Z", "UpdatedAt": "2026-08-09T00:00:00Z", "Version": 2},
+    "metadata_digest": "sha256:7777777777777777777777777777777777777777777777777777777777777777",
+    "database_digest": "sha256:8888888888888888888888888888888888888888888888888888888888888888",
+    "database_bytes": 1
+  },
+  "java_vulnerability_database": {
+    "metadata": {"DownloadedAt": "2026-08-09T00:00:00Z", "NextUpdate": "2026-08-10T00:00:00Z", "UpdatedAt": "2026-08-09T00:00:00Z", "Version": 1},
+    "metadata_digest": "sha256:9999999999999999999999999999999999999999999999999999999999999999",
+    "database_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "database_bytes": 1
+  },
+  "environment": {"docker": {}, "kernel": "linux", "machine": "x86_64", "uid": 0},
+  "resource_limits": {
+    "manifest_bytes": 8388608,
+    "json_input_bytes": 67108864,
+    "offline_bundle_files": 32768,
+    "offline_bundle_total_bytes": 8589934592,
+    "offline_bundle_file_bytes": 4294967296,
+    "tar_members": 65536,
+    "tar_expanded_bytes": 8589934592,
+    "checks_bundle_files": 4096,
+    "checks_bundle_total_bytes": 67108864,
+    "path_bytes": 1024
+  }
+}

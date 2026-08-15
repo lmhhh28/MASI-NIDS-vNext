@@ -1,0 +1,60 @@
+{
+  "schema_version": "rust-edge-agent-traceability-evidence/v1",
+  "module_id": "MOD-EDGE-001",
+  "manifest": "edge-rs/requirements-traceability.json",
+  "manifest_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+  "evidence_root": "edge-rs/evidence/module-gates/runs/golden",
+  "result": "PASS",
+  "qualification": "NOT_QUALIFIED",
+  "requirements": [
+    {
+      "requirement_id": "MOD-EDGE-001",
+      "scenario_ids": ["TEST-EDGE-MODULE-E2E-001"],
+      "test_targets": [
+        {
+          "target": "real_binary_runs_public_mtls_multi_target_pipeline",
+          "command_id": "tests",
+          "result": "PASS",
+          "qualification": "QUALIFIED"
+        }
+      ],
+      "evidence": [
+        {
+          "path": "module-blackbox/module-blackbox-e2e.json",
+          "kind": "json-evidence",
+          "schema_version": "edge-module-e2e-evidence/v1",
+          "test_id": "TEST-EDGE-MODULE-E2E-001",
+          "requirement_ids": ["MOD-EDGE-001"],
+          "result": "PASS",
+          "qualification": "QUALIFIED"
+        }
+      ],
+      "evidence_result": "PASS",
+      "qualification": "QUALIFIED",
+      "qualification_limit": "independent module boundary"
+    }
+  ],
+  "requirement_ids": ["MOD-EDGE-001"],
+  "conditional_applicability": [
+    {"profile": "target-gnmi-readonly/v1", "applicability": "NOT_APPLICABLE", "result": "NOT_RUN", "stable_reason": "NOT_TRIGGERED_BY_FIRST_RELEASE_BMV2_ASSIGNMENT"},
+    {"profile": "mirror-packet-mmap/v1", "applicability": "NOT_APPLICABLE", "result": "NOT_RUN", "stable_reason": "P4_FEATURES_SUFFICIENT_FOR_SELECTED_MODEL"},
+    {"profile": "mirror-af-xdp/v1", "applicability": "NOT_APPLICABLE", "result": "NOT_RUN", "stable_reason": "PACKET_MMAP_PROFILE_NOT_TRIGGERED"},
+    {"profile": "mirror-dpdk/v1", "applicability": "NOT_APPLICABLE", "result": "NOT_RUN", "stable_reason": "AF_XDP_PROFILE_NOT_TRIGGERED"}
+  ],
+  "artifacts": [
+    {
+      "path": "module-blackbox/module-blackbox-e2e.json",
+      "sha256": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+      "bytes": 1,
+      "media_type": "application/json"
+    },
+    {
+      "path": "oci-smoke/edge-image.tar",
+      "sha256": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+      "bytes": 1,
+      "media_type": "application/x-tar"
+    }
+  ],
+  "failures": [],
+  "valid": true
+}

@@ -1,0 +1,19 @@
+{
+  "schema_version": "third-party-notices/v1",
+  "module": "rust-edge-agent",
+  "notices": [
+    {"component": "Rust stable toolchain", "license": "Apache-2.0 OR MIT", "source": "https://github.com/rust-lang/rust"},
+    {"component": "Rust builder OCI image", "license": "aggregate-see-SPDX-and-third-party-notices", "source": "https://hub.docker.com/_/rust"},
+    {"component": "Distroless cc Debian 12 runtime OCI base", "license": "aggregate-see-SPDX-and-third-party-notices", "source": "https://github.com/GoogleContainerTools/distroless"},
+    {"component": "Cargo.lock dependency closure", "license": "per-package SPDX license in generated SBOM", "source": "edge-rs/Cargo.lock"},
+    {"component": "Tokio", "license": "MIT", "source": "https://github.com/tokio-rs/tokio"},
+    {"component": "Tonic and Prost", "license": "MIT/Apache-2.0", "source": "https://github.com/hyperium/tonic and https://github.com/tokio-rs/prost"},
+    {"component": "Serde and serde_json", "license": "MIT OR Apache-2.0", "source": "https://github.com/serde-rs/serde and https://github.com/serde-rs/json"},
+    {"component": "sha2, crc32c, fs2, and uuid", "license": "MIT OR Apache-2.0", "source": "edge-rs/Cargo.lock"},
+    {"component": "rustls-ring TLS stack through Tonic", "license": "per-package SPDX license in generated SBOM", "source": "edge-rs/Cargo.lock"},
+    {"component": "vendored protoc", "license": "MIT", "source": "https://crates.io/crates/protoc-bin-vendored"},
+    {"component": "Syft", "license": "Apache-2.0", "source": "https://github.com/anchore/syft"},
+    {"component": "Trivy", "license": "Apache-2.0", "source": "https://github.com/aquasecurity/trivy"},
+    {"component": "Cosign", "license": "Apache-2.0", "source": "https://github.com/sigstore/cosign"}
+  ]
+}

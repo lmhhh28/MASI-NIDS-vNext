@@ -10,6 +10,10 @@
     "source_profile_digest",
     "telemetry_source_id",
     "target_id",
+    "shard_id",
+    "capture_adapter_id",
+    "endpoint_identity",
+    "flow_identity_profile",
     "device_id",
     "role",
     "observation_domain",
@@ -28,6 +32,7 @@
     "cells",
     "sampling",
     "drops",
+    "time_semantics",
     "clear_advance_condition",
     "quality"
   ],
@@ -37,6 +42,10 @@
     "source_profile_digest": {"$ref": "#/$defs/digest"},
     "telemetry_source_id": {"$ref": "#/$defs/identity"},
     "target_id": {"$ref": "#/$defs/identity"},
+    "shard_id": {"$ref": "#/$defs/identity"},
+    "capture_adapter_id": {"const": "p4runtime-bounded-aggregate"},
+    "endpoint_identity": {"$ref": "#/$defs/identity"},
+    "flow_identity_profile": {"$ref": "#/$defs/flow_identity_profile"},
     "device_id": {"type": "integer", "minimum": 0},
     "role": {"type": "string", "minLength": 1, "maxLength": 64},
     "observation_domain": {"$ref": "#/$defs/identity"},
@@ -58,16 +67,18 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["index", "packets", "bytes"],
+        "required": ["index", "packets", "bytes", "selector_digest"],
         "properties": {
           "index": {"type": "integer", "minimum": 0, "maximum": 255},
           "packets": {"type": "integer", "minimum": 0},
-          "bytes": {"type": "integer", "minimum": 0}
+          "bytes": {"type": "integer", "minimum": 0},
+          "selector_digest": {"$ref": "#/$defs/digest"}
         }
       }
     },
     "sampling": {"$ref": "#/$defs/sampling"},
     "drops": {"$ref": "#/$defs/drops"},
+    "time_semantics": {"$ref": "#/$defs/time_semantics"},
     "clear_advance_condition": {"enum": ["frozen-bank-readback-then-explicit-clear", "not-cleared"]},
     "quality": {"$ref": "#/$defs/quality"}
   },
@@ -82,6 +93,99 @@
         "p4_program_digest": {"$ref": "#/$defs/digest"},
         "p4info_digest": {"$ref": "#/$defs/digest"},
         "pipeline_digest": {"$ref": "#/$defs/digest"}
+      }
+    },
+    "optional_uint32": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["present", "value"],
+      "properties": {
+        "present": {"type": "boolean"},
+        "value": {"type": "integer", "minimum": 0, "maximum": 4294967295}
+      }
+    },
+    "flow_endpoint": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["address_hex", "port"],
+      "properties": {
+        "address_hex": {
+          "type": "string",
+          "pattern": "^(?:[0-9a-f]{8}|[0-9a-f]{32})$"
+        },
+        "port": {"$ref": "#/$defs/optional_uint32"}
+      }
+    },
+    "flow_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["direction", "ip_version", "first_endpoint", "second_endpoint", "protocol", "vlan_id", "tunnel_id_hex", "fragment_class", "port_unavailable"],
+      "properties": {
+        "direction": {"enum": ["ingress", "egress"]},
+        "ip_version": {"enum": ["ipv4", "ipv6"]},
+        "first_endpoint": {"$ref": "#/$defs/flow_endpoint"},
+        "second_endpoint": {"$ref": "#/$defs/flow_endpoint"},
+        "protocol": {"type": "integer", "minimum": 0, "maximum": 255},
+        "vlan_id": {"$ref": "#/$defs/optional_uint32"},
+        "tunnel_id_hex": {"type": "string", "pattern": "^[0-9a-f]{0,128}$"},
+        "fragment_class": {"type": "integer", "minimum": 0, "maximum": 2},
+        "port_unavailable": {"type": "boolean"}
+      },
+      "allOf": [
+        {
+          "if": {"properties": {"ip_version": {"const": "ipv4"}}, "required": ["ip_version"]},
+          "then": {
+            "properties": {
+              "first_endpoint": {"properties": {"address_hex": {"pattern": "^[0-9a-f]{8}$"}}},
+              "second_endpoint": {"properties": {"address_hex": {"pattern": "^[0-9a-f]{8}$"}}}
+            }
+          }
+        },
+        {
+          "if": {"properties": {"ip_version": {"const": "ipv6"}}, "required": ["ip_version"]},
+          "then": {
+            "properties": {
+              "first_endpoint": {"properties": {"address_hex": {"pattern": "^[0-9a-f]{32}$"}}},
+              "second_endpoint": {"properties": {"address_hex": {"pattern": "^[0-9a-f]{32}$"}}}
+            }
+          }
+        },
+        {
+          "if": {"properties": {"port_unavailable": {"const": true}}, "required": ["port_unavailable"]},
+          "then": {
+            "properties": {
+              "first_endpoint": {"properties": {"port": {"properties": {"present": {"const": false}}}}},
+              "second_endpoint": {"properties": {"port": {"properties": {"present": {"const": false}}}}}
+            }
+          }
+        }
+      ]
+    },
+    "flow_identity_profile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema_version", "shard_id", "capture_adapter_id", "endpoint_identity", "direction", "supported_ip_versions", "endpoint_ordering", "vlan_id_included", "tunnel_id_included", "fragment_semantics", "l4_unavailable_semantics", "selector_algorithm", "selector_seed_digest", "exposure"],
+      "properties": {
+        "schema_version": {"const": "telemetry-flow-identity-profile/v1"},
+        "shard_id": {"$ref": "#/$defs/identity"},
+        "capture_adapter_id": {"const": "p4runtime-bounded-aggregate"},
+        "endpoint_identity": {"$ref": "#/$defs/identity"},
+        "direction": {"const": "ingress"},
+        "supported_ip_versions": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 2,
+          "uniqueItems": true,
+          "items": {"enum": ["ipv4", "ipv6"]}
+        },
+        "endpoint_ordering": {"const": "unidirectional-observation-order"},
+        "vlan_id_included": {"type": "boolean"},
+        "tunnel_id_included": {"type": "boolean"},
+        "fragment_semantics": {"const": "fragment-class-preserved"},
+        "l4_unavailable_semantics": {"const": "port-unavailable-with-absent-ports"},
+        "selector_algorithm": {"const": "p4-qualified-cell-selector/v1"},
+        "selector_seed_digest": {"$ref": "#/$defs/digest"},
+        "exposure": {"const": "aggregate-cell-selector-digest-only"}
       }
     },
     "window": {
@@ -150,14 +254,32 @@
     "sampling": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["algorithm", "period_packets", "eligible_population", "expected_hints", "observed_hints", "coverage"],
+      "required": ["algorithm", "period_packets", "eligible_population", "expected_hints", "observed_hints", "coverage", "selector", "seed_digest", "weighting", "estimation_error_ppm", "complete_population_claim"],
       "properties": {
         "algorithm": {"const": "sequence-modulo"},
         "period_packets": {"const": 1024},
         "eligible_population": {"type": "integer", "minimum": 0},
         "expected_hints": {"type": "integer", "minimum": 0},
         "observed_hints": {"type": "integer", "minimum": 0},
-        "coverage": {"type": "number", "minimum": 0, "maximum": 1}
+        "coverage": {"type": "number", "minimum": 0, "maximum": 1},
+        "selector": {"const": "source-sequence-modulo-period"},
+        "seed_digest": {"$ref": "#/$defs/digest"},
+        "weighting": {"const": "none-hint-only"},
+        "estimation_error_ppm": {"const": 1000000},
+        "complete_population_claim": {"const": false}
+      }
+    },
+    "time_semantics": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["event_time_min_unix_ms", "event_time_max_unix_ms", "packet_time_observed", "packet_time_semantics", "monotonic_queue_age_ms", "monotonic_deadline_budget_ms"],
+      "properties": {
+        "event_time_min_unix_ms": {"type": "integer", "minimum": 1},
+        "event_time_max_unix_ms": {"type": "integer", "minimum": 1},
+        "packet_time_observed": {"const": false},
+        "packet_time_semantics": {"const": "not-observed-by-p4-bounded-aggregate"},
+        "monotonic_queue_age_ms": {"type": "integer", "minimum": 0},
+        "monotonic_deadline_budget_ms": {"type": "integer", "minimum": 1, "maximum": 30000}
       }
     },
     "drops": {
@@ -186,5 +308,14 @@
         }
       }
     }
-  }
+  },
+  "x-masi-semantic-constraints": [
+    {"constraint_id": "TELEMETRY-TARGET-SHARD", "operator": "all-equal", "fields": ["/target_id", "/shard_id", "/flow_identity_profile/shard_id"]},
+    {"constraint_id": "TELEMETRY-SOURCE-SEQUENCE", "left": "/source_sequence/expected_start", "operator": "lte", "right": "/source_sequence/expected_end"},
+    {"constraint_id": "TELEMETRY-OBSERVED-SEQUENCE", "left": "/source_sequence/observed_start", "operator": "lte", "right": "/source_sequence/observed_end"},
+    {"constraint_id": "TELEMETRY-WINDOW-TIME", "operator": "strict-time-order", "fields": ["/window/window_start", "/window/window_end", "/window/finalized_at", "/window/produced_at"]},
+    {"constraint_id": "TELEMETRY-SNAPSHOT-BANK", "operator": "dual-bank-exact", "fields": ["/bank", "/snapshot/frozen_bank", "/snapshot/active_bank_after_flip"]},
+    {"constraint_id": "TELEMETRY-CELL-CARDINALITY", "left": "/reported_nonzero_cells", "operator": "equals-array-length", "right": "/cells"},
+    {"constraint_id": "TELEMETRY-AGGREGATE-SUM", "left": "/aggregate", "operator": "counter-sum", "right": "/cells"}
+  ]
 }

@@ -174,9 +174,9 @@ Edge不创建 rule current、delta公式或业务百分比，也不主动清零 
 - P4 aggregate、Digest/PacketIn、event-time/finality/quality/fragment；
 - source/input/result WAL、Central batch/retry/dedupe/backpressure和Go ACK；
 - rule counter sample/reset/generation/gap；
-- crash、断网、response loss、磁盘/queue/FD耗尽和24小时soak；
+- crash、断网、response loss、磁盘/queue/FD耗尽和3,600 秒 soak；
 - no second writer、no local inference、no DB write、资源和性能门槛。
 
 ## 14. Module Complete 判定
 
-Edge 被分配的全部首期功能、错误、资源、安全、恢复和可观测性必须完整实现；真实 OCI/public-boundary E2E、Rust语言门禁、契约/golden、fault、绝对性能和README命令全部通过。只用单target、memory mock、fake Edge、无真实 WAL crash、无Central network边界或性能门槛未冻结时，不得标记 Module Complete。
+Edge 被分配的全部首期功能、错误、资源、安全、恢复和可观测性必须完整实现；真实 binary/OCI public-boundary E2E、Rust语言门禁、契约/golden、fault/security/resource/performance、3,600 秒 soak 和README命令必须实际执行且 operational checks 通过。`DEC-044` 要求完成状态从公开 evidence、命令 sidecar、digest 与 append-only `edge-rs/module-findings.json` 重派生：open P0=0、真实启动/必需测试 blocker=0 才能为 `COMPLETE`，篡改 summary 或缺失证据失败关闭。只用单target、memory mock、fake Edge、无真实 WAL crash、无Central network边界、实际性能/soak测试未运行或启动受阻时不得完成。dirty tree、受保护基线、生产绝对门槛及尚未执行的正式 pairwise/system 只保持 qualification-only HOLD，不阻断 operational completion，也不得被完成状态改写为资格 PASS。

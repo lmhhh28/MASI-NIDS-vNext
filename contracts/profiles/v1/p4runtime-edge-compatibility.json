@@ -1,0 +1,50 @@
+{
+  "schema_version": "p4runtime-edge-compatibility/v1",
+  "profile_id": "p4runtime-edge-bmv2-v1model/v1",
+  "contract_source": "contracts/p4runtime/v1/p4runtime.proto",
+  "client_semantics": "P4Runtime-1.4.1-compatible-subset",
+  "accepted_capabilities_api_versions": [
+    "1.3.0"
+  ],
+  "compatibility_basis": {
+    "encoding": "protobuf-wire",
+    "unknown_fields": "ignored-by-protobuf-decoder",
+    "required_common_wire_surface": "P4Runtime-1.3.0",
+    "target_profile": "BMv2-simple_switch_grpc-v1model"
+  },
+  "rpc_allowlist": [
+    "Capabilities",
+    "StreamChannel",
+    "GetForwardingPipelineConfig",
+    "Write",
+    "Read"
+  ],
+  "stream_request_allowlist": [
+    "arbitration",
+    "digest_ack"
+  ],
+  "stream_response_allowlist": [
+    "arbitration",
+    "packet",
+    "digest",
+    "error"
+  ],
+  "write_atomicity_allowlist": [
+    "CONTINUE_ON_ERROR"
+  ],
+  "pipeline_action": "VERIFY",
+  "unsupported_or_rejected": [
+    "SetForwardingPipelineConfig",
+    "DATAPLANE_ATOMIC",
+    "ROLLBACK_ON_ERROR",
+    "unknown-capabilities-version",
+    "pipeline-or-P4Info-digest-drift",
+    "second-production-client"
+  ],
+  "version_decision": {
+    "1.3.0": "ACCEPT_FOR_PINNED_BMV2_PROFILE",
+    "1.4.0": "REJECT_NOT_QUALIFIED",
+    "1.4.1": "REJECT_AS_TARGET_CAPABILITIES_VERSION_NOT_QUALIFIED",
+    "unknown": "REJECT_FAIL_CLOSED"
+  }
+}

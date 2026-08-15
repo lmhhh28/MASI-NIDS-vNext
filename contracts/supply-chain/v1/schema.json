@@ -7,13 +7,26 @@
   "required": ["schema_version", "module", "components"],
   "properties": {
     "schema_version": {"const": "supply-chain-component-registry/v1"},
-    "module": {"const": "p4-switch"},
+    "module": {
+      "enum": [
+        "p4-switch",
+        "rust-edge-agent",
+        "central-inference",
+        "control-core",
+        "plugin-runtime-host",
+        "analysis-plugin",
+        "offline-ml",
+        "web-spa",
+        "postgresql-state"
+      ]
+    },
     "components": {
       "type": "array",
       "minItems": 11,
       "maxItems": 128,
       "items": {
         "type": "object",
+        "additionalProperties": false,
         "required": ["name", "decision", "license", "authority", "failure", "rollback", "exit"],
         "properties": {
           "name": {"type": "string", "minLength": 1},

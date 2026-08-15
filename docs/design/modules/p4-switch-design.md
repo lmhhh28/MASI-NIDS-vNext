@@ -94,7 +94,7 @@ P4 target 保存运行中的 table/register/counter/selector/bank 状态，但�
 
 首期资格矩阵把4,096 active observable normalized firewall rules与双bank物理占用作为待资格化最大值，不是BMv2或未来硬件已经支持的容量承诺。每个exact target profile仍须分别冻结并实测overlay、每bank、compiled entries、direct counters、eligible counters、aggregate cells/registers、总资源和绝对性能门槛；这些门槛未冻结或未通过时只能`HOLD|NOT_RUN`，不得声称“支持4,096”。超限必须在外部write前被Edge preflight拒绝；P4仍对超限/非法entity返回稳定错误。
 
-packet 热路径只有 parser、table match/action、counter/register 更新，不访问数据库、RPC、LLM 或插件。性能证据覆盖 0/128/1,024/4,096 rules、最坏合法展开、telemetry aggregate 和 rule counter 同时开启、overlay churn、selector flip、control-plane contention 和 24 小时 soak。
+packet 热路径只有 parser、table match/action、counter/register 更新，不访问数据库、RPC、LLM 或插件。性能证据覆盖 0/128/1,024/4,096 rules、最坏合法展开、telemetry aggregate 和 rule counter 同时开启、overlay churn、selector flip、control-plane contention 和 3,600 秒 soak。
 
 ## 7. 启动、健康与关闭
 

@@ -1,0 +1,277 @@
+// Copyright 2026 MASI-NIDS-vNext contributors.
+//
+// P4Runtime 1.4.1 wire subset used by the Rust Edge Agent. Field numbers,
+// service names, enums, and oneofs match the upstream p4.v1 API. P4Info and
+// extension payloads are deliberately opaque: Edge authenticates their exact
+// bytes and digest and obtains table layout only from a qualified target
+// profile; it never evolves a second P4Info object model.
+syntax = "proto3";
+
+package p4.v1;
+
+import "google/rpc/status.proto";
+
+service P4Runtime {
+  rpc Write(WriteRequest) returns (WriteResponse);
+  rpc Read(ReadRequest) returns (stream ReadResponse);
+  rpc SetForwardingPipelineConfig(SetForwardingPipelineConfigRequest)
+      returns (SetForwardingPipelineConfigResponse);
+  rpc GetForwardingPipelineConfig(GetForwardingPipelineConfigRequest)
+      returns (GetForwardingPipelineConfigResponse);
+  rpc StreamChannel(stream StreamMessageRequest)
+      returns (stream StreamMessageResponse);
+  rpc Capabilities(CapabilitiesRequest) returns (CapabilitiesResponse);
+}
+
+message Uint128 {
+  uint64 high = 1;
+  uint64 low = 2;
+}
+
+message WriteRequest {
+  uint64 device_id = 1;
+  uint64 role_id = 2;
+  Uint128 election_id = 3;
+  repeated Update updates = 4;
+  enum Atomicity {
+    CONTINUE_ON_ERROR = 0;
+    ROLLBACK_ON_ERROR = 1;
+    DATAPLANE_ATOMIC = 2;
+  }
+  Atomicity atomicity = 5;
+  string role = 6;
+}
+
+message WriteResponse {}
+
+message Update {
+  enum Type {
+    UNSPECIFIED = 0;
+    INSERT = 1;
+    MODIFY = 2;
+    DELETE = 3;
+  }
+  Type type = 1;
+  Entity entity = 2;
+}
+
+message ReadRequest {
+  uint64 device_id = 1;
+  repeated Entity entities = 2;
+  string role = 3;
+}
+
+message ReadResponse {
+  repeated Entity entities = 1;
+}
+
+message Entity {
+  oneof entity {
+    TableEntry table_entry = 2;
+    CounterEntry counter_entry = 7;
+    DirectCounterEntry direct_counter_entry = 8;
+    PacketReplicationEngineEntry packet_replication_engine_entry = 9;
+    DigestEntry digest_entry = 12;
+  }
+}
+
+message TableEntry {
+  uint32 table_id = 1;
+  repeated FieldMatch match = 2;
+  TableAction action = 3;
+  int32 priority = 4;
+  uint64 controller_metadata = 5;
+  CounterData counter_data = 7;
+  bool is_default_action = 8;
+  int64 idle_timeout_ns = 9;
+  bytes metadata = 11;
+  bool is_const = 13;
+}
+
+message FieldMatch {
+  message Exact { bytes value = 1; }
+  message Ternary {
+    bytes value = 1;
+    bytes mask = 2;
+  }
+  message Lpm {
+    bytes value = 1;
+    int32 prefix_len = 2;
+  }
+  oneof field_match_type {
+    Exact exact = 2;
+    Ternary ternary = 3;
+    Lpm lpm = 4;
+  }
+  uint32 field_id = 1;
+}
+
+message TableAction {
+  oneof type { Action action = 1; }
+}
+
+message Action {
+  message Param {
+    uint32 param_id = 2;
+    bytes value = 3;
+  }
+  uint32 action_id = 1;
+  repeated Param params = 4;
+}
+
+message Index { int64 index = 1; }
+
+message CounterData {
+  int64 byte_count = 1;
+  int64 packet_count = 2;
+}
+
+message CounterEntry {
+  uint32 counter_id = 1;
+  Index index = 2;
+  CounterData data = 3;
+}
+
+message DirectCounterEntry {
+  TableEntry table_entry = 1;
+  CounterData data = 2;
+}
+
+message DigestEntry {
+  message Config {
+    int64 max_timeout_ns = 1;
+    int32 max_list_size = 2;
+    int64 ack_timeout_ns = 3;
+  }
+  uint32 digest_id = 1;
+  Config config = 2;
+}
+
+message Replica {
+  oneof port_kind {
+    uint32 egress_port = 1;
+    bytes port = 3;
+  }
+  uint32 instance = 2;
+}
+
+message CloneSessionEntry {
+  uint32 session_id = 1;
+  repeated Replica replicas = 2;
+  uint32 class_of_service = 3;
+  int32 packet_length_bytes = 4;
+}
+
+message PacketReplicationEngineEntry {
+  oneof type { CloneSessionEntry clone_session_entry = 2; }
+}
+
+message ForwardingPipelineConfig {
+  // Same length-delimited wire representation as p4.config.v1.P4Info.
+  bytes p4info = 1;
+  bytes p4_device_config = 2;
+  message Cookie { uint64 cookie = 1; }
+  Cookie cookie = 3;
+}
+
+message SetForwardingPipelineConfigRequest {
+  enum Action {
+    UNSPECIFIED = 0;
+    VERIFY = 1;
+    VERIFY_AND_SAVE = 2;
+    VERIFY_AND_COMMIT = 3;
+    COMMIT = 4;
+    RECONCILE_AND_COMMIT = 5;
+  }
+  uint64 device_id = 1;
+  uint64 role_id = 2;
+  Uint128 election_id = 3;
+  Action action = 4;
+  ForwardingPipelineConfig config = 5;
+  string role = 6;
+}
+
+message SetForwardingPipelineConfigResponse {}
+
+message GetForwardingPipelineConfigRequest {
+  enum ResponseType {
+    ALL = 0;
+    COOKIE_ONLY = 1;
+    P4INFO_AND_COOKIE = 2;
+    DEVICE_CONFIG_AND_COOKIE = 3;
+  }
+  uint64 device_id = 1;
+  ResponseType response_type = 2;
+}
+
+message GetForwardingPipelineConfigResponse {
+  ForwardingPipelineConfig config = 1;
+}
+
+message Role {
+  uint64 id = 1;
+  bytes config = 2;
+  string name = 3;
+}
+
+message MasterArbitrationUpdate {
+  uint64 device_id = 1;
+  Role role = 2;
+  Uint128 election_id = 3;
+  google.rpc.Status status = 4;
+}
+
+message PacketMetadata {
+  uint32 metadata_id = 1;
+  bytes value = 2;
+}
+
+message PacketIn {
+  bytes payload = 1;
+  repeated PacketMetadata metadata = 2;
+}
+
+message PacketOut {
+  bytes payload = 1;
+  repeated PacketMetadata metadata = 2;
+}
+
+message DigestList {
+  uint32 digest_id = 1;
+  uint64 list_id = 2;
+  // Same length-delimited wire representation as p4.v1.P4Data.
+  repeated bytes data = 3;
+  int64 timestamp = 4;
+}
+
+message DigestListAck {
+  uint32 digest_id = 1;
+  uint64 list_id = 2;
+}
+
+message StreamError {
+  int32 canonical_code = 1;
+  string message = 2;
+  string space = 3;
+  int32 code = 4;
+}
+
+message StreamMessageRequest {
+  oneof update {
+    MasterArbitrationUpdate arbitration = 1;
+    PacketOut packet = 2;
+    DigestListAck digest_ack = 3;
+  }
+}
+
+message StreamMessageResponse {
+  oneof update {
+    MasterArbitrationUpdate arbitration = 1;
+    PacketIn packet = 2;
+    DigestList digest = 3;
+    StreamError error = 6;
+  }
+}
+
+message CapabilitiesRequest {}
+message CapabilitiesResponse { string p4runtime_api_version = 1; }

@@ -3,7 +3,7 @@
 - 状态：Accepted
 - 日期：2026-08-10
 - 决策者：Owner
-- 需求基线：`vNext-requirements-1.17`（原始热路径决策形成于 v1.10；CPU/CUDA启动选择、资格范围与真实E2E由ADR-0017/0006补充）
+- 需求基线：`vNext-requirements-1.18`（原始热路径决策形成于 v1.10；CPU/CUDA启动选择、资格范围与真实E2E由ADR-0017/0006补充）
 - 关联需求：`CORE-001`、`CORE-002`、`ARCH-003`、`ARCH-005`、`ARCH-TELEMETRY-001`、`ARCH-TARGET-FLEET-001`、`MOD-SW-001`、`MOD-EDGE-001`、`MOD-INF-001`、`MOD-TARGET-FLEET-001`、`CONTRACT-P4-001`、`CONTRACT-PROFILE-001`、`CONTRACT-MODEL-001`、`CONTRACT-TELEMETRY-001`、`CONTRACT-INFERENCE-001`、`CONTRACT-TARGET-001`、`FUNC-TEL-001`、`FUNC-INF-001`、`FUNC-TARGET-FLEET-001`、`PERF-TEL-INF-001`、`PERF-TARGET-FLEET-001`、`REL-INF-POOL-001`、`REL-TEL-INF-001`、`REL-TARGET-FLEET-001`、`SEC-TEL-INF-001`、`DEP-TEL-INF-001`、`OBS-TEL-INF-001`、`TEST-TEL-INF-001`、`TEST-REAL-E2E-001`、`TEST-TARGET-FLEET-001`、`DEC-001`、`DEC-002`、`DEC-018`、`DEC-026`、`DEC-027`、`DEC-028`、`DEC-030`、`DEC-032`、`DEC-033`、`DEC-034`、`DEC-035`
 
 ## 背景
@@ -207,7 +207,7 @@ greenfield 实施顺序：
 - watermark、允许lateness、idle/reconnect、late-after-final、gap/partial/not-covered与禁止补零；
 - PACKET_MMAP ring/fanout/drop/truncation/offload，以及条件AF_XDP copy/zero-copy、XDP_SKB/XDP_DRV、queue/UMEM/NUMA/fallback拒绝；
 - Protobuf/gRPC canonical bytes、unknown major/minor、message/record/tensor上限、deadline/cancellation、channel reuse、connection churn、partial response、duplicate与same-key/different-digest；
-- batch size/bytes/queue delay/deadline、empty/partial/max batch、queue saturation/backpressure、公平性和24小时soak；
+- batch size/bytes/queue delay/deadline、empty/partial/max batch、queue saturation/backpressure、公平性和3,600 秒 soak；
 - Triton dynamic batch/queue/instance group、唯一delayed batcher；ORT CPU的thread/NUMA/affinity/arena与ORT CUDA的GPU I/O Binding/actual copy bytes/stream分别通过numeric/performance golden，证据不继承；
 - telemetry WAL→input WAL→result WAL→Go/PG durable ACK每个注入点的crash/timeout/replay，证明无丢失、无双Event、same-key/different-digest冲突；
 - BMv2只获得software-target资格；真实hardware/NIC/AF_XDP/DPDK分别形成profile/evidence；

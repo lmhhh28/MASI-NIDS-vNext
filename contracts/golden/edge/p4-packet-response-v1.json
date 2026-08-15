@@ -1,0 +1,11 @@
+{
+  "schema_version": "edge-contract-golden/v1",
+  "protobuf_message": "p4.v1.StreamMessageResponse",
+  "identity": {
+    "update": "packet",
+    "payload_bytes": 4,
+    "metadata_entries": 1
+  },
+  "protobuf_hex": "12100a044500001412080801120400000007",
+  "protobuf_sha256": "sha256:b3b0675d7dfa385231265bdb83b0952cbe0df98d9e1b111fd722b88e42d942b9"
+}

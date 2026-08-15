@@ -1,0 +1,13 @@
+// Public Central Inference wire boundary. The immutable Edge-owned record and
+// route messages are imported explicitly so Rust/C++/Go adapters share exact
+// protobuf identities instead of copying and independently evolving them.
+syntax = "proto3";
+
+package masi.inference.v1;
+
+import "edge/v1/edge.proto";
+
+service CentralInference {
+  rpc GetBinding(masi.edge.v1.GetBindingRequest) returns (masi.edge.v1.BindingReadback);
+  rpc Infer(masi.edge.v1.InferenceInputBatch) returns (masi.edge.v1.InferenceResultBatch);
+}

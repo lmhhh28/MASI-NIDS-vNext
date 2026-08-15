@@ -306,5 +306,12 @@
         "reason_code": {"$ref": "#/$defs/reason_code"}
       }
     }
-  }
+  },
+  "x-masi-semantic-constraints": [
+    {"constraint_id": "FIREWALL-INACTIVE-BANK", "left": "/active_bank", "operator": "not-equal", "right": "/bank"},
+    {"constraint_id": "FIREWALL-PLAN-BANKS", "operator": "all-equal-pairs", "pairs": [["/active_bank", "/compiled_plan/active_bank"], ["/bank", "/compiled_plan/inactive_bank"], ["/bank", "/compiled_plan/selector/expected_bank"], ["/active_bank", "/compiled_plan/selector/current_bank"]]},
+    {"constraint_id": "FIREWALL-ENTITY-BANK", "left": "/compiled_plan/entities/*/bank", "operator": "all-equal", "right": "/bank"},
+    {"constraint_id": "FIREWALL-ACTIVATION-CARDINALITY", "operator": "activation-counts-consistent", "fields": ["/activation/expected_entries", "/activation/observed_entries", "/activation/mismatched_entries", "/compiled_plan/entities"]},
+    {"constraint_id": "FIREWALL-PREFLIGHT-REJECTION", "operator": "accepted-iff-no-rejection", "fields": ["/compiled_plan/preflight_result", "/compiled_plan/rejection_reason"]}
+  ]
 }

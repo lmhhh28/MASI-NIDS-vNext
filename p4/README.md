@@ -8,22 +8,24 @@ policy authorization, TTL scheduler, durable queue, or canonical database.
 ## Qualification status
 
 The exact BMv2 software claim is **Module Complete** at `level=MODULE` for the
-acceptance tier. The authoritative run is
-[`20260813T012707Z-module-formal-005`](../evidence/p4-switch/20260813T012707Z-module-formal-005/qualification-evidence.json):
-31 required and applicable tests are `PASS/QUALIFIED`, no HOLD remains, and the
-two unexecuted conditional-capability tests are explicitly
+acceptance tier. The authoritative formal run is
+[`20260813T060546Z-runner-version-formal-006`](../evidence/p4-switch/20260813T060546Z-runner-version-formal-006/qualification-evidence.json):
+32 required and applicable tests are `PASS/QUALIFIED`, no applicable HOLD
+remains, and two conditional-capability tests are explicitly
 `applicability=NOT_APPLICABLE` for this software-only scope.
 
 The claim binds runtime
-`sha256:8b8655c2fb7bc5563706ee853fb668ba70457633cda7d93633d022b30b7ead42`,
-runner
-`sha256:bceda8879d3f320388f654d36dfa0730a68a15c43beeb83dfb0de2051ada94e5`,
-the artifacts and profiles recorded in the evidence, and the Owner authorization
-recorded in
+`sha256:8b8655c2fb7bc5563706ee853fb668ba70457633cda7d93633d022b30b7ead42`
+and runner
+`sha256:f0b02a81a6fc7e13b3d10695311663eb54aaf25e4487920e7de93b3b211d42dc`.
+The runner's public execution-boundary readback and SPDX both match Alpine
+Linux 3.24.1, Tcpreplay 4.5.2/4.5.2-r1, and iproute2 7.0.0/7.0.0-r0 exactly.
+The previous version-drift run remains historical evidence and is not reused.
+The closure is recorded in
 [`ISSUE-P4-SW-001`](../docs/issues/ISSUE-P4-SW-001-module-complete-holds.md).
-It is not production, hardware, IPv6 effect, stateful, NAT, rate-limit, or gNMI
-qualification. Formal pairwise integration remains globally gated until every
-initial module is Module Complete.
+This is not production, hardware, IPv6 effect, stateful, NAT, rate-limit, or
+gNMI qualification. Formal pairwise and system integration remain globally
+gated until all other required initial modules reach Module Complete.
 
 ## Data-plane behavior
 
@@ -74,7 +76,7 @@ sudo env \
   MASI_TRIVY_CACHE="$PWD/out/supply-chain/trivy-cache" \
   MASI_COSIGN_KEY_DIR="$PWD/.masi-secrets/cosign" \
   MASI_P4_RUNTIME_IMAGE=masi-nids/p4-switch-runtime@sha256:8b8655c2fb7bc5563706ee853fb668ba70457633cda7d93633d022b30b7ead42 \
-  MASI_P4_RUNNER_IMAGE=masi-nids/p4-switch-e2e-runner@sha256:bceda8879d3f320388f654d36dfa0730a68a15c43beeb83dfb0de2051ada94e5 \
+  MASI_P4_RUNNER_IMAGE=masi-nids/p4-switch-e2e-runner@sha256:f0b02a81a6fc7e13b3d10695311663eb54aaf25e4487920e7de93b3b211d42dc \
   ./testkit/p4_switch/run-module-e2e.sh
 ```
 

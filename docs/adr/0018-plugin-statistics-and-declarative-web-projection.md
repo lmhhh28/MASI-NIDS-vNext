@@ -2,7 +2,7 @@
 
 - 状态：Accepted
 - 日期：2026-08-12
-- 对应需求基线：`vNext-requirements-1.17`
+- 对应需求基线：`vNext-requirements-1.18`
 - 影响需求：`ARCH-PLUGIN-001`、`CONTRACT-PLUGIN-STAT-001`、`PLUGIN-STAT-001`、`DB-PLUGIN-STAT-001`、`WEB-PLUGIN-STAT-001`、`PERF-PLUGIN-STAT-001`、`REL-PLUGIN-STAT-001`、`SEC-PLUGIN-STAT-001`、`TEST-PLUGIN-STAT-001`
 - 当前资格：设计已接受；实现、真实服务 E2E、性能与生产资格为 `HOLD/NOT RUN`
 

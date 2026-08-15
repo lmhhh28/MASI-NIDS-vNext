@@ -127,7 +127,7 @@ docs/            需求、架构、ADR 和验收文档
 - 未越权访问其他模块代码、数据、设备或 secret；
 - 需求 ID 已映射到测试、命令、环境、证据、制品 digest 和负责人。
 
-上述 Module Complete 条目中，适用项的 `result=FAIL/HOLD/NOT_RUN` 都会阻断完成；唯一例外是仅性能项存在符合 `TEST-GATE-001`、scope/expiry/max-level 均有效且允许到 `MODULE` 的 Owner waiver，原性能结果仍不得改写为 PASS。只有独立标记为 `applicability=NOT_APPLICABLE` 且给出稳定理由的条目才可排除。CPU profile 的 PASS 不得替代 CUDA profile，单故障域 profile 的 PASS 不得宣称 HA。
+`DEC-044` 将“首期实现是否完成”与“精确 scope 是否取得资格”分开：Module Complete 是机器派生的 operational completion，不是第五种资格状态。只有公开契约/错误语义/资源上限已冻结、必需实现无 TODO/placeholder/stub/隐藏 fallback、真实候选 binary 与 OCI 已启动、全部适用的模块公开边界/故障恢复/安全/性能/soak 测试已实际执行且没有测试或启动阻断、append-only findings registry 中 open P0 为 0 时，才可为 `COMPLETE`。实际测试 `FAIL/HOLD/NOT_RUN`、缺失证据、真实启动失败或 open P0 均阻断完成；仅由受保护基线、dirty tree、生产绝对门槛、未来 pairwise/system 尚未取得而产生的 qualification-only `HOLD/NOT_RUN` 不阻断 operational completion，但原 `result/qualification` 必须保持不变且不得宣称相应 `MODULE PASS`、pairwise、system 或 production qualification。条件能力只有独立标记为 `applicability=NOT_APPLICABLE` 且给出稳定理由才可排除。CPU profile 的 PASS 不得替代 CUDA profile，单故障域 profile 的 PASS 不得宣称 HA。
 
 ## 语言级最低验证
 

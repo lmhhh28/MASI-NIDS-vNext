@@ -1,0 +1,943 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://masi-nids.example/contracts/evidence/v1/edge-module-schema.json",
+  "title": "Rust Edge Agent module evidence",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "test_id",
+    "requirement_ids",
+    "level",
+    "applicability",
+    "result",
+    "qualification",
+    "source_revision",
+    "source_tree_digest",
+    "working_tree_dirty",
+    "overall_module_complete"
+  ],
+  "properties": {
+    "schema_version": {
+      "enum": [
+        "edge-oci-startup-evidence/v1",
+        "edge-deep-check-evidence/v1",
+        "rust-edge-agent-supply-verification/v1",
+        "edge-module-gate-summary/v1"
+      ]
+    },
+    "test_id": {"type": "string", "minLength": 1, "maxLength": 128},
+    "requirement_ids": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {"type": "string", "pattern": "^[A-Z][A-Z0-9-]+-[0-9]{3}$"}
+    },
+    "level": {"const": "MODULE"},
+    "applicability": {"const": "APPLICABLE"},
+    "result": {"enum": ["PASS", "HOLD", "FAIL", "NOT_RUN"]},
+    "qualification": {"enum": ["QUALIFIED", "NOT_QUALIFIED"]},
+    "source_revision": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "source_tree_digest": {"$ref": "#/$defs/sha256"},
+    "working_tree_dirty": {"type": "boolean"},
+    "working_tree_status_digest": {"$ref": "#/$defs/sha256"},
+    "overall_module_complete": {"type": "boolean"},
+    "artifact_digests": {
+      "oneOf": [
+        {"$ref": "#/$defs/moduleArtifactDigests"},
+        {"$ref": "#/$defs/deepArtifactDigests"},
+        {"$ref": "#/$defs/emptyObject"}
+      ]
+    },
+    "archive": {"$ref": "#/$defs/ociArchiveInspection"},
+    "baseline_git_tree": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "cap_drop": {"type": "array", "maxItems": 64, "items": {"type": "string", "maxLength": 128}},
+    "checks": {
+      "anyOf": [
+        {"$ref": "#/$defs/ociChecks"},
+        {"$ref": "#/$defs/deepChecks"},
+        {"$ref": "#/$defs/supplyChecks"},
+        {"$ref": "#/$defs/supplyFailureChecks"},
+        {"$ref": "#/$defs/emptyObject"}
+      ]
+    },
+    "conditional_applicability": {"$ref": "#/$defs/frozenConditionalApplicability"},
+    "completion": {"$ref": "#/$defs/moduleCompletion"},
+    "config_digest": {"$ref": "#/$defs/sha256"},
+    "executed_gates": {"$ref": "#/$defs/executedGates"},
+    "failure_reasons": {"type": "array", "maxItems": 128, "items": {"type": "string", "maxLength": 512}},
+    "generated_at": {"type": "string", "format": "date-time"},
+    "graceful_shutdown_exit_code": {"type": ["integer", "null"], "minimum": 0, "maximum": 255},
+    "hold_reasons": {"type": "array", "maxItems": 128, "items": {"type": "string", "maxLength": 512}},
+    "image_binary_digest": {"anyOf": [{"$ref": "#/$defs/sha256"}, {"type": "null"}]},
+    "image_config_digest": {"anyOf": [{"$ref": "#/$defs/sha256"}, {"type": "null"}]},
+    "image_manifest_digest": {"anyOf": [{"$ref": "#/$defs/sha256"}, {"type": "null"}]},
+    "image_ref": {"type": "string", "minLength": 1, "maxLength": 512},
+    "image_user": {"type": "string", "minLength": 1, "maxLength": 128},
+    "manifest_digest": {"anyOf": [{"$ref": "#/$defs/sha256"}, {"type": "null"}]},
+    "memory_bytes": {"type": "integer", "minimum": 1},
+    "module_id": {"const": "MOD-EDGE-001"},
+    "nano_cpus": {"type": "integer", "minimum": 1},
+    "negative_verification": {"$ref": "#/$defs/negativeVerification"},
+    "nightly_commit": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "offline_rebuild_digest": {"$ref": "#/$defs/sha256"},
+    "overall_status": {"enum": ["PASS", "HOLD", "FAIL", "NOT_RUN"]},
+    "pids_limit": {"type": "integer", "minimum": 1},
+    "probe": {"$ref": "#/$defs/ociProbe"},
+    "public_boundary_blackbox_coverage": {"type": "string", "minLength": 1, "maxLength": 512},
+    "qualification_gates": {"$ref": "#/$defs/qualificationGates"},
+    "qualification_reason": {"type": "string", "minLength": 1, "maxLength": 512},
+    "read_only_rootfs": {"type": ["boolean", "null"]},
+    "registry_digest": {"$ref": "#/$defs/sha256"},
+    "requirement_traceability": {"$ref": "#/$defs/requirementTraceability"},
+    "run_id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$"},
+    "sboms": {"$ref": "#/$defs/sboms"},
+    "scope": {"type": "string", "minLength": 1, "maxLength": 512},
+    "security_options": {"type": "array", "maxItems": 64, "items": {"type": "string", "maxLength": 128}},
+    "signature_bundle_digest": {"$ref": "#/$defs/sha256"},
+    "target_triple": {"type": "string", "minLength": 1, "maxLength": 128},
+    "tmpfs": {"const": {"/tmp": "rw,noexec,nosuid,size=16m"}},
+    "trivy": {"$ref": "#/$defs/trivy"}
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"result": {"const": "PASS"}}, "required": ["result"]},
+      "then": {"properties": {"qualification": {"const": "QUALIFIED"}}},
+      "else": {"properties": {"qualification": {"const": "NOT_QUALIFIED"}}}
+    },
+    {
+      "if": {
+        "properties": {
+          "working_tree_dirty": {"const": true},
+          "result": {"not": {"const": "NOT_RUN"}}
+        },
+        "required": ["working_tree_dirty", "result"]
+      },
+      "then": {
+        "properties": {
+          "result": {"enum": ["HOLD", "FAIL"]},
+          "qualification": {"const": "NOT_QUALIFIED"}
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {"schema_version": {"const": "edge-oci-startup-evidence/v1"}},
+        "required": ["schema_version"]
+      },
+      "then": {
+        "required": [
+          "generated_at",
+          "qualification_reason",
+          "checks",
+          "image_manifest_digest",
+          "image_config_digest",
+          "image_binary_digest",
+          "read_only_rootfs",
+          "graceful_shutdown_exit_code"
+        ],
+        "properties": {
+          "test_id": {"const": "TEST-EDGE-OCI-001"},
+          "requirement_ids": {"const": ["MOD-EDGE-001", "TEST-003", "TEST-010", "TEST-REAL-E2E-001"]}
+        },
+        "allOf": [
+          {
+            "if": {"properties": {"result": {"const": "NOT_RUN"}}, "required": ["result"]},
+            "then": {
+              "properties": {
+                "qualification_reason": {"const": "OCI_GATE_EXPLICITLY_SKIPPED"},
+                "checks": {"$ref": "#/$defs/emptyObject"},
+                "image_manifest_digest": {"type": "null"},
+                "image_config_digest": {"type": "null"},
+                "image_binary_digest": {"type": "null"},
+                "read_only_rootfs": {"type": "null"},
+                "graceful_shutdown_exit_code": {"type": "null"}
+              }
+            },
+            "else": {
+              "required": ["scope", "archive", "probe", "image_ref", "image_user", "config_digest", "cap_drop", "security_options", "pids_limit", "memory_bytes", "nano_cpus", "tmpfs"],
+              "properties": {
+                "scope": {"const": "OCI startup, mTLS public-boundary liveness, and graceful SIGTERM only"},
+                "checks": {"$ref": "#/$defs/ociChecks"},
+                "image_manifest_digest": {"$ref": "#/$defs/sha256"},
+                "image_config_digest": {"$ref": "#/$defs/sha256"},
+                "image_binary_digest": {"$ref": "#/$defs/sha256"},
+                "image_user": {"const": "65532:65532"},
+                "read_only_rootfs": {"const": true},
+                "cap_drop": {"const": ["ALL"]},
+                "security_options": {"const": ["no-new-privileges:true"]},
+                "pids_limit": {"const": 128},
+                "memory_bytes": {"const": 268435456},
+                "nano_cpus": {"const": 1000000000},
+                "graceful_shutdown_exit_code": {"const": 0}
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {"schema_version": {"const": "edge-deep-check-evidence/v1"}},
+        "required": ["schema_version"]
+      },
+      "then": {
+        "required": ["generated_at", "qualification_reason", "artifact_digests", "checks"],
+        "properties": {
+          "test_id": {"const": "TEST-EDGE-RUST-DEEP-001"},
+          "requirement_ids": {"const": ["MOD-EDGE-001", "TEST-003", "TEST-007", "TEST-009"]}
+        },
+        "allOf": [
+          {
+            "if": {"properties": {"result": {"const": "NOT_RUN"}}, "required": ["result"]},
+            "then": {
+              "properties": {
+                "qualification_reason": {"const": "DEEP_GATE_EXPLICITLY_SKIPPED"},
+                "artifact_digests": {"$ref": "#/$defs/emptyObject"},
+                "checks": {"$ref": "#/$defs/emptyObject"}
+              }
+            },
+            "else": {
+              "required": ["scope", "nightly_commit", "target_triple", "public_boundary_blackbox_coverage"],
+              "properties": {
+                "scope": {"const": "Rust library unit state-space under Miri, AddressSanitizer, and ThreadSanitizer"},
+                "nightly_commit": {"const": "c98d0cb27cc63afdd62602a52eb4feb8a1c682dd"},
+                "target_triple": {"const": "x86_64-unknown-linux-gnu"},
+                "artifact_digests": {"$ref": "#/$defs/deepArtifactDigests"},
+                "checks": {"$ref": "#/$defs/deepChecks"},
+                "public_boundary_blackbox_coverage": {"const": "recorded separately by run-module-gates.sh"}
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "schema_version": {"const": "rust-edge-agent-supply-verification/v1"}
+        },
+        "required": ["schema_version"]
+      },
+      "then": {
+        "required": ["run_id", "manifest_digest", "checks", "failure_reasons", "hold_reasons"],
+        "properties": {
+          "test_id": {"const": "SEC-SUPPLY-001"},
+          "requirement_ids": {"const": ["MOD-EDGE-001", "ARCH-REUSE-001", "SEC-SUPPLY-001", "TEST-010"]}
+        },
+        "allOf": [
+          {
+            "if": {"properties": {"result": {"const": "NOT_RUN"}}, "required": ["result"]},
+            "then": {
+              "properties": {
+                "manifest_digest": {"type": "null"},
+                "checks": {"$ref": "#/$defs/emptyObject"},
+                "hold_reasons": {"const": ["SUPPLY_GATE_EXPLICITLY_SKIPPED"]}
+              }
+            },
+            "else": {
+              "allOf": [
+                {
+                  "if": {"properties": {"result": {"const": "FAIL"}}, "required": ["result"]},
+                  "then": {
+                    "properties": {
+                      "checks": {"$ref": "#/$defs/supplyFailureChecks"},
+                      "failure_reasons": {"minItems": 1}
+                    }
+                  },
+                  "else": {
+                    "required": ["registry_digest", "negative_verification", "sboms", "signature_bundle_digest", "trivy"],
+                    "properties": {
+                      "manifest_digest": {"$ref": "#/$defs/sha256"},
+                      "checks": {"$ref": "#/$defs/supplyChecks"},
+                      "failure_reasons": {"maxItems": 0}
+                    },
+                    "allOf": [
+                      {
+                        "if": {"properties": {"result": {"const": "PASS"}}, "required": ["result"]},
+                        "then": {"properties": {"hold_reasons": {"maxItems": 0}}},
+                        "else": {"properties": {"hold_reasons": {"minItems": 1}}}
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {"schema_version": {"const": "edge-module-gate-summary/v1"}},
+        "required": ["schema_version"]
+      },
+      "then": {
+        "required": [
+          "run_id",
+          "generated_at",
+          "artifact_digests",
+          "executed_gates",
+          "qualification_gates",
+          "requirement_traceability",
+          "module_id",
+          "baseline_git_tree",
+          "working_tree_status_digest",
+          "conditional_applicability",
+          "completion",
+          "overall_status"
+        ],
+        "properties": {
+          "test_id": {"const": "TEST-EDGE-MODULE-GATES-001"},
+          "requirement_ids": {"const": ["MOD-EDGE-001", "ARCH-003", "ARCH-004", "ARCH-TELEMETRY-001", "ARCH-TARGET-FLEET-001", "REL-TARGET-FLEET-001", "CONTRACT-P4-001", "CONTRACT-P4-FW-001", "CONTRACT-RULE-001", "CONTRACT-TARGET-001", "CONTRACT-TELEMETRY-001", "CONTRACT-INFERENCE-001", "CONTRACT-MODEL-001", "FUNC-EFFECT-001", "FUNC-TEL-001", "TEST-003", "TEST-007", "TEST-008", "TEST-009", "TEST-010", "TEST-RULE-001", "TEST-P4-FW-001", "TEST-TARGET-FLEET-001", "TEST-TEL-INF-001", "TEST-REAL-E2E-001", "DEC-044"]},
+          "result": {"enum": ["PASS", "HOLD", "FAIL"]},
+          "qualification": {"enum": ["QUALIFIED", "NOT_QUALIFIED"]},
+          "artifact_digests": {"$ref": "#/$defs/moduleArtifactDigests"},
+          "executed_gates": {"$ref": "#/$defs/executedGates"},
+          "conditional_applicability": {"$ref": "#/$defs/frozenConditionalApplicability"},
+          "qualification_gates": {"$ref": "#/$defs/qualificationGates"},
+          "requirement_traceability": {"$ref": "#/$defs/requirementTraceability"},
+          "completion": {"$ref": "#/$defs/moduleCompletion"},
+          "overall_status": {"enum": ["PASS", "HOLD", "FAIL"]}
+        },
+        "allOf": [
+          {
+            "if": {"properties": {"overall_status": {"enum": ["PASS", "HOLD"]}}, "required": ["overall_status"]},
+            "then": {
+              "properties": {
+                "artifact_digests": {"$ref": "#/$defs/completeModuleArtifactDigests"}
+              }
+            },
+            "else": {"properties": {"result": {"const": "FAIL"}}}
+          },
+          {
+            "if": {"properties": {"overall_status": {"const": "PASS"}}, "required": ["overall_status"]},
+            "then": {"properties": {"result": {"const": "PASS"}}},
+            "else": {
+              "if": {"properties": {"overall_status": {"const": "HOLD"}}, "required": ["overall_status"]},
+              "then": {"properties": {"result": {"const": "HOLD"}}}
+            }
+          },
+          {
+            "if": {"properties": {"overall_module_complete": {"const": true}}, "required": ["overall_module_complete"]},
+            "then": {"properties": {"completion": {"$ref": "#/$defs/completeModuleCompletion"}}},
+            "else": {"properties": {"completion": {"properties": {"status": {"const": "INCOMPLETE"}}}}}
+          }
+        ]
+      }
+    }
+  ],
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "emptyObject": {"type": "object", "maxProperties": 0},
+    "status": {"enum": ["PASS", "HOLD", "FAIL", "NOT_RUN"]},
+    "moduleArtifactDigests": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["cargo_lock", "edge_contract", "inference_contract", "inference_wire_profile", "edge_evidence_schema", "module_findings_schema", "module_findings_registry", "error_contract", "target_contract", "telemetry_contract", "qualification_profile", "soak_profile", "traceability_manifest", "traceability_evidence", "requirements_baseline", "release_binary", "oci_evidence", "deep_check_evidence", "supply_chain_evidence"],
+      "properties": {
+        "cargo_lock": {"$ref": "#/$defs/sha256"},
+        "edge_contract": {"$ref": "#/$defs/sha256"},
+        "inference_contract": {"$ref": "#/$defs/sha256"},
+        "inference_wire_profile": {"$ref": "#/$defs/sha256"},
+        "edge_evidence_schema": {"$ref": "#/$defs/sha256"},
+        "module_findings_schema": {"$ref": "#/$defs/sha256"},
+        "module_findings_registry": {"$ref": "#/$defs/sha256"},
+        "error_contract": {"$ref": "#/$defs/sha256"},
+        "target_contract": {"$ref": "#/$defs/sha256"},
+        "telemetry_contract": {"$ref": "#/$defs/sha256"},
+        "qualification_profile": {"$ref": "#/$defs/sha256"},
+        "soak_profile": {"$ref": "#/$defs/sha256"},
+        "traceability_manifest": {"$ref": "#/$defs/sha256"},
+        "traceability_evidence": {"anyOf": [{"$ref": "#/$defs/sha256"}, {"type": "null"}]},
+        "requirements_baseline": {"$ref": "#/$defs/sha256"},
+        "release_binary": {"anyOf": [{"$ref": "#/$defs/sha256"}, {"type": "null"}]},
+        "oci_evidence": {"anyOf": [{"$ref": "#/$defs/sha256"}, {"type": "null"}]},
+        "deep_check_evidence": {"anyOf": [{"$ref": "#/$defs/sha256"}, {"type": "null"}]},
+        "supply_chain_evidence": {"anyOf": [{"$ref": "#/$defs/sha256"}, {"type": "null"}]}
+      }
+    },
+    "completeModuleArtifactDigests": {
+      "allOf": [
+        {"$ref": "#/$defs/moduleArtifactDigests"},
+        {
+          "properties": {
+            "traceability_evidence": {"$ref": "#/$defs/sha256"},
+            "release_binary": {"$ref": "#/$defs/sha256"},
+            "oci_evidence": {"$ref": "#/$defs/sha256"},
+            "deep_check_evidence": {"$ref": "#/$defs/sha256"},
+            "supply_chain_evidence": {"$ref": "#/$defs/sha256"}
+          }
+        }
+      ]
+    },
+    "completionStatus": {"enum": ["PASS", "FAIL", "NOT_RUN"]},
+    "completionCriteria": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "public_contracts",
+        "format_lint_static",
+        "unit_property_contract",
+        "release_binary",
+        "real_binary_public_boundary",
+        "os_fault_recovery",
+        "real_oci_startup",
+        "deep_runtime_checks",
+        "supply_security_checks",
+        "formal_soak",
+        "traceability",
+        "known_p0_zero"
+      ],
+      "properties": {
+        "public_contracts": {"$ref": "#/$defs/completionStatus"},
+        "format_lint_static": {"$ref": "#/$defs/completionStatus"},
+        "unit_property_contract": {"$ref": "#/$defs/completionStatus"},
+        "release_binary": {"$ref": "#/$defs/completionStatus"},
+        "real_binary_public_boundary": {"$ref": "#/$defs/completionStatus"},
+        "os_fault_recovery": {"$ref": "#/$defs/completionStatus"},
+        "real_oci_startup": {"$ref": "#/$defs/completionStatus"},
+        "deep_runtime_checks": {"$ref": "#/$defs/completionStatus"},
+        "supply_security_checks": {"$ref": "#/$defs/completionStatus"},
+        "formal_soak": {"$ref": "#/$defs/completionStatus"},
+        "traceability": {"$ref": "#/$defs/completionStatus"},
+        "known_p0_zero": {"$ref": "#/$defs/completionStatus"}
+      }
+    },
+    "completionEvidenceDigests": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "public_contracts",
+        "rustc_version",
+        "cargo_version",
+        "format",
+        "clippy",
+        "tests",
+        "blackbox",
+        "release_build",
+        "os_faults",
+        "oci",
+        "deep",
+        "supply",
+        "formal_soak",
+        "formal_soak_validation",
+        "traceability"
+      ],
+      "properties": {
+        "public_contracts": {"anyOf": [{"$ref": "#/$defs/sha256"}, {"type": "null"}]},
+        "rustc_version": {"anyOf": [{"$ref": "#/$defs/sha256"}, {"type": "null"}]},
+        "cargo_version": {"anyOf": [{"$ref": "#/$defs/sha256"}, {"type": "null"}]},
+        "format": {"anyOf": [{"$ref": "#/$defs/sha256"}, {"type": "null"}]},
+        "clippy": {"anyOf": [{"$ref": "#/$defs/sha256"}, {"type": "null"}]},
+        "tests": {"anyOf": [{"$ref": "#/$defs/sha256"}, {"type": "null"}]},
+        "blackbox": {"anyOf": [{"$ref": "#/$defs/sha256"}, {"type": "null"}]},
+        "release_build": {"anyOf": [{"$ref": "#/$defs/sha256"}, {"type": "null"}]},
+        "os_faults": {"anyOf": [{"$ref": "#/$defs/sha256"}, {"type": "null"}]},
+        "oci": {"anyOf": [{"$ref": "#/$defs/sha256"}, {"type": "null"}]},
+        "deep": {"anyOf": [{"$ref": "#/$defs/sha256"}, {"type": "null"}]},
+        "supply": {"anyOf": [{"$ref": "#/$defs/sha256"}, {"type": "null"}]},
+        "formal_soak": {"anyOf": [{"$ref": "#/$defs/sha256"}, {"type": "null"}]},
+        "formal_soak_validation": {"anyOf": [{"$ref": "#/$defs/sha256"}, {"type": "null"}]},
+        "traceability": {"anyOf": [{"$ref": "#/$defs/sha256"}, {"type": "null"}]}
+      }
+    },
+    "completeCompletionEvidenceDigests": {
+      "allOf": [
+        {"$ref": "#/$defs/completionEvidenceDigests"},
+        {"additionalProperties": {"$ref": "#/$defs/sha256"}}
+      ]
+    },
+    "moduleCompletion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "decision_id",
+        "status",
+        "known_p0_count",
+        "real_startup_test_blocker_count",
+        "findings_registry",
+        "findings_registry_digest",
+        "blockers",
+        "criteria",
+        "evidence_digests"
+      ],
+      "properties": {
+        "decision_id": {"const": "DEC-044"},
+        "status": {"enum": ["COMPLETE", "INCOMPLETE"]},
+        "known_p0_count": {"type": "integer", "minimum": 0, "maximum": 4096},
+        "real_startup_test_blocker_count": {"type": "integer", "minimum": 0, "maximum": 11},
+        "findings_registry": {"const": "edge-rs/module-findings.json"},
+        "findings_registry_digest": {"$ref": "#/$defs/sha256"},
+        "blockers": {
+          "type": "array",
+          "maxItems": 12,
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "public_contracts",
+              "format_lint_static",
+              "unit_property_contract",
+              "release_binary",
+              "real_binary_public_boundary",
+              "os_fault_recovery",
+              "real_oci_startup",
+              "deep_runtime_checks",
+              "supply_security_checks",
+              "formal_soak",
+              "traceability",
+              "known_p0_zero"
+            ]
+          }
+        },
+        "criteria": {"$ref": "#/$defs/completionCriteria"},
+        "evidence_digests": {"$ref": "#/$defs/completionEvidenceDigests"}
+      }
+    },
+    "completeModuleCompletion": {
+      "allOf": [
+        {"$ref": "#/$defs/moduleCompletion"},
+        {
+          "properties": {
+            "status": {"const": "COMPLETE"},
+            "known_p0_count": {"const": 0},
+            "real_startup_test_blocker_count": {"const": 0},
+            "blockers": {"maxItems": 0},
+            "criteria": {"additionalProperties": {"const": "PASS"}},
+            "evidence_digests": {"$ref": "#/$defs/completeCompletionEvidenceDigests"}
+          }
+        }
+      ]
+    },
+    "deepArtifactDigests": {
+      "type": "object",
+      "minProperties": 6,
+      "maxProperties": 6,
+      "propertyNames": {
+        "enum": [
+          "cargo_lock",
+          "edge_contract",
+          "qualification_profile",
+          "miri_log",
+          "address_sanitizer_log",
+          "thread_sanitizer_log"
+        ]
+      },
+      "additionalProperties": {"$ref": "#/$defs/sha256"}
+    },
+    "ociChecks": {
+      "type": "object",
+      "minProperties": 10,
+      "maxProperties": 10,
+      "propertyNames": {
+        "enum": [
+          "image_source_labels",
+          "single_linux_amd64_image_archive",
+          "archive_content_addressing",
+          "non_root_user",
+          "read_only_rootfs",
+          "capability_drop_all",
+          "no_new_privileges",
+          "bounded_pids_memory_cpu_tmpfs",
+          "public_mtls_probe",
+          "graceful_sigterm"
+        ]
+      },
+      "additionalProperties": {"const": "PASS"}
+    },
+    "deepChecks": {
+      "type": "object",
+      "minProperties": 3,
+      "maxProperties": 3,
+      "propertyNames": {"enum": ["miri_disable_isolation", "address_sanitizer", "thread_sanitizer"]},
+      "additionalProperties": {"const": "PASS"}
+    },
+    "trueInventoryChecks": {
+      "type": "object",
+      "minProperties": 9,
+      "maxProperties": 9,
+      "propertyNames": {"enum": ["cargo_lock_digest_exact", "component_names_unique", "component_registry_digest_exact", "module_exact", "no_runtime_download", "notices_cover_registry", "registry_schema", "third_party_notices_digest_exact", "working_tree_status_digest_exact"]},
+      "additionalProperties": {"const": true}
+    },
+    "trueOfflineBundleChecks": {
+      "type": "object",
+      "minProperties": 12,
+      "maxProperties": 12,
+      "propertyNames": {"enum": ["all_files_exact", "checksums_digest_exact", "checksums_inventory_exact", "file_set_exact", "filesystem_structure_safe", "paths_safe", "paths_unique", "resource_bounds", "resource_contract_exact", "source_tree_digest_exact", "tar_archives_safe", "unchanged_during_verification"]},
+      "additionalProperties": {"const": true}
+    },
+    "trueOfflineRebuildChecks": {
+      "type": "object",
+      "minProperties": 4,
+      "maxProperties": 4,
+      "propertyNames": {"enum": ["binary_digest_match", "cargo_locked_offline", "network_none", "source_tree_digest_exact"]},
+      "additionalProperties": {"const": true}
+    },
+    "trueProvenanceChecks": {
+      "type": "object",
+      "minProperties": 33,
+      "maxProperties": 33,
+      "propertyNames": {"enum": ["archive_config_blob_digest_exact", "archive_config_path_digest_exact", "archive_config_path_safe", "archive_tag_exact", "image_archive_index_digest_exact", "image_archive_index_subject_exact", "image_archive_tar_safe", "image_binary_subject_exact", "image_config_subject_exact", "image_manifest_subject_exact", "image_source_revision_label_exact", "image_source_tree_digest_label_exact", "inventory_file_digests_exact", "manifest_digest_exact", "oci_archive_binary_exact", "oci_archive_config_evidence_exact", "oci_archive_has_no_embedded_attestation", "oci_archive_index_evidence_exact", "oci_archive_inspection_exact", "oci_archive_inspector_passed", "oci_archive_manifest_exact", "offline_binary_subject_exact", "offline_result_digest_exact", "predicate_type", "recorded_image_repo_digest_exact", "source_revision_exact", "source_tree_digest_exact", "source_tree_subject_exact", "statement_type", "subjects_exact", "working_tree_state_exact", "working_tree_status_digest_exact", "working_tree_status_subject_exact"]},
+      "additionalProperties": {"const": true}
+    },
+    "trueSbomChecks": {
+      "type": "object",
+      "minProperties": 6,
+      "maxProperties": 6,
+      "propertyNames": {"enum": ["all_have_packages", "all_spdx", "cargo_lock_registry_closure_exact", "image_and_source_present", "image_subject_exact", "source_subject_exact"]},
+      "additionalProperties": {"const": true}
+    },
+    "trueScanChecks": {
+      "type": "object",
+      "minProperties": 24,
+      "maxProperties": 24,
+      "propertyNames": {"enum": ["checks_bundle_content_digest_exact", "checks_bundle_file_count_exact", "checks_bundle_lock_semantics_exact", "checks_bundle_manifest_exact", "checks_bundle_metadata_digest_exact", "checks_bundle_reference_digest_pinned", "checks_bundle_resource_bounds", "config_scan_loaded_pinned_cache", "config_scan_no_bundle_download", "config_scan_no_embedded_fallback", "config_source_subject_exact", "database_fresh", "database_present", "image_archive_subject_exact", "image_config_subject_exact", "image_tag_subject_exact", "java_database_fresh", "java_database_present", "no_critical", "no_fixable_high", "no_high_critical_misconfiguration", "no_secrets", "required_documents", "secret_source_subject_exact"]},
+      "additionalProperties": {"const": true}
+    },
+    "trueSignatureChecks": {
+      "type": "object",
+      "minProperties": 9,
+      "maxProperties": 9,
+      "propertyNames": {"enum": ["allowed_algorithm_exact", "manifest_public_key_digest_exact", "mutated_manifest_rejected", "owner_authorization_present", "positive_verification", "public_key_digest_exact", "public_key_not_revoked", "scope_explicit", "wrong_publisher_rejected"]},
+      "additionalProperties": {"const": true}
+    },
+    "trueToolImageChecks": {
+      "type": "object",
+      "minProperties": 8,
+      "maxProperties": 8,
+      "propertyNames": {"enum": ["builder_base_image_repo_digest_exact", "cosign_image_repo_digest_exact", "manifest_tools_exact", "release_image_manifest_repo_digest_exact", "runtime_base_image_repo_digest_exact", "syft_image_repo_digest_exact", "tools_lock_shape_exact", "trivy_image_repo_digest_exact"]},
+      "additionalProperties": {"const": true}
+    },
+    "supplyChecks": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["inventory", "offline_bundle", "offline_rebuild", "provenance", "sbom", "scan", "signature", "tool_images"],
+      "properties": {
+        "inventory": {"$ref": "#/$defs/trueInventoryChecks"},
+        "offline_bundle": {"$ref": "#/$defs/trueOfflineBundleChecks"},
+        "offline_rebuild": {"$ref": "#/$defs/trueOfflineRebuildChecks"},
+        "provenance": {"$ref": "#/$defs/trueProvenanceChecks"},
+        "sbom": {"$ref": "#/$defs/trueSbomChecks"},
+        "scan": {"$ref": "#/$defs/trueScanChecks"},
+        "signature": {"$ref": "#/$defs/trueSignatureChecks"},
+        "tool_images": {"$ref": "#/$defs/trueToolImageChecks"}
+      }
+    },
+    "boundedBooleanChecks": {
+      "type": "object",
+      "minProperties": 1,
+      "maxProperties": 64,
+      "propertyNames": {"pattern": "^[a-z][a-z0-9_]{1,127}$"},
+      "additionalProperties": {"type": "boolean"}
+    },
+    "supplyFailureChecks": {
+      "type": "object",
+      "minProperties": 1,
+      "maxProperties": 8,
+      "additionalProperties": false,
+      "properties": {
+        "inventory": {"oneOf": [{"type": "boolean"}, {"$ref": "#/$defs/boundedBooleanChecks"}]},
+        "offline_bundle": {"oneOf": [{"type": "boolean"}, {"$ref": "#/$defs/boundedBooleanChecks"}]},
+        "offline_rebuild": {"oneOf": [{"type": "boolean"}, {"$ref": "#/$defs/boundedBooleanChecks"}]},
+        "provenance": {"oneOf": [{"type": "boolean"}, {"$ref": "#/$defs/boundedBooleanChecks"}]},
+        "sbom": {"oneOf": [{"type": "boolean"}, {"$ref": "#/$defs/boundedBooleanChecks"}]},
+        "scan": {"oneOf": [{"type": "boolean"}, {"$ref": "#/$defs/boundedBooleanChecks"}]},
+        "signature": {"oneOf": [{"type": "boolean"}, {"$ref": "#/$defs/boundedBooleanChecks"}]},
+        "tool_images": {"oneOf": [{"type": "boolean"}, {"$ref": "#/$defs/boundedBooleanChecks"}]}
+      }
+    },
+    "resultQualification": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["result", "qualification"],
+      "properties": {
+        "result": {"$ref": "#/$defs/status"},
+        "qualification": {"enum": ["QUALIFIED", "NOT_QUALIFIED"]}
+      },
+      "allOf": [
+        {
+          "if": {"properties": {"result": {"const": "PASS"}}, "required": ["result"]},
+          "then": {"properties": {"qualification": {"const": "QUALIFIED"}}},
+          "else": {"properties": {"qualification": {"const": "NOT_QUALIFIED"}}}
+        }
+      ]
+    },
+    "executedGates": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["rustc_version", "cargo_version", "public_contract_schema_golden_negative", "traceability_manifest", "traceability_evidence_aggregation", "format", "clippy_all_targets_deny_warnings", "unit_property_contract_golden", "real_process_public_boundary_blackbox", "os_enospc_and_fd_exhaustion", "release_performance_rehearsal", "soak_rehearsal_validation", "soak_validator_negative_cases", "module_gate_runner_negative_cases", "formal_soak_execution", "formal_soak_validation", "release_build", "oci_startup_mtls_probe_graceful_shutdown", "miri_asan_tsan_library_scope", "supply_chain"],
+      "properties": {
+        "rustc_version": {"$ref": "#/$defs/status"},
+        "cargo_version": {"$ref": "#/$defs/status"},
+        "public_contract_schema_golden_negative": {"$ref": "#/$defs/status"},
+        "traceability_manifest": {"$ref": "#/$defs/status"},
+        "traceability_evidence_aggregation": {"$ref": "#/$defs/status"},
+        "format": {"$ref": "#/$defs/status"},
+        "clippy_all_targets_deny_warnings": {"$ref": "#/$defs/status"},
+        "unit_property_contract_golden": {"$ref": "#/$defs/status"},
+        "real_process_public_boundary_blackbox": {"$ref": "#/$defs/status"},
+        "os_enospc_and_fd_exhaustion": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["result", "reason"],
+          "properties": {"result": {"$ref": "#/$defs/status"}, "reason": {"type": "string", "minLength": 1, "maxLength": 512}}
+        },
+        "release_performance_rehearsal": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["execution", "result", "qualification", "reason"],
+          "properties": {
+            "execution": {"$ref": "#/$defs/status"},
+            "result": {"const": "HOLD"},
+            "qualification": {"const": "NOT_QUALIFIED"},
+            "reason": {"const": "correctness/timing recorded; DEC-001 absolute thresholds are not frozen"}
+          }
+        },
+        "soak_rehearsal_validation": {"$ref": "#/$defs/status"},
+        "soak_validator_negative_cases": {"$ref": "#/$defs/status"},
+        "module_gate_runner_negative_cases": {"$ref": "#/$defs/status"},
+        "formal_soak_execution": {"$ref": "#/$defs/status"},
+        "formal_soak_validation": {"$ref": "#/$defs/status"},
+        "release_build": {"$ref": "#/$defs/status"},
+        "oci_startup_mtls_probe_graceful_shutdown": {"$ref": "#/$defs/resultQualification"},
+        "miri_asan_tsan_library_scope": {"$ref": "#/$defs/resultQualification"},
+        "supply_chain": {"$ref": "#/$defs/resultQualification"}
+      }
+    },
+    "frozenConditionalApplicability": {
+      "const": [
+        {"profile": "target-gnmi-readonly/v1", "applicability": "NOT_APPLICABLE", "result": "NOT_RUN", "stable_reason": "NOT_TRIGGERED_BY_FIRST_RELEASE_BMV2_ASSIGNMENT"},
+        {"profile": "mirror-packet-mmap/v1", "applicability": "NOT_APPLICABLE", "result": "NOT_RUN", "stable_reason": "P4_FEATURES_SUFFICIENT_FOR_SELECTED_MODEL"},
+        {"profile": "mirror-af-xdp/v1", "applicability": "NOT_APPLICABLE", "result": "NOT_RUN", "stable_reason": "PACKET_MMAP_PROFILE_NOT_TRIGGERED"},
+        {"profile": "mirror-dpdk/v1", "applicability": "NOT_APPLICABLE", "result": "NOT_RUN", "stable_reason": "AF_XDP_PROFILE_NOT_TRIGGERED"}
+      ]
+    },
+    "qualificationGates": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["absolute_performance", "formal_soak_3600_seconds", "protected_release_baseline", "formal_pairwise_and_system_integration"],
+      "properties": {
+        "absolute_performance": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["result", "qualification", "reason"],
+          "properties": {
+            "result": {"enum": ["HOLD", "NOT_RUN", "FAIL"]},
+            "qualification": {"const": "NOT_QUALIFIED"},
+            "reason": {"type": "string", "minLength": 1, "maxLength": 512}
+          }
+        },
+        "formal_soak_3600_seconds": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["result", "qualification", "command"],
+          "properties": {
+            "result": {"$ref": "#/$defs/status"},
+            "qualification": {"enum": ["QUALIFIED", "NOT_QUALIFIED"]},
+            "command": {"const": "MASI_EDGE_FORMAL_SOAK=1 scripts/run-module-gates.sh"}
+          },
+          "allOf": [
+            {
+              "if": {"properties": {"result": {"const": "PASS"}}, "required": ["result"]},
+              "then": {"properties": {"qualification": {"const": "QUALIFIED"}}},
+              "else": {"properties": {"qualification": {"const": "NOT_QUALIFIED"}}}
+            }
+          ]
+        },
+        "protected_release_baseline": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["result", "qualification", "reason"],
+          "properties": {
+            "result": {"enum": ["HOLD", "FAIL"]},
+            "qualification": {"const": "NOT_QUALIFIED"},
+            "reason": {"type": "string", "minLength": 1, "maxLength": 512}
+          }
+        },
+        "formal_pairwise_and_system_integration": {
+          "const": {"result": "NOT_RUN", "qualification": "NOT_QUALIFIED", "reason": "intentionally outside independent module implementation phase"}
+        }
+      }
+    },
+    "requirementTraceability": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["result", "qualification", "manifest", "digest", "evidence_root", "summary", "summary_digest", "requirement_count"],
+      "properties": {
+        "result": {"enum": ["PASS", "FAIL"]},
+        "qualification": {"enum": ["QUALIFIED", "NOT_QUALIFIED"]},
+        "manifest": {"const": "edge-rs/requirements-traceability.json"},
+        "digest": {"$ref": "#/$defs/sha256"},
+        "evidence_root": {"type": "string", "pattern": "^edge-rs/evidence/module-gates/runs/[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$"},
+        "summary": {"const": "traceability-summary.json"},
+        "summary_digest": {"$ref": "#/$defs/sha256"},
+        "requirement_count": {"const": 26}
+      },
+      "allOf": [
+        {
+          "if": {"properties": {"result": {"const": "FAIL"}}, "required": ["result"]},
+          "then": {"properties": {"qualification": {"const": "NOT_QUALIFIED"}}}
+        }
+      ]
+    },
+    "negativeVerification": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mutated_exit_code", "wrong_publisher_exit_code"],
+      "properties": {
+        "mutated_exit_code": {"type": "integer", "minimum": 1, "maximum": 255},
+        "wrong_publisher_exit_code": {"type": "integer", "minimum": 1, "maximum": 255}
+      }
+    },
+    "ociProbe": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["accepting_assignments", "build_version", "config_digest", "deadline_ms", "edge_instance_id", "edge_status_schema_version", "observed_at_unix_ms", "observed_target_count", "process_live", "result", "rpc_method", "schema_version", "semantics", "target_actor_state", "target_id", "target_limit", "target_reason_code", "tls_server_name", "trace_id"],
+      "properties": {
+        "accepting_assignments": {"const": true},
+        "build_version": {"const": "0.1.0"},
+        "config_digest": {"$ref": "#/$defs/sha256"},
+        "deadline_ms": {"const": 1000},
+        "edge_instance_id": {"const": "edge-oci-module-smoke"},
+        "edge_status_schema_version": {"const": "edge-status/v1"},
+        "observed_at_unix_ms": {"type": "integer", "minimum": 1},
+        "observed_target_count": {"const": 0},
+        "process_live": {"const": true},
+        "result": {"const": "PASS"},
+        "rpc_method": {"const": "masi.edge.v1.EdgeControl/GetStatus"},
+        "schema_version": {"const": "edge-status-probe-evidence/v1"},
+        "semantics": {"const": "process-liveness-and-public-boundary-readiness"},
+        "target_actor_state": {"type": "null"},
+        "target_id": {"const": ""},
+        "target_limit": {"const": 1},
+        "target_reason_code": {"type": "null"},
+        "tls_server_name": {"const": "edge.test"},
+        "trace_id": {"type": "string", "pattern": "^edge-probe-[0-9a-f-]{36}$"}
+      }
+    },
+    "sbomEntry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["digest", "packages", "path"],
+      "properties": {
+        "digest": {"$ref": "#/$defs/sha256"},
+        "packages": {"type": "integer", "minimum": 1, "maximum": 1000000},
+        "path": {"enum": ["image.spdx.json", "source.spdx.json"]}
+      }
+    },
+    "sboms": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 2,
+      "uniqueItems": true,
+      "items": {"$ref": "#/$defs/sbomEntry"},
+      "allOf": [
+        {"contains": {"properties": {"path": {"const": "image.spdx.json"}}, "required": ["path"]}, "minContains": 1, "maxContains": 1},
+        {"contains": {"properties": {"path": {"const": "source.spdx.json"}}, "required": ["path"]}, "minContains": 1, "maxContains": 1}
+      ]
+    },
+    "trivy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["database_age_seconds", "java_database_age_seconds", "findings"],
+      "properties": {
+        "database_age_seconds": {"type": "integer", "minimum": 0, "maximum": 604800},
+        "java_database_age_seconds": {"type": "integer", "minimum": 0, "maximum": 604800},
+        "findings": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["critical", "fixable_high", "misconfig_high_critical", "secrets", "unfixed_high"],
+          "properties": {
+            "critical": {"type": "array", "maxItems": 4096, "items": {"type": "object", "maxProperties": 128}},
+            "fixable_high": {"type": "array", "maxItems": 4096, "items": {"type": "object", "maxProperties": 128}},
+            "misconfig_high_critical": {"type": "array", "maxItems": 4096, "items": {"type": "object", "maxProperties": 128}},
+            "secrets": {"type": "array", "maxItems": 4096, "items": {"type": "object", "maxProperties": 128}},
+            "unfixed_high": {"type": "array", "maxItems": 4096, "items": {"type": "object", "maxProperties": 128}}
+          }
+        }
+      }
+    },
+    "ociArchiveInspection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "image_ref",
+        "platform",
+        "image_user",
+        "entrypoint",
+        "archive_digest",
+        "archive_bytes",
+        "archive_member_count",
+        "archive_expanded_bytes",
+        "manifest_digest",
+        "manifest_media_type",
+        "image_manifest_descriptor_digest",
+        "attestation_count",
+        "oci_layout_digest",
+        "oci_index_digest",
+        "index_path",
+        "index_digest",
+        "index_bytes",
+        "config_path",
+        "config_blob_path",
+        "config_digest",
+        "config_bytes",
+        "layer_count",
+        "layer_compression",
+        "layer_member_count",
+        "layer_expanded_bytes",
+        "binary_path",
+        "binary_digest",
+        "binary_bytes",
+        "resource_limits"
+      ],
+      "properties": {
+        "schema_version": {"const": "edge-oci-archive-inspection/v1"},
+        "image_ref": {"type": "string", "minLength": 1, "maxLength": 512},
+        "platform": {"const": "linux/amd64"},
+        "image_user": {"const": "65532:65532"},
+        "entrypoint": {"const": ["/usr/local/bin/masi-edge"]},
+        "archive_digest": {"$ref": "#/$defs/sha256"},
+        "archive_bytes": {"type": "integer", "minimum": 1, "maximum": 67108864},
+        "archive_member_count": {"type": "integer", "minimum": 1, "maximum": 65536},
+        "archive_expanded_bytes": {"type": "integer", "minimum": 1, "maximum": 536870912},
+        "manifest_digest": {"$ref": "#/$defs/sha256"},
+        "manifest_media_type": {"const": "application/vnd.docker.distribution.manifest.v2+json"},
+        "image_manifest_descriptor_digest": {"$ref": "#/$defs/sha256"},
+        "attestation_count": {"const": 0},
+        "oci_layout_digest": {"$ref": "#/$defs/sha256"},
+        "oci_index_digest": {"$ref": "#/$defs/sha256"},
+        "index_path": {"const": "image-archive-manifest.json"},
+        "index_digest": {"$ref": "#/$defs/sha256"},
+        "index_bytes": {"type": "integer", "minimum": 1, "maximum": 1048576},
+        "config_path": {"const": "image-config.json"},
+        "config_blob_path": {"type": "string", "pattern": "^blobs/sha256/[0-9a-f]{64}$"},
+        "config_digest": {"$ref": "#/$defs/sha256"},
+        "config_bytes": {"type": "integer", "minimum": 1, "maximum": 8388608},
+        "layer_count": {"type": "integer", "minimum": 1, "maximum": 256},
+        "layer_compression": {"const": "gzip"},
+        "layer_member_count": {"type": "integer", "minimum": 1, "maximum": 65536},
+        "layer_expanded_bytes": {"type": "integer", "minimum": 1, "maximum": 536870912},
+        "binary_path": {"const": "usr/local/bin/masi-edge"},
+        "binary_digest": {"$ref": "#/$defs/sha256"},
+        "binary_bytes": {"type": "integer", "minimum": 1, "maximum": 67108864},
+        "resource_limits": {
+          "const": {
+            "archive_bytes": 67108864,
+            "archive_members": 65536,
+            "archive_expanded_bytes": 536870912,
+            "member_bytes": 67108864,
+            "index_bytes": 1048576,
+            "config_bytes": 8388608,
+            "layers": 256,
+            "layer_members": 65536,
+            "layer_expanded_bytes": 536870912,
+            "binary_bytes": 67108864,
+            "path_bytes": 1024
+          }
+        }
+      }
+    }
+  }
+}

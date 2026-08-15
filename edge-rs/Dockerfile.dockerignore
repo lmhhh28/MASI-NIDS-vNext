@@ -1,0 +1,12 @@
+*
+!edge-rs/
+!edge-rs/Cargo.toml
+!edge-rs/Cargo.lock
+!edge-rs/build.rs
+!edge-rs/rust-toolchain.toml
+!edge-rs/src/
+!edge-rs/src/**
+!edge-rs/Dockerfile
+!contracts/
+!contracts/**
+

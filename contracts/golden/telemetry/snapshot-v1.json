@@ -1,9 +1,28 @@
 {
   "schema_version": "telemetry-p4-window/v1",
   "source_profile": "p4-bounded-aggregate-dual-bank/v1",
-  "source_profile_digest": "sha256:466d11875c6ab28013221026be8447657747480a0f2fdd10da9c3ab446f5af3f",
+  "source_profile_digest": "sha256:0a03cb7fd8b61307d2d60e008c911a77268f57da3adea3b553a4027c17290c9b",
   "telemetry_source_id": "p4-source-bmv2-test-1",
   "target_id": "bmv2-test-1",
+  "shard_id": "bmv2-test-1",
+  "capture_adapter_id": "p4runtime-bounded-aggregate",
+  "endpoint_identity": "p4runtime-bmv2-test-1",
+  "flow_identity_profile": {
+    "schema_version": "telemetry-flow-identity-profile/v1",
+    "shard_id": "bmv2-test-1",
+    "capture_adapter_id": "p4runtime-bounded-aggregate",
+    "endpoint_identity": "p4runtime-bmv2-test-1",
+    "direction": "ingress",
+    "supported_ip_versions": ["ipv4"],
+    "endpoint_ordering": "unidirectional-observation-order",
+    "vlan_id_included": false,
+    "tunnel_id_included": false,
+    "fragment_semantics": "fragment-class-preserved",
+    "l4_unavailable_semantics": "port-unavailable-with-absent-ports",
+    "selector_algorithm": "p4-qualified-cell-selector/v1",
+    "selector_seed_digest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+    "exposure": "aggregate-cell-selector-digest-only"
+  },
   "device_id": 1,
   "role": "masi-edge",
   "observation_domain": "bmv2-test-domain",
@@ -48,7 +67,12 @@
   "reported_nonzero_cells": 1,
   "aggregate": {"packets": 2, "bytes": 108},
   "cells": [
-    {"index": 17, "packets": 2, "bytes": 108}
+    {
+      "index": 17,
+      "packets": 2,
+      "bytes": 108,
+      "selector_digest": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+    }
   ],
   "sampling": {
     "algorithm": "sequence-modulo",
@@ -56,9 +80,22 @@
     "eligible_population": 2,
     "expected_hints": 0,
     "observed_hints": 0,
-    "coverage": 1.0
+    "coverage": 1.0,
+    "selector": "source-sequence-modulo-period",
+    "seed_digest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+    "weighting": "none-hint-only",
+    "estimation_error_ppm": 1000000,
+    "complete_population_claim": false
   },
   "drops": {"p4": 0, "server": 0, "channel": 0, "client": 0, "packet_in": 0, "digest": 0},
+  "time_semantics": {
+    "event_time_min_unix_ms": 1893456000000,
+    "event_time_max_unix_ms": 1893456010000,
+    "packet_time_observed": false,
+    "packet_time_semantics": "not-observed-by-p4-bounded-aggregate",
+    "monotonic_queue_age_ms": 10,
+    "monotonic_deadline_budget_ms": 2000
+  },
   "clear_advance_condition": "frozen-bank-readback-then-explicit-clear",
   "quality": {"status": "valid", "reasons": ["NONE"]}
 }

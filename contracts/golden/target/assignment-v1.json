@@ -1,0 +1,35 @@
+{
+  "schema_version": "target-assignment/v1",
+  "target_id": "target-golden-0001",
+  "device_id": 1,
+  "role": "primary",
+  "p4runtime_endpoint": "https://127.0.0.1:9559",
+  "p4runtime_tls": {
+    "server_name": "masi-switch.test",
+    "identity_ref": "p4runtime-golden"
+  },
+  "fence": {
+    "target_control_incarnation_id": "target-control-incarnation-golden-0001",
+    "target_assignment_generation": 7,
+    "actor_runtime_epoch": "actor-runtime-golden-0001",
+    "application_generation": 11,
+    "election_id_high": 0,
+    "election_id_low": 7000001
+  },
+  "lease_id": "target-lease-golden-0007",
+  "issued_at_unix_ms": 1893456000000,
+  "expires_at_unix_ms": 1893456060000,
+  "election_floor": 7000000,
+  "election_ceiling": 7999999,
+  "expected_pipeline": {
+    "p4runtime_api_version": "1.3.0",
+    "p4info_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "device_config_digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "profile_digest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    "cookie": 731047109,
+    "supported_write_atomicity": ["CONTINUE_ON_ERROR"]
+  },
+  "observation_epoch": 3,
+  "reset_epoch": 2,
+  "trace_id": "trace-edge-assignment-golden-0001"
+}

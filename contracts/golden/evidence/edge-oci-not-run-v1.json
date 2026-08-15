@@ -1,0 +1,22 @@
+{
+  "schema_version": "edge-oci-startup-evidence/v1",
+  "test_id": "TEST-EDGE-OCI-001",
+  "requirement_ids": ["MOD-EDGE-001", "TEST-003", "TEST-010", "TEST-REAL-E2E-001"],
+  "level": "MODULE",
+  "applicability": "APPLICABLE",
+  "result": "NOT_RUN",
+  "qualification": "NOT_QUALIFIED",
+  "source_revision": "0000000000000000000000000000000000000000",
+  "source_tree_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+  "working_tree_dirty": false,
+  "working_tree_status_digest": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+  "overall_module_complete": false,
+  "generated_at": "2026-08-14T00:00:00Z",
+  "qualification_reason": "OCI_GATE_EXPLICITLY_SKIPPED",
+  "checks": {},
+  "image_manifest_digest": null,
+  "image_config_digest": null,
+  "image_binary_digest": null,
+  "read_only_rootfs": null,
+  "graceful_shutdown_exit_code": null
+}

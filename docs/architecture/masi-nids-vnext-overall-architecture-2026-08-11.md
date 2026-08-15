@@ -1,7 +1,7 @@
 # MASI-NIDS vNext 整体与分部架构说明
 
 - 日期：2026-08-12
-- 对应需求基线：`vNext-requirements-1.17`
+- 对应需求基线：`vNext-requirements-1.18`
 - 性质：非规范性架构说明；与需求冲突时，以 `../masi-nids-vnext-system-requirements-2026-08-09.md` 的稳定需求 ID 为准
 - 当前状态：架构已确认，仓库仍处初始化阶段；模块、E2E、性能和生产资格均为 `HOLD/NOT RUN`
 - 关键 ADR：ADR-0001、0003、0004、0005、0006、0007、0008、0009、0012、0013、0014、0015、0017、0018（ADR-0010/0011只保留模型模块化与启动绑定的历史来源，ADR-0016保留v1.13 Central GPU历史）
@@ -394,7 +394,7 @@ Central Inference + Analysis/SOC node（仅三机实验profile允许合并）
 4. response loss 不盲重试；readback + same-operation reconcile。
 5. 双bank防止半策略；model pool current/previous generation CAS提供exact人工rollback，同generation同profile replica failure不改变模型语义。
 6. queue/WAL/batch/retry/deadline/resource 全部有上限；过载背压或显式 gap/HOLD。
-7. PostgreSQL HA/PITR、应用 expand/contract、startup/readiness/liveness 分离、故障注入和 24 小时 soak。
+7. PostgreSQL HA/PITR、应用 expand/contract、startup/readiness/liveness 分离、故障注入和 3,600 秒 soak。
 8. 缺失或不兼容在副作用前 fail closed；只有外部副作用已尝试但结果未知才用 `unknown`。
 9. target assignment 使用不可复用 lease/monotonic expiry 与有界 election range；新 assignment 的 election floor 严格高于旧 range，旧 actor revoke/expiry 后只能只读。assignment、actor epoch、P4 election/application generation 与 pipeline/P4Info 是独立 fence；fleet parent 始终从完整 child vector 投影，任何 child `unknown` 都使 parent `reconciling`。
 10. Central Inference全部不可用时，Edge只使用既有有界input WAL、backpressure和exact gap/HOLD；禁止正常值填充、Edge-local或CPU↔CUDA/异模型自动fallback。P4 forwarding、已安装规则和独立effect recovery不受推理不可用强行回滚。
@@ -451,7 +451,7 @@ BMv2的官方定位、P4 tutorial的Bloom collision、p4-constraints的library/C
 3. Module Complete前可以做隔离wire rehearsal，但只能标`REHEARSAL/NOT QUALIFIED`；模块隔离可使用邻居contract fake，但被测模块不能fake。
 4. 所有模块同时Module Complete后，才按`TEST-004`依次做十二个正式pairwise：P4/BMv2↔Edge、Edge↔Gateway、Gateway↔pinned Triton/selected ORT、Go Model Manager↔deployment adapter/Central rollout、Edge↔Go、Go↔PostgreSQL、Go Plugin Manager/Statistics↔Host、Host↔Host-managed service/Wasm statistics conformance plugin、Go↔Web、Analysis↔MCP、Go/peer↔Analysis A2A、Go effect dispatcher↔Edge↔P4；每个边界参与侧都在干净环境真实启动，禁止fake任一侧。Analysis 的两个 pairwise 不经过 Host；System E2E 则同时启动并分别验证 Host、statistics conformance plugin 与 Analysis。target/fleet parent-child、wave和partial vector在适用边界内验证，不另造pairwise queue。
 5. 再按数据面、检测面、模型控制、事实链、可视化、Target/Fleet、反向处置/防火墙、规则生效性、插件扩展平面（含统计投影）、Agent旁路共十个波次做system E2E。统计场景真实启动deterministic conformance statistics plugin、适用Host/direct adapter、Go、PostgreSQL和Web；正式完整链真实启动BMv2/P4Runtime、Edge、所选Central Inference stack、Go、真实PostgreSQL、Plugin Host、Analysis Plugin与Web，内部服务不得fake。
-6. fault、traffic replay、绝对 benchmark、24-hour soak、三机/HA/PITR、安全/供应链/兼容矩阵完成后，指定 exact digest/profile 才可能获得 production qualification。
+6. fault、traffic replay、绝对 benchmark、3,600 秒 soak、三机/HA/PITR、安全/供应链/兼容矩阵完成后，指定 exact digest/profile 才可能获得 production qualification。
 
 所以，需求并不是“先把所有代码拼起来，再补E2E”。正确顺序是先冻结边界，各模块真实启动自身并做到可测、可恢复、性能达标；全部完成后再在干净环境真实启动pair和整套系统正式集成。早期fake/rehearsal用于发现wire问题，但永远不能改名为正式E2E PASS。
 

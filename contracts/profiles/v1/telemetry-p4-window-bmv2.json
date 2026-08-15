@@ -39,6 +39,11 @@
   },
   "sampling": {
     "algorithm": "sequence-modulo",
+    "selector": "source-sequence-modulo-period",
+    "seed": "source-profile-digest",
+    "weighting": "none-hint-only",
+    "estimation_error_ppm": 1000000,
+    "complete_population_claim": false,
     "period_packets": 1024,
     "digest_max_list_size": 16,
     "digest_max_timeout_ns": 100000000,
@@ -47,7 +52,31 @@
     "coverage": "explicit expected/observed/drop; never reliable or full by implication"
   },
   "quality": ["valid", "partial", "gap", "stale", "not-covered", "not-measurable", "invalid"],
-  "flow_identity": "bounded hash of IPv4/IPv6 header metadata; fragment has explicit class and unavailable L4",
+  "flow_identity": {
+    "schema_version": "telemetry-flow-identity-profile/v1",
+    "shard": "stable target_id",
+    "capture_adapter_id": "p4runtime-bounded-aggregate",
+    "endpoint_identity": "p4runtime device identity",
+    "direction": "ingress",
+    "supported_ip_versions": ["ipv4"],
+    "contract_ip_versions": ["ipv4", "ipv6"],
+    "ipv6_applicability": "unsupported-by-p4-stateless-firewall-v1model-first-release",
+    "endpoint_ordering": "unidirectional-observation-order",
+    "vlan_id_included": false,
+    "tunnel_id_included": false,
+    "fragment_semantics": "fragment-class-preserved",
+    "l4_unavailable_semantics": "port-unavailable-with-absent-ports",
+    "selector_algorithm": "p4-qualified-cell-selector/v1",
+    "selector_seed": "source-profile-digest",
+    "exposure": "aggregate-cell-selector-digest-only"
+  },
+  "time_semantics": {
+    "event_time": "aggregate interval min/max bounded by export time",
+    "packet_time_observed": false,
+    "packet_time_semantics": "not-observed-by-p4-bounded-aggregate",
+    "deadline_clock": "monotonic queue age and remaining RPC budget",
+    "wall_clock_use": "wire event/finalization timestamps only"
+  },
   "raw_payload": false,
   "fallback": "none"
 }

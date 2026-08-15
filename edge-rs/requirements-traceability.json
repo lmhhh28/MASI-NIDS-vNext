@@ -1,0 +1,456 @@
+{
+  "schema_version": "rust-edge-agent-requirement-traceability/v1",
+  "module_id": "MOD-EDGE-001",
+  "owner_role": "Rust Edge Agent module owner",
+  "design_anchor": "docs/design/modules/rust-edge-agent-design.md",
+  "commands": {
+    "stable": "cargo test --all-targets --locked",
+    "os_faults": "MASI_EDGE_RUN_OS_FAULTS=1 cargo test --locked --test module_blackbox os_ -- --ignored",
+    "formal_soak": "MASI_EDGE_FORMAL_SOAK=1 cargo test --release --locked --test module_blackbox bounded_soak_rehearsal_or_exact_formal_duration -- --exact",
+    "deep": "scripts/run-deep-checks.sh",
+    "oci": "scripts/run-oci-smoke.sh",
+    "supply_chain": "scripts/run-supply-chain.sh"
+  },
+  "execution_bindings": [
+    {
+      "command_id": "tests",
+      "log": "tests.log",
+      "mode": "rust-libtest",
+      "required": true,
+      "targets": [
+        "actor_command_queue_saturation_rejects_admission",
+        "assignment_bytes_are_frozen",
+        "bounded_soak_rehearsal_or_exact_formal_duration",
+        "central_pool_outage_is_bounded_and_recovers_without_fallback",
+        "committed_binding_handshake_is_exact_durable_and_idempotent",
+        "control_deadline_retries_idempotently_after_commit",
+        "control_message_limit_retains_result_without_publish",
+        "corrupt_complete_wal_fails_closed_on_exact_recovery",
+        "digest_ack_recovery_queue_bound_fails_closed",
+        "duplicate_canonical_ack_is_rejected_then_idempotently_recovers",
+        "duplicate_inference_result_holds_route_without_commit",
+        "effect_bytes_are_frozen",
+        "expired_wal_starts_real_actor_in_sticky_hold_without_external_advance",
+        "firewall_compilation_is_deterministic",
+        "frozen_profile_resource_ceilings_are_rejected",
+        "implementation_bound_32_target_actor_rehearsal",
+        "inference_global_deadline_fences_attempts_and_recovers",
+        "inference_input_batch_bytes_are_frozen",
+        "inference_message_limit_fails_before_central_call",
+        "inference_result_batch_bytes_are_frozen",
+        "invalid_inference_value_holds_route_without_commit",
+        "late_or_drifted_result_fence_never_reaches_canonical_commit",
+        "lease_expiry_fences_writes_and_handoff_uses_higher_election",
+        "out_of_order_results_and_acks_are_accepted_by_identity",
+        "p4_digest_ack_request_bytes_are_frozen",
+        "p4_digest_response_bytes_are_frozen",
+        "p4_packet_response_bytes_are_frozen",
+        "p4_pipeline_read_deadline_fails_before_write_and_recovers",
+        "p4_read_response_entity_amplification_fails_closed",
+        "p4_reconnect_storm_is_backed_off_and_target_isolated",
+        "p4_stream_reconnect_is_target_isolated",
+        "pipeline_mismatch_reconnect_does_not_leak_streamchannel",
+        "real_binary_runs_public_mtls_multi_target_pipeline",
+        "response_loss_reconciles_and_route_recovers_after_crash",
+        "retry_backoff_refuses_to_cross_the_global_deadline",
+        "retryable_codes_exactly_match_the_frozen_profile",
+        "route_wal_bytes_are_frozen",
+        "rule_observation_preserves_installation_counter_and_eligible_layers",
+        "security_boundaries_reject_wrong_identity_plaintext_and_metadata_endpoint",
+        "source_wal_record_bound_fails_closed_without_overwrite",
+        "supplemental_digest_and_packet_are_durable_before_digest_ack",
+        "supplemental_hint_burst_persists_explicit_gap",
+        "telemetry_bytes_are_frozen",
+        "telemetry_schema_freezes_identity_time_and_sampling_semantics"
+      ]
+    },
+    {
+      "command_id": "os-faults",
+      "log": "os-faults.log",
+      "mode": "rust-libtest",
+      "required": true,
+      "targets": [
+        "os_enospc_fails_closed_without_process_loss",
+        "os_fd_exhaustion_rejects_new_target_without_overcommit"
+      ]
+    },
+    {
+      "command_id": "public-contracts",
+      "log": "public-contracts.log",
+      "mode": "command",
+      "required": true,
+      "targets": ["scripts/validate-public-contracts.py"]
+    },
+    {
+      "command_id": "performance-rehearsal",
+      "log": "performance-rehearsal.log",
+      "mode": "rust-libtest",
+      "required": true,
+      "targets": ["bounded_rule_activation_matrix_rehearsal"]
+    },
+    {
+      "command_id": "oci-smoke",
+      "log": "oci-smoke.log",
+      "mode": "command",
+      "required": true,
+      "targets": ["scripts/inspect-oci-archive.py", "scripts/run-oci-smoke.sh", "scripts/test-oci-archive-inspector.py"]
+    },
+    {
+      "command_id": "deep-checks",
+      "log": "deep-checks.log",
+      "mode": "command",
+      "required": true,
+      "targets": ["scripts/run-deep-checks.sh"]
+    },
+    {
+      "command_id": "supply-chain",
+      "log": "supply-chain.log",
+      "mode": "command",
+      "required": true,
+      "targets": ["scripts/run-supply-chain.sh", "scripts/test-supply-input-safety.py"]
+    },
+    {
+      "command_id": "formal-soak",
+      "log": "formal-soak.log",
+      "mode": "rust-libtest",
+      "required": false,
+      "targets": []
+    },
+    {
+      "command_id": "rustc-version",
+      "log": "rustc-version.log",
+      "mode": "command",
+      "required": true,
+      "targets": []
+    },
+    {
+      "command_id": "cargo-version",
+      "log": "cargo-version.log",
+      "mode": "command",
+      "required": true,
+      "targets": []
+    },
+    {
+      "command_id": "traceability",
+      "log": "traceability.log",
+      "mode": "command",
+      "required": true,
+      "targets": []
+    },
+    {
+      "command_id": "format",
+      "log": "format.log",
+      "mode": "command",
+      "required": true,
+      "targets": []
+    },
+    {
+      "command_id": "clippy",
+      "log": "clippy.log",
+      "mode": "command",
+      "required": true,
+      "targets": []
+    },
+    {
+      "command_id": "release-build",
+      "log": "release-build.log",
+      "mode": "command",
+      "required": true,
+      "targets": []
+    },
+    {
+      "command_id": "soak-rehearsal-validation",
+      "log": "soak-rehearsal-validation.log",
+      "mode": "command",
+      "required": true,
+      "targets": []
+    },
+    {
+      "command_id": "soak-validator-negative-cases",
+      "log": "soak-validator-negative-cases.log",
+      "mode": "command",
+      "required": true,
+      "targets": []
+    },
+    {
+      "command_id": "module-gate-runner-negative-cases",
+      "log": "module-gate-runner-negative-cases.log",
+      "mode": "command",
+      "required": true,
+      "targets": ["scripts/test-module-gate-runner.py"]
+    },
+    {
+      "command_id": "formal-soak-validation",
+      "log": "formal-soak-validation.log",
+      "mode": "command",
+      "required": false,
+      "targets": []
+    },
+    {
+      "command_id": "traceability-evidence",
+      "log": "traceability-evidence.log",
+      "mode": "command",
+      "required": false,
+      "targets": []
+    },
+    {
+      "command_id": "traceability-validator-negative-cases",
+      "log": "traceability-validator-negative-cases.log",
+      "mode": "command",
+      "required": false,
+      "targets": []
+    }
+  ],
+  "evidence_catalog": [
+    {"path":"deep-checks/deep-check-summary.json","schema_version":"edge-deep-check-evidence/v1","test_id":"TEST-EDGE-RUST-DEEP-001","requirement_ids":["MOD-EDGE-001","TEST-003","TEST-007","TEST-009"],"producer_command_ids":["deep-checks"],"producer_test_targets":[],"required":true},
+    {"path":"formal-soak/soak-evidence.json","schema_version":"qualification-soak/v1","test_id":null,"requirement_ids":["MOD-EDGE-001","TEST-003","TEST-008","TEST-TEL-INF-001"],"producer_command_ids":["formal-soak"],"producer_test_targets":["bounded_soak_rehearsal_or_exact_formal_duration"],"required":false},
+    {"path":"module-blackbox/actor-queue-saturation.json","schema_version":"edge-fault-evidence/v1","test_id":"TEST-EDGE-ACTOR-QUEUE-001","requirement_ids":["MOD-EDGE-001","TEST-007"],"producer_command_ids":["tests"],"producer_test_targets":["actor_command_queue_saturation_rejects_admission"],"required":true},
+    {"path":"module-blackbox/central-pool-outage.json","schema_version":"edge-fault-evidence/v1","test_id":"TEST-EDGE-CENTRAL-OUTAGE-001","requirement_ids":["MOD-EDGE-001","CONTRACT-INFERENCE-001","TEST-003","TEST-007","TEST-TEL-INF-001"],"producer_command_ids":["tests"],"producer_test_targets":["central_pool_outage_is_bounded_and_recovers_without_fallback"],"required":true},
+    {"path":"module-blackbox/committed-binding-handshake.json","schema_version":"edge-module-fault-evidence/v1","test_id":"TEST-EDGE-BINDING-HANDSHAKE-001","requirement_ids":["CONTRACT-MODEL-001","CONTRACT-INFERENCE-001","TEST-TEL-INF-001"],"producer_command_ids":["tests"],"producer_test_targets":["committed_binding_handshake_is_exact_durable_and_idempotent"],"required":true},
+    {"path":"module-blackbox/control-deadline-idempotency.json","schema_version":"edge-fault-evidence/v1","test_id":"TEST-EDGE-CONTROL-DEADLINE-001","requirement_ids":["MOD-EDGE-001","TEST-007","TEST-TEL-INF-001"],"producer_command_ids":["tests"],"producer_test_targets":["control_deadline_retries_idempotently_after_commit"],"required":true},
+    {"path":"module-blackbox/control-message-limit.json","schema_version":"edge-fault-evidence/v1","test_id":"TEST-EDGE-CONTROL-MESSAGE-LIMIT-001","requirement_ids":["MOD-EDGE-001","TEST-007","TEST-TEL-INF-001"],"producer_command_ids":["tests"],"producer_test_targets":["control_message_limit_retains_result_without_publish"],"required":true},
+    {"path":"module-blackbox/digest-ack-recovery-bound.json","schema_version":"edge-resource-bound-evidence/v1","test_id":"TEST-EDGE-DIGEST-ACK-BOUND-001","requirement_ids":["MOD-EDGE-001","TEST-007","TEST-TEL-INF-001"],"producer_command_ids":["tests"],"producer_test_targets":["digest_ack_recovery_queue_bound_fails_closed"],"required":true},
+    {"path":"module-blackbox/duplicate-canonical-ack.json","schema_version":"edge-fault-evidence/v1","test_id":"TEST-EDGE-CANONICAL-ACK-DUPLICATE-001","requirement_ids":["MOD-EDGE-001","ARCH-003","TEST-007","TEST-TEL-INF-001"],"producer_command_ids":["tests"],"producer_test_targets":["duplicate_canonical_ack_is_rejected_then_idempotently_recovers"],"required":true},
+    {"path":"module-blackbox/duplicate-inference-result.json","schema_version":"edge-fault-evidence/v1","test_id":"TEST-EDGE-INFERENCE-DUPLICATE-001","requirement_ids":["MOD-EDGE-001","TEST-007","TEST-TEL-INF-001"],"producer_command_ids":["tests"],"producer_test_targets":["duplicate_inference_result_holds_route_without_commit"],"required":true},
+    {"path":"module-blackbox/effect-journal-recovery.json","schema_version":"edge-fault-evidence/v1","test_id":"TEST-EDGE-EFFECT-RECOVERY-001","requirement_ids":["MOD-EDGE-001","ARCH-004","CONTRACT-P4-FW-001","FUNC-EFFECT-001","TEST-003","TEST-007","TEST-P4-FW-001"],"producer_command_ids":["tests"],"producer_test_targets":["response_loss_reconciles_and_route_recovers_after_crash"],"required":true},
+    {"path":"module-blackbox/inference-deadline-recovery.json","schema_version":"edge-fault-evidence/v1","test_id":"TEST-EDGE-INFERENCE-DEADLINE-001","requirement_ids":["MOD-EDGE-001","CONTRACT-INFERENCE-001","TEST-007","TEST-TEL-INF-001"],"producer_command_ids":["tests"],"producer_test_targets":["inference_global_deadline_fences_attempts_and_recovers"],"required":true},
+    {"path":"module-blackbox/inference-message-limit.json","schema_version":"edge-fault-evidence/v1","test_id":"TEST-EDGE-INFERENCE-MESSAGE-LIMIT-001","requirement_ids":["MOD-EDGE-001","TEST-007","TEST-TEL-INF-001"],"producer_command_ids":["tests"],"producer_test_targets":["inference_message_limit_fails_before_central_call"],"required":true},
+    {"path":"module-blackbox/inference-result-fence.json","schema_version":"edge-module-fault-evidence/v1","test_id":"TEST-EDGE-RESULT-FENCE-001","requirement_ids":["CONTRACT-MODEL-001","CONTRACT-INFERENCE-001","TEST-TEL-INF-001"],"producer_command_ids":["tests"],"producer_test_targets":["late_or_drifted_result_fence_never_reaches_canonical_commit"],"required":true},
+    {"path":"module-blackbox/invalid-inference-value.json","schema_version":"edge-fault-evidence/v1","test_id":"TEST-EDGE-INFERENCE-VALUE-001","requirement_ids":["MOD-EDGE-001","TEST-007","TEST-TEL-INF-001"],"producer_command_ids":["tests"],"producer_test_targets":["invalid_inference_value_holds_route_without_commit"],"required":true},
+    {"path":"module-blackbox/lease-expiry-handoff.json","schema_version":"edge-fault-evidence/v1","test_id":"TEST-EDGE-LEASE-HANDOFF-001","requirement_ids":["MOD-EDGE-001","ARCH-TARGET-FLEET-001","REL-TARGET-FLEET-001","CONTRACT-TARGET-001","TEST-003","TEST-007","TEST-TARGET-FLEET-001"],"producer_command_ids":["tests"],"producer_test_targets":["lease_expiry_fences_writes_and_handoff_uses_higher_election"],"required":true},
+    {"path":"module-blackbox/module-blackbox-e2e.json","schema_version":"edge-module-e2e-evidence/v1","test_id":"TEST-EDGE-MODULE-E2E-001","requirement_ids":["MOD-EDGE-001","ARCH-003","ARCH-004","ARCH-TELEMETRY-001","ARCH-TARGET-FLEET-001","FUNC-EFFECT-001","FUNC-TEL-001","TEST-003","TEST-TEL-INF-001","TEST-REAL-E2E-001"],"producer_command_ids":["tests"],"producer_test_targets":["real_binary_runs_public_mtls_multi_target_pipeline"],"required":true},
+    {"path":"module-blackbox/os-enospc.json","schema_version":"edge-os-fault-evidence/v1","test_id":"TEST-EDGE-OS-ENOSPC-001","requirement_ids":["MOD-EDGE-001","TEST-007","TEST-TEL-INF-001"],"producer_command_ids":["os-faults"],"producer_test_targets":["os_enospc_fails_closed_without_process_loss"],"required":true},
+    {"path":"module-blackbox/os-fd-exhaustion.json","schema_version":"edge-os-fault-evidence/v1","test_id":"TEST-EDGE-OS-FD-EXHAUSTION-001","requirement_ids":["MOD-EDGE-001","REL-TARGET-FLEET-001","TEST-007","TEST-TARGET-FLEET-001"],"producer_command_ids":["os-faults"],"producer_test_targets":["os_fd_exhaustion_rejects_new_target_without_overcommit"],"required":true},
+    {"path":"module-blackbox/out-of-order-result-and-ack.json","schema_version":"edge-fault-evidence/v1","test_id":"TEST-EDGE-OUT-OF-ORDER-001","requirement_ids":["MOD-EDGE-001","TEST-007","TEST-TEL-INF-001"],"producer_command_ids":["tests"],"producer_test_targets":["out_of_order_results_and_acks_are_accepted_by_identity"],"required":true},
+    {"path":"module-blackbox/p4-pipeline-mismatch-no-session-leak.json","schema_version":"edge-fault-evidence/v1","test_id":"TEST-EDGE-P4-PIPELINE-SESSION-FENCE-001","requirement_ids":["MOD-EDGE-001","ARCH-003","ARCH-004","TEST-003","TEST-007"],"producer_command_ids":["tests"],"producer_test_targets":["pipeline_mismatch_reconnect_does_not_leak_streamchannel"],"required":true},
+    {"path":"module-blackbox/p4-read-deadline.json","schema_version":"edge-fault-evidence/v1","test_id":"TEST-EDGE-P4-DEADLINE-001","requirement_ids":["MOD-EDGE-001","TEST-007"],"producer_command_ids":["tests"],"producer_test_targets":["p4_pipeline_read_deadline_fails_before_write_and_recovers"],"required":true},
+    {"path":"module-blackbox/p4-read-entity-bound.json","schema_version":"edge-resource-bound-evidence/v1","test_id":"TEST-EDGE-P4-READ-BOUND-001","requirement_ids":["MOD-EDGE-001","TEST-003","TEST-007"],"producer_command_ids":["tests"],"producer_test_targets":["p4_read_response_entity_amplification_fails_closed"],"required":true},
+    {"path":"module-blackbox/p4-reconnect-storm.json","schema_version":"edge-fault-evidence/v1","test_id":"TEST-EDGE-P4-RECONNECT-STORM-001","requirement_ids":["MOD-EDGE-001","ARCH-TARGET-FLEET-001","TEST-007","TEST-TARGET-FLEET-001"],"producer_command_ids":["tests"],"producer_test_targets":["p4_reconnect_storm_is_backed_off_and_target_isolated"],"required":true},
+    {"path":"module-blackbox/p4-stream-reconnect.json","schema_version":"edge-fault-evidence/v1","test_id":"TEST-EDGE-P4-RECONNECT-001","requirement_ids":["MOD-EDGE-001","ARCH-004","TEST-003","TEST-007"],"producer_command_ids":["tests"],"producer_test_targets":["p4_stream_reconnect_is_target_isolated"],"required":true},
+    {"path":"module-blackbox/performance-rehearsal.json","schema_version":"edge-performance-rehearsal/v1","test_id":"TEST-EDGE-FW-CAPACITY-001","requirement_ids":["MOD-EDGE-001","CONTRACT-P4-FW-001","FUNC-EFFECT-001","TEST-P4-FW-001","TEST-008"],"producer_command_ids":["performance-rehearsal"],"producer_test_targets":["bounded_rule_activation_matrix_rehearsal"],"required":true},
+    {"path":"module-blackbox/resource-profile-ceilings.json","schema_version":"edge-resource-bound-evidence/v1","test_id":"TEST-EDGE-RESOURCE-PROFILE-001","requirement_ids":["MOD-EDGE-001","TEST-003","TEST-007"],"producer_command_ids":["tests"],"producer_test_targets":["frozen_profile_resource_ceilings_are_rejected"],"required":true},
+    {"path":"module-blackbox/rule-observation.json","schema_version":"edge-rule-observation-evidence/v1","test_id":"TEST-EDGE-RULE-OBSERVATION-001","requirement_ids":["MOD-EDGE-001","CONTRACT-RULE-001","TEST-003","TEST-007","TEST-RULE-001"],"producer_command_ids":["tests"],"producer_test_targets":["rule_observation_preserves_installation_counter_and_eligible_layers"],"required":true},
+    {"path":"module-blackbox/security-boundaries.json","schema_version":"edge-security-evidence/v1","test_id":"TEST-EDGE-SECURITY-001","requirement_ids":["MOD-EDGE-001","TEST-003","TEST-007"],"producer_command_ids":["tests"],"producer_test_targets":["security_boundaries_reject_wrong_identity_plaintext_and_metadata_endpoint"],"required":true},
+    {"path":"module-blackbox/soak-evidence.json","schema_version":"qualification-soak/v1","test_id":null,"requirement_ids":["MOD-EDGE-001","TEST-003","TEST-008","TEST-TEL-INF-001"],"producer_command_ids":["tests"],"producer_test_targets":["bounded_soak_rehearsal_or_exact_formal_duration"],"required":true},
+    {"path":"module-blackbox/source-wal-bound.json","schema_version":"edge-fault-evidence/v1","test_id":"TEST-EDGE-WAL-BOUND-001","requirement_ids":["MOD-EDGE-001","TEST-003","TEST-007","TEST-TEL-INF-001"],"producer_command_ids":["tests"],"producer_test_targets":["source_wal_record_bound_fails_closed_without_overwrite"],"required":true},
+    {"path":"module-blackbox/supplemental-hint-burst-gap.json","schema_version":"edge-fault-evidence/v1","test_id":"TEST-EDGE-HINT-QUEUE-001","requirement_ids":["MOD-EDGE-001","ARCH-TELEMETRY-001","TEST-007","TEST-TEL-INF-001"],"producer_command_ids":["tests"],"producer_test_targets":["supplemental_hint_burst_persists_explicit_gap"],"required":true},
+    {"path":"module-blackbox/supplemental-hints.json","schema_version":"edge-telemetry-evidence/v1","test_id":"TEST-EDGE-SUPPLEMENTAL-HINTS-001","requirement_ids":["MOD-EDGE-001","ARCH-TELEMETRY-001","CONTRACT-TELEMETRY-001","FUNC-TEL-001","TEST-003","TEST-TEL-INF-001"],"producer_command_ids":["tests"],"producer_test_targets":["supplemental_digest_and_packet_are_durable_before_digest_ack"],"required":true},
+    {"path":"module-blackbox/target-capacity-rehearsal.json","schema_version":"edge-target-capacity-rehearsal/v1","test_id":"TEST-EDGE-TARGET-CAPACITY-001","requirement_ids":["MOD-EDGE-001","ARCH-TARGET-FLEET-001","REL-TARGET-FLEET-001","TEST-TARGET-FLEET-001"],"producer_command_ids":["tests"],"producer_test_targets":["implementation_bound_32_target_actor_rehearsal"],"required":true},
+    {"path":"module-blackbox/wal-corruption.json","schema_version":"edge-fault-evidence/v1","test_id":"TEST-EDGE-WAL-CORRUPTION-001","requirement_ids":["MOD-EDGE-001","ARCH-004","TEST-003","TEST-007"],"producer_command_ids":["tests"],"producer_test_targets":["corrupt_complete_wal_fails_closed_on_exact_recovery"],"required":true},
+    {"path":"module-blackbox/wal-retention-expiry.json","schema_version":"edge-fault-evidence/v1","test_id":"TEST-EDGE-WAL-RETENTION-001","requirement_ids":["MOD-EDGE-001","TEST-003","TEST-007","TEST-TEL-INF-001"],"producer_command_ids":["tests"],"producer_test_targets":["expired_wal_starts_real_actor_in_sticky_hold_without_external_advance"],"required":true},
+    {"path":"oci-smoke/oci-smoke-evidence.json","schema_version":"edge-oci-startup-evidence/v1","test_id":"TEST-EDGE-OCI-001","requirement_ids":["MOD-EDGE-001","TEST-003","TEST-010","TEST-REAL-E2E-001"],"producer_command_ids":["oci-smoke"],"producer_test_targets":[],"required":true},
+    {"path":"qualification/soak-evidence.json","schema_version":"qualification-soak/v1","test_id":null,"requirement_ids":["MOD-EDGE-001","TEST-003","TEST-008","TEST-TEL-INF-001"],"producer_command_ids":["tests","formal-soak"],"producer_test_targets":["bounded_soak_rehearsal_or_exact_formal_duration"],"required":true},
+    {"path":"supply-chain/supply-chain.json","schema_version":"rust-edge-agent-supply-verification/v1","test_id":"SEC-SUPPLY-001","requirement_ids":["MOD-EDGE-001","ARCH-REUSE-001","SEC-SUPPLY-001","TEST-010"],"producer_command_ids":["supply-chain"],"producer_test_targets":[],"required":true}
+  ],
+  "public_contracts": [
+    "contracts/edge/v1/edge.proto",
+    "contracts/edge/v1/error-semantics.json",
+    "contracts/inference/v1/inference.proto",
+    "contracts/inference/v1/profile.json",
+    "contracts/p4runtime/v1/p4runtime.proto",
+    "contracts/target/v1/schema.json",
+    "contracts/p4/firewall-policy/v1/schema.json",
+    "contracts/p4/rule-observation/v1/schema.json",
+    "contracts/telemetry/v1/schema.json",
+    "contracts/evidence/command/v1/schema.json",
+    "contracts/evidence/edge-blackbox/v1/schema.json",
+    "contracts/evidence/module-findings/v1/schema.json",
+    "contracts/evidence/v1/edge-module-schema.json",
+    "contracts/evidence/soak/v1/schema.json",
+    "contracts/evidence/traceability/v1/schema.json",
+    "contracts/supply-chain/v1/rust-edge-agent-release.schema.json",
+    "contracts/profiles/v1/p4runtime-edge-compatibility.json",
+    "contracts/profiles/v1/qualification-soak-3600s.json",
+    "contracts/profiles/v1/rust-edge-agent.json"
+  ],
+  "requirements": [
+    {
+      "requirement_id": "MOD-EDGE-001",
+      "scenario_ids": ["TEST-EDGE-MODULE-E2E-001"],
+      "test_targets": ["real_binary_runs_public_mtls_multi_target_pipeline"],
+      "evidence_files": ["module-blackbox/module-blackbox-e2e.json"],
+      "qualification_limit": "independent module boundary"
+    },
+    {
+      "requirement_id": "ARCH-003",
+      "scenario_ids": ["TEST-EDGE-CANONICAL-ACK-DUPLICATE-001"],
+      "test_targets": ["duplicate_canonical_ack_is_rejected_then_idempotently_recovers"],
+      "evidence_files": ["module-blackbox/duplicate-canonical-ack.json"],
+      "qualification_limit": "Edge has no PostgreSQL credentials; fake Control models the public commit boundary"
+    },
+    {
+      "requirement_id": "ARCH-004",
+      "scenario_ids": ["TEST-EDGE-EFFECT-RECOVERY-001", "TEST-EDGE-P4-RECONNECT-001", "TEST-EDGE-P4-PIPELINE-SESSION-FENCE-001"],
+      "test_targets": ["response_loss_reconciles_and_route_recovers_after_crash", "p4_stream_reconnect_is_target_isolated", "pipeline_mismatch_reconnect_does_not_leak_streamchannel"],
+      "evidence_files": ["module-blackbox/effect-journal-recovery.json", "module-blackbox/p4-stream-reconnect.json", "module-blackbox/p4-pipeline-mismatch-no-session-leak.json"],
+      "qualification_limit": "independent fake P4Runtime public boundary"
+    },
+    {
+      "requirement_id": "ARCH-TELEMETRY-001",
+      "scenario_ids": ["TEST-EDGE-SUPPLEMENTAL-HINTS-001", "TEST-EDGE-HINT-QUEUE-001"],
+      "test_targets": ["supplemental_digest_and_packet_are_durable_before_digest_ack", "supplemental_hint_burst_persists_explicit_gap"],
+      "evidence_files": ["module-blackbox/supplemental-hints.json", "module-blackbox/supplemental-hint-burst-gap.json"],
+      "qualification_limit": "software target profile only"
+    },
+    {
+      "requirement_id": "ARCH-TARGET-FLEET-001",
+      "scenario_ids": ["TEST-EDGE-LEASE-HANDOFF-001", "TEST-EDGE-P4-RECONNECT-STORM-001"],
+      "test_targets": ["lease_expiry_fences_writes_and_handoff_uses_higher_election", "p4_reconnect_storm_is_backed_off_and_target_isolated"],
+      "evidence_files": ["module-blackbox/lease-expiry-handoff.json", "module-blackbox/p4-reconnect-storm.json"],
+      "qualification_limit": "per-target Edge child behavior; fleet parent remains Go-owned"
+    },
+    {
+      "requirement_id": "REL-TARGET-FLEET-001",
+      "scenario_ids": ["TEST-EDGE-LEASE-HANDOFF-001", "TEST-EDGE-OS-FD-EXHAUSTION-001"],
+      "test_targets": ["lease_expiry_fences_writes_and_handoff_uses_higher_election", "os_fd_exhaustion_rejects_new_target_without_overcommit"],
+      "evidence_files": ["module-blackbox/lease-expiry-handoff.json", "module-blackbox/os-fd-exhaustion.json"],
+      "qualification_limit": "N-target absolute threshold is Owner-unfrozen"
+    },
+    {
+      "requirement_id": "CONTRACT-P4-001",
+      "scenario_ids": ["CONTRACT-EDGE-P4-GOLDEN-001"],
+      "test_targets": ["p4_digest_response_bytes_are_frozen", "p4_digest_ack_request_bytes_are_frozen", "p4_packet_response_bytes_are_frozen"],
+      "evidence_files": ["tests.log"],
+      "qualification_limit": "generated Rust adapter and exact golden bytes"
+    },
+    {
+      "requirement_id": "CONTRACT-P4-FW-001",
+      "scenario_ids": ["CONTRACT-EDGE-EFFECT-GOLDEN-001", "TEST-EDGE-FW-CAPACITY-001"],
+      "test_targets": ["effect_bytes_are_frozen", "firewall_compilation_is_deterministic", "bounded_rule_activation_matrix_rehearsal"],
+      "evidence_files": ["module-blackbox/performance-rehearsal.json", "tests.log"],
+      "qualification_limit": "absolute activation thresholds are Owner-unfrozen"
+    },
+    {
+      "requirement_id": "CONTRACT-RULE-001",
+      "scenario_ids": ["TEST-EDGE-RULE-OBSERVATION-001"],
+      "test_targets": ["rule_observation_preserves_installation_counter_and_eligible_layers"],
+      "evidence_files": ["module-blackbox/rule-observation.json"],
+      "qualification_limit": "Edge observation boundary only"
+    },
+    {
+      "requirement_id": "CONTRACT-TARGET-001",
+      "scenario_ids": ["CONTRACT-EDGE-ASSIGNMENT-GOLDEN-001", "TEST-EDGE-LEASE-HANDOFF-001"],
+      "test_targets": ["assignment_bytes_are_frozen", "lease_expiry_fences_writes_and_handoff_uses_higher_election"],
+      "evidence_files": ["module-blackbox/lease-expiry-handoff.json", "tests.log"],
+      "qualification_limit": "Edge assignment/fence adapter"
+    },
+    {
+      "requirement_id": "CONTRACT-TELEMETRY-001",
+      "scenario_ids": ["CONTRACT-EDGE-TELEMETRY-GOLDEN-001"],
+      "test_targets": ["telemetry_bytes_are_frozen", "telemetry_schema_freezes_identity_time_and_sampling_semantics"],
+      "evidence_files": ["tests.log"],
+      "qualification_limit": "exact contract and golden mapping"
+    },
+    {
+      "requirement_id": "CONTRACT-INFERENCE-001",
+      "scenario_ids": ["CONTRACT-EDGE-INFERENCE-GOLDEN-001", "CONTRACT-EDGE-INFERENCE-RETRY-001", "TEST-EDGE-BINDING-HANDSHAKE-001", "TEST-EDGE-RESULT-FENCE-001", "TEST-EDGE-CENTRAL-OUTAGE-001", "TEST-EDGE-INFERENCE-DEADLINE-001"],
+      "test_targets": ["inference_input_batch_bytes_are_frozen", "inference_result_batch_bytes_are_frozen", "route_wal_bytes_are_frozen", "retryable_codes_exactly_match_the_frozen_profile", "retry_backoff_refuses_to_cross_the_global_deadline", "committed_binding_handshake_is_exact_durable_and_idempotent", "late_or_drifted_result_fence_never_reaches_canonical_commit", "central_pool_outage_is_bounded_and_recovers_without_fallback", "inference_global_deadline_fences_attempts_and_recovers"],
+      "evidence_files": ["module-blackbox/committed-binding-handshake.json", "module-blackbox/inference-result-fence.json", "module-blackbox/central-pool-outage.json", "module-blackbox/inference-deadline-recovery.json", "tests.log"],
+      "qualification_limit": "deterministic fake Central public gRPC boundary"
+    },
+    {
+      "requirement_id": "CONTRACT-MODEL-001",
+      "scenario_ids": ["TEST-EDGE-BINDING-HANDSHAKE-001", "TEST-EDGE-RESULT-FENCE-001"],
+      "test_targets": ["committed_binding_handshake_is_exact_durable_and_idempotent", "late_or_drifted_result_fence_never_reaches_canonical_commit"],
+      "evidence_files": ["module-blackbox/committed-binding-handshake.json", "module-blackbox/inference-result-fence.json"],
+      "qualification_limit": "Edge per-shard committed-binding and result-fence boundary only"
+    },
+    {
+      "requirement_id": "FUNC-EFFECT-001",
+      "scenario_ids": ["TEST-EDGE-EFFECT-RECOVERY-001", "TEST-EDGE-FW-CAPACITY-001"],
+      "test_targets": ["response_loss_reconciles_and_route_recovers_after_crash", "bounded_rule_activation_matrix_rehearsal"],
+      "evidence_files": ["module-blackbox/effect-journal-recovery.json", "module-blackbox/performance-rehearsal.json"],
+      "qualification_limit": "independent effect journal/readback boundary"
+    },
+    {
+      "requirement_id": "FUNC-TEL-001",
+      "scenario_ids": ["TEST-EDGE-SUPPLEMENTAL-HINTS-001", "TEST-EDGE-MODULE-E2E-001"],
+      "test_targets": ["supplemental_digest_and_packet_are_durable_before_digest_ack", "real_binary_runs_public_mtls_multi_target_pipeline"],
+      "evidence_files": ["module-blackbox/supplemental-hints.json", "module-blackbox/module-blackbox-e2e.json"],
+      "qualification_limit": "independent source/window/WAL boundary"
+    },
+    {
+      "requirement_id": "TEST-003",
+      "scenario_ids": ["TEST-EDGE-MODULE-E2E-001", "TEST-EDGE-EFFECT-RECOVERY-001"],
+      "test_targets": ["real_binary_runs_public_mtls_multi_target_pipeline", "response_loss_reconciles_and_route_recovers_after_crash"],
+      "evidence_files": ["module-blackbox/module-blackbox-e2e.json", "module-blackbox/effect-journal-recovery.json"],
+      "qualification_limit": "real Edge binary with deterministic public-boundary fakes"
+    },
+    {
+      "requirement_id": "TEST-007",
+      "scenario_ids": ["TEST-EDGE-OS-ENOSPC-001", "TEST-EDGE-OS-FD-EXHAUSTION-001", "TEST-EDGE-ACTOR-QUEUE-001", "TEST-EDGE-P4-PIPELINE-SESSION-FENCE-001", "TEST-EDGE-WAL-RETENTION-001", "TEST-EDGE-GATE-RUNNER-001"],
+      "test_targets": ["os_enospc_fails_closed_without_process_loss", "os_fd_exhaustion_rejects_new_target_without_overcommit", "actor_command_queue_saturation_rejects_admission", "pipeline_mismatch_reconnect_does_not_leak_streamchannel", "expired_wal_starts_real_actor_in_sticky_hold_without_external_advance", "scripts/test-module-gate-runner.py"],
+      "evidence_files": ["module-blackbox/os-enospc.json", "module-blackbox/os-fd-exhaustion.json", "module-blackbox/actor-queue-saturation.json", "module-blackbox/p4-pipeline-mismatch-no-session-leak.json", "module-blackbox/wal-retention-expiry.json", "module-gate-runner-negative-cases.log"],
+      "qualification_limit": "module fault and resource boundaries"
+    },
+    {
+      "requirement_id": "TEST-008",
+      "scenario_ids": ["TEST-EDGE-SOAK-001"],
+      "test_targets": ["bounded_soak_rehearsal_or_exact_formal_duration"],
+      "evidence_files": ["qualification/soak-evidence.json"],
+      "qualification_limit": "formal schedule remains HOLD until DEC-001 thresholds are frozen"
+    },
+    {
+      "requirement_id": "TEST-009",
+      "scenario_ids": ["TEST-EDGE-RUST-STABLE-001", "TEST-EDGE-RUST-DEEP-001"],
+      "test_targets": ["scripts/validate-public-contracts.py", "scripts/run-deep-checks.sh"],
+      "evidence_files": ["tests.log", "deep-checks/deep-check-summary.json"],
+      "qualification_limit": "module CI gates"
+    },
+    {
+      "requirement_id": "TEST-010",
+      "scenario_ids": ["TEST-EDGE-OCI-001", "SEC-SUPPLY-001"],
+      "test_targets": ["scripts/inspect-oci-archive.py", "scripts/run-oci-smoke.sh", "scripts/run-supply-chain.sh", "scripts/test-oci-archive-inspector.py", "scripts/test-supply-input-safety.py"],
+      "evidence_files": ["oci-smoke/oci-smoke-evidence.json", "supply-chain/supply-chain.json"],
+      "qualification_limit": "protected release baseline is separately required"
+    },
+    {
+      "requirement_id": "TEST-RULE-001",
+      "scenario_ids": ["TEST-EDGE-RULE-OBSERVATION-001"],
+      "test_targets": ["rule_observation_preserves_installation_counter_and_eligible_layers"],
+      "evidence_files": ["module-blackbox/rule-observation.json"],
+      "qualification_limit": "installation/match/outcome remain separate"
+    },
+    {
+      "requirement_id": "TEST-P4-FW-001",
+      "scenario_ids": ["TEST-EDGE-FW-CAPACITY-001", "TEST-EDGE-EFFECT-RECOVERY-001"],
+      "test_targets": ["bounded_rule_activation_matrix_rehearsal", "response_loss_reconciles_and_route_recovers_after_crash"],
+      "evidence_files": ["module-blackbox/performance-rehearsal.json", "module-blackbox/effect-journal-recovery.json"],
+      "qualification_limit": "0/128/1024/4096 correctness measured; absolute performance HOLD"
+    },
+    {
+      "requirement_id": "TEST-TARGET-FLEET-001",
+      "scenario_ids": ["TEST-EDGE-LEASE-HANDOFF-001", "TEST-EDGE-TARGET-CAPACITY-001"],
+      "test_targets": ["lease_expiry_fences_writes_and_handoff_uses_higher_election", "implementation_bound_32_target_actor_rehearsal"],
+      "evidence_files": ["module-blackbox/lease-expiry-handoff.json", "module-blackbox/target-capacity-rehearsal.json"],
+      "qualification_limit": "0/1/2/32 correctness measured; Owner N threshold HOLD"
+    },
+    {
+      "requirement_id": "TEST-TEL-INF-001",
+      "scenario_ids": ["TEST-EDGE-MODULE-E2E-001", "TEST-EDGE-BINDING-HANDSHAKE-001", "TEST-EDGE-RESULT-FENCE-001", "TEST-EDGE-CENTRAL-OUTAGE-001", "TEST-EDGE-INFERENCE-DEADLINE-001", "TEST-EDGE-SUPPLEMENTAL-HINTS-001", "TEST-EDGE-WAL-RETENTION-001"],
+      "test_targets": ["real_binary_runs_public_mtls_multi_target_pipeline", "committed_binding_handshake_is_exact_durable_and_idempotent", "late_or_drifted_result_fence_never_reaches_canonical_commit", "central_pool_outage_is_bounded_and_recovers_without_fallback", "inference_global_deadline_fences_attempts_and_recovers", "supplemental_digest_and_packet_are_durable_before_digest_ack", "expired_wal_starts_real_actor_in_sticky_hold_without_external_advance"],
+      "evidence_files": ["module-blackbox/module-blackbox-e2e.json", "module-blackbox/committed-binding-handshake.json", "module-blackbox/inference-result-fence.json", "module-blackbox/central-pool-outage.json", "module-blackbox/inference-deadline-recovery.json", "module-blackbox/supplemental-hints.json", "module-blackbox/wal-retention-expiry.json"],
+      "qualification_limit": "independent module boundary; formal pairwise is NOT_RUN"
+    },
+    {
+      "requirement_id": "TEST-REAL-E2E-001",
+      "scenario_ids": ["TEST-EDGE-MODULE-E2E-001", "TEST-EDGE-OCI-001"],
+      "test_targets": ["real_binary_runs_public_mtls_multi_target_pipeline", "scripts/run-oci-smoke.sh"],
+      "evidence_files": ["module-blackbox/module-blackbox-e2e.json", "oci-smoke/oci-smoke-evidence.json"],
+      "qualification_limit": "real Edge deployable only; formal pairwise/system services are intentionally NOT_RUN"
+    },
+    {
+      "requirement_id": "DEC-044",
+      "scenario_ids": ["TEST-EDGE-MODULE-COMPLETION-001"],
+      "test_targets": ["scripts/validate-public-contracts.py"],
+      "evidence_files": ["public-contracts.log"],
+      "qualification_limit": "operational Module Complete is independent from release, pairwise, system and production qualification"
+    }
+  ],
+  "conditional_applicability": [
+    {"profile": "target-gnmi-readonly/v1", "applicability": "NOT_APPLICABLE", "result": "NOT_RUN", "stable_reason": "NOT_TRIGGERED_BY_FIRST_RELEASE_BMV2_ASSIGNMENT"},
+    {"profile": "mirror-packet-mmap/v1", "applicability": "NOT_APPLICABLE", "result": "NOT_RUN", "stable_reason": "P4_FEATURES_SUFFICIENT_FOR_SELECTED_MODEL"},
+    {"profile": "mirror-af-xdp/v1", "applicability": "NOT_APPLICABLE", "result": "NOT_RUN", "stable_reason": "PACKET_MMAP_PROFILE_NOT_TRIGGERED"},
+    {"profile": "mirror-dpdk/v1", "applicability": "NOT_APPLICABLE", "result": "NOT_RUN", "stable_reason": "AF_XDP_PROFILE_NOT_TRIGGERED"}
+  ]
+}

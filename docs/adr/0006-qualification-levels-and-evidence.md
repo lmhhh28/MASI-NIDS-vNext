@@ -1,10 +1,10 @@
 # ADR-0006：资格等级、早期 Boundary Rehearsal 与机器可读证据
 
 - 状态：Accepted
-- 日期：2026-08-10
+- 日期：2026-08-14
 - 决策者：Owner
-- 需求基线：`vNext-requirements-1.17`
-- 关联需求：`ARCH-TARGET-FLEET-001`、`CONTRACT-TARGET-001`、`CONTRACT-FLEET-EFFECT-001`、`CONTRACT-PROFILE-001`、`MOD-DB-001`、`MOD-INF-001`、`MOD-ML-001`、`MOD-TARGET-FLEET-001`、`DB-TARGET-FLEET-001`、`PERF-001`、`PERF-002`、`PERF-INF-001`、`PERF-TEL-INF-001`、`PERF-RULE-001`、`PERF-TRAFFIC-001`、`PERF-TARGET-FLEET-001`、`REL-INF-POOL-001`、`REL-TARGET-FLEET-001`、`SEC-TARGET-FLEET-001`、`DEP-TARGET-FLEET-001`、`OBS-TARGET-FLEET-001`、`WEB-PERF-001`、`WEB-A11Y-001`、`WEB-SUPPLY-001`、`WEB-TARGET-FLEET-001`、`TEST-002` 至 `TEST-010`、`TEST-GATE-001`、`TEST-REAL-E2E-001`、`TEST-INF-001`、`TEST-TEL-INF-001`、`TEST-PLUGIN-001`、`TEST-WEB-001`、`TEST-RULE-001`、`TEST-TRAFFIC-001`、`TEST-REUSE-001`、`TEST-TARGET-FLEET-001`、`ACCEPT-001`、`DEC-001`、`DEC-019`、`DEC-020`、`DEC-021`、`DEC-023`、`DEC-024`、`DEC-025`、`DEC-026`、`DEC-027`、`DEC-028`、`DEC-029`、`DEC-030`、`DEC-032`、`DEC-033`、`DEC-034`、`DEC-035`、`DEC-036`、`DEC-037`、`DEC-038`
+- 需求基线：`vNext-requirements-1.19`
+- 关联需求：`ARCH-TARGET-FLEET-001`、`CONTRACT-TARGET-001`、`CONTRACT-FLEET-EFFECT-001`、`CONTRACT-PROFILE-001`、`MOD-DB-001`、`MOD-INF-001`、`MOD-ML-001`、`MOD-TARGET-FLEET-001`、`DB-TARGET-FLEET-001`、`PERF-001`、`PERF-002`、`PERF-INF-001`、`PERF-TEL-INF-001`、`PERF-RULE-001`、`PERF-TRAFFIC-001`、`PERF-TARGET-FLEET-001`、`REL-INF-POOL-001`、`REL-TARGET-FLEET-001`、`SEC-TARGET-FLEET-001`、`DEP-TARGET-FLEET-001`、`OBS-TARGET-FLEET-001`、`WEB-PERF-001`、`WEB-A11Y-001`、`WEB-SUPPLY-001`、`WEB-TARGET-FLEET-001`、`TEST-002` 至 `TEST-010`、`TEST-GATE-001`、`TEST-REAL-E2E-001`、`TEST-INF-001`、`TEST-TEL-INF-001`、`TEST-PLUGIN-001`、`TEST-WEB-001`、`TEST-RULE-001`、`TEST-TRAFFIC-001`、`TEST-REUSE-001`、`TEST-TARGET-FLEET-001`、`ACCEPT-001`、`DEC-001`、`DEC-019`、`DEC-020`、`DEC-021`、`DEC-023`、`DEC-024`、`DEC-025`、`DEC-026`、`DEC-027`、`DEC-028`、`DEC-029`、`DEC-030`、`DEC-032`、`DEC-033`、`DEC-034`、`DEC-035`、`DEC-036`、`DEC-037`、`DEC-038`、`DEC-044`
 
 ## 背景
 
@@ -37,6 +37,21 @@
 - `deployment-tier/v1` 封闭为 `development|acceptance|operational-single-domain|production-ha`。前三项最高只能聚合到 `SYSTEM_E2E`；只有 `production-ha` 可以出现 `level=PRODUCTION`，且仍须通过 `availability-ha/v1`、绝对生产性能/容量、PostgreSQL HA/PITR 与全部适用生产门禁。
 
 任何资格都必须绑定精确 digest；“上次通过”“本地可用”、人工截图、另一profile的结果或健康端点不能代替。
+
+### 1.1 Operational Module Complete 与资格正交
+
+`DEC-044` 冻结一个单独的 `module_completion=COMPLETE|INCOMPLETE` 派生结果。它不是 `level/applicability/result/qualification` 的新枚举，也不是 `MODULE PASS`、release 或 production qualification 的别名。
+
+只有以下条件同时成立时才能派生为 `COMPLETE`：
+
+- 公开 contract/profile/golden、错误语义、资源上限和黑盒接口已经冻结，模块首期职责完整实现且无必需 TODO、placeholder、stub、硬编码成功或隐藏 fallback；
+- 发布候选 binary 与 OCI 使用实际 runtime 真实启动，全部适用的模块公开边界、故障恢复、安全、资源、性能和正式 soak 测试实际执行并通过 operational checks；
+- append-only findings registry 中 open P0 数量为 0，真实启动或必需测试 blocker 数量为 0；
+- 完成结果由公开 schema、命令 sidecar、原始 evidence 与 digest 语义重派生；手工修改 summary、遗漏 evidence 或篡改 digest 必须失败关闭。
+
+受保护 tag/attestation 尚未形成、working tree dirty、生产绝对性能/容量/HA threshold 尚未取得，以及按全局开发顺序尚未执行正式 pairwise/system，会继续产生诚实的 qualification-only `HOLD|NOT_RUN`/`NOT_QUALIFIED`，但不阻断 operational completion。它们的原始资格字段不得改写，`COMPLETE` 也不得用于声称相应的 Module、pairwise、system 或 production PASS。相反，任何实际模块测试的 `FAIL|HOLD|NOT_RUN`、真实 binary/OCI 启动失败、缺失/不可重派生证据或 open P0 都必须派生为 `INCOMPLETE`。
+
+正式集成门禁不变：仍须九个模块各自为 operational `COMPLETE` 后才能开始；后续集成暴露模块 P0 或真实测试 blocker 时，该模块立即回到 `INCOMPLETE`，完整重验后才恢复。
 
 ### 2. Module Complete 前允许的 Boundary Rehearsal
 

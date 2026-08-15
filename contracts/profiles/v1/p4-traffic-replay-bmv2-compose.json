@@ -11,7 +11,11 @@
   },
   "backends": {
     "ptf-scapy/v1": {"ptf": "0.12.0", "scapy": "2.6.1"},
-    "tcpreplay/v1": {"tcpreplay": "4.5.1", "link_type": "DLT_EN10MB"},
+    "tcpreplay/v1": {
+      "tool_version": "4.5.2",
+      "package_version": "4.5.2-r1",
+      "link_type": "DLT_EN10MB"
+    },
     "bounded-live-session/v1": {"implementation": "PTF exact bidirectional state transcript", "max_frames": 5}
   },
   "network": {
@@ -25,9 +29,23 @@
   },
   "impairment": {
     "tool": "Linux netem",
-    "iproute2_container_version": "6.15.0-1",
+    "iproute2_tool_version": "7.0.0",
+    "iproute2_package_version": "7.0.0-r0",
     "exact_qdisc_readback": true,
     "cleanup_required": true
+  },
+  "runner_environment": {
+    "distribution": "Alpine Linux",
+    "distribution_version": "3.24.1",
+    "architecture": "x86_64",
+    "iproute2": {
+      "tool_version": "7.0.0",
+      "package_version": "7.0.0-r0"
+    },
+    "tcpreplay": {
+      "tool_version": "4.5.2",
+      "package_version": "4.5.2-r1"
+    }
   },
   "oracle_layers": ["sender_attempted", "sender_accepted", "test_ingress", "dut_ingress", "dut_egress", "dut_drop", "direct_counter", "eligible_counter", "independent_action_outcome", "detection_result"],
   "scenario_order": ["prepare", "preflight-readback", "send-or-session", "observe-oracle", "cleanup"],

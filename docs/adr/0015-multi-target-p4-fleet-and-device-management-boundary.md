@@ -3,7 +3,7 @@
 - 状态：Accepted
 - 日期：2026-08-11
 - 决策者：Owner
-- 需求基线：`vNext-requirements-1.17`
+- 需求基线：`vNext-requirements-1.18`
 - 关联需求：`ARCH-003`、`ARCH-REUSE-001`、`ARCH-FW-001`、`ARCH-TARGET-FLEET-001`、`MOD-EDGE-001`、`MOD-CTRL-001`、`MOD-TARGET-FLEET-001`、`CONTRACT-P4-001`、`CONTRACT-TARGET-001`、`CONTRACT-FLEET-EFFECT-001`、`CONTRACT-PROFILE-001`、`FUNC-GOV-001`、`FUNC-FW-001`、`FUNC-TARGET-FLEET-001`、`WEB-TARGET-FLEET-001`、`DB-TARGET-FLEET-001`、`PERF-TARGET-FLEET-001`、`REL-TARGET-FLEET-001`、`SEC-TARGET-FLEET-001`、`DEP-TARGET-FLEET-001`、`OBS-TARGET-FLEET-001`、`TEST-TARGET-FLEET-001`、`MIG-TARGET-FLEET-001`、`DEC-032`
 
 ## 背景
@@ -155,7 +155,7 @@ P4Runtime/gNMI endpoint 只能来自 canonical registry。注册验证和每次�
 
 `p4-target-fleet/v1`必须冻结`max_targets_per_edge/control/fleet_operation/wave`、parallel child、每target/global P4 RPC、StreamChannel message、FD/task/thread、journal/WAL/disk、queue/memory、DB rows/WAL/connections、API/SSE/UI预算。
 
-必须实测0/1/2/N target、每target最大rule/telemetry/effect/observation叠加、一个slow/unreachable/restarting target、最大parent/child transaction、partial/reconcile/rollback和24小时soak。单targetbenchmark不能线性外推；N或绝对门槛未冻结时为`HOLD/NOT RUN`。
+必须实测0/1/2/N target、每target最大rule/telemetry/effect/observation叠加、一个slow/unreachable/restarting target、最大parent/child transaction、partial/reconcile/rollback和3,600 秒 soak。单targetbenchmark不能线性外推；N或绝对门槛未冻结时为`HOLD/NOT RUN`。
 
 ## 取舍
 
@@ -208,7 +208,7 @@ P4Runtime/gNMI endpoint 只能来自 canonical registry。注册验证和每次�
 - isolation/fairness：slow/unreachable/restart/queue/disk/FD/reconnect storm不拖垮健康target或effect优先级；
 - security：wrong endpoint/device/actor、active tuple duplicate、external inventory/credential injection、DNS rebinding/redirect/loopback/link-local/metadata/public-range SSRF、TLS CA/SAN/hostname、gNMI Set、ONOS/second writer与scope负例；
 - UI：Managed Targets、target×stage matrix、wave timeline、exact approval/original-operation、SSE gap/a11y/large-fleet performance；
-- performance：0/1/2/N、最大rules/operation/wave、peak/saturation/24小时soak和绝对门槛；
+- performance：0/1/2/N、最大rules/operation/wave、peak/saturation/3,600 秒 soak和绝对门槛；
 - 所有结果按ADR-0006区分rehearsal/module/system/production，当前仓库仍为`HOLD/NOT RUN`。
 
 ## 参考

@@ -108,8 +108,12 @@ def main() -> int:
     artifacts = Path(artifacts_name)
     output = Path(output_name)
 
+    runner_environment_phase = load_phase(
+        evidence_dir / "runner-environment.json", "runner-environment"
+    )
     phases = [
         load_phase(evidence_dir / "unit.json", "unit"),
+        runner_environment_phase,
         load_phase(evidence_dir / "compiler.json", "compiler"),
         load_phase(evidence_dir / "p4testgen.json", "p4testgen"),
         load_phase(evidence_dir / "mininet.json", "mininet"),
@@ -258,6 +262,14 @@ def main() -> int:
         phase for phase in phases if phase.get("phase") == "performance"
     )
     performance = object_list(performance_phase.get("performance", []))
+    runner_environment_readback: dict[str, object] = {}
+    runner_environment_tests = object_list(runner_environment_phase.get("tests", []))
+    if runner_environment_tests:
+        evidence = runner_environment_tests[0].get("evidence", {})
+        if isinstance(evidence, dict):
+            observed = evidence.get("observed", {})
+            if isinstance(observed, dict):
+                runner_environment_readback = observed
     holds = [
         f"{test.get('id')}: result={test.get('result')} qualification={test.get('qualification')}"
         for test in tests
@@ -303,6 +315,7 @@ def main() -> int:
             "ptf": importlib.metadata.version("ptf"),
             "scapy": importlib.metadata.version("scapy"),
             "runner_image_id": runner_image,
+            "runner_environment_readback": runner_environment_readback,
             "p4_source_digest": sha256(repo / "p4/src/masi_switch.p4"),
             "compiler_image": COMPILER_IMAGE,
             "runtime_image": p4_profile["target"]["runtime_image"],

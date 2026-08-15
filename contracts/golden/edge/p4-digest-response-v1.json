@@ -1,0 +1,11 @@
+{
+  "schema_version": "edge-contract-golden/v1",
+  "protobuf_message": "p4.v1.StreamMessageResponse",
+  "identity": {
+    "update": "digest",
+    "digest_id": 17,
+    "list_id": 42
+  },
+  "protobuf_hex": "1a220811102a1a08666c6f772d6b65791a0b73616d706c652d6f6e6c7920c8cd97d68d37",
+  "protobuf_sha256": "sha256:f5e9d719ca98fd85a20de37abe8c932c56292000210dd1b832ddcda2da093d4c"
+}

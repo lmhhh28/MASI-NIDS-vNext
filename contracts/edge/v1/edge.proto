@@ -1,0 +1,1005 @@
+// Public Edge Agent contracts. This file is the only source for generated
+// Rust/Go/C++/Python/TypeScript adapters at the Edge boundaries.
+syntax = "proto3";
+
+package masi.edge.v1;
+
+enum AdmissionResult {
+  ADMISSION_RESULT_UNSPECIFIED = 0;
+  ADMISSION_RESULT_ACCEPTED = 1;
+  ADMISSION_RESULT_HOLD = 2;
+}
+
+enum InferenceRouteLifecycle {
+  INFERENCE_ROUTE_LIFECYCLE_UNSPECIFIED = 0;
+  INFERENCE_ROUTE_LIFECYCLE_WITHDRAWN = 1;
+  INFERENCE_ROUTE_LIFECYCLE_DRAINING = 2;
+  INFERENCE_ROUTE_LIFECYCLE_READY = 3;
+  INFERENCE_ROUTE_LIFECYCLE_ACTIVE = 4;
+  INFERENCE_ROUTE_LIFECYCLE_HOLD = 5;
+}
+
+enum DataQuality {
+  DATA_QUALITY_UNSPECIFIED = 0;
+  DATA_QUALITY_VALID = 1;
+  DATA_QUALITY_PARTIAL = 2;
+  DATA_QUALITY_GAP = 3;
+  DATA_QUALITY_STALE = 4;
+  DATA_QUALITY_INVALID = 5;
+  DATA_QUALITY_RESET = 6;
+  DATA_QUALITY_NOT_COVERED = 7;
+  DATA_QUALITY_NOT_MEASURABLE = 8;
+}
+
+enum SnapshotConsistency {
+  SNAPSHOT_CONSISTENCY_UNSPECIFIED = 0;
+  SNAPSHOT_CONSISTENCY_STABLE = 1;
+  SNAPSHOT_CONSISTENCY_RETRY_EXHAUSTED = 2;
+}
+
+enum ClearAdvanceCondition {
+  CLEAR_ADVANCE_CONDITION_UNSPECIFIED = 0;
+  CLEAR_ADVANCE_CONDITION_READBACK_STABLE = 1;
+  CLEAR_ADVANCE_CONDITION_RETAIN_FOR_RETRY = 2;
+}
+
+enum InferenceDecision {
+  INFERENCE_DECISION_UNSPECIFIED = 0;
+  INFERENCE_DECISION_BENIGN = 1;
+  INFERENCE_DECISION_ALERT = 2;
+  INFERENCE_DECISION_ABSTAIN = 3;
+}
+
+enum InferenceExecutionStatus {
+  INFERENCE_EXECUTION_STATUS_UNSPECIFIED = 0;
+  INFERENCE_EXECUTION_STATUS_OK = 1;
+  INFERENCE_EXECUTION_STATUS_HOLD = 2;
+  INFERENCE_EXECUTION_STATUS_ERROR = 3;
+}
+
+enum CanonicalCommitStatus {
+  CANONICAL_COMMIT_STATUS_UNSPECIFIED = 0;
+  CANONICAL_COMMIT_STATUS_COMMITTED = 1;
+  CANONICAL_COMMIT_STATUS_IDEMPOTENT = 2;
+}
+
+enum InstallationReadbackStatus {
+  INSTALLATION_READBACK_STATUS_UNSPECIFIED = 0;
+  INSTALLATION_READBACK_STATUS_EXACT = 1;
+  INSTALLATION_READBACK_STATUS_MISSING = 2;
+  INSTALLATION_READBACK_STATUS_MISMATCH = 3;
+}
+
+enum PublishStatus {
+  PUBLISH_STATUS_UNSPECIFIED = 0;
+  PUBLISH_STATUS_ACCEPTED = 1;
+  PUBLISH_STATUS_CHECKPOINTED = 2;
+  PUBLISH_STATUS_IDEMPOTENT = 3;
+}
+
+enum FreshnessStatus {
+  FRESHNESS_STATUS_UNSPECIFIED = 0;
+  FRESHNESS_STATUS_NOT_OBSERVED = 1;
+  FRESHNESS_STATUS_FRESH = 2;
+  FRESHNESS_STATUS_STALE = 3;
+  FRESHNESS_STATUS_GAP = 4;
+}
+
+service EdgeControl {
+  rpc AssignTarget(AssignTargetRequest) returns (TargetReply);
+  rpc RenewTarget(RenewTargetRequest) returns (TargetReply);
+  rpc RevokeTarget(RevokeTargetRequest) returns (TargetReply);
+  rpc PreflightEffect(PreflightEffectRequest) returns (PreflightEffectReply);
+  rpc ExecuteEffect(ExecuteEffectRequest) returns (EffectResult);
+  rpc AcknowledgeEffect(AcknowledgeEffectRequest) returns (PublishAck);
+  rpc PrepareRoute(PrepareRouteRequest) returns (RouteReply);
+  rpc CommitRoute(CommitRouteRequest) returns (RouteReply);
+  rpc ResumeRoute(ResumeRouteRequest) returns (RouteReply);
+  rpc ConfigureRuleObservations(ConfigureRuleObservationsRequest) returns (PublishAck);
+  rpc GetStatus(GetStatusRequest) returns (EdgeStatus);
+}
+
+service ControlSink {
+  rpc CommitResults(InferenceResultBatch) returns (CanonicalAckBatch);
+  rpc PublishRuleObservations(RuleObservationBatch) returns (PublishAck);
+  rpc PublishTargetStatus(TargetStatusBatch) returns (PublishAck);
+}
+
+message Fence {
+  string target_control_incarnation_id = 1;
+  uint64 target_assignment_generation = 2;
+  string actor_runtime_epoch = 3;
+  uint64 application_generation = 4;
+  uint64 election_id_high = 5;
+  uint64 election_id_low = 6;
+}
+
+message PipelineIdentity {
+  string p4runtime_api_version = 1;
+  string p4info_digest = 2;
+  string device_config_digest = 3;
+  string profile_digest = 4;
+  uint64 cookie = 5;
+  repeated P4WriteAtomicity supported_write_atomicity = 6;
+}
+
+enum P4WriteAtomicity {
+  P4_WRITE_ATOMICITY_UNSPECIFIED = 0;
+  P4_WRITE_ATOMICITY_CONTINUE_ON_ERROR = 1;
+  P4_WRITE_ATOMICITY_ROLLBACK_ON_ERROR = 2;
+  P4_WRITE_ATOMICITY_DATAPLANE_ATOMIC = 3;
+}
+
+message TlsClientIdentity {
+  string server_name = 1;
+  string identity_ref = 2;
+}
+
+message TargetAssignment {
+  string schema_version = 1;
+  string target_id = 2;
+  uint64 device_id = 3;
+  string role = 4;
+  string p4runtime_endpoint = 5;
+  TlsClientIdentity p4runtime_tls = 6;
+  Fence fence = 7;
+  string lease_id = 8;
+  int64 issued_at_unix_ms = 9;
+  int64 expires_at_unix_ms = 10;
+  uint64 election_floor = 11;
+  uint64 election_ceiling = 12;
+  PipelineIdentity expected_pipeline = 13;
+  uint64 observation_epoch = 14;
+  uint64 reset_epoch = 15;
+  string trace_id = 16;
+}
+
+message AssignTargetRequest { TargetAssignment assignment = 1; }
+
+message RenewTargetRequest {
+  string schema_version = 1;
+  string target_id = 2;
+  Fence fence = 3;
+  string lease_id = 4;
+  int64 expires_at_unix_ms = 5;
+  string trace_id = 6;
+}
+
+message RevokeTargetRequest {
+  string schema_version = 1;
+  string target_id = 2;
+  Fence fence = 3;
+  string lease_id = 4;
+  string reason_code = 5;
+  string trace_id = 6;
+}
+
+enum ActorState {
+  ACTOR_STATE_UNSPECIFIED = 0;
+  ACTOR_STATE_CONNECTING = 1;
+  ACTOR_STATE_READ_ONLY = 2;
+  ACTOR_STATE_PRIMARY = 3;
+  ACTOR_STATE_DRAINING = 4;
+  ACTOR_STATE_REVOKED = 5;
+  ACTOR_STATE_HOLD = 6;
+}
+
+message TargetReply {
+  string target_id = 1;
+  ActorState state = 2;
+  string actor_runtime_epoch = 3;
+  string reason_code = 4;
+  string trace_id = 5;
+}
+
+enum EffectKind {
+  EFFECT_KIND_UNSPECIFIED = 0;
+  EFFECT_KIND_BASELINE_ACTIVATE = 1;
+  EFFECT_KIND_OVERLAY_UPSERT = 2;
+  EFFECT_KIND_OVERLAY_DELETE = 3;
+}
+
+enum FirewallAction {
+  FIREWALL_ACTION_UNSPECIFIED = 0;
+  FIREWALL_ACTION_PERMIT_AND_CONTINUE = 1;
+  FIREWALL_ACTION_DROP = 2;
+}
+
+message Ipv4Prefix {
+  fixed32 address = 1;
+  uint32 prefix_length = 2;
+}
+
+message OptionalUint32 {
+  bool present = 1;
+  uint32 value = 2;
+}
+
+message BaselineRule {
+  string rule_id = 1;
+  uint64 rule_revision = 2;
+  string canonical_rule_digest = 3;
+  int32 priority = 4;
+  OptionalUint32 ingress_port = 5;
+  Ipv4Prefix source = 6;
+  Ipv4Prefix destination = 7;
+  OptionalUint32 protocol = 8;
+  OptionalUint32 l4_present = 9;
+  OptionalUint32 source_port = 10;
+  OptionalUint32 destination_port = 11;
+  OptionalUint32 fragment_class = 12;
+  FirewallAction action = 13;
+}
+
+message OverlayRule {
+  string rule_id = 1;
+  uint64 rule_revision = 2;
+  string canonical_rule_digest = 3;
+  fixed32 source_ipv4 = 4;
+  fixed32 destination_ipv4 = 5;
+  uint32 protocol = 6;
+  uint32 source_port = 7;
+  uint32 destination_port = 8;
+  FirewallAction action = 9;
+  int64 expires_at_unix_ms = 10;
+}
+
+message EffectIntent {
+  string schema_version = 1;
+  string effect_intent_id = 2;
+  string operation_id = 3;
+  string target_id = 4;
+  Fence fence = 5;
+  string effect_digest = 6;
+  string authorization_digest = 7;
+  EffectKind kind = 8;
+  string policy_revision_digest = 9;
+  FirewallAction default_action = 10;
+  repeated BaselineRule baseline_rules = 11;
+  repeated OverlayRule overlay_rules = 12;
+  int64 deadline_unix_ms = 13;
+  string actor_ref = 14;
+  string reason_code = 15;
+  string trace_id = 16;
+  P4WriteAtomicity required_write_atomicity = 17;
+}
+
+message PreflightEffectRequest { EffectIntent intent = 1; }
+
+message PreflightEffectReply {
+  string target_id = 1;
+  string effect_intent_id = 2;
+  string preflight_token = 3;
+  string plan_digest = 4;
+  uint32 physical_entries = 5;
+  int64 expires_at_unix_ms = 6;
+  string result = 7;
+  string reason_code = 8;
+  string trace_id = 9;
+  AdmissionResult admission = 10;
+}
+
+message ExecuteEffectRequest {
+  EffectIntent intent = 1;
+  string preflight_token = 2;
+}
+
+enum EffectStatus {
+  EFFECT_STATUS_UNSPECIFIED = 0;
+  EFFECT_STATUS_APPLIED = 1;
+  EFFECT_STATUS_HOLD = 2;
+  EFFECT_STATUS_UNKNOWN = 3;
+  EFFECT_STATUS_RECONCILING = 4;
+}
+
+message EffectResult {
+  string schema_version = 1;
+  string target_id = 2;
+  string effect_intent_id = 3;
+  string operation_id = 4;
+  Fence fence = 5;
+  EffectStatus status = 6;
+  string plan_digest = 7;
+  string readback_digest = 8;
+  uint32 expected_entries = 9;
+  uint32 observed_entries = 10;
+  uint32 mismatched_entries = 11;
+  uint32 active_bank = 12;
+  string reason_code = 13;
+  string trace_id = 14;
+}
+
+message AcknowledgeEffectRequest {
+  string schema_version = 1;
+  string target_id = 2;
+  string effect_intent_id = 3;
+  string operation_id = 4;
+  Fence fence = 5;
+  string result_digest = 6;
+  string canonical_effect_reference = 7;
+  int64 committed_at_unix_ms = 8;
+  string trace_id = 9;
+}
+
+message CanonicalP4Entry {
+  string logical_rule_id = 1;
+  uint32 table_id = 2;
+  uint32 direct_counter_id = 3;
+  uint32 bank = 4;
+  bytes entity = 5;
+  string canonical_entry_digest = 6;
+}
+
+message CompiledEffectPlan {
+  string schema_version = 1;
+  string target_id = 2;
+  string effect_intent_id = 3;
+  EffectKind kind = 4;
+  uint32 active_bank = 5;
+  uint32 inactive_bank = 6;
+  repeated CanonicalP4Entry entries = 7;
+  bytes default_entity = 8;
+  bytes selector_entity = 9;
+  string plan_digest = 10;
+}
+
+enum JournalStage {
+  JOURNAL_STAGE_UNSPECIFIED = 0;
+  JOURNAL_STAGE_WRITE_STARTED = 1;
+  JOURNAL_STAGE_WRITE_RETURNED = 2;
+  JOURNAL_STAGE_READBACK_EXACT = 3;
+  JOURNAL_STAGE_SELECTOR_STARTED = 4;
+  JOURNAL_STAGE_SELECTOR_EXACT = 5;
+  JOURNAL_STAGE_RESULT_REPORTED = 6;
+  JOURNAL_STAGE_CHECKPOINTED = 7;
+  JOURNAL_STAGE_HOLD = 8;
+  JOURNAL_STAGE_UNKNOWN = 9;
+}
+
+message EffectJournalRecord {
+  string schema_version = 1;
+  JournalStage stage = 2;
+  EffectIntent intent = 3;
+  CompiledEffectPlan plan = 4;
+  EffectResult result = 5;
+  int64 recorded_at_unix_ms = 6;
+  string reason_code = 7;
+}
+
+enum SourceWalStage {
+  SOURCE_WAL_STAGE_UNSPECIFIED = 0;
+  SOURCE_WAL_STAGE_BANK_FREEZE_STARTED = 1;
+  SOURCE_WAL_STAGE_BANK_FROZEN = 2;
+  SOURCE_WAL_STAGE_SNAPSHOT_DURABLE = 3;
+  SOURCE_WAL_STAGE_CLEAR_COMPLETED = 4;
+  SOURCE_WAL_STAGE_SNAPSHOT_FINALIZED = 5;
+  SOURCE_WAL_STAGE_DIGEST_HINT_DURABLE = 6;
+  SOURCE_WAL_STAGE_DIGEST_HINT_ACKED = 7;
+  SOURCE_WAL_STAGE_PACKET_HINT_DURABLE = 8;
+  SOURCE_WAL_STAGE_SOURCE_GAP_DURABLE = 9;
+}
+
+message SupplementalHint {
+  string target_id = 1;
+  string source_runtime_epoch = 2;
+  uint32 kind = 3;
+  uint32 digest_id = 4;
+  uint64 list_id = 5;
+  string payload_digest = 6;
+  uint64 payload_bytes = 7;
+  int64 received_at_unix_ms = 8;
+}
+
+message SourceWalRecord {
+  string schema_version = 1;
+  SourceWalStage stage = 2;
+  TelemetrySnapshot snapshot = 3;
+  SupplementalHint hint = 4;
+  uint64 snapshot_wal_sequence = 5;
+  int64 recorded_at_unix_ms = 6;
+  uint32 frozen_bank = 7;
+  uint32 new_active_bank = 8;
+  uint64 previous_epoch = 9;
+  uint64 new_epoch = 10;
+  uint64 operation_wal_sequence = 11;
+  uint64 source_sequence = 12;
+  uint64 counter_packets_before = 13;
+  uint64 counter_bytes_before = 14;
+  string reason_code = 15;
+  string source_runtime_epoch = 16;
+  int64 new_active_started_at_unix_ms = 17;
+}
+
+message InferenceRoute {
+  string schema_version = 1;
+  string shard_id = 2;
+  string model_control_incarnation_id = 3;
+  string logical_pool_id = 4;
+  uint64 pool_generation = 5;
+  uint64 binding_generation = 6;
+  uint64 route_epoch = 7;
+  string model_revision_digest = 8;
+  string feature_contract_digest = 9;
+  string label_contract_digest = 10;
+  string output_adapter_digest = 11;
+  string wire_profile = 12;
+  string runtime_profile = 13;
+  string endpoint = 14;
+  TlsClientIdentity tls = 15;
+  string operation_id = 16;
+  string scope = 17;
+  uint64 expected_binding_generation = 18;
+  uint64 proposed_binding_generation = 19;
+  uint64 current_binding_generation = 20;
+  string startup_envelope_digest = 21;
+  string pool_observation_digest = 22;
+  string binding_digest = 23;
+  string model_bundle_digest = 24;
+  string wire_profile_digest = 25;
+  string runtime_profile_digest = 26;
+  string optimization_profile_digest = 27;
+}
+
+message PrepareRouteRequest {
+  string schema_version = 1;
+  string shard_id = 2;
+  string current_model_control_incarnation_id = 3;
+  uint64 current_route_epoch = 4;
+  uint64 proposed_route_epoch = 5;
+  string trace_id = 6;
+}
+
+message CommitRouteRequest {
+  InferenceRoute route = 1;
+  string trace_id = 2;
+}
+
+message ResumeRouteRequest {
+  string schema_version = 1;
+  string shard_id = 2;
+  string model_control_incarnation_id = 3;
+  uint64 route_epoch = 4;
+  string trace_id = 5;
+  string operation_id = 6;
+  string scope = 7;
+  string logical_pool_id = 8;
+  uint64 pool_generation = 9;
+  uint64 expected_binding_generation = 10;
+  uint64 proposed_binding_generation = 11;
+  uint64 current_binding_generation = 12;
+  string startup_envelope_digest = 13;
+  string pool_observation_digest = 14;
+  string binding_digest = 15;
+  int64 deadline_unix_ms = 16;
+}
+
+message RouteResumeWatermark {
+  string schema_version = 1;
+  uint64 source_wal_checkpoint_sequence = 2;
+  uint64 source_wal_last_sequence = 3;
+  uint64 input_wal_checkpoint_sequence = 4;
+  uint64 input_wal_last_sequence = 5;
+  uint64 result_wal_checkpoint_sequence = 6;
+  uint64 result_wal_last_sequence = 7;
+  uint64 canonical_source_sequence = 8;
+  uint64 pending_source_gap_records = 9;
+}
+
+message RouteReply {
+  string shard_id = 1;
+  string state = 2;
+  uint64 route_epoch = 3;
+  uint64 pending_inputs = 4;
+  uint64 pending_results = 5;
+  string reason_code = 6;
+  string trace_id = 7;
+  InferenceRouteLifecycle lifecycle = 8;
+  string actor_runtime_epoch = 9;
+  string source_runtime_epoch = 10;
+  string binding_digest = 11;
+  RouteResumeWatermark resume_watermark = 12;
+}
+
+message GetBindingRequest {
+  string logical_pool_id = 1;
+  uint64 pool_generation = 2;
+  uint64 binding_generation = 3;
+  string trace_id = 4;
+  string schema_version = 5;
+  string model_control_incarnation_id = 6;
+  string operation_id = 7;
+  string startup_envelope_digest = 8;
+  string model_revision_digest = 9;
+  string model_bundle_digest = 10;
+  string feature_contract_digest = 11;
+  string label_contract_digest = 12;
+  string output_adapter_digest = 13;
+  string wire_profile = 14;
+  string wire_profile_digest = 15;
+  string runtime_profile = 16;
+  string runtime_profile_digest = 17;
+  string optimization_profile_digest = 18;
+  string pool_observation_digest = 19;
+  string binding_digest = 20;
+}
+
+message InferenceWorkerIdentity {
+  string worker_id = 1;
+  string worker_digest = 2;
+}
+
+message BindingReadback {
+  string logical_pool_id = 1;
+  uint64 pool_generation = 2;
+  uint64 binding_generation = 3;
+  string model_revision_digest = 4;
+  string feature_contract_digest = 5;
+  string label_contract_digest = 6;
+  string output_adapter_digest = 7;
+  string runtime_profile = 8;
+  string worker_id = 9;
+  string worker_digest = 10;
+  string schema_version = 11;
+  string model_control_incarnation_id = 12;
+  string operation_id = 13;
+  string startup_envelope_digest = 14;
+  string model_bundle_digest = 15;
+  string wire_profile = 16;
+  string wire_profile_digest = 17;
+  string runtime_profile_digest = 18;
+  string optimization_profile_digest = 19;
+  string readback_attempt_id = 20;
+  int64 observed_at_unix_ms = 21;
+  repeated InferenceWorkerIdentity eligible_workers = 22;
+  string pool_observation_digest = 23;
+  string binding_digest = 24;
+}
+
+enum TelemetryIpVersion {
+  TELEMETRY_IP_VERSION_UNSPECIFIED = 0;
+  TELEMETRY_IP_VERSION_IPV4 = 1;
+  TELEMETRY_IP_VERSION_IPV6 = 2;
+}
+
+enum TelemetryFlowDirection {
+  TELEMETRY_FLOW_DIRECTION_UNSPECIFIED = 0;
+  TELEMETRY_FLOW_DIRECTION_INGRESS = 1;
+  TELEMETRY_FLOW_DIRECTION_EGRESS = 2;
+}
+
+message TelemetryEndpoint {
+  bytes address = 1;
+  OptionalUint32 port = 2;
+}
+
+message TelemetryFlowIdentity {
+  TelemetryFlowDirection direction = 1;
+  TelemetryIpVersion ip_version = 2;
+  TelemetryEndpoint first_endpoint = 3;
+  TelemetryEndpoint second_endpoint = 4;
+  uint32 protocol = 5;
+  OptionalUint32 vlan_id = 6;
+  bytes tunnel_id = 7;
+  uint32 fragment_class = 8;
+  bool port_unavailable = 9;
+}
+
+message TelemetryFlowIdentityProfile {
+  string schema_version = 1;
+  string shard_id = 2;
+  string capture_adapter_id = 3;
+  string endpoint_identity = 4;
+  TelemetryFlowDirection direction = 5;
+  repeated TelemetryIpVersion supported_ip_versions = 6;
+  string endpoint_ordering = 7;
+  bool vlan_id_included = 8;
+  bool tunnel_id_included = 9;
+  string fragment_semantics = 10;
+  string l4_unavailable_semantics = 11;
+  string selector_algorithm = 12;
+  string selector_seed_digest = 13;
+  string exposure = 14;
+}
+
+message TelemetryCell {
+  uint32 index = 1;
+  uint64 packets = 2;
+  uint64 bytes = 3;
+  string selector_digest = 4;
+}
+
+message TelemetrySnapshot {
+  string schema_version = 1;
+  string source_profile = 2;
+  string source_profile_digest = 3;
+  string telemetry_source_id = 4;
+  string target_id = 5;
+  uint64 device_id = 6;
+  Fence fence = 7;
+  PipelineIdentity pipeline = 8;
+  string source_runtime_epoch = 9;
+  uint32 frozen_bank = 10;
+  uint64 epoch = 11;
+  uint64 source_sequence_start = 12;
+  uint64 source_sequence_end = 13;
+  int64 export_time_unix_ms = 14;
+  int64 ingest_time_unix_ms = 15;
+  repeated TelemetryCell cells = 16;
+  uint64 aggregate_packets = 17;
+  uint64 aggregate_bytes = 18;
+  string quality = 19;
+  repeated string quality_reasons = 20;
+  uint64 source_wal_sequence = 21;
+  DataQuality quality_code = 22;
+  int64 aggregation_start_unix_ms = 23;
+  int64 aggregation_end_unix_ms = 24;
+  int64 watermark_unix_ms = 25;
+  bool final_snapshot = 26;
+  repeated SourceGap gaps = 27;
+  uint64 observation_epoch = 28;
+  uint64 reset_epoch = 29;
+  string role = 30;
+  string observation_domain = 31;
+  string observation_point = 32;
+  uint64 application_generation = 33;
+  string window_id = 34;
+  string event_time_basis = 35;
+  uint64 allowed_lateness_ms = 36;
+  int64 finalized_at_unix_ms = 37;
+  int64 produced_at_unix_ms = 38;
+  uint64 expected_sequence_start = 39;
+  uint64 expected_sequence_end = 40;
+  uint64 observed_sequence_start = 41;
+  uint64 observed_sequence_end = 42;
+  SamplingEvidence sampling = 43;
+  DropEvidence drops = 44;
+  uint64 cell_count = 45;
+  uint64 reported_nonzero_cells = 46;
+  string snapshot_strategy = 47;
+  uint32 active_bank_after_flip = 48;
+  uint64 sequence_before = 49;
+  uint64 sequence_after = 50;
+  uint64 expected_entries = 51;
+  uint64 observed_entries = 52;
+  SnapshotConsistency snapshot_consistency = 53;
+  ClearAdvanceCondition clear_advance_condition = 54;
+  string shard_id = 55;
+  string capture_adapter_id = 56;
+  string endpoint_identity = 57;
+  TelemetryFlowIdentityProfile flow_identity_profile = 58;
+  int64 event_time_min_unix_ms = 59;
+  int64 event_time_max_unix_ms = 60;
+  bool packet_time_observed = 61;
+  string packet_time_semantics = 62;
+  uint64 monotonic_queue_age_ms = 63;
+  uint64 monotonic_deadline_budget_ms = 64;
+}
+
+message SamplingEvidence {
+  string algorithm = 1;
+  uint64 period_packets = 2;
+  uint64 eligible_population = 3;
+  uint64 expected_hints = 4;
+  uint64 observed_hints = 5;
+  uint32 coverage_ppm = 6;
+  string selector = 7;
+  string seed_digest = 8;
+  string weighting = 9;
+  uint32 estimation_error_ppm = 10;
+  bool complete_population_claim = 11;
+}
+
+message DropEvidence {
+  uint64 p4_source_drops = 1;
+  uint64 p4_server_drops = 2;
+  uint64 grpc_channel_drops = 3;
+  uint64 edge_client_drops = 4;
+  uint64 digest_hints_observed = 5;
+  uint64 packet_in_hints_observed = 6;
+  bool p4_source_drop_measurable = 7;
+  bool p4_server_drop_measurable = 8;
+  bool grpc_channel_drop_measurable = 9;
+  bool edge_client_drop_measurable = 10;
+}
+
+message SourceGap {
+  uint64 source_sequence_start = 1;
+  uint64 source_sequence_end = 2;
+  string reason_code = 3;
+}
+
+message InferenceRecord {
+  string input_id = 1;
+  string event_idempotency_key = 2;
+  string target_id = 3;
+  string source_runtime_epoch = 4;
+  uint64 source_sequence_start = 5;
+  uint64 source_sequence_end = 6;
+  int64 window_start_unix_ms = 7;
+  int64 window_end_unix_ms = 8;
+  int64 finalized_at_unix_ms = 9;
+  string quality = 10;
+  bytes feature_tensor = 11;
+  repeated uint32 shape = 12;
+  string dtype = 13;
+  string input_digest = 14;
+  uint64 source_wal_sequence = 15;
+  uint64 input_wal_sequence = 16;
+  string schema_version = 17;
+  string feature_contract_digest = 18;
+  bool final_window = 19;
+  int64 watermark_unix_ms = 20;
+  DataQuality quality_code = 21;
+  string window_id = 22;
+  string model_control_incarnation_id = 23;
+  string logical_pool_id = 24;
+  uint64 pool_generation = 25;
+  uint64 binding_generation = 26;
+  uint64 route_epoch = 27;
+  string model_revision_digest = 28;
+  string label_contract_digest = 29;
+  string output_adapter_digest = 30;
+  string wire_profile = 31;
+  string runtime_profile = 32;
+  repeated string quality_reasons = 33;
+  uint32 sampling_coverage_ppm = 34;
+  int64 enqueued_at_unix_ms = 35;
+  string operation_id = 36;
+  string scope = 37;
+  uint64 expected_binding_generation = 38;
+  uint64 proposed_binding_generation = 39;
+  uint64 current_binding_generation = 40;
+  string startup_envelope_digest = 41;
+  string pool_observation_digest = 42;
+  string binding_digest = 43;
+  string model_bundle_digest = 44;
+  string wire_profile_digest = 45;
+  string runtime_profile_digest = 46;
+  string optimization_profile_digest = 47;
+}
+
+message InferenceInputBatch {
+  string schema_version = 1;
+  string request_id = 2;
+  InferenceRoute route = 3;
+  repeated InferenceRecord records = 4;
+  int64 deadline_unix_ms = 5;
+  uint32 attempt = 6;
+  string batch_digest = 7;
+  string trace_id = 8;
+}
+
+message InferenceResultRecord {
+  string input_id = 1;
+  string event_idempotency_key = 2;
+  string input_digest = 3;
+  string output_digest = 4;
+  repeated float scores = 5;
+  uint32 predicted_label = 6;
+  string decision = 7;
+  bool out_of_distribution = 8;
+  bool abstain = 9;
+  string quality = 10;
+  string status = 11;
+  string error_code = 12;
+  string worker_id = 13;
+  string worker_digest = 14;
+  uint64 source_wal_sequence = 15;
+  uint64 input_wal_sequence = 16;
+  uint64 result_wal_sequence = 17;
+  InferenceDecision decision_code = 18;
+  DataQuality quality_code = 19;
+  InferenceExecutionStatus execution_status = 20;
+  string window_id = 21;
+  string model_control_incarnation_id = 22;
+  string logical_pool_id = 23;
+  uint64 pool_generation = 24;
+  uint64 binding_generation = 25;
+  uint64 route_epoch = 26;
+  string model_revision_digest = 27;
+  string feature_contract_digest = 28;
+  string label_contract_digest = 29;
+  string output_adapter_digest = 30;
+  string wire_profile = 31;
+  string runtime_profile = 32;
+  string source_runtime_epoch = 33;
+  uint64 source_sequence_start = 34;
+  uint64 source_sequence_end = 35;
+  int64 window_start_unix_ms = 36;
+  int64 window_end_unix_ms = 37;
+  int64 finalized_at_unix_ms = 38;
+  string target_id = 39;
+  uint32 sampling_coverage_ppm = 40;
+  string operation_id = 41;
+  string scope = 42;
+  uint64 expected_binding_generation = 43;
+  uint64 proposed_binding_generation = 44;
+  uint64 current_binding_generation = 45;
+  string startup_envelope_digest = 46;
+  string pool_observation_digest = 47;
+  string binding_digest = 48;
+  string model_bundle_digest = 49;
+  string wire_profile_digest = 50;
+  string runtime_profile_digest = 51;
+  string optimization_profile_digest = 52;
+  string worker_attempt_id = 53;
+  int64 inference_started_at_unix_ms = 54;
+  int64 inference_completed_at_unix_ms = 55;
+  string trace_id = 56;
+}
+
+message InferenceResultBatch {
+  string schema_version = 1;
+  string request_id = 2;
+  InferenceRoute route = 3;
+  repeated InferenceResultRecord records = 4;
+  string batch_digest = 5;
+  string trace_id = 6;
+}
+
+enum ResultWalStage {
+  RESULT_WAL_STAGE_UNSPECIFIED = 0;
+  RESULT_WAL_STAGE_BATCH_DURABLE = 1;
+  RESULT_WAL_STAGE_CANONICAL_ACK_DURABLE = 2;
+}
+
+message ResultWalRecord {
+  string schema_version = 1;
+  ResultWalStage stage = 2;
+  InferenceResultBatch result_batch = 3;
+  CanonicalAckBatch canonical_ack = 4;
+  uint64 result_batch_wal_sequence = 5;
+  int64 recorded_at_unix_ms = 6;
+  string reason_code = 7;
+}
+
+enum RouteWalStage {
+  ROUTE_WAL_STAGE_UNSPECIFIED = 0;
+  ROUTE_WAL_STAGE_PREPARED = 1;
+  ROUTE_WAL_STAGE_BINDING_READY = 2;
+  ROUTE_WAL_STAGE_CANONICAL_ACTIVE = 3;
+}
+
+message RouteWalRecord {
+  string schema_version = 1;
+  RouteWalStage stage = 2;
+  InferenceRoute route = 3;
+  uint64 proposed_route_epoch = 4;
+  int64 recorded_at_unix_ms = 5;
+  string reason_code = 6;
+  string trace_id = 7;
+  ResumeRouteRequest committed_binding_handshake = 8;
+}
+
+message CanonicalAck {
+  string event_idempotency_key = 1;
+  string input_digest = 2;
+  string output_digest = 3;
+  string canonical_event_id = 4;
+  int64 committed_at_unix_ms = 5;
+  string status = 6;
+  string reason_code = 7;
+  CanonicalCommitStatus commit_status = 8;
+}
+
+message CanonicalAckBatch {
+  string schema_version = 1;
+  repeated CanonicalAck acknowledgements = 2;
+  string trace_id = 3;
+  string result_batch_digest = 4;
+  string ack_batch_digest = 5;
+}
+
+message CounterValue {
+  uint64 packets = 1;
+  uint64 bytes = 2;
+}
+
+message RuleObservation {
+  string target_id = 1;
+  Fence fence = 2;
+  string effect_intent_id = 3;
+  string operation_id = 4;
+  string rule_id = 5;
+  string canonical_entry_digest = 6;
+  uint32 table_id = 7;
+  uint32 direct_counter_id = 8;
+  uint64 observation_epoch = 9;
+  uint64 reset_epoch = 10;
+  uint64 sample_sequence = 11;
+  int64 read_started_at_unix_ms = 12;
+  int64 read_completed_at_unix_ms = 13;
+  CounterValue cumulative = 14;
+  CounterValue eligible_cumulative = 15;
+  string installation_readback = 16;
+  string quality = 17;
+  repeated string quality_reasons = 18;
+  string trace_id = 19;
+  InstallationReadbackStatus installation_status = 20;
+  DataQuality quality_code = 21;
+  int64 expires_at_unix_ms = 22;
+}
+
+message RuleObservationBatch {
+  string schema_version = 1;
+  string batch_id = 2;
+  repeated RuleObservation observations = 3;
+  string batch_digest = 4;
+}
+
+message ObservableRule {
+  string effect_intent_id = 1;
+  string operation_id = 2;
+  string rule_id = 3;
+  bytes canonical_entity = 4;
+  string canonical_entry_digest = 5;
+  uint32 table_id = 6;
+  uint32 direct_counter_id = 7;
+  uint32 bank = 8;
+  int64 expires_at_unix_ms = 9;
+}
+
+message ConfigureRuleObservationsRequest {
+  string schema_version = 1;
+  string target_id = 2;
+  Fence fence = 3;
+  uint64 observation_epoch = 4;
+  uint64 reset_epoch = 5;
+  bool replace_all = 6;
+  repeated ObservableRule rules = 7;
+  string configuration_digest = 8;
+  string trace_id = 9;
+}
+
+message PublishAck {
+  string status = 1;
+  string identity = 2;
+  string digest = 3;
+  string reason_code = 4;
+  PublishStatus status_code = 5;
+}
+
+message TargetStatus {
+  string target_id = 1;
+  ActorState actor_state = 2;
+  Fence fence = 3;
+  bool lease_valid = 4;
+  bool p4_connected = 5;
+  bool primary = 6;
+  bool pipeline_exact = 7;
+  string pipeline_digest = 8;
+  uint64 high_priority_queue_depth = 9;
+  uint64 telemetry_queue_depth = 10;
+  uint64 observation_queue_depth = 11;
+  uint64 source_wal_bytes = 12;
+  uint64 input_wal_bytes = 13;
+  uint64 result_wal_bytes = 14;
+  int64 last_successful_read_unix_ms = 15;
+  string freshness = 16;
+  string reason_code = 17;
+  uint64 expired_overlay_observations = 18;
+  FreshnessStatus freshness_code = 19;
+}
+
+message TargetStatusBatch {
+  string schema_version = 1;
+  repeated TargetStatus targets = 2;
+  string trace_id = 3;
+}
+
+message GetStatusRequest {
+  string target_id = 1;
+  string trace_id = 2;
+}
+
+message EdgeStatus {
+  string schema_version = 1;
+  string edge_instance_id = 2;
+  bool process_live = 3;
+  bool accepting_assignments = 4;
+  repeated TargetStatus targets = 5;
+  uint64 target_limit = 6;
+  string build_version = 7;
+  string config_digest = 8;
+  string trace_id = 9;
+}

@@ -8,11 +8,63 @@
 - 创建日期：2026-08-12
 - Owner：`Owner authorized 2026-08-12`，绝对性能门槛与 3,600 秒完成规则已冻结
 - 执行负责人：`Codex`
-- 关闭日期：2026-08-13
+- 原关闭日期：2026-08-13
+- 重新打开日期：2026-08-13
+- 二次关闭日期：2026-08-13
 - 需求基线：[masi-nids-vnext-system-requirements-2026-08-09.md](../masi-nids-vnext-system-requirements-2026-08-09.md)
 - 关联要求：`PERF-001`、`PERF-002`、`PERF-P4-FW-001`、`TEST-P4-FW-001`、`TEST-GATE-001`、`TEST-003`、`ARCH-REUSE-001`、`CONTRACT-SUPPLY-001`、`MOD-SW-001`
 
-## 关闭结论
+## 二次关闭结论
+
+完整 formal run `20260813T060546Z-runner-version-formal-006` 已在修正后的 exact
+runtime/runner/profile/fixture/supply-chain scope 内以退出码 0 完成。聚合证据为
+`level=MODULE, applicability=APPLICABLE, result=PASS, qualification=QUALIFIED`，
+32 个 required+applicable 项全部 `PASS/QUALIFIED`，`remaining_holds=[]`；另两个
+`NOT_RUN` 均为有稳定理由的 `applicability=NOT_APPLICABLE` 条件能力。
+
+runner 公开执行边界实际读回与 profile 完全一致：Alpine Linux 3.24.1、x86_64、
+Tcpreplay 4.5.2/4.5.2-r1、iproute2 7.0.0/7.0.0-r0；runner SPDX 的两个包版本和
+`distro=alpine-3.24.1` qualifier 也精确一致。离线 no-cache 重建、签名正反例、
+revocation、provenance、扫描策略和 173 项 evidence checksum 全部通过。
+
+P4 Switch 因此在 `p4-stateless-firewall/v1`、BMv2
+`simple_switch_grpc`/v1model、`deployment_tier=acceptance` 范围内恢复
+**Module Complete**。这不扩大为 production、硬件、IPv6 effect、stateful、NAT、
+rate-limit 或 gNMI 资格；正式 pairwise/system 仍须等待其他全部适用首期模块达到
+Module Complete。
+
+## 重新打开原因：runner 版本证据漂移（已修复）
+
+正式 run `20260813T012707Z-module-formal-005` 使用的 runner 实际为 Alpine Linux
+3.24.1、Tcpreplay 4.5.2（Alpine 包 4.5.2-r1）和 iproute2 7.0.0（Alpine 包
+7.0.0-r0），但当时的 profile、traffic schema、四类 fixture 和供应链组件登记仍写着
+Tcpreplay 4.5.1 与 iproute2 6.15.0-1。功能、流量重放、故障和性能结果仍是有价值的
+历史证据，但“profile = fixture = SBOM = 实际运行容器”的 exact binding 不成立，不能
+继续支撑可审计、可复现的 Module Complete 声明。
+
+修正后的 runner digest 为
+`sha256:f0b02a81a6fc7e13b3d10695311663eb54aaf25e4487920e7de93b3b211d42dc`。
+在该 digest 下新增的 runtime readback 和 runner SBOM exact-version 门禁、更新后的契约与
+fixture 均须进入同一轮完整 formal Module gate。新 run 产生
+`result=PASS, qualification=QUALIFIED, remaining_holds=[]` 前，本 Issue 保持 HOLD；旧 run
+不改写、不删除，也不转用于正式 pairwise/system PASS。独立 Rust Edge 模块开发不受此
+HOLD 阻塞。
+
+重新关闭条件：
+
+- [x] profile、traffic schema、四类 fixture 和组件登记统一为 Alpine Linux 3.24.1、
+  Tcpreplay 4.5.2/4.5.2-r1、iproute2 7.0.0/7.0.0-r0；
+- [x] runner 启动后通过公开的容器执行边界读回 OS、架构、工具版本和包版本，任一漂移
+  fail closed；
+- [x] 供应链 verifier 对 runner SPDX 中的 Tcpreplay/iproute2 包版本和 Alpine distro
+  qualifier 做 exact match；
+- [x] 重建并固定新的 runner OCI digest，四类 fixture 绑定该 digest 并重算 canonical
+  manifest digest；
+- [x] 在新 exact scope 下完整重跑 formal P4 Module gate；
+- [x] 新总证据 required+applicable 全部 `PASS/QUALIFIED`、无 `FAIL|HOLD|NOT_RUN`，并更新
+  README、Issue、证据 digest 与可复制命令。
+
+## 历史关闭结论（已被上述版本漂移失效）
 
 最终正式 run `20260813T012707Z-module-formal-005` 已在同一 exact software claim
 scope 下通过全部适用 Module 门禁，聚合结果为
@@ -39,38 +91,44 @@ scope 下通过全部适用 Module 门禁，聚合结果为
 
 ## 当前证据
 
-- 验收 run ID：`20260813T012707Z-module-formal-005`
+- 验收 run ID：`20260813T060546Z-runner-version-formal-006`
 - 总证据：
-  [qualification-evidence.json](../../evidence/p4-switch/20260813T012707Z-module-formal-005/qualification-evidence.json)
+  [qualification-evidence.json](../../evidence/p4-switch/20260813T060546Z-runner-version-formal-006/qualification-evidence.json)
+- 总证据 SHA-256：
+  `sha256:dad9b719269cdc581fb0bc3bc5e6bd6f4d1114bd9e6ad2ab1b79ef2fc68d70f5`。
 - 完整性清单：
-  [SHA256SUMS](../../evidence/p4-switch/20260813T012707Z-module-formal-005/SHA256SUMS)
-- 清单验证：171 个条目全部通过 `sha256sum -c SHA256SUMS`。
-- 汇总结果：31 个 required+applicable 项全部 `PASS/QUALIFIED`、`HOLD=0`、
+  [SHA256SUMS](../../evidence/p4-switch/20260813T060546Z-runner-version-formal-006/SHA256SUMS)
+- 清单验证：173 个条目全部通过 `sha256sum -c SHA256SUMS`。
+- 汇总结果：32 个 required+applicable 项全部 `PASS/QUALIFIED`、`HOLD=0`、
   `FAIL=0`；另有 2 个 `NOT_RUN` 是 BMv2-only scope 下具有稳定理由的
   `applicability=NOT_APPLICABLE` 条件能力。
 - exact runtime：
   `sha256:8b8655c2fb7bc5563706ee853fb668ba70457633cda7d93633d022b30b7ead42`。
+- exact runner：
+  `sha256:f0b02a81a6fc7e13b3d10695311663eb54aaf25e4487920e7de93b3b211d42dc`。
+- runner environment readback：
+  [runner-environment.json](../../evidence/p4-switch/20260813T060546Z-runner-version-formal-006/runner-environment.json)。
 - qualified source patch：
   `sha256:0f0665b4db472680e17c5f2d9f5eddfa1e78201f4097f7cf5dd614a690b2597a`。
 - 生命周期证据：
-  [lifecycle.json](../../evidence/p4-switch/20260813T012707Z-module-formal-005/lifecycle.json)
+  [lifecycle.json](../../evidence/p4-switch/20260813T060546Z-runner-version-formal-006/lifecycle.json)
 - 3,600 秒 soak：
-  [soak.json](../../evidence/p4-switch/20260813T012707Z-module-formal-005/soak.json)
+  [soak.json](../../evidence/p4-switch/20260813T060546Z-runner-version-formal-006/soak.json)
   与
-  [soak-evidence.json](../../evidence/p4-switch/20260813T012707Z-module-formal-005/soak-evidence.json)。
+  [soak-evidence.json](../../evidence/p4-switch/20260813T060546Z-runner-version-formal-006/soak-evidence.json)。
 - 供应链资格：
-  [supply-chain.json](../../evidence/p4-switch/20260813T012707Z-module-formal-005/supply-chain.json)
+  [supply-chain.json](../../evidence/p4-switch/20260813T060546Z-runner-version-formal-006/supply-chain.json)
   与
-  [verification.json](../../evidence/p4-switch/20260813T012707Z-module-formal-005/supply/verification.json)。
+  [verification.json](../../evidence/p4-switch/20260813T060546Z-runner-version-formal-006/supply/verification.json)。
 
 最终 Owner-frozen 五轮绝对性能中位数如下，均为 `PASS/QUALIFIED`：
 
 | 规则数 | 写入 ms | 完整读回 ms | selector flip ms | packet oracle pps |
 |---:|---:|---:|---:|---:|
-| 0 | 0.003 | 0.982 | 1.798 | 1,000.000 |
-| 128 | 14.654 | 42.990 | 2.780 | 1,000.000 |
-| 1,024 | 158.767 | 166.101 | 3.012 | 1,000.000 |
-| 4,096 | 500.794 | 644.488 | 2.483 | 1,000.000 |
+| 0 | 0.003 | 0.648 | 1.258 | 1,000.000 |
+| 128 | 14.254 | 16.025 | 2.082 | 1,000.000 |
+| 1,024 | 112.816 | 133.750 | 2.443 | 1,000.000 |
+| 4,096 | 452.144 | 594.064 | 2.388 | 1,000.000 |
 
 完整的重复测量、延迟分位数、CPU/RSS/cgroup/FD/thread/queue、OOM/restart 和 profile
 digest 在 `performance.json` 与原始 workload/resource evidence 中；门槛在本次正式运行前

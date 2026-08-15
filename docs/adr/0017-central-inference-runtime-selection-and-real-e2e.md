@@ -3,7 +3,7 @@
 - 状态：Accepted
 - 日期：2026-08-12
 - 决策者：Owner
-- 需求基线：`vNext-requirements-1.17`
+- 需求基线：`vNext-requirements-1.18`
 - 关联需求：`BASE-001`、`ARCH-003`、`ARCH-005`、`ARCH-MODEL-001`、`MOD-INF-001`、`CONTRACT-INFERENCE-001`、`CONTRACT-MODEL-001`、`CONTRACT-PROFILE-001`、`FUNC-INF-001`、`FUNC-INF-MODEL-001`、`PERF-INF-001`、`REL-INF-001`、`REL-INF-POOL-001`、`SEC-TEL-INF-001`、`DEP-INF-001`、`OBS-INF-001`、`TEST-GATE-001`、`TEST-REAL-E2E-001`、`TEST-INF-001`、`ACCEPT-001`、`DEC-002`、`DEC-026`、`DEC-033`、`DEC-034`、`DEC-035`、`DEC-036`、`DEC-037`、`DEC-038`
 - 替代范围：替代 ADR-0016 中“CUDA 是唯一首期 runtime profile”和“所有部署都必须 N+1”的结论，并补齐正式 Module/pairwise/system E2E 的真实服务边界；ADR-0016 的中央架构、启动绑定、不可变模型、WAL/fence/readback/CAS 和禁止运行时自动 fallback 继续有效
 
@@ -109,7 +109,7 @@ HA 使用同 profile 等价副本，不是模型或 backend fallback。三机实
 - model/feature/label/output/wire golden 与跨 Python/C++ numeric tolerance；
 - single-label、multi-label、anomaly/open-set、OOD/abstain、NaN/Inf；
 - startup/load/warmup/readback、wrong hardware/config/model/profile；
-- batch、queue、deadline、cancellation、retry/dedupe、saturation、24h soak；
+- batch、queue、deadline、cancellation、retry/dedupe、saturation、3,600 秒 soak；
 - Gateway/Triton/runtime crash、response loss、full-pool unavailable、WAL/gap/recovery；
 - steady/peak/rolling 的 throughput、p50/p95/p99、CPU/RSS/RAM、network/copy；CUDA 另测 GPU/VRAM/stream/host-device copy，CPU 另测 core/thread/NUMA/affinity/arena；
 - exact previous rollback 与 CPU↔CUDA 新 generation 显式切换。
@@ -218,7 +218,7 @@ Model Pool 页面必须显示而不能推断：
 - contracts/profile：unknown/absent profile、selected/observed mismatch、CPU/CUDA old-new、same-generation mixed-profile negative；
 - startup：CPU-only host、qualified CUDA host、CUDA selected without GPU、driver/cuDNN drift、CPU feature/NUMA/RAM不足、model/repository/config/image digest drift、NONE repository额外model/version/config/backend、implicit instance group、ORT provider partition/host-side placement漂移；
 - numeric：Python↔ORT CPU↔ORT CUDA class/order/tolerance/OOD/NaN/Inf；超出 accepted tolerance时 profile不得共享同一 compatibility claim；
-- performance：两 profile独立 steady/peak/saturation/24h soak，冻结绝对 p99/throughput/resource；只测 `Run()` 或 Triton latency不得替代packet/window→Event；
+- performance：两 profile独立 steady/peak/saturation/3,600 秒 soak，冻结绝对 p99/throughput/resource；只测 `Run()` 或 Triton latency不得替代packet/window→Event；
 - availability：single profile中断语义；HA profile同 exact profile跨域N+1、replica/domain loss、rolling capacity；
 - rollout：CPU→CUDA、CUDA→CPU、新模型同profile、exact previous rollback、严格`route-withdraw→drain/WAL→CAS→commit handshake→resume`、late result fence；在withdraw前CAS或CAS后未handshake即发送canonical input的负例必须拒绝；
 - real E2E：每个Module真实启动；每对服务在干净环境真实启动；system链路真实启动BMv2/P4Runtime、Edge、所选推理stack、Go、PostgreSQL、Host、Analysis和Web；内部fake负例阻断PASS；

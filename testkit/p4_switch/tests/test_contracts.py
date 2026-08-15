@@ -89,11 +89,26 @@ class ContractGoldenTests(unittest.TestCase):
     def test_all_four_traffic_modes(self) -> None:
         schema = "contracts/testkit/traffic-replay/v1/schema.json"
         documents = sorted((ROOT / "testkit/fixtures/traffic").glob("*.json"))
+        runner_profile = load("contracts/profiles/v1/e2e-runner-compose.json")
+        traffic_profile = load(
+            "contracts/profiles/v1/p4-traffic-replay-bmv2-compose.json"
+        )
+        self.assertEqual(
+            runner_profile["runner_environment"], traffic_profile["runner_environment"]
+        )
         modes = set()
         for document in documents:
             relative = document.relative_to(ROOT).as_posix()
             self.assert_valid(schema, relative)
             fixture = load(relative)
+            self.assertEqual(
+                runner_profile["runner_image_digest"],
+                fixture["execution"]["runner_image_digest"],
+            )
+            self.assertEqual(
+                runner_profile["runner_environment"],
+                fixture["impairment_environment"]["runner_environment"],
+            )
             modes.add(fixture["fixture_class"])
             expected_manifest_digest = fixture.pop("manifest_digest")
             canonical = json.dumps(
@@ -120,6 +135,15 @@ class ContractGoldenTests(unittest.TestCase):
             {"generated-packet", "synthetic-flow", "curated-pcap", "live-session"},
             modes,
         )
+
+    def test_traffic_schema_rejects_stale_runner_version(self) -> None:
+        schema = load("contracts/testkit/traffic-replay/v1/schema.json")
+        fixture = load("testkit/fixtures/traffic/generated-ipv4-tcp-v1.json")
+        fixture["impairment_environment"]["runner_environment"]["iproute2"][
+            "tool_version"
+        ] = "6.15.0"
+        errors = list(Draft202012Validator(schema).iter_errors(fixture))
+        self.assertTrue(errors)
 
     def test_unknown_major_is_rejected(self) -> None:
         schema = load("contracts/p4/firewall-policy/v1/schema.json")
@@ -234,6 +258,36 @@ class ContractGoldenTests(unittest.TestCase):
             item for item in registry["components"] if item["name"] == "Tcpreplay"
         )
         self.assertEqual("CONDITIONAL", tcpreplay["decision"])
+        self.assertEqual("4.5.2", tcpreplay["version"])
+        self.assertEqual("4.5.2-r1", tcpreplay["package_version"])
+        iproute2 = next(
+            item for item in registry["components"] if item["name"] == "iproute2"
+        )
+        self.assertEqual("7.0.0", iproute2["version"])
+        self.assertEqual("7.0.0-r0", iproute2["package_version"])
+
+        runner_profile = load("contracts/profiles/v1/e2e-runner-compose.json")
+        self.assertEqual(
+            "python@sha256:42825e7ec3437b3bce923c237484eb23d32128476e18307d2f48951bf86f1db2",
+            runner_profile["runner_base_image"],
+        )
+        self.assertEqual(
+            runner_profile["runner_environment"],
+            load("contracts/profiles/v1/p4-traffic-replay-bmv2-compose.json")[
+                "runner_environment"
+            ],
+        )
+        dockerfile = (ROOT / "deploy/p4-switch/Dockerfile.runner").read_text(
+            encoding="utf-8"
+        )
+        for expected in (
+            'io.masi-nids.runner-os="Alpine Linux 3.24.1"',
+            'io.masi-nids.iproute2.tool-version="7.0.0"',
+            'io.masi-nids.iproute2.package-version="7.0.0-r0"',
+            'io.masi-nids.tcpreplay.tool-version="4.5.2"',
+            'io.masi-nids.tcpreplay.package-version="4.5.2-r1"',
+        ):
+            self.assertIn(expected, dockerfile)
 
     def test_bmv2_source_patch_is_exactly_bound_across_profiles(self) -> None:
         source_lock = load("deploy/p4-switch/bmv2/source.lock.json")
