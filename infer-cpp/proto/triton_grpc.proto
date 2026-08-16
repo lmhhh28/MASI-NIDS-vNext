@@ -1,0 +1,133 @@
+// Minimal Triton gRPC service definition for direct gRPC calls from the
+// MASI Gateway. This is a subset of NVIDIA Triton's GRPCInferenceService
+// (package inference) that covers only the readback + inference RPCs the
+// Gateway needs. It avoids linking the tritonclient C++ wrapper library,
+// which bundles its own gRPC and causes ABI conflicts with the project's
+// pinned gRPC. The field numbers match Triton's official grpc_service.proto
+// so the generated stubs are wire-compatible with any Triton server.
+syntax = "proto3";
+
+package inference;
+
+message InferParameter {
+  oneof param_choice {
+    bool bool_param = 1;
+    int64 int64_param = 2;
+    string string_param = 4;
+    double double_param = 5;
+    uint64 uint64_param = 6;
+  }
+}
+
+message InferTensorMetadata {
+  string name = 1;
+  string datatype = 2;
+  repeated int64 shape = 3;
+}
+
+message RequestBatchOutputTensor {
+  string batch_name = 1;
+  repeated uint32 batch_variable_size = 2;
+  repeated int32 batch_variable_shape = 3;
+}
+
+message RequestOutputTensor {
+  string name = 1;
+  map<string, InferParameter> parameters = 2;
+  string class_size = 3;
+}
+
+message RequestBatchInputTensor {
+  string batch_name = 1;
+  repeated uint32 batch_variable_size = 2;
+  repeated int32 batch_variable_shape = 3;
+}
+
+message InferInputTensor {
+  string name = 1;
+  string datatype = 2;
+  repeated int64 shape = 3;
+  map<string, InferParameter> parameters = 4;
+  InferTensorContents contents = 5;
+}
+
+message InferTensorContents {
+  repeated bool bool_contents = 1;
+  repeated int32 int_contents = 2;
+  repeated int64 int64_contents = 3;
+  repeated uint32 uint_contents = 4;
+  repeated uint64 uint64_contents = 5;
+  repeated float fp32_contents = 6;
+  repeated double fp64_contents = 7;
+  repeated bytes bytes_contents = 8;
+}
+
+message ModelInferRequest {
+  string model_name = 1;
+  string model_version = 2;
+  string id = 3;
+  map<string, InferParameter> parameters = 4;
+  repeated InferInputTensor inputs = 5;
+  repeated RequestOutputTensor outputs = 6;
+  repeated bytes raw_input_contents = 7;
+  repeated RequestBatchInputTensor batch_inputs = 8;
+  repeated RequestBatchOutputTensor batch_outputs = 9;
+}
+
+message InferOutputTensor {
+  string name = 1;
+  string datatype = 2;
+  repeated int64 shape = 3;
+  map<string, InferParameter> parameters = 4;
+  InferTensorContents contents = 5;
+}
+
+message ModelInferResponse {
+  string model_name = 1;
+  string model_version = 2;
+  string id = 3;
+  map<string, InferParameter> parameters = 4;
+  repeated InferOutputTensor outputs = 5;
+  repeated bytes raw_output_contents = 6;
+  repeated RequestBatchOutputTensor batch_outputs = 7;
+}
+
+message ServerLiveRequest {}
+message ServerLiveResponse { bool live = 1; }
+
+message ServerReadyRequest {}
+message ServerReadyResponse { bool ready = 1; }
+
+message ModelReadyRequest {
+  string name = 1;
+  string version = 2;
+}
+message ModelReadyResponse { bool ready = 1; }
+
+message ServerMetadataRequest {}
+message ServerMetadataResponse {
+  string name = 1;
+  string version = 2;
+  repeated string extensions = 3;
+}
+
+message ModelMetadataRequest {
+  string name = 1;
+  string version = 2;
+}
+message ModelMetadataResponse {
+  string name = 1;
+  repeated string versions = 2;
+  string platform = 3;
+  repeated InferTensorMetadata inputs = 4;
+  repeated InferTensorMetadata outputs = 5;
+}
+
+service GRPCInferenceService {
+  rpc ServerLive(ServerLiveRequest) returns (ServerLiveResponse) {}
+  rpc ServerReady(ServerReadyRequest) returns (ServerReadyResponse) {}
+  rpc ModelReady(ModelReadyRequest) returns (ModelReadyResponse) {}
+  rpc ServerMetadata(ServerMetadataRequest) returns (ServerMetadataResponse) {}
+  rpc ModelMetadata(ModelMetadataRequest) returns (ModelMetadataResponse) {}
+  rpc ModelInfer(ModelInferRequest) returns (ModelInferResponse) {}
+}

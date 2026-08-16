@@ -108,22 +108,11 @@ StartupResult run_startup(const Config& cfg, int64_t now_unix_ms) {
     TritonClient::ConnectOptions to;
     to.endpoint = cfg.triton_endpoint;
     to.deadline_ms = cfg.request_deadline_ms;
-    if (!cfg.tls_ca_path.empty()) {
-      to.tls_ca = "";  // populated below via file reads inside connect
-    }
+    // Triton runs on an isolated loopback/inference network without TLS in
+    // the CPU E2E test. Do NOT pass the gateway's edge-facing TLS certs to
+    // Triton. A separate triton_tls_* config would be used for production
+    // Triton mTLS.
     try {
-      // mTLS for Triton: read the same PEMs if configured.
-      if (!cfg.tls_ca_path.empty()) {
-        std::ifstream caf(cfg.tls_ca_path);
-        std::stringstream ss; ss << caf.rdbuf();
-        to.tls_ca = ss.str();
-        std::ifstream cef(cfg.tls_cert_path);
-        std::stringstream ss2; ss2 << cef.rdbuf();
-        to.tls_cert = ss2.str();
-        std::ifstream kf(cfg.tls_key_path);
-        std::stringstream ss3; ss3 << kf.rdbuf();
-        to.tls_key = ss3.str();
-      }
       triton.connect(to);
       if (!triton.is_server_ready())
         finish_stage(s, false, "", "triton server not ready");

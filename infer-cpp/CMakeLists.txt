@@ -62,6 +62,7 @@ endif()
 set(_PROTOS
   "${CONTRACTS_DIR}/edge/v1/edge.proto"
   "${CONTRACTS_DIR}/inference/v1/inference.proto"
+  "${CMAKE_SOURCE_DIR}/proto/triton_grpc.proto"
 )
 
 set(_PROTO_SRC "")
@@ -69,13 +70,27 @@ set(_PROTO_HDR "")
 set(_GRPC_SRC "")
 set(_GRPC_HDR "")
 foreach(_proto ${_PROTOS})
-  file(RELATIVE_PATH _rel ${CONTRACTS_DIR} ${_proto})
-  get_filename_component(_rel_dir ${_rel} DIRECTORY)
   get_filename_component(_name ${_proto} NAME_WE)
-  list(APPEND _PROTO_SRC "${GENERATED_DIR}/${_rel_dir}/${_name}.pb.cc")
-  list(APPEND _PROTO_HDR "${GENERATED_DIR}/${_rel_dir}/${_name}.pb.h")
-  list(APPEND _GRPC_SRC "${GENERATED_DIR}/${_rel_dir}/${_name}.grpc.pb.cc")
-  list(APPEND _GRPC_HDR "${GENERATED_DIR}/${_rel_dir}/${_name}.grpc.pb.h")
+  # Determine relative path based on which include root the proto belongs to
+  file(RELATIVE_PATH _rel_contract ${CONTRACTS_DIR} ${_proto})
+  file(RELATIVE_PATH _rel_proto ${CMAKE_SOURCE_DIR}/proto ${_proto})
+  if(_rel_proto STREQUAL "triton_grpc.proto" OR _rel_proto MATCHES "^triton_grpc.proto$")
+    set(_rel_dir "")
+    set(_name "triton_grpc")
+  else()
+    get_filename_component(_rel_dir ${_rel_contract} DIRECTORY)
+  endif()
+  if(_rel_dir STREQUAL "")
+    list(APPEND _PROTO_SRC "${GENERATED_DIR}/${_name}.pb.cc")
+    list(APPEND _PROTO_HDR "${GENERATED_DIR}/${_name}.pb.h")
+    list(APPEND _GRPC_SRC "${GENERATED_DIR}/${_name}.grpc.pb.cc")
+    list(APPEND _GRPC_HDR "${GENERATED_DIR}/${_name}.grpc.pb.h")
+  else()
+    list(APPEND _PROTO_SRC "${GENERATED_DIR}/${_rel_dir}/${_name}.pb.cc")
+    list(APPEND _PROTO_HDR "${GENERATED_DIR}/${_rel_dir}/${_name}.pb.h")
+    list(APPEND _GRPC_SRC "${GENERATED_DIR}/${_rel_dir}/${_name}.grpc.pb.cc")
+    list(APPEND _GRPC_HDR "${GENERATED_DIR}/${_rel_dir}/${_name}.grpc.pb.h")
+  endif()
 endforeach()
 
 add_custom_command(
@@ -85,6 +100,7 @@ add_custom_command(
     --grpc_out ${GENERATED_DIR}
     --plugin=protoc-gen-grpc=${_GRPC_CPP_PLUGIN}
     -I ${CONTRACTS_DIR}
+    -I ${CMAKE_SOURCE_DIR}/proto
     ${_PROTOS}
   DEPENDS ${_PROTOS}
   COMMENT "Generating protobuf + gRPC C++ stubs from contracts"
@@ -165,6 +181,7 @@ add_library(masi_inf_gateway_lib STATIC
 )
 target_include_directories(masi_inf_gateway_lib PUBLIC
   src
+  ${GENERATED_DIR}
   ${ORT_INCLUDE_DIR}
   ${ORT_INCLUDE_DIR}/onnxruntime
   ${ORT_INCLUDE_DIR}/onnxruntime/core/session

@@ -1,11 +1,15 @@
 #pragma once
 
+#include <grpcpp/grpcpp.h>
+
 #include <cstdint>
 #include <memory>
 #include <string>
 #include <vector>
 
 #include "error.h"
+#include "triton_grpc.pb.h"
+#include "triton_grpc.grpc.pb.h"
 
 namespace masi::inf {
 
@@ -17,27 +21,25 @@ struct TritonModelIdentity {
 };
 
 struct TritonModelConfig {
-  std::string raw_config;        // pbtxt as text
-  std::string model_control_mode;  // must be "none"
+  std::string raw_config;
+  std::string model_control_mode;
   int32_t max_batch_size = 0;
   std::vector<int32_t> preferred_batch_sizes;
   int32_t max_queue_delay_microseconds = 0;
   int32_t max_queue_records = 0;
   bool dynamic_batching = false;
-  std::string instance_group_kind;  // "KIND_CPU" | "KIND_CUDA"
+  std::string instance_group_kind;
   int32_t instance_group_count = 0;
 };
 
 struct TritonModelMetadata {
-  std::string raw_metadata;       // JSON metadata as returned by Triton
+  std::string raw_metadata;
   std::string name;
   std::string version;
   std::vector<std::string> inputs;
   std::vector<std::string> outputs;
 };
 
-// Bounded Triton gRPC client with mTLS. The library is optional at build time;
-// when the tritonclient C++ library is not linked, every call fails closed.
 class TritonClient {
  public:
   TritonClient() = default;
@@ -46,10 +48,8 @@ class TritonClient {
   TritonClient(const TritonClient&) = delete;
   TritonClient& operator=(const TritonClient&) = delete;
 
-  // `tls_ca/cert/key` may be empty for an in-process UDS target only. For any
-  // network target they must all be populated. `deadline_ms` bounds each call.
   struct ConnectOptions {
-    std::string endpoint;          // host:port
+    std::string endpoint;
     std::string tls_ca;
     std::string tls_cert;
     std::string tls_key;
@@ -63,14 +63,13 @@ class TritonClient {
   bool is_server_ready();
   bool is_model_ready(const std::string& name, const std::string& version);
 
-  // Repository index must contain exactly the expected binding; extra entries
-  // are reported and rejected by the caller.
   std::vector<std::string> model_repository_index();
 
-  TritonModelMetadata model_metadata(const std::string& name, const std::string& version);
-  TritonModelConfig model_config(const std::string& name, const std::string& version);
+  TritonModelMetadata model_metadata(const std::string& name,
+                                     const std::string& version);
+  TritonModelConfig model_config(const std::string& name,
+                                 const std::string& version);
 
-  // Run inference. Returns raw float output buffer in canonical order.
   std::vector<float> model_infer(const std::string& name,
                                  const std::string& version,
                                  const std::vector<uint8_t>& input_bytes,
@@ -80,7 +79,8 @@ class TritonClient {
  private:
   bool available_ = false;
   ConnectOptions opts_;
-  void* client_ = nullptr;  // triton::client::InferenceServerGrpcClient*
+  std::shared_ptr<grpc::Channel> channel_;
+  std::unique_ptr<inference::GRPCInferenceService::Stub> stub_;
 };
 
 }  // namespace masi::inf
