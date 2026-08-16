@@ -1,0 +1,94 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://masi-nids.example/contracts/evidence/central-inference-readback/v1/schema.json",
+  "title": "CentralInferenceReadbackEvidenceV1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "run_id",
+    "module",
+    "requirement_ids",
+    "level",
+    "applicability",
+    "result",
+    "qualification",
+    "get_loaded_model",
+    "get_pool_status",
+    "fence_dimensions"
+  ],
+  "properties": {
+    "schema_version": {"const": "central-inference-readback-evidence/v1"},
+    "run_id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$"},
+    "module": {"const": "MOD-INF-001"},
+    "requirement_ids": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 32,
+      "uniqueItems": true,
+      "items": {"type": "string", "pattern": "^[A-Z][A-Z0-9-]{2,63}$"}
+    },
+    "level": {"enum": ["REHEARSAL", "MODULE"]},
+    "applicability": {"const": "APPLICABLE"},
+    "result": {"enum": ["PASS", "FAIL", "HOLD", "NOT_RUN"]},
+    "qualification": {"enum": ["QUALIFIED", "NOT_QUALIFIED"]},
+    "get_loaded_model": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["returned", "identity_exact", "digest_match", "loaded_not_current"],
+      "properties": {
+        "returned": {"type": "boolean"},
+        "identity_exact": {"type": "boolean"},
+        "digest_match": {"type": "boolean"},
+        "loaded_not_current": {"type": "boolean"},
+        "envelope_digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+        "repository_digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+        "model_revision_digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+        "binding_digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+        "worker_id": {"type": "string", "minLength": 1, "maxLength": 128},
+        "worker_digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}
+      }
+    },
+    "get_pool_status": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["returned", "eligible_workers", "pool_observation_digest"],
+      "properties": {
+        "returned": {"type": "boolean"},
+        "eligible_workers": {"type": "array", "minItems": 1, "maxItems": 64, "items": {"type": "object"}},
+        "pool_observation_digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}
+      }
+    },
+    "fence_dimensions": {
+      "type": "array",
+      "minItems": 29,
+      "maxItems": 29,
+      "uniqueItems": true,
+      "items": {"type": "string", "pattern": "^[a-z][a-z0-9_]{0,63}$"}
+    },
+    "wrong_generation_fenced": {"type": "boolean"},
+    "late_result_fenced": {"type": "boolean"},
+    "result_identity_mismatch_fenced": {"type": "boolean"},
+    "result_digest_conflict_fenced": {"type": "boolean"},
+    "cross_generation_result_rejected": {"type": "boolean"},
+    "idempotency_same_key_same_digest": {"type": "boolean"},
+    "conflict_same_key_different_digest": {"type": "boolean"}
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"result": {"const": "PASS"}}, "required": ["result"]},
+      "then": {
+        "properties": {
+          "qualification": {"const": "QUALIFIED"},
+          "wrong_generation_fenced": {"const": true},
+          "late_result_fenced": {"const": true},
+          "result_identity_mismatch_fenced": {"const": true},
+          "result_digest_conflict_fenced": {"const": true},
+          "cross_generation_result_rejected": {"const": true},
+          "idempotency_same_key_same_digest": {"const": true},
+          "conflict_same_key_different_digest": {"const": true}
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,585 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://masi-nids.example/contracts/model/v1/schema.json",
+  "title": "MASI Model Bundle and Binding Contract V1",
+  "description": "CONTRACT-MODEL-001: the single semantic source for online model replaceability. Covers immutable identity, feature schema, label taxonomy, output adapter, InferenceResult canonical shape, binding identity, rollout operation identity, pool startup envelope, loaded-model observation, committed-binding handshake, and the stable error namespace. Python/C++/Rust/Go/TypeScript must consume the same golden vectors.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "contract_canonicalization_version",
+    "immutable_identity",
+    "feature_schema",
+    "label_taxonomy",
+    "output_adapter",
+    "inference_result_shape",
+    "binding_identity",
+    "rollout_operation_identity",
+    "pool_startup_envelope",
+    "loaded_model_observation",
+    "committed_binding_handshake",
+    "deployment_action_identity",
+    "control_methods",
+    "error_namespace",
+    "golden_requirements",
+    "compatibility_rules"
+  ],
+  "properties": {
+    "schema_version": {"const": "masi-model-contract/v1"},
+    "contract_canonicalization_version": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["major", "minor", "unknown_field_policy", "float_tolerance", "nan_inf_signed_zero"],
+      "properties": {
+        "major": {"type": "integer", "minimum": 1, "maximum": 4096},
+        "minor": {"type": "integer", "minimum": 0, "maximum": 4096},
+        "unknown_field_policy": {"const": "reject-before-session-create"},
+        "float_tolerance": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["absolute", "relative", "ulp", "applies_to"],
+          "properties": {
+            "absolute": {"type": "number", "minimum": 0},
+            "relative": {"type": "number", "minimum": 0},
+            "ulp": {"type": "integer", "minimum": 0, "maximum": 16},
+            "applies_to": {"enum": ["fp32", "fp64"]}
+          }
+        },
+        "nan_inf_signed_zero": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["nan", "inf", "signed_zero"],
+          "properties": {
+            "nan": {"const": "reject"},
+            "inf": {"const": "reject"},
+            "signed_zero": {"const": "canonical"}
+          }
+        }
+      }
+    },
+    "immutable_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "model_id",
+        "revision",
+        "bundle_digest",
+        "manifest_digest",
+        "artifact_uri",
+        "artifact_size",
+        "model_digest",
+        "scaler_config_digest",
+        "feature_schema_digest",
+        "label_taxonomy_digest",
+        "output_adapter_digest",
+        "inference_wire_digest",
+        "runtime_profile_digest",
+        "resource_profile_digest",
+        "qualification_digest"
+      ],
+      "properties": {
+        "model_id": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]{1,127}$"},
+        "revision": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+        "bundle_digest": {"$ref": "#/$defs/digest"},
+        "manifest_digest": {"$ref": "#/$defs/digest"},
+        "artifact_uri": {"type": "string", "pattern": "^digest-pinned://", "maxLength": 512},
+        "artifact_size": {"type": "integer", "minimum": 1, "maximum": 1073741824},
+        "model_digest": {"$ref": "#/$defs/digest"},
+        "scaler_config_digest": {"$ref": "#/$defs/digest"},
+        "feature_schema_digest": {"$ref": "#/$defs/digest"},
+        "label_taxonomy_digest": {"$ref": "#/$defs/digest"},
+        "output_adapter_digest": {"$ref": "#/$defs/digest"},
+        "inference_wire_digest": {"$ref": "#/$defs/digest"},
+        "runtime_profile_digest": {"$ref": "#/$defs/digest"},
+        "resource_profile_digest": {"$ref": "#/$defs/digest"},
+        "qualification_digest": {"$ref": "#/$defs/digest"},
+        "preoptimized_artifact": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["raw_model_digest", "optimized_model_digest", "optimization_tool", "optimization_options_digest", "ort_ep_device_cpu_feature_digest"],
+          "properties": {
+            "raw_model_digest": {"$ref": "#/$defs/digest"},
+            "optimized_model_digest": {"$ref": "#/$defs/digest"},
+            "optimization_tool": {"type": "string", "minLength": 1, "maxLength": 128},
+            "optimization_options_digest": {"$ref": "#/$defs/digest"},
+            "ort_ep_device_cpu_feature_digest": {"$ref": "#/$defs/digest"}
+          }
+        }
+      }
+    },
+    "feature_schema": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["field_order", "dtype", "shape", "units", "window", "normalization", "nan_inf_ood_policy", "producer_compatibility"],
+      "properties": {
+        "field_order": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 256,
+          "items": {"type": "string", "pattern": "^[a-z][a-z0-9_]{0,63}$"}
+        },
+        "dtype": {"const": "uint64-le"},
+        "shape": {"type": "array", "minItems": 1, "maxItems": 8, "items": {"type": "integer", "minimum": 1, "maximum": 4096}},
+        "units": {"enum": ["packets", "bytes", "cells", "snapshots", "mixed"]},
+        "window": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "finality", "allowed_lateness_ms"],
+          "properties": {
+            "kind": {"const": "p4-aggregate-window"},
+            "finality": {"const": "event-time-watermark"},
+            "allowed_lateness_ms": {"type": "integer", "minimum": 0, "maximum": 60000}
+          }
+        },
+        "normalization": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["scaler_kind", "scaler_config_digest"],
+          "properties": {
+            "scaler_kind": {"enum": ["none", "standard", "minmax", "robust"]},
+            "scaler_config_digest": {"$ref": "#/$defs/digest"}
+          }
+        },
+        "nan_inf_ood_policy": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["nan", "inf", "ood", "missing", "default"],
+          "properties": {
+            "nan": {"const": "reject-before-session-create"},
+            "inf": {"const": "reject-before-session-create"},
+            "ood": {"enum": ["abstain", "reject", "flag"]},
+            "missing": {"const": "reject"},
+            "default": {"const": "no-default-fill"}
+          }
+        },
+        "producer_compatibility": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["major_compatibility_rule", "minor_compatibility_rule"],
+          "properties": {
+            "major_compatibility_rule": {"const": "new-major-requires-new-pool-generation-and-reader-deployment"},
+            "minor_compatibility_rule": {"const": "old-reader-must-preserve-unknown-fields-without-changing-semantics"}
+          }
+        }
+      }
+    },
+    "label_taxonomy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["label_ids", "id_reuse_policy", "mode", "score_domain", "threshold", "calibration", "class_order_policy", "unknown_label_policy"],
+      "properties": {
+        "label_ids": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 4096,
+          "uniqueItems": true,
+          "items": {"type": "integer", "minimum": 0, "maximum": 65535}
+        },
+        "id_reuse_policy": {"const": "never-reuse"},
+        "mode": {"enum": ["single-label", "multi-label", "anomaly-score", "open-set"]},
+        "score_domain": {"enum": ["probability", "logit", "distance", "raw-score"]},
+        "threshold": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "value"],
+          "properties": {
+            "kind": {"enum": ["fixed", "calibrated", "per-label"]},
+            "value": {"type": "number", "minimum": 0}
+          }
+        },
+        "calibration": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "config_digest"],
+          "properties": {
+            "kind": {"enum": ["none", "isotonic", "platt", "temperature"]},
+            "config_digest": {"$ref": "#/$defs/digest"}
+          }
+        },
+        "class_order_policy": {"const": "stable-explicit-in-manifest"},
+        "unknown_label_policy": {"const": "old-reader-preserves-unknown-without-triggering-old-effect-policy"},
+        "deprecated_labels": {"type": "array", "maxItems": 4096, "items": {"type": "integer", "minimum": 0, "maximum": 65535}},
+        "parent_child_mapping": {
+          "type": "array",
+          "maxItems": 4096,
+          "items": {
+            "type": "object",
+            "required": ["parent", "child"],
+            "properties": {
+              "parent": {"type": "integer", "minimum": 0, "maximum": 65535},
+              "child": {"type": "integer", "minimum": 0, "maximum": 65535}
+            }
+          }
+        }
+      }
+    },
+    "output_adapter": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["adapter_id", "version", "adapter_digest", "mapping_kind", "class_order", "axis", "top_k", "threshold", "calibration", "executable_policy"],
+      "properties": {
+        "adapter_id": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]{1,127}$"},
+        "version": {"type": "string", "pattern": "^v[0-9]+$"},
+        "adapter_digest": {"$ref": "#/$defs/digest"},
+        "mapping_kind": {"enum": ["deterministic-implementation", "restricted-data-config"]},
+        "class_order": {"type": "array", "minItems": 1, "maxItems": 4096, "items": {"type": "integer", "minimum": 0, "maximum": 65535}},
+        "axis": {"type": "integer", "minimum": 0, "maximum": 7},
+        "top_k": {"type": "integer", "minimum": 1, "maximum": 256},
+        "threshold": {"type": "number", "minimum": 0},
+        "calibration": {"$ref": "#/$defs/digest"},
+        "executable_policy": {"const": "no-executable-code-injected-from-bundle"}
+      }
+    },
+    "inference_result_shape": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["identity_fields", "scores", "predictions", "decision", "ood", "abstain", "quality", "input_output_digest", "timing", "trace"],
+      "properties": {
+        "identity_fields": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"type": "string", "pattern": "^[a-z][a-z0-9_]{0,63}$"}
+        },
+        "scores": {"type": "string", "const": "repeated-float32-class-ordered"},
+        "predictions": {"type": "string", "const": "uint32-predicted-label"},
+        "decision": {"enum": ["benign", "alert", "abstain"]},
+        "ood": {"type": "boolean"},
+        "abstain": {"type": "boolean"},
+        "quality": {"enum": ["valid", "partial", "gap", "stale", "invalid", "reset", "not-covered", "not-measurable"]},
+        "input_output_digest": {"type": "boolean", "const": true},
+        "timing": {"type": "boolean", "const": true},
+        "trace": {"type": "boolean", "const": true},
+        "late_unsubmitted_unknown_cross_generation_policy": {"const": "distinguishable-and-cannot-write-canonical-event"}
+      }
+    },
+    "binding_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["composite_key", "incarnation_policy", "per_shard_slots", "current_previous_policy", "group_cohort_policy"],
+      "properties": {
+        "composite_key": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"type": "string", "pattern": "^[a-z][a-z0-9_]{0,63}$"}
+        },
+        "incarnation_policy": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "reuse", "pitr_rotation"],
+          "properties": {
+            "kind": {"const": "non-reusable-strong-random-identity"},
+            "reuse": {"const": "never"},
+            "pitr_rotation": {"const": "rotate-before-reopening-writer-after-restore"}
+          }
+        },
+        "per_shard_slots": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["max_current", "max_previous", "pointer_kind"],
+          "properties": {
+            "max_current": {"const": 1},
+            "max_previous": {"const": 1},
+            "pointer_kind": {"const": "postgresql-exact-pointer-no-registry-alias"}
+          }
+        },
+        "current_previous_policy": {"const": "postgresql-exact-pointer-not-two-sessions"},
+        "group_cohort_policy": {"const": "operation-scope-not-third-binding-slot"}
+      }
+    },
+    "rollout_operation_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["fields", "idempotency", "requester_identity", "auto_publish_policy", "state_machine"],
+      "properties": {
+        "fields": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"type": "string", "pattern": "^[a-z][a-z0-9_]{0,63}$"}
+        },
+        "idempotency": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["same_key_same_digest", "same_key_different_digest"],
+          "properties": {
+            "same_key_same_digest": {"const": "idempotent"},
+            "same_key_different_digest": {"const": "stable-conflict"}
+          }
+        },
+        "requester_identity": {"const": "stable-iss-sub-not-email-display-name"},
+        "auto_publish_policy": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["approval", "policy_digest_required"],
+          "properties": {
+            "approval": {"enum": ["platform-admin-or-owner", "two-different-identities"]},
+            "policy_digest_required": {"type": "boolean", "const": true}
+          }
+        },
+        "state_machine": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["rollout", "rollback", "recover_current", "terminal", "aborted_rule"],
+          "properties": {
+            "rollout": {
+              "type": "array",
+              "prefixItems": [
+                {"const": "requested"},
+                {"const": "staging"},
+                {"const": "pool_starting"},
+                {"const": "pool_qualified"},
+                {"const": "rolling"},
+                {"const": "draining_previous"},
+                {"const": "completed"}
+              ],
+              "items": false
+            },
+            "rollback": {
+              "type": "array",
+              "prefixItems": [
+                {"const": "rollback_requested"},
+                {"const": "staging"},
+                {"const": "pool_starting_or_reuse"},
+                {"const": "rolling_back"},
+                {"const": "completed"}
+              ],
+              "items": false
+            },
+            "recover_current": {
+              "type": "array",
+              "prefixItems": [
+                {"const": "recovery_requested"},
+                {"const": "pool_recovering"},
+                {"const": "qualified"},
+                {"const": "completed"}
+              ],
+              "items": false
+            },
+            "terminal": {"const": "failed"},
+            "aborted_rule": {"const": "only-before-route-withdraw"}
+          }
+        }
+      }
+    },
+    "pool_startup_envelope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["fields", "binding_requirements", "verification_policy", "envelope_digest", "delivery"],
+      "properties": {
+        "fields": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"type": "string", "pattern": "^[a-z][a-z0-9_]{0,63}$"}
+        },
+        "binding_requirements": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["required_replicas", "min_ready_replicas", "max_unavailable", "availability_single", "availability_ha", "runtime_profile_selection", "probe_role"],
+          "properties": {
+            "required_replicas": {"type": "integer", "minimum": 1, "maximum": 256},
+            "min_ready_replicas": {"type": "integer", "minimum": 1, "maximum": 256},
+            "max_unavailable": {"type": "integer", "minimum": 0, "maximum": 256},
+            "availability_single": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["failure_domains", "replica_count_semantics", "outage_semantics", "ha_claim"],
+              "properties": {
+                "failure_domains": {"const": 1},
+                "replica_count_semantics": {"const": "1-to-N-intra-domain"},
+                "outage_semantics": {"const": "explicit-no-ha-on-domain-loss"},
+                "ha_claim": {"const": "none"}
+              }
+            },
+            "availability_ha": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["failure_domain_set", "max_failure_unit", "static_n_plus_1", "headroom", "remaining_capacity"],
+              "properties": {
+                "failure_domain_set": {"type": "array", "minItems": 2, "maxItems": 64, "items": {"type": "string", "minLength": 1, "maxLength": 128}},
+                "max_failure_unit": {"type": "string", "minLength": 1, "maxLength": 128},
+                "static_n_plus_1": {"type": "boolean", "const": true},
+                "headroom": {"type": "number", "minimum": 1},
+                "remaining_capacity": {"type": "string", "minLength": 1, "maxLength": 128}
+              }
+            },
+            "runtime_profile_selection": {"const": "admin-explicit-selection"},
+            "probe_role": {"const": "verify-and-record-only-no-auto-rewrite"}
+          }
+        },
+        "verification_policy": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["reject_on", "load_before_readiness"],
+          "properties": {
+            "reject_on": {
+              "type": "array",
+              "minItems": 1,
+              "items": {"type": "string", "pattern": "^[a-z][a-z0-9_]{0,63}$"}
+            },
+            "load_before_readiness": {"const": "full-verification-required"}
+          }
+        },
+        "envelope_digest": {"$ref": "#/$defs/digest"},
+        "delivery": {"const": "controlled-plain-file-or-authenticated-deploy-interface-no-symlink"}
+      }
+    },
+    "loaded_model_observation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["returns", "idempotency", "not_current"],
+      "properties": {
+        "returns": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"type": "string", "pattern": "^[a-z][a-z0-9_]{0,63}$"}
+        },
+        "idempotency": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["same_identity_same_digest", "same_identity_different_digest"],
+          "properties": {
+            "same_identity_same_digest": {"const": "idempotent"},
+            "same_identity_different_digest": {"const": "conflict"}
+          }
+        },
+        "not_current": {"const": "per-replica-readback-not-postgresql-current"}
+      }
+    },
+    "committed_binding_handshake": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sent_by", "ack_policy", "cas_after_handshake_failure", "fields"],
+      "properties": {
+        "sent_by": {"const": "go-after-cas"},
+        "ack_policy": {"const": "edge-acks-exact-match-only"},
+        "cas_after_handshake_failure": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["current", "availability", "reconcile"],
+          "properties": {
+            "current": {"const": "no-rollback"},
+            "availability": {"const": "resume-pending-unavailable"},
+            "reconcile": {"const": "along-original-identity"}
+          }
+        },
+        "fields": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"type": "string", "pattern": "^[a-z][a-z0-9_]{0,63}$"}
+        }
+      }
+    },
+    "deployment_action_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["composite_key", "idempotency", "adapter_reports", "drain_before_stop"],
+      "properties": {
+        "composite_key": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"type": "string", "pattern": "^[a-z][a-z0-9_]{0,63}$"}
+        },
+        "idempotency": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["same_key_same_digest", "same_key_different_digest"],
+          "properties": {
+            "same_key_same_digest": {"const": "same-observed-workload-worker-identity"},
+            "same_key_different_digest": {"const": "conflict"}
+          }
+        },
+        "adapter_reports": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"type": "string", "pattern": "^[a-z][a-z0-9_]{0,63}$"}
+        },
+        "drain_before_stop": {"const": "route-withdraw-drain-commit-or-rollback-grace-before-stop"}
+      }
+    },
+    "control_methods": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["go_boundary", "central_inference_boundary"],
+      "properties": {
+        "go_boundary": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"type": "string", "pattern": "^[A-Z][A-Za-z]{1,63}$"}
+        },
+        "central_inference_boundary": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["read_only_methods", "health"],
+          "properties": {
+            "read_only_methods": {
+              "type": "array",
+              "minItems": 1,
+              "items": {"type": "string", "pattern": "^[A-Z][A-Za-z]{1,63}$"}
+            },
+            "health": {"type": "boolean", "const": true}
+          }
+        }
+      }
+    },
+    "error_namespace": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {"enum": [
+        "invalid_manifest",
+        "incompatible_contract",
+        "unqualified",
+        "resource_exhausted",
+        "startup_failed",
+        "readback_mismatch",
+        "cas_conflict",
+        "buffer_overflow",
+        "pool_unavailable",
+        "fenced",
+        "route_fence_mismatch",
+        "result_identity_mismatch",
+        "result_digest_conflict",
+        "deadline_exceeded",
+        "inference_message_too_large",
+        "runtime_profile_unsupported",
+        "repository_closure_violation",
+        "instance_group_implicit",
+        "provider_partition_drift",
+        "aborted"
+      ]}
+    },
+    "golden_requirements": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["vectors", "canonicalization", "tolerance", "class_order", "nan_inf_signed_zero", "language_runners"],
+      "properties": {
+        "vectors": {"type": "array", "minItems": 1, "items": {"type": "string", "pattern": "^[a-z][a-z0-9-]{1,63}$"}},
+        "canonicalization": {"const": "frozen-in-contract"},
+        "tolerance": {"const": "absolute-relative-ulp-frozen-per-vector"},
+        "class_order": {"const": "frozen-per-vector"},
+        "nan_inf_signed_zero": {"const": "frozen-per-vector"},
+        "language_runners": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {"enum": ["python", "cpp", "rust", "go", "typescript"]}
+        }
+      }
+    },
+    "compatibility_rules": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["unknown_major", "unverified_minor", "drift_reject", "qualification_revocation", "custom_executable_content"],
+      "properties": {
+        "unknown_major": {"const": "reject-before-session-create"},
+        "unverified_minor": {"const": "reject-before-session-create"},
+        "drift_reject": {"type": "array", "minItems": 1, "items": {"type": "string", "pattern": "^[a-z][a-z0-9_]{0,63}$"}},
+        "qualification_revocation": {"const": "reject-before-session-create"},
+        "custom_executable_content": {"const": "reject-before-session-create"},
+        "onnx_metadata_props_policy": {"const": "redundant-self-description-must-match-manifest-cannot-override-contract"}
+      }
+    }
+  },
+  "$defs": {
+    "digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}
+  }
+}

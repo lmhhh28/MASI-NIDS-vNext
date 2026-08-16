@@ -1,0 +1,21 @@
+{
+  "schema_version": "inference-golden/v1",
+  "vector_id": "inference-oversize-0001",
+  "category": "reject-oversize",
+  "description": "Batch exceeding maximum 256 records must be rejected before any model execution with INFERENCE_MESSAGE_TOO_LARGE.",
+  "input": {
+    "request_id": "request-golden-oversize-0001",
+    "records_count": 257,
+    "records_bytes": 4194305,
+    "deadline_unix_ms": 9999999999999
+  },
+  "expected": {
+    "status": "rejected",
+    "admission_result": "HOLD",
+    "error_code": "inference_message_too_large",
+    "rejected_before_model_execution": true,
+    "canonical_event_writable": false
+  },
+  "class_order": [0, 1],
+  "tolerance": {"absolute": 0.0, "relative": 0.0, "ulp": 0}
+}

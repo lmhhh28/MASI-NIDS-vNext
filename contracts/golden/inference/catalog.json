@@ -1,0 +1,19 @@
+{
+  "schema_version": "inference-golden-catalog/v1",
+  "contract_source": "contracts/inference/v1/profile.json",
+  "model_contract_source": "contracts/model/v1/schema.json",
+  "vectors": [
+    {"id": "inference-valid-batch-0001", "path": "valid-batch-v1.json", "category": "valid", "test_id": "TEST-INF-GOLDEN-001"},
+    {"id": "inference-oversize-0001", "path": "oversize-batch-v1.json", "category": "reject-oversize", "test_id": "TEST-INF-GOLDEN-002"},
+    {"id": "inference-malformed-0001", "path": "malformed-tensor-v1.json", "category": "reject-malformed", "test_id": "TEST-INF-GOLDEN-003"},
+    {"id": "inference-unknown-major-0001", "path": "unknown-major-v1.json", "category": "reject-unknown-major", "test_id": "TEST-INF-GOLDEN-004"},
+    {"id": "inference-nan-inf-0001", "path": "nan-inf-reject-v1.json", "category": "reject-nan-inf", "test_id": "TEST-INF-GOLDEN-005"},
+    {"id": "inference-cross-generation-fence-0001", "path": "cross-generation-fence-v1.json", "category": "fence-cross-generation", "test_id": "TEST-INF-GOLDEN-006"},
+    {"id": "inference-digest-conflict-0001", "path": "digest-conflict-v1.json", "category": "fence-digest-conflict", "test_id": "TEST-INF-GOLDEN-007"},
+    {"id": "inference-repository-closure-0001", "path": "repository-closure-v1.json", "category": "repository-closure", "test_id": "TEST-INF-GOLDEN-008"},
+    {"id": "inference-implicit-instance-group-0001", "path": "implicit-instance-group-v1.json", "category": "instance-group", "test_id": "TEST-INF-GOLDEN-009"},
+    {"id": "inference-provider-drift-0001", "path": "provider-drift-v1.json", "category": "provider-drift", "test_id": "TEST-INF-GOLDEN-010"}
+  ],
+  "language_runners": ["cpp", "python"],
+  "result_digest_written_into_evidence_envelope": true
+}

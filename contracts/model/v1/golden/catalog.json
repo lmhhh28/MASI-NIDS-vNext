@@ -1,0 +1,16 @@
+{
+  "schema_version": "masi-model-golden-catalog/v1",
+  "contract_source": "contracts/model/v1/schema.json",
+  "error_contract_source": "contracts/model/v1/error-semantics.json",
+  "vectors": [
+    {"id": "manifest-golden-0001", "path": "manifest-golden-v1.json", "category": "manifest", "test_id": "TEST-MODEL-CONTRACT-001"},
+    {"id": "identity-golden-0001", "path": "identity-golden-v1.json", "category": "identity", "test_id": "TEST-MODEL-CONTRACT-002"},
+    {"id": "taxonomy-golden-0001", "path": "taxonomy-golden-v1.json", "category": "taxonomy", "test_id": "TEST-MODEL-CONTRACT-003"},
+    {"id": "adapter-golden-0001", "path": "adapter-golden-v1.json", "category": "adapter", "test_id": "TEST-MODEL-CONTRACT-004"},
+    {"id": "result-golden-0001", "path": "result-golden-v1.json", "category": "result", "test_id": "TEST-MODEL-CONTRACT-005"},
+    {"id": "error-golden-0001", "path": "error-golden-v1.json", "category": "error", "test_id": "TEST-MODEL-CONTRACT-006"}
+  ],
+  "language_runners": ["python", "cpp", "rust", "go", "typescript"],
+  "result_digest_written_into_evidence_envelope": true,
+  "no_independent_expected_data_maintenance": true
+}

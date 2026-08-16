@@ -1,0 +1,23 @@
+{
+  "schema_version": "central-inference-oci-startup-evidence/v1",
+  "test_id": "TEST-INF-OCI-001",
+  "requirement_ids": ["MOD-INF-001", "DEP-INF-001", "TEST-INF-001"],
+  "run_id": "public-inference-golden-001",
+  "module": "MOD-INF-001",
+  "level": "MODULE",
+  "applicability": "APPLICABLE",
+  "result": "NOT_RUN",
+  "qualification": "NOT_QUALIFIED",
+  "image_tag": "masi-inference-cpu:module-smoke",
+  "image_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+  "non_root_uid": 65532,
+  "read_only_rootfs": false,
+  "cap_drop_all": false,
+  "no_new_privileges": false,
+  "mtls_probe_passed": false,
+  "sigterm_exit_zero": false,
+  "startup_observed": false,
+  "readiness_observed": false,
+  "drain_observed": false,
+  "shutdown_observed": false
+}

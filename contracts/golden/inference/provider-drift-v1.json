@@ -1,0 +1,21 @@
+{
+  "schema_version": "inference-golden/v1",
+  "vector_id": "inference-provider-drift-0001",
+  "category": "provider-drift",
+  "description": "Process-level GetAvailableProviders returns CUDAExecutionProvider in a CPU-only archive; startup must fail closed (provider drift).",
+  "input": {
+    "selected_provider": "CPUExecutionProvider",
+    "observed_providers": ["CPUExecutionProvider", "CUDAExecutionProvider"],
+    "archive": "onnxruntime-linux-x64-1.19.0.tgz"
+  },
+  "expected": {
+    "status": "rejected",
+    "selected_equals_observed": false,
+    "provider_partition_drift_rejected": true,
+    "startup_fail_closed": true,
+    "error_code": "provider_partition_drift",
+    "no_fallback": true
+  },
+  "class_order": [0, 1],
+  "tolerance": {"absolute": 0.0, "relative": 0.0, "ulp": 0}
+}

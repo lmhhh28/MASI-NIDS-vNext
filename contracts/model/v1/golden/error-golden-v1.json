@@ -1,0 +1,41 @@
+{
+  "schema_version": "masi-model-golden/v1",
+  "vector_id": "error-golden-0001",
+  "category": "error",
+  "canonicalization_version": {"major": 1, "minor": 0},
+  "description": "Stable error namespace: each code has a stable layer, retryable policy, and recovery path. Codes are immutable; addition requires new minor, removal requires new major.",
+  "input": {
+    "valid_errors": [
+      {"code": "invalid_manifest", "layer": "session-create", "retryable": "never", "recovery": "none"},
+      {"code": "incompatible_contract", "layer": "session-create", "retryable": "never", "recovery": "none"},
+      {"code": "unqualified", "layer": "session-create", "retryable": "never", "recovery": "none"},
+      {"code": "resource_exhausted", "layer": "runtime", "retryable": "same-generation-bounded", "recovery": "edge-bounded-retry"},
+      {"code": "startup_failed", "layer": "readiness", "retryable": "never", "recovery": "quarantine"},
+      {"code": "readback_mismatch", "layer": "readiness", "retryable": "never", "recovery": "quarantine"},
+      {"code": "cas_conflict", "layer": "control", "retryable": "new-operation", "recovery": "new-durable-operation"},
+      {"code": "buffer_overflow", "layer": "runtime", "retryable": "same-generation-bounded", "recovery": "edge-bounded-retry"},
+      {"code": "pool_unavailable", "layer": "runtime", "retryable": "same-generation-bounded", "recovery": "edge-bounded-retry"},
+      {"code": "fenced", "layer": "runtime", "retryable": "never", "recovery": "none"},
+      {"code": "route_fence_mismatch", "layer": "handshake", "retryable": "new-operation", "recovery": "new-durable-operation"},
+      {"code": "result_identity_mismatch", "layer": "runtime", "retryable": "never", "recovery": "none"},
+      {"code": "result_digest_conflict", "layer": "runtime", "retryable": "never", "recovery": "none"},
+      {"code": "deadline_exceeded", "layer": "runtime", "retryable": "same-generation-bounded", "recovery": "edge-bounded-retry"},
+      {"code": "inference_message_too_large", "layer": "admission", "retryable": "never", "recovery": "none"},
+      {"code": "runtime_profile_unsupported", "layer": "session-create", "retryable": "never", "recovery": "none"},
+      {"code": "repository_closure_violation", "layer": "repository", "retryable": "never", "recovery": "none"},
+      {"code": "instance_group_implicit", "layer": "repository", "retryable": "never", "recovery": "none"},
+      {"code": "provider_partition_drift", "layer": "session-create", "retryable": "never", "recovery": "none"},
+      {"code": "aborted", "layer": "control", "retryable": "new-operation", "recovery": "new-durable-operation"}
+    ],
+    "invalid_removal": {"removed_code": "invalid_manifest"},
+    "invalid_addition": {"added_code": "future_undocumented_error"}
+  },
+  "expected": {
+    "valid_errors": {"status": "valid", "all_stable": true},
+    "invalid_removal": {"status": "invalid", "reject": true, "reason": "removal-requires-new-major"},
+    "invalid_addition": {"status": "invalid", "reject": true, "reason": "addition-requires-new-minor"}
+  },
+  "class_order": [0, 1],
+  "tolerance": {"absolute": 0.0, "relative": 0.0, "ulp": 0},
+  "nan_inf_signed_zero": {"nan": "reject", "inf": "reject", "signed_zero": "canonical"}
+}

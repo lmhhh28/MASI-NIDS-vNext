@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://masi-nids.example/contracts/inference/v1/availability-single.json",
+  "title": "Central Inference Availability Single Profile V1",
+  "description": "availability-single/v1: exactly one failure domain; 1..N intra-domain same-profile replicas for capacity/limited retry; no failure-domain HA claim.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "profile_id",
+    "failure_domains",
+    "replicas",
+    "outage_semantics",
+    "ha_claim",
+    "full_pool_outage"
+  ],
+  "properties": {
+    "schema_version": {"const": "availability-single/v1"},
+    "profile_id": {"const": "availability-single/v1"},
+    "failure_domains": {"const": 1},
+    "replicas": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["required_replicas", "min_ready_replicas", "max_unavailable", "intra_domain_count"],
+      "properties": {
+        "required_replicas": {"type": "integer", "minimum": 1, "maximum": 256},
+        "min_ready_replicas": {"type": "integer", "minimum": 1, "maximum": 256},
+        "max_unavailable": {"type": "integer", "minimum": 0, "maximum": 256},
+        "intra_domain_count": {"const": "1-to-N"}
+      }
+    },
+    "outage_semantics": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["domain_loss", "edge_behavior", "p4_continues"],
+      "properties": {
+        "domain_loss": {"const": "inference-HOLD-gap"},
+        "edge_behavior": {"const": "bounded-WAL-backpressure-gap"},
+        "p4_continues": {"type": "boolean", "const": true}
+      }
+    },
+    "ha_claim": {"const": "none"},
+    "full_pool_outage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["classification", "no_edge_local_fallback", "no_other_profile_fallback"],
+      "properties": {
+        "classification": {"const": "inference-availability-not-effect-unknown"},
+        "no_edge_local_fallback": {"type": "boolean", "const": true},
+        "no_other_profile_fallback": {"type": "boolean", "const": true}
+      }
+    }
+  }
+}

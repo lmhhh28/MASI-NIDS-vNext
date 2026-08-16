@@ -1,0 +1,21 @@
+{
+  "schema_version": "edge-command-execution/v1",
+  "run_id": "public-inference-golden-001",
+  "command_id": "tests",
+  "started_at": "2026-08-16T00:00:00Z",
+  "finished_at": "2026-08-16T00:10:00Z",
+  "duration_ms": 600000,
+  "working_directory": "infer-cpp",
+  "argv": ["ctest", "--test-dir", "build", "-R", "contract_golden"],
+  "exit_code": 0,
+  "result": "PASS",
+  "qualification": "QUALIFIED",
+  "source_tree_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+  "working_tree_status_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+  "log": {
+    "path": "tests.log",
+    "sha256": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+    "bytes": 1024,
+    "media_type": "text/plain"
+  }
+}

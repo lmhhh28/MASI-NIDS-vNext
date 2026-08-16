@@ -1,0 +1,50 @@
+{
+  "schema_version": "central-inference-numeric-evidence/v1",
+  "run_id": "public-inference-golden-001",
+  "module": "MOD-INF-001",
+  "requirement_ids": ["MOD-INF-001", "CONTRACT-MODEL-001", "TEST-INF-001"],
+  "level": "MODULE",
+  "applicability": "APPLICABLE",
+  "result": "PASS",
+  "qualification": "QUALIFIED",
+  "vectors": [
+    {
+      "vector_id": "numeric-valid-benign-v1",
+      "input_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+      "output_digest": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+      "python_reference_match": true,
+      "class_order_correct": true,
+      "nan_inf_rejected": true,
+      "ood_handled": true,
+      "abstain_handled": true,
+      "tolerance_within": true
+    },
+    {
+      "vector_id": "numeric-valid-alert-v1",
+      "input_digest": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+      "output_digest": "sha256:3333333333333333333333333333333333333333333333333333333333333333",
+      "python_reference_match": true,
+      "class_order_correct": true,
+      "nan_inf_rejected": true,
+      "ood_handled": true,
+      "abstain_handled": true,
+      "tolerance_within": true
+    },
+    {
+      "vector_id": "numeric-nan-reject-v1",
+      "input_digest": "sha256:4444444444444444444444444444444444444444444444444444444444444444",
+      "output_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+      "python_reference_match": true,
+      "class_order_correct": true,
+      "nan_inf_rejected": true,
+      "ood_handled": true,
+      "abstain_handled": true,
+      "tolerance_within": true
+    }
+  ],
+  "tolerance": {"absolute": 1e-6, "relative": 1e-5, "ulp": 4},
+  "class_order": [0, 1],
+  "nan_policy": "reject",
+  "inf_policy": "reject",
+  "signed_zero_policy": "canonical"
+}

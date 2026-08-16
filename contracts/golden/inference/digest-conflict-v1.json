@@ -1,0 +1,21 @@
+{
+  "schema_version": "inference-golden/v1",
+  "vector_id": "inference-digest-conflict-0001",
+  "category": "fence-digest-conflict",
+  "description": "Same request identity + different input digest must be fenced with RESULT_DIGEST_CONFLICT and route HOLD.",
+  "input": {
+    "request_id": "request-golden-conflict-0001",
+    "first_result": {"input_id": "input-conflict-0001", "input_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},
+    "second_result": {"input_id": "input-conflict-0001", "input_digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"}
+  },
+  "expected": {
+    "status": "fenced",
+    "error_code": "result_digest_conflict",
+    "same_identity_different_digest_fenced": true,
+    "canonical_event_writable": false,
+    "route_held": true,
+    "conflict_same_key_different_digest": true
+  },
+  "class_order": [0, 1],
+  "tolerance": {"absolute": 0.0, "relative": 0.0, "ulp": 0}
+}

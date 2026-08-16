@@ -1,0 +1,45 @@
+{
+  "schema_version": "masi-model-golden/v1",
+  "vector_id": "result-golden-0001",
+  "category": "result",
+  "canonicalization_version": {"major": 1, "minor": 0},
+  "description": "InferenceResult canonical shape: identity, scores/predictions/decision/OOD/abstain/quality, input/output digest, timing, trace. Late/unsubmitted/unknown/cross-generation results are distinguishable and cannot write canonical Event.",
+  "input": {
+    "valid_result": {
+      "input_id": "input-result-golden-0001",
+      "event_idempotency_key": "event-result-golden-0001",
+      "scores": [0.9, 0.1],
+      "predicted_label": 0,
+      "decision": "benign",
+      "out_of_distribution": false,
+      "abstain": false,
+      "quality": "valid",
+      "input_digest": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+      "output_digest": "sha256:7777777777777777777777777777777777777777777777777777777777777777"
+    },
+    "late_result": {
+      "input_id": "input-result-golden-0001",
+      "event_idempotency_key": "event-result-golden-0001",
+      "scores": [0.9, 0.1],
+      "predicted_label": 0,
+      "decision": "benign",
+      "quality": "stale",
+      "late": true
+    },
+    "cross_generation_result": {
+      "input_id": "input-result-golden-0001",
+      "event_idempotency_key": "event-result-golden-0001",
+      "model_control_incarnation_id": "incarnation-old-0001",
+      "binding_generation": 7,
+      "current_binding_generation": 9
+    }
+  },
+  "expected": {
+    "valid_result": {"status": "valid", "canonical_event_writable": true, "fenced": false},
+    "late_result": {"status": "fenced", "canonical_event_writable": false, "error_code": "fenced", "reason": "late-result"},
+    "cross_generation_result": {"status": "fenced", "canonical_event_writable": false, "error_code": "result_identity_mismatch", "reason": "cross-generation"}
+  },
+  "class_order": [0, 1],
+  "tolerance": {"absolute": 1e-6, "relative": 1e-5, "ulp": 4},
+  "nan_inf_signed_zero": {"nan": "reject", "inf": "reject", "signed_zero": "canonical"}
+}

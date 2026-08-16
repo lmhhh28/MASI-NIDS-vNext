@@ -1,0 +1,86 @@
+{
+  "schema_version": "masi-fixture-expected-outputs/v1",
+  "model_id": "masi-ids-window-v1",
+  "revision": "0000000000000000000000000000000000000001",
+  "input_shape": [
+    1,
+    6
+  ],
+  "input_dtype": "uint64-le",
+  "class_order": [
+    0,
+    1
+  ],
+  "tolerance": {
+    "absolute": 1e-06,
+    "relative": 1e-05,
+    "ulp": 4
+  },
+  "nan_policy": "reject",
+  "inf_policy": "reject",
+  "vectors": [
+    {
+      "vector_id": "fixture-expected-0000",
+      "input": [
+        5,
+        10,
+        3,
+        1,
+        2,
+        1
+      ],
+      "input_digest": "sha256:637fd46f9327033fb1aeb244de99178c50f007c74a4355d047f4c8fa662cb3a7",
+      "expected_output": {
+        "scores": [
+          -10.899999618530273,
+          10.899999618530273
+        ],
+        "predicted_label": 1,
+        "decision": "alert"
+      },
+      "output_digest": "sha256:a2fcff2ffb685f4655d307591d223bf85073f8c5db0bb7950c7d3df48cc31a08"
+    },
+    {
+      "vector_id": "fixture-expected-0001",
+      "input": [
+        100,
+        200,
+        50,
+        10,
+        20,
+        10
+      ],
+      "input_digest": "sha256:1d324602c89a33d7e66166156d9034dd2c00d559c99d401964f95a134572eccf",
+      "expected_output": {
+        "scores": [
+          -194.89999389648438,
+          194.89999389648438
+        ],
+        "predicted_label": 1,
+        "decision": "alert"
+      },
+      "output_digest": "sha256:ed4d3ecbb97630a5eb1bfc79017890eda28015cb4c50ae8117d0544769776453"
+    },
+    {
+      "vector_id": "fixture-expected-0002",
+      "input": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "input_digest": "sha256:17b0761f87b081d5cf10757ccc89f12be355c70e2e29df288b65b30710dcbcd1",
+      "expected_output": {
+        "scores": [
+          0.10000000149011612,
+          -0.10000000149011612
+        ],
+        "predicted_label": 0,
+        "decision": "benign"
+      },
+      "output_digest": "sha256:1af54fddfc59ba3d11332ecc23472f129891c26005c7c54bd1adf9f0dece972b"
+    }
+  ]
+}

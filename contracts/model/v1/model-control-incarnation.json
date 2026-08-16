@@ -1,0 +1,61 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://masi-nids.example/contracts/model/v1/model-control-incarnation.json",
+  "title": "Model Control Incarnation V1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "kind",
+    "reuse_policy",
+    "pitr_policy",
+    "failover_policy",
+    "fence_policy"
+  ],
+  "properties": {
+    "schema_version": {"const": "model-control-incarnation/v1"},
+    "kind": {"const": "non-reusable-strong-random-identity"},
+    "reuse_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["never_reuse", "strong_random", "uniqueness"],
+      "properties": {
+        "never_reuse": {"type": "boolean", "const": true},
+        "strong_random": {"type": "boolean", "const": true},
+        "uniqueness": {"const": "globally-unique-across-all-pool-generations"}
+      }
+    },
+    "pitr_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["rotate_before_reopen", "block_writer_ingest", "old_envelope_fenced", "same_number_generation_fenced"],
+      "properties": {
+        "rotate_before_reopen": {"const": "rotate-new-incarnation-before-reopening-writer-after-restore"},
+        "block_writer_ingest": {"type": "boolean", "const": true},
+        "old_envelope_fenced": {"type": "boolean", "const": true},
+        "same_number_generation_fenced": {"type": "boolean", "const": true}
+      }
+    },
+    "failover_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["lossless_postgresql_failover", "new_operation_new_pool_generation", "per_shard_reverify"],
+      "properties": {
+        "lossless_postgresql_failover": {"const": "preserve-incarnation"},
+        "new_operation_new_pool_generation": {"type": "boolean", "const": true},
+        "per_shard_reverify": {"const": "reverify-exact-current-under-new-generation"}
+      }
+    },
+    "fence_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["old_envelope_action", "old_readback_action", "old_handshake_action", "same_number_generation_action"],
+      "properties": {
+        "old_envelope_action": {"const": "fence"},
+        "old_readback_action": {"const": "fence"},
+        "old_handshake_action": {"const": "fence"},
+        "same_number_generation_action": {"const": "fence"}
+      }
+    }
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "schema_version": "central-inference-deep-check-evidence/v1",
+  "test_id": "TEST-INF-DEEP-001",
+  "requirement_ids": ["MOD-INF-001", "TEST-003"],
+  "run_id": "public-inference-golden-001",
+  "module": "MOD-INF-001",
+  "level": "MODULE",
+  "applicability": "APPLICABLE",
+  "result": "NOT_RUN",
+  "qualification": "NOT_QUALIFIED",
+  "asan_library_scope": "NOT_RUN",
+  "ubsan_library_scope": "NOT_RUN",
+  "tsan_library_scope": "NOT_RUN",
+  "no_library_scope_leak": false
+}

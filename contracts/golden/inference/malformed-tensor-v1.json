@@ -1,0 +1,28 @@
+{
+  "schema_version": "inference-golden/v1",
+  "vector_id": "inference-malformed-0001",
+  "category": "reject-malformed",
+  "description": "Malformed tensor: shape/dtype mismatch and offset+length overflow must be rejected before allocation with checked arithmetic failure.",
+  "input": {
+    "request_id": "request-golden-malformed-0001",
+    "records": [
+      {
+        "input_id": "input-malformed-0001",
+        "shape": [1, 7],
+        "dtype": "float32",
+        "feature_tensor_hex": "00",
+        "offset_overflow": true
+      }
+    ]
+  },
+  "expected": {
+    "status": "rejected",
+    "admission_result": "HOLD",
+    "error_code": "inference_message_too_large",
+    "rejected_before_allocation": true,
+    "checked_arithmetic_failure": true,
+    "canonical_event_writable": false
+  },
+  "class_order": [0, 1],
+  "tolerance": {"absolute": 0.0, "relative": 0.0, "ulp": 0}
+}

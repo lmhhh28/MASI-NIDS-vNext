@@ -1,0 +1,65 @@
+{
+  "schema_version": "performance-environment-central-cpu/v1",
+  "profile_id": "performance-environment-central-cpu/v1",
+  "module_id": "MOD-INF-001",
+  "runtime_profile": "model-runtime-central-cpu/v1",
+  "availability_profile": "availability-single/v1",
+  "deployment_tier": "acceptance",
+  "topology": "single-host-isolated-loopback",
+  "host": {
+    "cpu_architecture": "x86_64",
+    "cpu_model": "TBD-record-at-run",
+    "cpu_features": ["TBD-record-at-run"],
+    "physical_cores": 8,
+    "logical_threads": 16,
+    "numa_nodes": [0],
+    "selected_numa_node": 0,
+    "ram_bytes": "TBD-record-at-run",
+    "cgroup": "TBD-record-at-run",
+    "kernel": "TBD-record-at-run"
+  },
+  "network": {
+    "topology": "loopback-isolated",
+    "gateway_triton_rtt_ms": "TBD-measure",
+    "edge_gateway_rtt_ms": "TBD-measure"
+  },
+  "model_workload": {
+    "fixture_digest": "TBD-from-testkit-fixture",
+    "batch_sizes": [1, 32, 64, 128, 256],
+    "records_per_second_target": "TBD-DEC-001",
+    "bytes_per_record": 48
+  },
+  "capacity_thresholds": {
+    "steady_records_per_second": "TBD-DEC-001-not-frozen",
+    "peak_records_per_second": "TBD-DEC-001-not-frozen",
+    "rolling_capacity": "TBD-DEC-001-not-frozen",
+    "max_p99_ms": "TBD-DEC-001-not-frozen",
+    "cpu_rss_bytes": "TBD-DEC-001-not-frozen",
+    "cpu_thread_count": "TBD-DEC-001-not-frozen",
+    "cpu_arena_bytes": "TBD-DEC-001-not-frozen"
+  },
+  "startup_timing": {
+    "cold_to_min_ready_ms": "TBD-measure",
+    "warm_to_min_ready_ms": "TBD-measure",
+    "verification_stage_ms": "TBD-measure",
+    "load_stage_ms": "TBD-measure",
+    "backend_session_stage_ms": "TBD-measure",
+    "warmup_stage_ms": "TBD-measure",
+    "gateway_probe_stage_ms": "TBD-measure"
+  },
+  "soak": {
+    "profile": "qualification-soak-3600s/v1",
+    "warmup_ms": 60000,
+    "phases": ["steady", "peak", "saturation", "recovery-or-activation"],
+    "phase_duration_ms": 900000,
+    "sample_interval_ms": 10000,
+    "absolute_threshold_status": "DEC-001-NOT-FROZEN-OBSERVED-ONLY"
+  },
+  "drain_buffer": {
+    "drain_ms": "TBD-measure",
+    "buffer_max_age_seconds": "TBD-profile",
+    "buffer_overflow_policy": "explicit-gap-drop-HOLD"
+  },
+  "dec_001_status": "NOT_FROZEN",
+  "result_policy_when_unfrozen": "MODULE-HOLD-NOT_QUALIFIED"
+}

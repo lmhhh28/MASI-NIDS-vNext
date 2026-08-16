@@ -1,0 +1,32 @@
+{
+  "schema_version": "masi-model-golden/v1",
+  "vector_id": "manifest-golden-0001",
+  "category": "manifest",
+  "canonicalization_version": {"major": 1, "minor": 0},
+  "description": "Valid immutable model bundle manifest with all required identity fields, digests, and qualification evidence reference.",
+  "input": {
+    "model_id": "masi-ids-window-v1",
+    "revision": "0000000000000000000000000000000000000001",
+    "bundle_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "manifest_digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "artifact_uri": "digest-pinned://testkit-fixtures-models-masi-ids-window-v1-r1",
+    "artifact_size": 4096,
+    "model_digest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    "scaler_config_digest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+    "feature_schema_digest": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+    "label_taxonomy_digest": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+    "output_adapter_digest": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+    "inference_wire_digest": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+    "runtime_profile_digest": "sha256:3333333333333333333333333333333333333333333333333333333333333333",
+    "resource_profile_digest": "sha256:4444444444444444444444444444444444444444444444444444444444444444",
+    "qualification_digest": "sha256:5555555555555555555555555555555555555555555555555555555555555555"
+  },
+  "expected": {
+    "status": "valid",
+    "identity_digest": "sha256:computed-from-canonicalization",
+    "reject": false
+  },
+  "class_order": [0, 1],
+  "tolerance": {"absolute": 0.0, "relative": 0.0, "ulp": 0},
+  "nan_inf_signed_zero": {"nan": "reject", "inf": "reject", "signed_zero": "canonical"}
+}

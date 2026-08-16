@@ -1,0 +1,15 @@
+{
+  "schema_version": "central-inference-deep-check-evidence/v1",
+  "test_id": "TEST-INF-DEEP-001",
+  "requirement_ids": ["MOD-INF-001", "TEST-003"],
+  "run_id": "public-inference-golden-001",
+  "module": "MOD-INF-001",
+  "level": "MODULE",
+  "applicability": "APPLICABLE",
+  "result": "PASS",
+  "qualification": "QUALIFIED",
+  "asan_library_scope": "PASS",
+  "ubsan_library_scope": "PASS",
+  "tsan_library_scope": "PASS",
+  "no_library_scope_leak": true
+}

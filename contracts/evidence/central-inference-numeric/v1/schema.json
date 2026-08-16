@@ -1,0 +1,86 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://masi-nids.example/contracts/evidence/central-inference-numeric/v1/schema.json",
+  "title": "CentralInferenceNumericEvidenceV1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "run_id",
+    "module",
+    "requirement_ids",
+    "level",
+    "applicability",
+    "result",
+    "qualification",
+    "vectors",
+    "tolerance",
+    "class_order"
+  ],
+  "properties": {
+    "schema_version": {"const": "central-inference-numeric-evidence/v1"},
+    "run_id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$"},
+    "module": {"const": "MOD-INF-001"},
+    "requirement_ids": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 32,
+      "uniqueItems": true,
+      "items": {"type": "string", "pattern": "^[A-Z][A-Z0-9-]{2,63}$"}
+    },
+    "level": {"enum": ["REHEARSAL", "MODULE"]},
+    "applicability": {"const": "APPLICABLE"},
+    "result": {"enum": ["PASS", "FAIL", "HOLD", "NOT_RUN"]},
+    "qualification": {"enum": ["QUALIFIED", "NOT_QUALIFIED"]},
+    "vectors": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["vector_id", "input_digest", "output_digest", "python_reference_match", "class_order_correct", "nan_inf_rejected"],
+        "properties": {
+          "vector_id": {"type": "string", "pattern": "^[a-z][a-z0-9-]{1,127}$"},
+          "input_digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+          "output_digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+          "python_reference_match": {"type": "boolean"},
+          "class_order_correct": {"type": "boolean"},
+          "nan_inf_rejected": {"type": "boolean"},
+          "ood_handled": {"type": "boolean"},
+          "abstain_handled": {"type": "boolean"},
+          "tolerance_within": {"type": "boolean"}
+        }
+      }
+    },
+    "tolerance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["absolute", "relative", "ulp"],
+      "properties": {
+        "absolute": {"type": "number", "minimum": 0},
+        "relative": {"type": "number", "minimum": 0},
+        "ulp": {"type": "integer", "minimum": 0, "maximum": 16}
+      }
+    },
+    "class_order": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 4096,
+      "items": {"type": "integer", "minimum": 0, "maximum": 65535}
+    },
+    "nan_policy": {"const": "reject"},
+    "inf_policy": {"const": "reject"},
+    "signed_zero_policy": {"const": "canonical"}
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"result": {"const": "PASS"}}, "required": ["result"]},
+      "then": {
+        "properties": {
+          "qualification": {"const": "QUALIFIED"},
+          "tolerance": {"properties": {"absolute": {"minimum": 0}, "relative": {"minimum": 0}}}
+        }
+      }
+    }
+  ]
+}

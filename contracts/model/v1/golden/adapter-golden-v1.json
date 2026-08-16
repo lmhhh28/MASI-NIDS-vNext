@@ -1,0 +1,36 @@
+{
+  "schema_version": "masi-model-golden/v1",
+  "vector_id": "adapter-golden-0001",
+  "category": "adapter",
+  "canonicalization_version": {"major": 1, "minor": 0},
+  "description": "Output adapter maps raw tensor by explicit class order/axis/top-k/threshold/calibration; deterministic implementation, no executable code injected from bundle.",
+  "input": {
+    "valid_adapter": {
+      "adapter_id": "masi-window-adapter-v1",
+      "version": "v1",
+      "mapping_kind": "deterministic-implementation",
+      "class_order": [0, 1],
+      "axis": 1,
+      "top_k": 1,
+      "threshold": 0.5,
+      "executable_policy": "no-executable-code-injected-from-bundle"
+    },
+    "invalid_executable_adapter": {
+      "adapter_id": "malicious-adapter",
+      "version": "v1",
+      "mapping_kind": "deterministic-implementation",
+      "class_order": [0, 1],
+      "axis": 1,
+      "top_k": 1,
+      "threshold": 0.5,
+      "executable_policy": "bundle-contains-python-hook"
+    }
+  },
+  "expected": {
+    "valid_adapter": {"status": "valid", "reject": false},
+    "invalid_executable_adapter": {"status": "invalid", "reject": true, "error_code": "incompatible_contract", "reason": "executable-content-from-bundle"}
+  },
+  "class_order": [0, 1],
+  "tolerance": {"absolute": 0.0, "relative": 0.0, "ulp": 0},
+  "nan_inf_signed_zero": {"nan": "reject", "inf": "reject", "signed_zero": "canonical"}
+}

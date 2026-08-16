@@ -1,0 +1,145 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://masi-nids.example/contracts/evidence/central-inference-supply/v1/schema.json",
+  "title": "CentralInferenceSupplyEvidenceV1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "run_id",
+    "module",
+    "requirement_ids",
+    "level",
+    "applicability",
+    "result",
+    "qualification",
+    "offline_rebuild",
+    "sbom",
+    "vulnerability_scan",
+    "secret_scan",
+    "config_scan",
+    "signature",
+    "release_manifest"
+  ],
+  "properties": {
+    "schema_version": {"const": "central-inference-supply-verification/v1"},
+    "run_id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$"},
+    "module": {"const": "MOD-INF-001"},
+    "requirement_ids": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 32,
+      "uniqueItems": true,
+      "items": {"type": "string", "pattern": "^[A-Z][A-Z0-9-]{2,63}$"}
+    },
+    "level": {"enum": ["REHEARSAL", "MODULE"]},
+    "applicability": {"const": "APPLICABLE"},
+    "result": {"enum": ["PASS", "FAIL", "HOLD", "NOT_RUN"]},
+    "qualification": {"enum": ["QUALIFIED", "NOT_QUALIFIED"]},
+    "offline_rebuild": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["attempted", "binary_digest_equal", "network_used"],
+      "properties": {
+        "attempted": {"type": "boolean"},
+        "binary_digest_equal": {"type": "boolean"},
+        "network_used": {"type": "boolean"},
+        "source_bundle_digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+        "rebuilt_binary_digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}
+      }
+    },
+    "sbom": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["generated", "format"],
+      "properties": {
+        "generated": {"type": "boolean"},
+        "format": {"const": "spdx"},
+        "path": {"type": "string", "minLength": 1, "maxLength": 512},
+        "digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}
+      }
+    },
+    "vulnerability_scan": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["executed", "db_offline", "policy_loaded"],
+      "properties": {
+        "executed": {"type": "boolean"},
+        "db_offline": {"type": "boolean"},
+        "policy_loaded": {"type": "boolean"},
+        "findings_path": {"type": "string", "minLength": 1, "maxLength": 512},
+        "findings_digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}
+      }
+    },
+    "secret_scan": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["executed", "secrets_found"],
+      "properties": {
+        "executed": {"type": "boolean"},
+        "secrets_found": {"type": "integer", "minimum": 0}
+      }
+    },
+    "config_scan": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["executed", "policy_cache_offline"],
+      "properties": {
+        "executed": {"type": "boolean"},
+        "policy_cache_offline": {"type": "boolean"},
+        "findings_path": {"type": "string", "minLength": 1, "maxLength": 512}
+      }
+    },
+    "signature": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["valid", "tamper_detected", "wrong_publisher_rejected"],
+      "properties": {
+        "valid": {"type": "boolean"},
+        "tamper_detected": {"type": "boolean"},
+        "wrong_publisher_rejected": {"type": "boolean"},
+        "publisher": {"type": "string", "minLength": 1, "maxLength": 128}
+      }
+    },
+    "release_manifest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["digest", "closure_equal"],
+      "properties": {
+        "digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+        "closure_equal": {"type": "boolean"},
+        "max_bytes": {"type": "integer", "minimum": 1},
+        "sha256sums_match": {"type": "boolean"}
+      }
+    },
+    "input_safety": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["symlink_rejected", "path_traversal_rejected", "tar_traversal_rejected", "duplicate_rejected", "special_file_rejected"],
+      "properties": {
+        "symlink_rejected": {"type": "boolean"},
+        "path_traversal_rejected": {"type": "boolean"},
+        "tar_traversal_rejected": {"type": "boolean"},
+        "duplicate_rejected": {"type": "boolean"},
+        "special_file_rejected": {"type": "boolean"}
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"result": {"const": "PASS"}}, "required": ["result"]},
+      "then": {
+        "properties": {
+          "qualification": {"const": "QUALIFIED"},
+          "offline_rebuild": {"properties": {"binary_digest_equal": {"const": true}, "network_used": {"const": false}}},
+          "sbom": {"properties": {"generated": {"const": true}}},
+          "vulnerability_scan": {"properties": {"db_offline": {"const": true}, "policy_loaded": {"const": true}}},
+          "secret_scan": {"properties": {"secrets_found": {"const": 0}}},
+          "config_scan": {"properties": {"policy_cache_offline": {"const": true}}},
+          "signature": {"properties": {"valid": {"const": true}, "tamper_detected": {"const": false}, "wrong_publisher_rejected": {"const": true}}},
+          "release_manifest": {"properties": {"closure_equal": {"const": true}, "sha256sums_match": {"const": true}}}
+        }
+      }
+    }
+  ]
+}

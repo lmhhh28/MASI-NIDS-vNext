@@ -1,0 +1,58 @@
+{
+  "schema_version": "masi-fixture-manifest/v1",
+  "model_id": "masi-ids-window-v1",
+  "revision": "0000000000000000000000000000000000000001",
+  "bundle_digest": "sha256:add7c3e2a4d3bedc9f825d38774fcd428157e11462020ea074405be8d61a27e7",
+  "model_digest": "sha256:add7c3e2a4d3bedc9f825d38774fcd428157e11462020ea074405be8d61a27e7",
+  "feature_schema": {
+    "field_order": [
+      "packets",
+      "bytes",
+      "nonzero_cells",
+      "max_cell_packets",
+      "max_cell_bytes",
+      "snapshots"
+    ],
+    "dtype": "uint64-le",
+    "shape": [
+      1,
+      6
+    ],
+    "units": "mixed"
+  },
+  "label_taxonomy": {
+    "label_ids": [
+      0,
+      1
+    ],
+    "id_reuse_policy": "never-reuse",
+    "mode": "single-label",
+    "class_order": [
+      0,
+      1
+    ],
+    "class_names": {
+      "0": "benign",
+      "1": "alert"
+    }
+  },
+  "output_adapter": {
+    "adapter_id": "masi-window-adapter-v1",
+    "version": "v1",
+    "mapping_kind": "deterministic-implementation",
+    "class_order": [
+      0,
+      1
+    ],
+    "axis": 1,
+    "top_k": 1,
+    "threshold": 0.5
+  },
+  "onnx": {
+    "ir_version": 10,
+    "opset": 21,
+    "producer": "testkit-fixtures-models"
+  },
+  "purpose": "serving-framework-e2e-not-detection-accuracy",
+  "expected_outputs_digest": "sha256:6ae2801268205d170a2724218ad3fda5f0533ddd6ed08448d077c363299df60a"
+}

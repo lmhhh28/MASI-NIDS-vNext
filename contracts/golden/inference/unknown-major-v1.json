@@ -1,0 +1,22 @@
+{
+  "schema_version": "inference-golden/v1",
+  "vector_id": "inference-unknown-major-0001",
+  "category": "reject-unknown-major",
+  "description": "Unknown wire profile major must be rejected before complete parse.",
+  "input": {
+    "request_id": "request-golden-unknown-major-0001",
+    "route": {
+      "wire_profile": "inference-central-grpc-batch/v2",
+      "runtime_profile": "model-runtime-central-cpu/v1"
+    }
+  },
+  "expected": {
+    "status": "rejected",
+    "admission_result": "HOLD",
+    "error_code": "incompatible_contract",
+    "rejected_before_complete_parse": true,
+    "canonical_event_writable": false
+  },
+  "class_order": [0, 1],
+  "tolerance": {"absolute": 0.0, "relative": 0.0, "ulp": 0}
+}

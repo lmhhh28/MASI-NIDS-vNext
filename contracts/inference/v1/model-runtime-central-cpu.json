@@ -1,0 +1,237 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://masi-nids.example/contracts/inference/v1/model-runtime-central-cpu.json",
+  "title": "Central Inference CPU Runtime Profile V1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "profile_id",
+    "execution_backend",
+    "onnx_runtime",
+    "cpu",
+    "session",
+    "arena",
+    "batch",
+    "instance_group",
+    "queue",
+    "deadlines",
+    "numeric_contract",
+    "fail_closed_policy",
+    "readback_policy"
+  ],
+  "properties": {
+    "schema_version": {"const": "model-runtime-central-cpu/v1"},
+    "profile_id": {"const": "model-runtime-central-cpu/v1"},
+    "execution_backend": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "tensorrt", "libtorch", "openvino", "other_backends"],
+      "properties": {
+        "kind": {"const": "onnx-runtime-cpu-ep"},
+        "tensorrt": {"const": "rejected-unless-explicit-future-generation"},
+        "libtorch": {"const": "rejected"},
+        "openvino": {"const": "conditional-future-profile-only"},
+        "other_backends": {"const": "rejected"}
+      }
+    },
+    "onnx_runtime": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["version", "commit", "archive", "api_version", "provider", "provider_partition_policy"],
+      "properties": {
+        "version": {"const": "1.19.0"},
+        "commit": {"const": "26250ae74d2c9a3c6860625ba4a147ddfb936907"},
+        "archive": {"const": "onnxruntime-linux-x64-1.19.0.tgz"},
+        "archive_url": {"const": "https://github.com/microsoft/onnxruntime/releases/download/v1.19.0/onnxruntime-linux-x64-1.19.0.tgz"},
+        "archive_sha256": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+        "api_version": {"const": 19},
+        "provider": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["selected", "available_providers_assertion", "cuda_ep_linkage"],
+          "properties": {
+            "selected": {"const": "CPUExecutionProvider"},
+            "available_providers_assertion": {"const": "exactly-CPUExecutionProvider-at-startup"},
+            "cuda_ep_linkage": {"const": "not-linked-cpu-only-archive"}
+          }
+        },
+        "provider_partition_policy": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["drift_detection", "fail_closed_on_cuda_drift", "readback_mechanism"],
+          "properties": {
+            "drift_detection": {"const": "binary-level-plus-process-level"},
+            "fail_closed_on_cuda_drift": {"type": "boolean", "const": true},
+            "readback_mechanism": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["api", "scope", "ort_version_constraint"],
+              "properties": {
+                "api": {"const": "Ort::GetAvailableProviders"},
+                "scope": {"const": "process-level"},
+                "ort_version_constraint": {"const": "ORT_1_19_x_no_per_session_ep_graph_assignment_info"}
+              }
+            }
+          }
+        }
+      }
+    },
+    "cpu": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["architecture", "features", "microcode", "cores", "threads", "numa", "affinity"],
+      "properties": {
+        "architecture": {"enum": ["x86_64", "aarch64"]},
+        "features": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1, "maxLength": 64}},
+        "microcode": {"type": "string", "minLength": 1, "maxLength": 128},
+        "cores": {"type": "integer", "minimum": 1, "maximum": 256},
+        "threads": {"type": "integer", "minimum": 1, "maximum": 512},
+        "numa": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["nodes", "selected_node", "pinning_policy"],
+          "properties": {
+            "nodes": {"type": "array", "minItems": 1, "maxItems": 16, "items": {"type": "integer", "minimum": 0, "maximum": 15}},
+            "selected_node": {"type": "integer", "minimum": 0, "maximum": 15},
+            "pinning_policy": {"const": "pin-threads-to-single-numa-node"}
+          }
+        },
+        "affinity": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["config_key", "format", "groups_rule"],
+          "properties": {
+            "config_key": {"const": "session.intra_op_thread_affinities"},
+            "format": {"const": "logical_processor_id-groups-semicolon-separated-intervals-allowed"},
+            "groups_rule": {"const": "N-1-groups-for-intra_op_num_threads-N-main-thread-not-affinitized"}
+          }
+        }
+      }
+    },
+    "session": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["intra_op_num_threads", "inter_op_num_threads", "execution_mode", "graph_optimization_level", "spinning"],
+      "properties": {
+        "intra_op_num_threads": {"type": "integer", "minimum": 1, "maximum": 512},
+        "inter_op_num_threads": {"type": "integer", "minimum": 0, "maximum": 512},
+        "execution_mode": {"const": "ORT_SEQUENTIAL"},
+        "graph_optimization_level": {"const": "ORT_ENABLE_ALL"},
+        "spinning": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["allow", "spin_duration_us", "spin_backoff_max", "force_stop"],
+          "properties": {
+            "allow": {"const": "session.intra_op.allow_spinning=1"},
+            "spin_duration_us": {"type": "integer", "minimum": 0, "maximum": 10000},
+            "spin_backoff_max": {"type": "integer", "minimum": 1, "maximum": 64},
+            "force_stop": {"const": "session.force_spinning_stop"}
+          }
+        },
+        "append_cpu_ep": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["method", "use_arena"],
+          "properties": {
+            "method": {"const": "AppendExecutionProvider_CPU"},
+            "use_arena": {"type": "integer", "minimum": 0, "maximum": 1}
+          }
+        }
+      }
+    },
+    "arena": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["enable", "config_key", "max_memory", "extend_strategy"],
+      "properties": {
+        "enable": {"const": "session.enable_cpu_mem_arena=1"},
+        "config_key": {"const": "session.enable_cpu_mem_arena"},
+        "max_memory": {"type": "string", "pattern": "^[0-9]+(B|KiB|MiB|GiB)$"},
+        "extend_strategy": {"enum": ["kSameAsRequested", "kNextPowerOfTwo"]}
+      }
+    },
+    "batch": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["max_batch_size", "preferred_batch_sizes", "max_queue_delay_microseconds", "max_queue_records"],
+      "properties": {
+        "max_batch_size": {"const": 256},
+        "preferred_batch_sizes": {"type": "array", "prefixItems": [{"const": 32},{"const": 64},{"const": 128},{"const": 256}], "items": false},
+        "max_queue_delay_microseconds": {"const": 200},
+        "max_queue_records": {"const": 1024}
+      }
+    },
+    "instance_group": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "count", "explicit_required", "no_implicit"],
+      "properties": {
+        "kind": {"const": "KIND_CPU"},
+        "count": {"type": "integer", "minimum": 1, "maximum": 64},
+        "explicit_required": {"type": "boolean", "const": true},
+        "no_implicit": {"type": "boolean", "const": true}
+      }
+    },
+    "queue": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["preserve_ordering", "default_policy", "max_in_flight_per_target", "edge_coalescing_delay_ms"],
+      "properties": {
+        "preserve_ordering": {"type": "boolean", "const": true},
+        "default_policy": {"const": "bounded"},
+        "max_in_flight_per_target": {"const": 1},
+        "edge_coalescing_delay_ms": {"const": 0}
+      }
+    },
+    "deadlines": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["verification", "load", "backend_session", "warmup", "gateway_probe", "request", "drain"],
+      "properties": {
+        "verification_ms": {"type": "integer", "minimum": 1, "maximum": 60000},
+        "load_ms": {"type": "integer", "minimum": 1, "maximum": 60000},
+        "backend_session_ms": {"type": "integer", "minimum": 1, "maximum": 60000},
+        "warmup_ms": {"type": "integer", "minimum": 1, "maximum": 60000},
+        "gateway_probe_ms": {"type": "integer", "minimum": 1, "maximum": 30000},
+        "request_ms": {"const": 2000},
+        "drain_ms": {"type": "integer", "minimum": 1, "maximum": 30000}
+      }
+    },
+    "numeric_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["tolerance", "nan_inf", "class_order", "ood_abstain"],
+      "properties": {
+        "tolerance": {"type": "object", "required": ["absolute", "relative", "ulp"], "properties": {"absolute": {"type": "number", "minimum": 0}, "relative": {"type": "number", "minimum": 0}, "ulp": {"type": "integer", "minimum": 0, "maximum": 16}}},
+        "nan_inf": {"const": "reject"},
+        "class_order": {"const": "frozen-explicit-in-manifest"},
+        "ood_abstain": {"const": "deterministic-fail-closed"}
+      }
+    },
+    "fail_closed_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["profile_mismatch", "hardware_mismatch", "repository_drift", "instance_group_implicit", "provider_drift", "no_fallback"],
+      "properties": {
+        "profile_mismatch": {"const": "startup-fail-closed"},
+        "hardware_mismatch": {"const": "startup-fail-closed"},
+        "repository_drift": {"const": "startup-fail-closed"},
+        "instance_group_implicit": {"const": "startup-fail-closed"},
+        "provider_drift": {"const": "startup-fail-closed"},
+        "no_fallback": {"type": "boolean", "const": true}
+      }
+    },
+    "readback_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["get_loaded_model", "get_pool_status", "selected_equals_observed", "loaded_not_current"],
+      "properties": {
+        "get_loaded_model": {"type": "boolean", "const": true},
+        "get_pool_status": {"type": "boolean", "const": true},
+        "selected_equals_observed": {"type": "boolean", "const": true},
+        "loaded_not_current": {"const": "per-replica-readback-not-postgresql-current"}
+      }
+    }
+  }
+}

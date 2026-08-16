@@ -1,0 +1,166 @@
+{
+  "schema_version": "supply-chain-component-registry/v1",
+  "module": "central-inference",
+  "components": [
+    {
+      "name": "ONNX Runtime CPU",
+      "decision": "ADOPT",
+      "version": "1.19.0",
+      "commit": "26250ae74d2c9a3c6860625ba4a147ddfb936907",
+      "archive": "onnxruntime-linux-x64-1.19.0.tgz",
+      "archive_url": "https://github.com/microsoft/onnxruntime/releases/download/v1.19.0/onnxruntime-linux-x64-1.19.0.tgz",
+      "license": "MIT",
+      "authority": "CPU-only inference execution provider; CUDA EP not linked",
+      "runtime_download": false,
+      "failure": "startup fail closed; no CUDA fallback",
+      "rollback": "re-pin prior qualified ORT CPU archive",
+      "exit": "qualify another ORT CPU version via full numeric/perf matrix"
+    },
+    {
+      "name": "gRPC C++",
+      "decision": "ADOPT",
+      "version": "v1.82.1",
+      "commit": "acccf84c0df20487d64101f528e5d426541ca4e5",
+      "license": "Apache-2.0",
+      "authority": "mTLS gRPC server/client for Edge-facing boundary",
+      "runtime_download": false,
+      "failure": "mTLS or framing gate HOLD",
+      "rollback": "re-pin prior qualified gRPC C++ version",
+      "exit": "replace gRPC while preserving inference wire contract"
+    },
+    {
+      "name": "Abseil",
+      "decision": "ADOPT",
+      "version": "pinned-with-grpc-v1.82.1",
+      "license": "Apache-2.0",
+      "authority": "gRPC C++ dependency; same C++20 standard as gRPC",
+      "runtime_download": false,
+      "failure": "ABI mismatch HOLD",
+      "rollback": "re-pin abseil matching gRPC version",
+      "exit": "replace with matching C++ standard"
+    },
+    {
+      "name": "Protocol Buffers",
+      "decision": "ADOPT",
+      "version": "pinned-with-grpc-v1.82.1",
+      "license": "BSD-3-Clause",
+      "authority": "protobuf runtime for inference wire messages",
+      "runtime_download": false,
+      "failure": "wire serialization gate HOLD",
+      "rollback": "re-pin protobuf matching gRPC version",
+      "exit": "replace while preserving inference wire contract"
+    },
+    {
+      "name": "NVIDIA Triton Inference Server",
+      "decision": "CONDITIONAL",
+      "version": "25.06-py3",
+      "digest": "sha256:75bcfa5b0043898ece3e603c17a5bbbb1c9bddc390563db24312ef59d83735e5",
+      "license": "Apache-2.0",
+      "authority": "dynamic batch scheduler; NONE mode; CPU profile not activating CUDA EP",
+      "runtime_download": false,
+      "failure": "startup fail closed; no fallback batcher",
+      "rollback": "re-pin prior qualified Triton image",
+      "exit": "qualify another Triton version or build CPU-only from source",
+      "conditional_reason": "image contains CUDA dependencies not activated in CPU profile; future replacement with source-built CPU-only image"
+    },
+    {
+      "name": "tritonclient C++",
+      "decision": "ADOPT",
+      "version": "pinned-with-triton-25.06",
+      "license": "Apache-2.0",
+      "authority": "Gateway-to-Triton isolated gRPC client",
+      "runtime_download": false,
+      "failure": "Triton readback/inference gate HOLD",
+      "rollback": "re-pin matching tritonclient version",
+      "exit": "replace client while preserving Triton gRPC contract"
+    },
+    {
+      "name": "OpenSSL",
+      "decision": "ADOPT",
+      "version": "pinned-with-grpc-v1.82.1",
+      "license": "Apache-2.0",
+      "authority": "TLS/mTLS for gRPC channel",
+      "runtime_download": false,
+      "failure": "mTLS handshake gate FAIL",
+      "rollback": "re-pin matching OpenSSL version",
+      "exit": "replace TLS provider while preserving mTLS contract"
+    },
+    {
+      "name": "libonnxruntime C++ header",
+      "decision": "ADOPT",
+      "version": "1.19.0",
+      "license": "MIT",
+      "authority": "header-only C++ wrapper over ORT C API",
+      "runtime_download": false,
+      "failure": "compile gate HOLD",
+      "rollback": "re-pin matching header version",
+      "exit": "replace header while preserving ORT API contract"
+    },
+    {
+      "name": "GCC",
+      "decision": "ADOPT",
+      "version": "11.4.0",
+      "license": "GPL-3.0-or-later",
+      "authority": "C++20 compiler for Gateway; runtime libstdc++ pinned",
+      "runtime_download": false,
+      "failure": "compile/ABI gate HOLD",
+      "rollback": "re-pin prior qualified GCC version",
+      "exit": "qualify another compiler preserving C++20 standard"
+    },
+    {
+      "name": "CMake",
+      "decision": "ADOPT",
+      "version": "3.22.1",
+      "license": "BSD-3-Clause",
+      "authority": "build system for Gateway and pinned deps",
+      "runtime_download": false,
+      "failure": "build gate HOLD",
+      "rollback": "re-pin prior qualified CMake version",
+      "exit": "replace build tool preserving reproducibility"
+    },
+    {
+      "name": "Syft",
+      "decision": "ADOPT",
+      "version": "1.50.0",
+      "license": "Apache-2.0",
+      "authority": "offline SBOM generation only",
+      "runtime_download": false,
+      "failure": "supply-chain gate HOLD",
+      "rollback": "restore exact qualified tool image",
+      "exit": "replace SBOM generator preserving SPDX contract"
+    },
+    {
+      "name": "Trivy",
+      "decision": "ADOPT",
+      "version": "0.72.0",
+      "license": "Apache-2.0",
+      "authority": "offline vulnerability/secret/config scan only",
+      "runtime_download": false,
+      "failure": "supply-chain gate HOLD or FAIL per frozen policy",
+      "rollback": "restore exact tool and database snapshot",
+      "exit": "replace scanner preserving raw findings and policy semantics"
+    },
+    {
+      "name": "Cosign",
+      "decision": "ADOPT",
+      "version": "3.0.6",
+      "license": "Apache-2.0",
+      "authority": "local-key artifact signing and offline verification only",
+      "runtime_download": false,
+      "failure": "signature or trust-policy gate FAIL",
+      "rollback": "restore non-revoked prior release key and re-sign new immutable manifest",
+      "exit": "migrate signatures and verifier policy to organization PKI"
+    },
+    {
+      "name": "testkit minimal ONNX fixture",
+      "decision": "ADOPT",
+      "version": "masi-ids-window-v1-r1",
+      "license": "project-owned",
+      "authority": "serving-framework E2E only; not detection accuracy",
+      "runtime_download": false,
+      "failure": "module E2E HOLD for serving framework",
+      "rollback": "restore exact pinned fixture digest",
+      "exit": "replace fixture preserving feature schema contract"
+    }
+  ]
+}

@@ -14,7 +14,7 @@
   ],
   "properties": {
     "schema_version": {"const": "module-findings/v1"},
-    "module_id": {"const": "MOD-EDGE-001"},
+    "module_id": {"enum": ["MOD-EDGE-001", "MOD-INF-001"]},
     "decision_id": {"const": "DEC-044"},
     "reviewed_at": {"type": "string", "format": "date-time"},
     "review_scope": {"type": "string", "minLength": 1, "maxLength": 512},
@@ -41,7 +41,7 @@
         "resolution"
       ],
       "properties": {
-        "finding_id": {"type": "string", "pattern": "^EDGE-[A-Z0-9][A-Z0-9-]{2,126}$"},
+        "finding_id": {"type": "string", "pattern": "^(EDGE|INF)-[A-Z0-9][A-Z0-9-]{2,126}$"},
         "severity": {"enum": ["P0", "P1", "P2", "P3"]},
         "status": {"enum": ["OPEN", "CLOSED"]},
         "title": {"type": "string", "minLength": 1, "maxLength": 256},
@@ -60,7 +60,7 @@
             "type": "string",
             "minLength": 1,
             "maxLength": 512,
-            "pattern": "^(?:edge-rs|contracts|docs)/[A-Za-z0-9._:/-]+$",
+            "pattern": "^(?:edge-rs|infer-cpp|contracts|docs)/[A-Za-z0-9._:/-]+$",
             "not": {"pattern": "(?:^|/)\\.\\.(?:/|$)"}
           }
         },

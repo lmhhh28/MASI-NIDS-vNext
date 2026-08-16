@@ -1,0 +1,42 @@
+{
+  "schema_version": "central-inference-startup-evidence/v1",
+  "run_id": "public-inference-golden-001",
+  "module": "MOD-INF-001",
+  "requirement_ids": ["MOD-INF-001", "ARCH-005", "DEP-INF-001", "TEST-INF-001"],
+  "level": "MODULE",
+  "applicability": "APPLICABLE",
+  "result": "PASS",
+  "qualification": "QUALIFIED",
+  "selected_runtime_profile": "model-runtime-central-cpu/v1",
+  "observed_providers": ["CPUExecutionProvider"],
+  "selected_equals_observed": true,
+  "wrong_hardware_fail_closed": true,
+  "provider_partition_drift_rejected": true,
+  "repository_closure": {
+    "exact": true,
+    "extra_model_rejected": true,
+    "read_only_mount": true,
+    "closure_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+  },
+  "instance_group_explicit": true,
+  "implicit_instance_group_rejected": true,
+  "loaded_model_readback": {
+    "identity_exact": true,
+    "digest_match": true,
+    "loaded_not_current": true,
+    "pool_observation_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+  },
+  "startup_stages": [
+    {"name": "read-profile", "started_at": "2026-08-16T00:00:00Z", "finished_at": "2026-08-16T00:00:01Z", "result": "PASS", "duration_ms": 1000},
+    {"name": "probe-hardware", "started_at": "2026-08-16T00:00:01Z", "finished_at": "2026-08-16T00:00:02Z", "result": "PASS", "duration_ms": 1000},
+    {"name": "verify-envelope", "started_at": "2026-08-16T00:00:02Z", "finished_at": "2026-08-16T00:00:03Z", "result": "PASS", "duration_ms": 1000},
+    {"name": "verify-repository", "started_at": "2026-08-16T00:00:03Z", "finished_at": "2026-08-16T00:00:04Z", "result": "PASS", "duration_ms": 1000},
+    {"name": "triton-none-load", "started_at": "2026-08-16T00:00:04Z", "finished_at": "2026-08-16T00:00:08Z", "result": "PASS", "duration_ms": 4000},
+    {"name": "warmup-numeric-self-test", "started_at": "2026-08-16T00:00:08Z", "finished_at": "2026-08-16T00:00:10Z", "result": "PASS", "duration_ms": 2000},
+    {"name": "gateway-readback", "started_at": "2026-08-16T00:00:10Z", "finished_at": "2026-08-16T00:00:11Z", "result": "PASS", "duration_ms": 1000},
+    {"name": "readiness", "started_at": "2026-08-16T00:00:11Z", "finished_at": "2026-08-16T00:00:12Z", "result": "PASS", "duration_ms": 1000}
+  ],
+  "triton_model_control_mode": "none",
+  "auto_complete_disabled": true,
+  "strict_readiness": true
+}

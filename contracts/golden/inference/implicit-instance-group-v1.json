@@ -1,0 +1,21 @@
+{
+  "schema_version": "inference-golden/v1",
+  "vector_id": "inference-implicit-instance-group-0001",
+  "category": "instance-group",
+  "description": "Implicit instance_group (auto-complete filled default) must be rejected; only explicit KIND_CPU with explicit count is accepted in CPU profile.",
+  "input": {
+    "config_pbtxt": {
+      "instance_group": "implicit-auto-complete-default",
+      "explicit_required": true
+    }
+  },
+  "expected": {
+    "status": "rejected",
+    "instance_group_explicit": false,
+    "implicit_instance_group_rejected": true,
+    "startup_fail_closed": true,
+    "error_code": "instance_group_implicit"
+  },
+  "class_order": [0, 1],
+  "tolerance": {"absolute": 0.0, "relative": 0.0, "ulp": 0}
+}

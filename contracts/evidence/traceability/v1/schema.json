@@ -20,8 +20,8 @@
     "valid"
   ],
   "properties": {
-    "schema_version": {"const": "rust-edge-agent-traceability-evidence/v1"},
-    "module_id": {"const": "MOD-EDGE-001"},
+    "schema_version": {"enum": ["rust-edge-agent-traceability-evidence/v1", "central-inference-traceability-evidence/v1"]},
+    "module_id": {"enum": ["MOD-EDGE-001", "MOD-INF-001"]},
     "manifest": {"type": "string", "minLength": 1, "maxLength": 4096},
     "manifest_digest": {"$ref": "#/$defs/digest"},
     "evidence_root": {"type": ["string", "null"], "maxLength": 4096},

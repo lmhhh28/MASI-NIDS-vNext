@@ -1,0 +1,195 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://masi-nids.example/contracts/inference/v1/model-rollout-pool-generation.json",
+  "title": "Model Rollout Pool Generation Profile V1",
+  "description": "model-rollout-pool-generation/v1: the single first-release production switch profile. Each Triton instance loads one exact binding at startup in NONE mode; no runtime load/unload/repository polling/candidate/online-shadow. New revision/backend creates a new pool generation; Edge is the only canonical router per shard.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "profile_id",
+    "incarnation",
+    "logical_pool",
+    "pool_generation",
+    "per_shard_route",
+    "startup_envelope",
+    "drain",
+    "buffer",
+    "gap_resume",
+    "deployment_action",
+    "cas_commit_handshake",
+    "mixed_rollout",
+    "rollback",
+    "state_machine",
+    "kubernetes_role"
+  ],
+  "properties": {
+    "schema_version": {"const": "model-rollout-pool-generation/v1"},
+    "profile_id": {"const": "model-rollout-pool-generation/v1"},
+    "incarnation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "reuse", "pitr_rotation"],
+      "properties": {
+        "kind": {"const": "non-reusable-strong-random-identity"},
+        "reuse": {"const": "never"},
+        "pitr_rotation": {"const": "rotate-before-reopen-writer-then-new-operation-new-pool-binding-generation"}
+      }
+    },
+    "logical_pool": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "route_epoch", "generation_age"],
+      "properties": {
+        "id": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]{1,127}$"},
+        "route_epoch": {"const": "per-shard-monotonic"},
+        "generation_age": {"enum": ["current", "previous", "new"]}
+      }
+    },
+    "pool_generation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["per_pool_one_binding", "per_pool_one_profile", "no_runtime_load_unload", "no_repository_polling"],
+      "properties": {
+        "per_pool_one_binding": {"type": "boolean", "const": true},
+        "per_pool_one_profile": {"type": "boolean", "const": true},
+        "no_runtime_load_unload": {"type": "boolean", "const": true},
+        "no_repository_polling": {"type": "boolean", "const": true},
+        "no_candidate_shadow": {"type": "boolean", "const": true},
+        "no_weighted_traffic_split": {"type": "boolean", "const": true}
+      }
+    },
+    "per_shard_route": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["owner", "single_route", "withdraw_drain_sequence", "epoch_bump_on_generation_change"],
+      "properties": {
+        "owner": {"const": "edge-only"},
+        "single_route": {"const": "exactly-one-canonical-route-per-shard"},
+        "withdraw_drain_sequence": {"const": "route-withdraw-then-drain-then-CAS-then-handshake-then-resume"},
+        "epoch_bump_on_generation_change": {"type": "boolean", "const": true}
+      }
+    },
+    "startup_envelope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["immutable", "digest", "delivery"],
+      "properties": {
+        "immutable": {"type": "boolean", "const": true},
+        "digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+        "delivery": {"const": "controlled-plain-file-or-authenticated-deploy-interface-no-symlink"}
+      }
+    },
+    "drain": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["grace", "in_flight_deadline", "stop_new_admission"],
+      "properties": {
+        "grace": {"type": "integer", "minimum": 1, "maximum": 3600000},
+        "in_flight_deadline": {"type": "integer", "minimum": 1, "maximum": 60000},
+        "stop_new_admission": {"type": "boolean", "const": true}
+      }
+    },
+    "buffer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["owner", "domain", "max_age_seconds", "high_watermark", "critical_watermark", "overflow_policy"],
+      "properties": {
+        "owner": {"const": "edge-existing-WAL-domain"},
+        "domain": {"const": "same-ownership-no-second-queue"},
+        "max_age_seconds": {"type": "integer", "minimum": 1, "maximum": 86400},
+        "high_watermark": {"type": "integer", "minimum": 1},
+        "critical_watermark": {"type": "integer", "minimum": 1},
+        "overflow_policy": {"const": "explicit-gap-drop-HOLD"}
+      }
+    },
+    "gap_resume": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["watermark", "replay_scope", "expired_input_policy"],
+      "properties": {
+        "watermark": {"const": "resume-watermark"},
+        "replay_scope": {"const": "non-expired-contract-current-inputs-only"},
+        "expired_input_policy": {"const": "do-not-replay-as-current-event"}
+      }
+    },
+    "deployment_action": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["idempotent", "kinds", "adapter_reports", "stop_after_drain"],
+      "properties": {
+        "idempotent": {"type": "boolean", "const": true},
+        "kinds": {"type": "array", "minItems": 1, "items": {"enum": ["pre-stage", "start", "query", "quarantine", "drain", "stop"]}},
+        "adapter_reports": {"type": "array", "minItems": 1, "items": {"type": "string", "pattern": "^[a-z][a-z0-9_]{0,63}$"}},
+        "stop_after_drain": {"const": "route-withdraw-drain-commit-or-rollback-grace-before-stop"}
+      }
+    },
+    "cas_commit_handshake": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ordered_stages", "cas_failure_policy", "handshake_failure_policy"],
+      "properties": {
+        "ordered_stages": {"type": "array", "prefixItems": [
+          {"const": "route-withdraw-and-drain"},
+          {"const": "central-exact-binding-readback"},
+          {"const": "edge-binding-ready-WAL"},
+          {"const": "PostgreSQL-current-CAS"},
+          {"const": "edge-canonical-active-WAL"},
+          {"const": "canonical-input-resume"}
+        ], "items": false},
+        "cas_failure_policy": {"const": "shard-stays-at-last-confirmed-current"},
+        "handshake_failure_policy": {"const": "no-rollback-availability-resume-pending-along-original-identity"}
+      }
+    },
+    "mixed_rollout": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["group_projection", "no_cross_generation_join", "hold_unless_explicit_policy"],
+      "properties": {
+        "group_projection": {"const": "rolling_mixed"},
+        "no_cross_generation_join": {"type": "boolean", "const": true},
+        "hold_unless_explicit_policy": {"const": "default-HOLD-unless-exact-compatibility-policy-lists-both-revisions"}
+      }
+    },
+    "rollback": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["operation_kind", "target", "grace_reuse", "no_replay", "no_old_policy_restore"],
+      "properties": {
+        "operation_kind": {"const": "new-ordered-per-shard-durable-operation"},
+        "target": {"const": "exact-previous-binding-pool-generation"},
+        "grace_reuse": {"const": "reuse-warm-old-pool-within-rollback-grace-else-rebuild-from-snapshot"},
+        "no_replay": {"const": "no-replay-of-expired-old-inputs"},
+        "no_old_policy_restore": {"const": "no-automatic-old-policy-restore"}
+      }
+    },
+    "state_machine": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["rollout", "rollback", "recover_current"],
+      "properties": {
+        "rollout": {"type": "array", "prefixItems": [
+          {"const": "requested"}, {"const": "staging"}, {"const": "pool_starting"}, {"const": "pool_qualified"},
+          {"const": "rolling"}, {"const": "draining_previous"}, {"const": "completed"}
+        ], "items": false},
+        "rollback": {"type": "array", "prefixItems": [
+          {"const": "rollback_requested"}, {"const": "staging"}, {"const": "pool_starting_or_reuse"},
+          {"const": "rolling_back"}, {"const": "completed"}
+        ], "items": false},
+        "recover_current": {"type": "array", "prefixItems": [
+          {"const": "recovery_requested"}, {"const": "pool_recovering"}, {"const": "qualified"}, {"const": "completed"}
+        ], "items": false}
+      }
+    },
+    "kubernetes_role": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["role", "not_current", "pdb_scope"],
+      "properties": {
+        "role": {"const": "start-drain-stop-only"},
+        "not_current": {"const": "no-rollout-current-ownership"},
+        "pdb_scope": {"const": "voluntary-disruption-only"}
+      }
+    }
+  }
+}

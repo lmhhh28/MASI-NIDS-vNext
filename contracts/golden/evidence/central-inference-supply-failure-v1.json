@@ -1,0 +1,20 @@
+{
+  "schema_version": "central-inference-supply-verification/v1",
+  "test_id": "SEC-SUPPLY-001",
+  "requirement_ids": ["MOD-INF-001", "ARCH-REUSE-001", "SEC-SUPPLY-001", "TEST-010"],
+  "run_id": "central-inference-supply-public-golden-001",
+  "module": "MOD-INF-001",
+  "level": "MODULE",
+  "applicability": "APPLICABLE",
+  "result": "FAIL",
+  "qualification": "NOT_QUALIFIED",
+  "offline_rebuild": {"attempted": true, "binary_digest_equal": false, "network_used": false},
+  "sbom": {"generated": true, "format": "spdx"},
+  "vulnerability_scan": {"executed": true, "db_offline": true, "policy_loaded": true},
+  "secret_scan": {"executed": true, "secrets_found": 0},
+  "config_scan": {"executed": true, "policy_cache_offline": true},
+  "signature": {"valid": false, "tamper_detected": true, "wrong_publisher_rejected": true, "publisher": "local-bootstrap"},
+  "release_manifest": {"digest": "sha256:7777777777777777777777777777777777777777777777777777777777777777", "closure_equal": false, "sha256sums_match": false},
+  "input_safety": {"symlink_rejected": true, "path_traversal_rejected": true, "tar_traversal_rejected": true, "duplicate_rejected": true, "special_file_rejected": true},
+  "overall_module_complete": false
+}

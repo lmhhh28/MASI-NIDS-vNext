@@ -1,0 +1,34 @@
+{
+  "schema_version": "masi-model-golden/v1",
+  "vector_id": "taxonomy-golden-0001",
+  "category": "taxonomy",
+  "canonicalization_version": {"major": 1, "minor": 0},
+  "description": "Label taxonomy: stable IDs, never reused; single-label mode; unknown-label preserved by old reader without triggering old effect policy. ID-reuse negative example.",
+  "input": {
+    "valid_taxonomy": {
+      "label_ids": [0, 1, 2],
+      "id_reuse_policy": "never-reuse",
+      "mode": "single-label",
+      "unknown_label_policy": "old-reader-preserves-unknown-without-triggering-old-effect-policy"
+    },
+    "invalid_reuse_taxonomy": {
+      "label_ids": [0, 1, 1],
+      "id_reuse_policy": "never-reuse",
+      "mode": "single-label"
+    },
+    "invalid_mode_change": {
+      "label_ids": [0, 1, 2],
+      "id_reuse_policy": "never-reuse",
+      "mode": "multi-label",
+      "previous_mode": "single-label"
+    }
+  },
+  "expected": {
+    "valid_taxonomy": {"status": "valid", "reject": false},
+    "invalid_reuse_taxonomy": {"status": "invalid", "reject": true, "error_code": "incompatible_contract", "reason": "id-reuse-detected"},
+    "invalid_mode_change": {"status": "invalid", "reject": true, "error_code": "incompatible_contract", "reason": "single-to-multi-label-requires-new-major"}
+  },
+  "class_order": [0, 1, 2],
+  "tolerance": {"absolute": 0.0, "relative": 0.0, "ulp": 0},
+  "nan_inf_signed_zero": {"nan": "reject", "inf": "reject", "signed_zero": "canonical"}
+}

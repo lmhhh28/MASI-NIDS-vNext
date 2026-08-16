@@ -222,6 +222,17 @@
       "then": {"properties": {"lease_renewals": {"minItems": 1}}}
     },
     {
+      "if": {
+        "properties": {
+          "module": {"const": "central-inference"},
+          "level": {"const": "MODULE"},
+          "result": {"enum": ["PASS", "HOLD"]}
+        },
+        "required": ["module", "level", "result"]
+      },
+      "then": {"properties": {"lease_renewals": {"maxItems": 0}}}
+    },
+    {
       "if": {"properties": {"level": {"const": "REHEARSAL"}}, "required": ["level"]},
       "then": {"properties": {"qualification": {"const": "NOT_QUALIFIED"}}}
     }
@@ -353,7 +364,8 @@
     "claimScope": {
       "oneOf": [
         {"$ref": "#/$defs/edgeClaimScope"},
-        {"$ref": "#/$defs/p4ClaimScope"}
+        {"$ref": "#/$defs/p4ClaimScope"},
+        {"$ref": "#/$defs/inferenceClaimScope"}
       ]
     },
     "edgeClaimScope": {
@@ -395,6 +407,38 @@
           "items": false
         },
         "threshold_status": {"type": "string", "minLength": 1, "maxLength": 128}
+      }
+    },
+    "inferenceClaimScope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["module", "scope", "batch_sizes", "runtime_profile", "availability_profile", "threshold_status", "resource_limits"],
+      "properties": {
+        "module": {"const": "central-inference"},
+        "scope": {"const": "independent-module-soak"},
+        "batch_sizes": {
+          "type": "array",
+          "prefixItems": [{"const": 1}, {"const": 32}, {"const": 128}, {"const": 256}],
+          "items": false
+        },
+        "runtime_profile": {"const": "model-runtime-central-cpu/v1"},
+        "availability_profile": {"const": "availability-single/v1"},
+        "threshold_status": {"type": "string", "minLength": 1, "maxLength": 128},
+        "resource_limits": {"$ref": "#/$defs/inferenceResourceLimits"}
+      }
+    },
+    "inferenceResourceLimits": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["gateway_in_flight", "triton_queue_records", "max_batch_size", "rss_bytes", "fd_count", "thread_count", "process_threshold_status"],
+      "properties": {
+        "gateway_in_flight": {"type": "integer", "minimum": 1, "maximum": 256},
+        "triton_queue_records": {"type": "integer", "minimum": 1, "maximum": 4096},
+        "max_batch_size": {"const": 256},
+        "rss_bytes": {"type": "null"},
+        "fd_count": {"type": "null"},
+        "thread_count": {"type": "null"},
+        "process_threshold_status": {"const": "OBSERVED_ONLY_OWNER_NOT_FROZEN_DEC_001"}
       }
     },
     "phase": {

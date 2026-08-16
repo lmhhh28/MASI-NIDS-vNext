@@ -1,0 +1,31 @@
+{
+  "schema_version": "inference-golden/v1",
+  "vector_id": "inference-cross-generation-fence-0001",
+  "category": "fence-cross-generation",
+  "description": "Late result from a different pool/binding generation must be fenced with RESULT_IDENTITY_MISMATCH and route HOLD; cannot write canonical event.",
+  "input": {
+    "request_id": "request-golden-fence-0001",
+    "route": {
+      "model_control_incarnation_id": "incarnation-old-0001",
+      "pool_generation": 1,
+      "binding_generation": 1,
+      "route_epoch": 1
+    },
+    "late_result": {
+      "model_control_incarnation_id": "incarnation-new-0002",
+      "pool_generation": 2,
+      "binding_generation": 2,
+      "route_epoch": 2
+    }
+  },
+  "expected": {
+    "status": "fenced",
+    "error_code": "result_identity_mismatch",
+    "wrong_generation_fenced": true,
+    "late_result_fenced": true,
+    "canonical_event_writable": false,
+    "route_held": true
+  },
+  "class_order": [0, 1],
+  "tolerance": {"absolute": 0.0, "relative": 0.0, "ulp": 0}
+}

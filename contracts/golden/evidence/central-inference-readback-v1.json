@@ -1,0 +1,45 @@
+{
+  "schema_version": "central-inference-readback-evidence/v1",
+  "run_id": "public-inference-golden-001",
+  "module": "MOD-INF-001",
+  "requirement_ids": ["MOD-INF-001", "ARCH-005", "CONTRACT-MODEL-001", "REL-INF-001"],
+  "level": "MODULE",
+  "applicability": "APPLICABLE",
+  "result": "PASS",
+  "qualification": "QUALIFIED",
+  "get_loaded_model": {
+    "returned": true,
+    "identity_exact": true,
+    "digest_match": true,
+    "loaded_not_current": true,
+    "envelope_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+    "repository_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+    "model_revision_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+    "binding_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+    "worker_id": "worker-golden-0001",
+    "worker_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+  },
+  "get_pool_status": {
+    "returned": true,
+    "eligible_workers": [{"worker_id": "worker-golden-0001", "worker_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000"}],
+    "pool_observation_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+  },
+  "fence_dimensions": [
+    "request_id", "input_id", "event_idempotency_key", "input_digest",
+    "model_control_incarnation_id", "operation_id", "scope", "shard_id",
+    "route_epoch", "logical_pool_id", "pool_generation", "binding_generation",
+    "startup_envelope_digest", "pool_observation_digest", "binding_digest",
+    "model_revision_digest", "model_bundle_digest", "feature_contract_digest",
+    "label_contract_digest", "output_adapter_digest", "wire_profile_digest",
+    "runtime_profile_digest", "optimization_profile_digest", "worker_id",
+    "worker_digest", "worker_attempt_id",
+    "source_input_result_WAL_sequence", "source_window_identity", "trace_id"
+  ],
+  "wrong_generation_fenced": true,
+  "late_result_fenced": true,
+  "result_identity_mismatch_fenced": true,
+  "result_digest_conflict_fenced": true,
+  "cross_generation_result_rejected": true,
+  "idempotency_same_key_same_digest": true,
+  "conflict_same_key_different_digest": true
+}

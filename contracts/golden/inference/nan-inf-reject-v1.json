@@ -1,0 +1,29 @@
+{
+  "schema_version": "inference-golden/v1",
+  "vector_id": "inference-nan-inf-0001",
+  "category": "reject-nan-inf",
+  "description": "Feature tensor containing NaN/Inf must be rejected before model execution per numeric contract.",
+  "input": {
+    "request_id": "request-golden-nan-inf-0001",
+    "records": [
+      {
+        "input_id": "input-nan-inf-0001",
+        "shape": [1, 6],
+        "dtype": "uint64-le",
+        "feature_tensor_hex": "000000000000f07f000000000000f07f000000000000f07f000000000000f07f000000000000f07f000000000000f07f",
+        "nan_inf_present": true
+      }
+    ]
+  },
+  "expected": {
+    "status": "rejected",
+    "admission_result": "HOLD",
+    "error_code": "invalid_manifest",
+    "nan_rejected": true,
+    "inf_rejected": true,
+    "rejected_before_model_execution": true,
+    "canonical_event_writable": false
+  },
+  "class_order": [0, 1],
+  "tolerance": {"absolute": 0.0, "relative": 0.0, "ulp": 0}
+}

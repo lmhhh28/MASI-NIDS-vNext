@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://masi-nids.example/contracts/inference/v1/availability-ha.json",
+  "title": "Central Inference Availability HA Profile V1",
+  "description": "availability-ha/v1: same exact CPU or CUDA profile across at least two failure domains, static N+1. This profile's applicability is NOT_RUN until cross-domain N+1 evidence is produced; the current host is single-domain.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "profile_id",
+    "failure_domain_set",
+    "max_failure_unit",
+    "static_n_plus_1",
+    "headroom",
+    "remaining_capacity",
+    "ha_claim",
+    "loss_tests"
+  ],
+  "properties": {
+    "schema_version": {"const": "availability-ha/v1"},
+    "profile_id": {"const": "availability-ha/v1"},
+    "failure_domain_set": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 64,
+      "uniqueItems": true,
+      "items": {"type": "string", "minLength": 1, "maxLength": 128}
+    },
+    "max_failure_unit": {"type": "string", "minLength": 1, "maxLength": 128},
+    "static_n_plus_1": {"type": "boolean", "const": true},
+    "headroom": {"type": "number", "minimum": 1},
+    "remaining_capacity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["formula", "measured", "no_kernel_sum"],
+      "properties": {
+        "formula": {"const": "C_remaining >= H * lambda_peak"},
+        "measured": {"const": "same-model-runtime-batch-network-competing-load"},
+        "no_kernel_sum": {"type": "boolean", "const": true}
+      }
+    },
+    "ha_claim": {"const": "production-ha-only-after-cross-domain-N+1-and-failure-domain-loss-pass"},
+    "loss_tests": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"type": "string", "enum": ["single-replica-crash", "failure-domain-loss", "stale-endpoint", "connection-reset", "duplicate-conflicting-result", "full-pool-outage"]}
+    }
+  }
+}

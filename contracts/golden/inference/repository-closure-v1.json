@@ -1,0 +1,21 @@
+{
+  "schema_version": "inference-golden/v1",
+  "vector_id": "inference-repository-closure-0001",
+  "category": "repository-closure",
+  "description": "Repository snapshot with extra model/version/backend beyond exact binding closure must be rejected at startup.",
+  "input": {
+    "repository_snapshot": {
+      "expected_closure": ["masi-ids-window-v1/1/model.onnx", "masi-ids-window-v1/1/config.pbtxt"],
+      "actual_extra_member": "extra-model-unauthorized/1/model.onnx"
+    }
+  },
+  "expected": {
+    "status": "rejected",
+    "repository_closure_exact": false,
+    "extra_model_rejected": true,
+    "startup_fail_closed": true,
+    "error_code": "repository_closure_violation"
+  },
+  "class_order": [0, 1],
+  "tolerance": {"absolute": 0.0, "relative": 0.0, "ulp": 0}
+}

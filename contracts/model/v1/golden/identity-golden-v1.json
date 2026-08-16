@@ -1,0 +1,26 @@
+{
+  "schema_version": "masi-model-golden/v1",
+  "vector_id": "identity-golden-0001",
+  "category": "identity",
+  "canonicalization_version": {"major": 1, "minor": 0},
+  "description": "Immutable identity rejected on tag/alias/path/mtime persistence and on digest drift.",
+  "input": {
+    "valid_identity": {
+      "model_id": "masi-ids-window-v1",
+      "revision": "0000000000000000000000000000000000000001",
+      "bundle_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    "invalid_alias_identity": {
+      "model_id": "latest",
+      "revision": "alias-tag-cannot-resolve-to-binding",
+      "bundle_digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+    }
+  },
+  "expected": {
+    "valid_identity": {"status": "valid", "reject": false},
+    "invalid_alias_identity": {"status": "invalid", "reject": true, "error_code": "invalid_manifest"}
+  },
+  "class_order": [0, 1],
+  "tolerance": {"absolute": 0.0, "relative": 0.0, "ulp": 0},
+  "nan_inf_signed_zero": {"nan": "reject", "inf": "reject", "signed_zero": "canonical"}
+}

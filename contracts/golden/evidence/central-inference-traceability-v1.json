@@ -1,0 +1,60 @@
+{
+  "schema_version": "central-inference-traceability-evidence/v1",
+  "module_id": "MOD-INF-001",
+  "manifest": "infer-cpp/requirements-traceability.json",
+  "manifest_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+  "evidence_root": "infer-cpp/evidence/module-gates/runs/golden",
+  "result": "PASS",
+  "qualification": "NOT_QUALIFIED",
+  "requirements": [
+    {
+      "requirement_id": "MOD-INF-001",
+      "scenario_ids": ["TEST-INF-MODULE-E2E-001"],
+      "test_targets": [
+        {
+          "target": "real_gateway_triton_ort_public_mtls_pipeline",
+          "command_id": "tests",
+          "result": "PASS",
+          "qualification": "QUALIFIED"
+        }
+      ],
+      "evidence": [
+        {
+          "path": "module-blackbox/module-blackbox-e2e.json",
+          "kind": "json-evidence",
+          "schema_version": "central-inference-module-e2e-evidence/v1",
+          "test_id": "TEST-INF-MODULE-E2E-001",
+          "requirement_ids": ["MOD-INF-001"],
+          "result": "PASS",
+          "qualification": "QUALIFIED"
+        }
+      ],
+      "evidence_result": "PASS",
+      "qualification": "QUALIFIED",
+      "qualification_limit": "independent module boundary"
+    }
+  ],
+  "requirement_ids": ["MOD-INF-001"],
+  "conditional_applicability": [
+    {"profile": "model-runtime-central-cuda/v1", "applicability": "NOT_APPLICABLE", "result": "NOT_RUN", "stable_reason": "CPU_PROFILE_FIRST_RELEASE_ONLY"},
+    {"profile": "availability-ha/v1", "applicability": "NOT_APPLICABLE", "result": "NOT_RUN", "stable_reason": "SINGLE_FAILURE_DOMAIN_HOST"},
+    {"profile": "tensorrt-future/v1", "applicability": "NOT_APPLICABLE", "result": "NOT_RUN", "stable_reason": "NOT_FIRST_RELEASE_BACKEND"},
+    {"profile": "libtorch/v1", "applicability": "NOT_APPLICABLE", "result": "NOT_RUN", "stable_reason": "REJECTED_NOT_FIRST_RELEASE_BACKEND"}
+  ],
+  "artifacts": [
+    {
+      "path": "module-blackbox/module-blackbox-e2e.json",
+      "sha256": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+      "bytes": 1,
+      "media_type": "application/json"
+    },
+    {
+      "path": "oci-smoke/inference-image.tar",
+      "sha256": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+      "bytes": 1,
+      "media_type": "application/x-tar"
+    }
+  ],
+  "failures": [],
+  "valid": true
+}
