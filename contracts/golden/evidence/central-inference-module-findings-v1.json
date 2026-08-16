@@ -4,5 +4,118 @@
   "decision_id": "DEC-044",
   "reviewed_at": "2026-08-16T00:00:00Z",
   "review_scope": "MOD-INF-001 first-release CPU profile implementation, public-boundary startup, fault, numeric, supply-chain and gate evidence",
-  "findings": []
+  "findings": [
+    {
+      "finding_id": "INF-E2E-0001",
+      "severity": "P1",
+      "status": "CLOSED",
+      "title": "Gateway model path hardcoded to <repo>/model.onnx instead of the closure model member",
+      "requirement_ids": [
+        "MOD-INF-001"
+      ],
+      "evidence_refs": [
+        "infer-cpp/src/main.cpp",
+        "infer-cpp/src/startup.cc",
+        "infer-cpp/src/repository_closure.cc"
+      ],
+      "opened_at": "2026-08-16T00:00:00Z",
+      "closed_at": "2026-08-16T00:00:00Z",
+      "resolution": "Warmup and service ORT sessions now resolve the model path from the digest-pinned closure manifest (unique role=model member rel_path) via resolve_model_path(); no config drift possible. Verified by real-process E2E (module_blackbox MASI_INF_E2E=1)."
+    },
+    {
+      "finding_id": "INF-E2E-0002",
+      "severity": "P1",
+      "status": "CLOSED",
+      "title": "ORT CPU EP appended via string provider API unsupported by the CPU-only archive",
+      "requirement_ids": [
+        "MOD-INF-001"
+      ],
+      "evidence_refs": [
+        "infer-cpp/src/ort_session.cc"
+      ],
+      "opened_at": "2026-08-16T00:00:00Z",
+      "closed_at": "2026-08-16T00:00:00Z",
+      "resolution": "Replaced string-keyed AppendExecutionProvider with the typed OrtSessionOptionsAppendExecutionProvider_CPU (cpu_provider_factory.h) and contract-fixed arena flag; startup warmup now passes on ORT 1.19.0 CPU-only."
+    },
+    {
+      "finding_id": "INF-E2E-0003",
+      "severity": "P1",
+      "status": "CLOSED",
+      "title": "Triton model name derived from model_revision_digest, never matching the repository; startup tolerated missing model metadata",
+      "requirement_ids": [
+        "MOD-INF-001"
+      ],
+      "evidence_refs": [
+        "infer-cpp/src/startup.cc",
+        "infer-cpp/src/gateway.cc",
+        "infer-cpp/src/repository_closure.cc"
+      ],
+      "opened_at": "2026-08-16T00:00:00Z",
+      "closed_at": "2026-08-16T00:00:00Z",
+      "resolution": "Triton model name now comes from the closure model member directory name (resolve_triton_model_name()); triton-none-load fails closed on metadata name/version/IO mismatch and records a real metadata digest. Gateway Infer uses the same exact name."
+    },
+    {
+      "finding_id": "INF-E2E-0004",
+      "severity": "P1",
+      "status": "CLOSED",
+      "title": "Output adapter ignored softmax_output and emitted ALERT on any best score at threshold regardless of argmax class",
+      "requirement_ids": [
+        "MOD-INF-001"
+      ],
+      "evidence_refs": [
+        "infer-cpp/src/numeric.cc",
+        "infer-cpp/tests/property_invariants.cc"
+      ],
+      "opened_at": "2026-08-16T00:00:00Z",
+      "closed_at": "2026-08-16T00:00:00Z",
+      "resolution": "apply_output_adapter now applies stable softmax when softmax_output is set and gates ALERT on the argmax class being the alert class with score at threshold; confident benign inputs no longer false-alert. Property tests added; E2E decision=ALERT matches the fixture taxonomy."
+    },
+    {
+      "finding_id": "INF-E2E-0005",
+      "severity": "P2",
+      "status": "CLOSED",
+      "title": "Frozen golden valid-batch-v1.json carried an undecodable 93-char feature tensor hex and a contradictory expected decision",
+      "requirement_ids": [
+        "MOD-INF-001"
+      ],
+      "evidence_refs": [
+        "contracts/golden/inference/valid-batch-v1.json"
+      ],
+      "opened_at": "2026-08-16T00:00:00Z",
+      "closed_at": "2026-08-16T00:00:00Z",
+      "resolution": "Hex corrected to the intended 96-char [5,10,3,16,32,1] uint64 tensor and expected decision aligned with the fixture taxonomy (argmax class 1 -> alert); contract validator still PASS/QUALIFIED."
+    },
+    {
+      "finding_id": "INF-E2E-0006",
+      "severity": "P2",
+      "status": "OPEN",
+      "title": "Gateway does not bind client identity beyond CA chain (exact Edge SAN/CN allowlist)",
+      "requirement_ids": [
+        "MOD-INF-001"
+      ],
+      "evidence_refs": [
+        "infer-cpp/tests/module_blackbox.cc",
+        "contracts/inference/v1/profile.json"
+      ],
+      "opened_at": "2026-08-16T00:00:00Z",
+      "closed_at": null,
+      "resolution": null
+    },
+    {
+      "finding_id": "INF-E2E-0007",
+      "severity": "P1",
+      "status": "CLOSED",
+      "title": "Gateway indexed records(0) before admission; empty batches triggered protobuf CHECK failures",
+      "requirement_ids": [
+        "MOD-INF-001"
+      ],
+      "evidence_refs": [
+        "infer-cpp/src/gateway.cc",
+        "infer-cpp/tests/module_blackbox.cc"
+      ],
+      "opened_at": "2026-08-16T00:00:00Z",
+      "closed_at": "2026-08-16T00:00:00Z",
+      "resolution": "records(0) access guarded behind records_size()>0; empty batches are now rejected cleanly by admission (record_count out of range, minimum_records_per_batch=1). Blackbox empty-batch test added; zero protobuf CHECK failures in E2E."
+    }
+  ]
 }

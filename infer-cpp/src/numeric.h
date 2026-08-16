@@ -26,7 +26,8 @@ struct NumericProfile {
   double ood_threshold = 0.0;       // score > threshold => out_of_distribution
   double abstain_threshold = 0.0;   // max score < threshold => abstain
   double alert_threshold = 0.5;     // >= threshold => ALERT, else BENIGN
-  bool softmax_output = false;      // if true, scores are post-softmax probs
+  bool softmax_output = false;      // if true, convert raw logits to softmax
+                                    // probabilities before thresholding
   std::vector<ClassLabel> class_order;
 };
 

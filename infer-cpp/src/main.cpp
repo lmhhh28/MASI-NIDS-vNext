@@ -72,7 +72,7 @@ int run(int argc, char** argv) {
   // Keep the ORT session and Triton client alive for the service lifetime.
   auto session = std::make_shared<OrtSession>();
   OrtSessionConfig oc;
-  oc.model_path = cfg.model_repository_path + "/model.onnx";
+  oc.model_path = resolve_model_path(cfg.model_repository_path);
   oc.intra_op_num_threads = cfg.intra_op_num_threads;
   oc.inter_op_num_threads = cfg.inter_op_num_threads;
   oc.intra_op_affinity = cfg.intra_op_affinity;

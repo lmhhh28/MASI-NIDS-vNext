@@ -31,6 +31,22 @@ struct ClosureVerification {
 // (closure-manifest.json) and return the expected exact member set.
 std::vector<ClosureMember> load_closure_manifest(const std::string& repository_root);
 
+// Resolve the absolute path of the ONNX model inside the digest-pinned
+// repository: the unique closure member with `role == "model"` joined to the
+// repository root. Throws kRepositoryClosureViolation unless exactly one
+// model member is declared. Callers must have already verified the closure
+// (verify_repository_closure) so the returned path points at a digest-pinned,
+// read-only, non-symlink regular file.
+std::string resolve_model_path(const std::string& repository_root);
+
+// Resolve the Triton model name for the digest-pinned repository: the first
+// path component of the unique `role == "model"` closure member, i.e. the
+// model directory name in Triton repository layout
+// (`<model_name>/<version>/model.onnx`). Throws kRepositoryClosureViolation
+// unless exactly one model member with a `<name>/<version>/...` path is
+// declared.
+std::string resolve_triton_model_name(const std::string& repository_root);
+
 // Verify the on-disk repository directory:
 //   - directory is read-only (no write bit for owner/group/other on entries)
 //   - no symlink anywhere in the tree

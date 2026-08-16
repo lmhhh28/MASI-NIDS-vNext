@@ -6,6 +6,7 @@
 
 #include "digest.h"
 #include "numeric.h"
+#include "repository_closure.h"
 
 namespace masi::inf {
 
@@ -71,6 +72,13 @@ CentralInferenceServiceImpl::CentralInferenceServiceImpl(
   profile_.maximum_request_bytes = cfg_.max_request_bytes;
   profile_.maximum_response_bytes = cfg_.max_response_bytes;
   profile_.request_deadline_ms = cfg_.request_deadline_ms;
+
+  // Exact Triton model name from the digest-pinned repository closure
+  // (model directory name), resolved once at construction. Startup has
+  // already verified the closure and the Triton metadata, so this cannot
+  // drift at request time.
+  if (triton_ && triton_->available())
+    triton_model_name_ = resolve_triton_model_name(cfg_.model_repository_path);
 }
 
 void CentralInferenceServiceImpl::drain_begin() { accepting_.store(false); }
@@ -122,11 +130,16 @@ grpc::Status CentralInferenceServiceImpl::Infer(
   size_t record_count = req->records_size();
   size_t request_bytes = req->ByteSizeLong();
   // Aggregate feature tensor across records for digest; records are checked
-  // individually below.
+  // individually below. Empty batches (record_count == 0) are rejected by
+  // admission (minimum_records_per_batch=1) before any per-record access, so
+  // never index records(0) without checking the count.
   std::vector<uint8_t> agg;
-  for (const auto& r : req->records()) agg.insert(agg.end(), r.feature_tensor().begin(), r.feature_tensor().end());
   std::vector<uint32_t> shape;
-  for (uint32_t s : req->records(0).shape()) shape.push_back(s);
+  if (req->records_size() > 0) {
+    for (const auto& r : req->records())
+      agg.insert(agg.end(), r.feature_tensor().begin(), r.feature_tensor().end());
+    for (uint32_t s : req->records(0).shape()) shape.push_back(s);
+  }
 
   auto ad = admit(cfg_, profile_,
                   req->request_id(), req->schema_version(), route.wire_profile(),
@@ -281,7 +294,7 @@ grpc::Status CentralInferenceServiceImpl::infer_one(
     if (triton_ && triton_->available()) {
       std::vector<int64_t> shape;
       for (uint32_t s : rec.shape()) shape.push_back(s);
-      raw = triton_->model_infer(route.model_revision_digest(), "1",
+      raw = triton_->model_infer(triton_model_name_, "1",
                                   std::vector<uint8_t>(rec.feature_tensor().begin(),
                                                        rec.feature_tensor().end()),
                                   shape, 0);

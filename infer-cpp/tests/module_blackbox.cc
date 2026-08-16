@@ -17,6 +17,7 @@
 
 #include <grpcpp/grpcpp.h>
 
+#include <arpa/inet.h>
 #include <chrono>
 #include <csignal>
 #include <cstdint>
@@ -26,9 +27,12 @@
 #include <fcntl.h>
 #include <fstream>
 #include <iostream>
+#include <netinet/in.h>
 #include <nlohmann/json.hpp>
 #include <sstream>
 #include <string>
+#include <sys/prctl.h>
+#include <sys/socket.h>
 #include <sys/wait.h>
 #include <thread>
 #include <unistd.h>
@@ -36,7 +40,9 @@
 
 #include "support/mod.h"
 
+#include "digest.h"
 #include "edge/v1/edge.pb.h"
+#include "envelope.h"
 #include "inference/v1/inference.pb.h"
 
 namespace {
@@ -76,7 +82,9 @@ Subprocess spawn(const std::string& binary, const std::vector<std::string>& argv
   pid_t pid = ::fork();
   CHECK(pid >= 0, "spawn: fork failed");
   if (pid == 0) {
-    // Child.
+    // Child. Die with the test process so a failed run never leaks a
+    // gateway that keeps occupying its listen port.
+    ::prctl(PR_SET_PDEATHSIG, SIGTERM);
     ::dup2(out_fd, STDOUT_FILENO);
     ::dup2(err_fd, STDERR_FILENO);
     ::close(out_fd);
@@ -165,7 +173,7 @@ std::string build_test_config(const std::string& envelope_path,
   j["startup_envelope_path"] = envelope_path;
   j["model_repository_path"] = repo_path;
   j["triton_endpoint"] = "127.0.0.1:8001";
-  j["gateway_listen"] = "127.0.0.1:0";  // ephemeral port via stdout? Use fixed.
+  j["gateway_listen"] = "127.0.0.1:0";  // ephemeral port; read from stderr
   j["tls_ca_path"] = ca;
   j["tls_cert_path"] = cert;
   j["tls_key_path"] = key;
@@ -181,67 +189,195 @@ std::string build_test_config(const std::string& envelope_path,
 }
 
 // ---------------------------------------------------------------------------
-// Build a minimal startup envelope JSON
+// Build a minimal startup envelope JSON with a correctly computed
+// envelope_digest (canonical body over the StartupEnvelope struct).
 // ---------------------------------------------------------------------------
-std::string build_test_envelope() {
+std::string build_test_envelope(const std::string& model_digest,
+                                const std::string& closure_digest) {
+  masi::inf::StartupEnvelope env;
+  env.schema_version = "inference-startup-envelope/v1";
+  env.model_control_incarnation_id = "incarnation-blackbox-0001";
+  env.operation_id = "op-blackbox-0001";
+  env.kind = "binding";
+  env.logical_pool_id = "pool-blackbox-0001";
+  env.pool_generation = 1;
+  env.availability_profile_id = "availability-single/v1";
+  env.deployment_tier = "acceptance";
+  env.model_revision_digest = model_digest;
+  env.inference_wire_profile_digest =
+      "sha256:0000000000000000000000000000000000000000000000000000000000000000";
+  env.runtime_profile_id = "model-runtime-central-cpu/v1";
+  env.repository_snapshot.identity = "repo-blackbox-0001";
+  env.repository_snapshot.closure_digest = closure_digest;
+  env.instance_group.kind = "KIND_CPU";
+  env.instance_group.count = 1;
+  env.instance_group.operator_partition_digest =
+      "sha256:0000000000000000000000000000000000000000000000000000000000000000";
+  env.proposed_binding_generation = 1;
+  env.issued_at_unix_ms = 0;
+  env.expires_at_unix_ms = 9999999999999LL;
+  env.trace_id = "trace-blackbox-0001";
+  env.envelope_digest = masi::inf::compute_envelope_body_digest(env);
+
   nlohmann::json j;
-  j["schema_version"] = "inference-startup-envelope/v1";
-  j["model_control_incarnation_id"] = "incarnation-blackbox-0001";
-  j["operation_id"] = "op-blackbox-0001";
-  j["kind"] = "binding";
-  j["logical_pool_id"] = "pool-blackbox-0001";
-  j["pool_generation"] = 1;
-  j["availability_profile_id"] = "availability-single/v1";
-  j["deployment_tier"] = "acceptance";
-  j["model_revision_digest"] =
-      "sha256:0000000000000000000000000000000000000000000000000000000000000000";
-  j["inference_wire_profile_digest"] =
-      "sha256:0000000000000000000000000000000000000000000000000000000000000000";
-  j["runtime_profile_id"] = "model-runtime-central-cpu/v1";
+  j["schema_version"] = env.schema_version;
+  j["model_control_incarnation_id"] = env.model_control_incarnation_id;
+  j["operation_id"] = env.operation_id;
+  j["kind"] = env.kind;
+  j["logical_pool_id"] = env.logical_pool_id;
+  j["pool_generation"] = env.pool_generation;
+  j["availability_profile_id"] = env.availability_profile_id;
+  j["deployment_tier"] = env.deployment_tier;
+  j["model_revision_digest"] = env.model_revision_digest;
+  j["inference_wire_profile_digest"] = env.inference_wire_profile_digest;
+  j["runtime_profile_id"] = env.runtime_profile_id;
   j["repository_snapshot"] = {
-      {"identity", "repo-blackbox-0001"},
-      {"closure_digest",
-       "sha256:0000000000000000000000000000000000000000000000000000000000000000"}};
-  j["instance_group"] = {{"kind", "KIND_CPU"}, {"count", 1},
-                         {"operator_partition_digest",
-                          "sha256:0000000000000000000000000000000000000000000000000000000000000000"}};
-  j["proposed_binding_generation"] = 1;
-  j["issued_at_unix_ms"] = 0;
-  j["expires_at_unix_ms"] = 9999999999999LL;
-  j["trace_id"] = "trace-blackbox-0001";
+      {"identity", env.repository_snapshot.identity},
+      {"closure_digest", env.repository_snapshot.closure_digest}};
+  j["instance_group"] = {
+      {"kind", env.instance_group.kind},
+      {"count", env.instance_group.count},
+      {"operator_partition_digest", env.instance_group.operator_partition_digest}};
+  j["proposed_binding_generation"] = env.proposed_binding_generation;
+  j["issued_at_unix_ms"] = env.issued_at_unix_ms;
+  j["expires_at_unix_ms"] = env.expires_at_unix_ms;
+  j["trace_id"] = env.trace_id;
+  j["envelope_digest"] = env.envelope_digest;
   return j.dump();
 }
 
 // ---------------------------------------------------------------------------
-// Build a test repository closure (read-only, digest-pinned)
+// Build a test repository closure (read-only, digest-pinned) from the real
+// testkit fixture ONNX, laid out like the E2E Triton repository
+// (<name>/1/model.onnx) so the closure-driven model path and Triton model
+// name resolution see a realistic repository. Returns the model and closure
+// digests.
 // ---------------------------------------------------------------------------
-std::string build_test_repository(const std::string& dir) {
+struct TestRepoDigests {
+  std::string model_digest;
+  std::string closure_digest;
+};
+
+TestRepoDigests build_test_repository(const std::string& dir) {
   namespace fs = std::filesystem;
-  fs::create_directories(dir);
-  // Placeholder model file.
-  std::string model_bytes = "fake-blackbox-model";
-  write_temp_file(dir, "model.onnx", model_bytes);
-  // Compute digests.
-  std::string model_digest =
-      "sha256:" + std::string(64, '0');  // placeholder; real test needs exact
+  fs::path fixture = fs::path(masi::inf::test::repo_root()) /
+                     "testkit" / "fixtures" / "models" /
+                     "masi-ids-window-v1-r1.onnx";
+  CHECK(fs::is_regular_file(fixture),
+        "testkit fixture ONNX missing: " + fixture.string());
+  std::string model_bytes = read_file(fixture.string());
+  CHECK(!model_bytes.empty(), "testkit fixture ONNX empty");
+
+  fs::create_directories(dir + "/masi-ids-window-v1/1");
+  write_temp_file(dir + "/masi-ids-window-v1/1", "model.onnx", model_bytes);
+
+  std::string model_path = dir + "/masi-ids-window-v1/1/model.onnx";
+  std::string model_digest = masi::inf::sha256_file(model_path);
+  // closure digest = sha256 over sorted member digests joined by newline.
+  std::string closure_input = model_digest + "\n";
   std::string closure_digest =
-      "sha256:" + std::string(64, '0');
+      masi::inf::sha256_hex(closure_input.data(), closure_input.size());
+
   nlohmann::json manifest;
   manifest["identity"] = "repo-blackbox-0001";
   manifest["closure_digest"] = closure_digest;
   manifest["members"] = nlohmann::json::array();
-  manifest["members"][0] = {{"rel_path", "model.onnx"},
+  manifest["members"][0] = {{"rel_path", "masi-ids-window-v1/1/model.onnx"},
                             {"member_digest", model_digest},
                             {"role", "model"}};
   write_temp_file(dir, "closure-manifest.json", manifest.dump());
-  // Make read-only.
+
+  // Make the whole tree read-only (files and directories), as required by
+  // verify_repository_closure.
   for (auto& p : fs::recursive_directory_iterator(dir)) {
     fs::permissions(p.path(),
-                   fs::perms::owner_read | fs::perms::group_read |
-                       fs::perms::others_read,
-                   fs::perm_options::replace);
+                    fs::perms::owner_read | fs::perms::group_read |
+                        fs::perms::others_read,
+                    fs::perm_options::replace);
   }
-  return dir;
+  fs::permissions(dir,
+                  fs::perms::owner_read | fs::perms::owner_exec |
+                      fs::perms::group_read | fs::perms::group_exec |
+                      fs::perms::others_read | fs::perms::others_exec,
+                  fs::perm_options::replace);
+
+  return TestRepoDigests{model_digest, closure_digest};
+}
+
+// ---------------------------------------------------------------------------
+// Wait for the Gateway to log its bound listen address and return
+// "127.0.0.1:<port>". The Gateway binds an ephemeral port (config
+// "127.0.0.1:0") and logs the actual address; exits the test if the process
+// dies or never reports an address.
+// ---------------------------------------------------------------------------
+std::string wait_for_listen_addr(const Subprocess& sp,
+                                 const std::string& stderr_path) {
+  const std::string prefix = "listening on 127.0.0.1:";
+  for (int i = 0; i < 100; ++i) {
+    std::string err = read_file(stderr_path);
+    auto pos = err.find(prefix);
+    if (pos != std::string::npos) {
+      std::string port;
+      for (size_t j = pos + prefix.size(); j < err.size(); ++j) {
+        if (err[j] >= '0' && err[j] <= '9') port += err[j];
+        else break;
+      }
+      if (!port.empty()) return "127.0.0.1:" + port;
+    }
+    int wstatus = 0;
+    pid_t w = ::waitpid(sp.pid, &wstatus, WNOHANG);
+    if (w == sp.pid) {
+      std::cerr << "Gateway exited early. stderr:\n" << err << "\n";
+      std::exit(1);
+    }
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+  }
+  std::cerr << "Gateway did not report a listen address. stderr:\n"
+            << read_file(stderr_path) << "\n";
+  std::exit(1);
+}
+
+// ---------------------------------------------------------------------------
+// Bounded RPC retry: gRPC 1.30 client channels against a freshly spawned
+// server can hit a spurious first-handshake failure (certificate verify
+// failed) followed by reconnect backoff, so the first RPC on a new channel
+// may transiently fail with UNAVAILABLE/UNKNOWN. The Gateway itself is
+// ready; retry a bounded number of times before asserting.
+// ---------------------------------------------------------------------------
+template <typename Fn>
+grpc::Status retry_rpc(Fn&& fn, int max_attempts = 10) {
+  grpc::Status st = fn();
+  int attempts = 1;
+  while ((st.error_code() == grpc::StatusCode::UNAVAILABLE ||
+          st.error_code() == grpc::StatusCode::UNKNOWN) &&
+         attempts < max_attempts) {
+    std::this_thread::sleep_for(std::chrono::milliseconds(200));
+    st = fn();
+    ++attempts;
+  }
+  return st;
+}
+
+// ---------------------------------------------------------------------------
+// Find a free TCP port on loopback. The Gateway binds it immediately after;
+// the small race window is acceptable for a test (leaked listeners are
+// impossible since the child dies with the test process).
+// ---------------------------------------------------------------------------
+std::string find_free_loopback_port() {
+  int fd = ::socket(AF_INET, SOCK_STREAM, 0);
+  CHECK(fd >= 0, "find_free_loopback_port: socket failed");
+  sockaddr_in addr{};
+  addr.sin_family = AF_INET;
+  addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+  addr.sin_port = 0;
+  int rc = ::bind(fd, reinterpret_cast<sockaddr*>(&addr), sizeof(addr));
+  CHECK(rc == 0, "find_free_loopback_port: bind failed");
+  socklen_t len = sizeof(addr);
+  rc = ::getsockname(fd, reinterpret_cast<sockaddr*>(&addr), &len);
+  CHECK(rc == 0, "find_free_loopback_port: getsockname failed");
+  int port = ntohs(addr.sin_port);
+  ::close(fd);
+  return "127.0.0.1:" + std::to_string(port);
 }
 
 // ---------------------------------------------------------------------------
@@ -262,7 +398,8 @@ bool wait_for_ready(const std::string& endpoint, const std::string& ca,
       req.set_binding_generation(1);
       req.set_model_control_incarnation_id("incarnation-blackbox-0001");
       masi::edge::v1::BindingReadback resp;
-      auto status = edge.GetBinding(req, &resp, 1000);
+      auto status = retry_rpc(
+          [&] { return edge.GetBinding(req, &resp, 1000); }, 3);
       if (status.ok()) return true;
     } catch (...) {
       // FakeEdge constructor may throw if channel not ready; keep trying.
@@ -288,17 +425,23 @@ void run_e2e_tests() {
   // Generate mTLS bundle.
   auto mtls = generate_mtls_bundle(td.path());
 
-  // Build startup envelope and model repository.
-  std::string envelope_path = write_temp_file(td.path(), "envelope.json",
-                                               build_test_envelope());
-  std::string repo_path = build_test_repository(td.child("modelrepo"));
+  // Build startup envelope and model repository (real testkit fixture with
+  // exact digests and a valid envelope digest).
+  std::string repo_path = td.child("modelrepo");
+  TestRepoDigests digests = build_test_repository(repo_path);
+  std::string envelope_json =
+      build_test_envelope(digests.model_digest, digests.closure_digest);
+  std::string envelope_digest =
+      nlohmann::json::parse(envelope_json)["envelope_digest"];
+  std::string envelope_path =
+      write_temp_file(td.path(), "envelope.json", envelope_json);
   std::string config_json = build_test_config(
       envelope_path, repo_path, mtls.ca_path, mtls.server_cert, mtls.server_key);
   std::string config_path = write_temp_file(td.path(), "config.json", config_json);
 
-  // Pick a fixed listen port (ephemeral range).
-  std::string listen_addr = "127.0.0.1:18443";
-  // Patch the config with the fixed listen address.
+  // Pick a free loopback port so a stale listener from an earlier run can
+  // never hijack this run's connections.
+  std::string listen_addr = find_free_loopback_port();
   {
     nlohmann::json j = nlohmann::json::parse(config_json);
     j["gateway_listen"] = listen_addr;
@@ -310,18 +453,12 @@ void run_e2e_tests() {
   std::string stdout_path = td.child("gateway.stdout");
   std::string stderr_path = td.child("gateway.stderr");
   auto sp = spawn(gateway_bin, {config_path}, stdout_path, stderr_path);
+  std::string grpc_endpoint = listen_addr;
+  std::cerr << "Gateway target: " << grpc_endpoint << "\n";
 
-  // Wait for readiness.
-  std::string endpoint = std::string("inference.test:") +
-                         std::to_string(18443);
-  // gRPC target format is host:port; for mTLS SAN we use DNS:inference.test.
-  // Use 127.0.0.1 for the actual connection but override target name via
-  // grpc channel override (not exposed here). For the test we use the IP
-  // directly and rely on the SAN matching; if the SAN does not match, mTLS
-  // fails — which is itself a valid check.
-  std::string grpc_endpoint = "127.0.0.1:18443";
   bool ready = false;
-  // Give the Gateway a moment to start.
+  // Give the Gateway a moment to start. Require a real successful GetBinding
+  // (a spurious first-handshake failure must not count as readiness).
   for (int i = 0; i < 50 && !ready; ++i) {
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
     try {
@@ -333,8 +470,8 @@ void run_e2e_tests() {
       req.set_binding_generation(1);
       req.set_model_control_incarnation_id("incarnation-blackbox-0001");
       masi::edge::v1::BindingReadback resp;
-      auto status = edge.GetBinding(req, &resp, 1000);
-      if (status.ok() || status.error_code() != grpc::StatusCode::UNAVAILABLE) {
+      auto status = retry_rpc([&] { return edge.GetBinding(req, &resp, 1000); }, 3);
+      if (status.ok()) {
         ready = true;
       }
     } catch (...) {
@@ -373,7 +510,7 @@ void run_e2e_tests() {
     req.set_binding_generation(1);
     req.set_model_control_incarnation_id("incarnation-blackbox-0001");
     masi::edge::v1::BindingReadback resp;
-    auto status = edge.GetBinding(req, &resp, 2000);
+    auto status = retry_rpc([&] { return edge.GetBinding(req, &resp, 2000); });
     CHECK(status.ok(), "GetBinding failed: " + status.error_message());
     CHECK(resp.logical_pool_id() == "pool-blackbox-0001",
           "GetBinding: logical_pool_id mismatch");
@@ -385,27 +522,41 @@ void run_e2e_tests() {
   }
 
   // -----------------------------------------------------------------------
-  // Test 2: Infer with valid batch from golden
+  // Test 2: Infer with valid batch from golden, through the real serving
+  // path (Gateway -> Triton -> result). The route must match the blackbox
+  // binding exactly to pass the result fence.
   // -----------------------------------------------------------------------
   {
     FakeEdge edge(grpc_endpoint, mtls.ca_path, mtls.client_cert, mtls.client_key);
     masi::edge::v1::InferenceInputBatch batch = build_valid_batch_from_golden();
+    batch.set_request_id("request-blackbox-0001");
+    auto* route = batch.mutable_route();
+    route->set_shard_id("shard-blackbox-0001");
+    route->set_model_control_incarnation_id("incarnation-blackbox-0001");
+    route->set_logical_pool_id("pool-blackbox-0001");
+    route->set_pool_generation(1);
+    route->set_binding_generation(1);
+    route->set_route_epoch(1);
+    route->set_runtime_profile("model-runtime-central-cpu/v1");
+    route->set_wire_profile("inference-central-grpc-batch/v1");
+    route->set_startup_envelope_digest(envelope_digest);
     masi::edge::v1::InferenceResultBatch resp;
-    auto status = edge.Infer(batch, &resp, 2000);
-    // The result may or may not be OK depending on whether Triton is running;
-    // but the Gateway must respond (not hang/crash).
-    CHECK(status.error_code() != grpc::StatusCode::UNAVAILABLE ||
-              status.error_code() != grpc::StatusCode::UNKNOWN,
-          "Infer: Gateway crashed or unavailable");
-    if (status.ok()) {
-      CHECK(resp.schema_version() == "inference-central-grpc-batch/v1",
-            "Infer: result schema_version wrong");
-      std::cerr << "Infer valid batch OK, records=" << resp.records_size()
-                << "\n";
-    } else {
-      std::cerr << "Infer valid batch returned non-OK (expected if Triton is "
-                   "not running): " << status.error_message() << "\n";
-    }
+    auto status = retry_rpc([&] { return edge.Infer(batch, &resp, 5000); });
+    CHECK(status.ok(), "Infer valid batch failed: " + status.error_message());
+    CHECK(resp.schema_version() == "inference-central-grpc-batch/v1",
+          "Infer: result schema_version wrong");
+    CHECK(resp.records_size() == 1, "Infer: expected 1 result record");
+    const auto& rec = resp.records(0);
+    CHECK(rec.execution_status() == masi::edge::v1::INFERENCE_EXECUTION_STATUS_OK,
+          "Infer: record not OK: " + rec.error_code());
+    CHECK(rec.scores_size() == 2, "Infer: expected 2 scores");
+    // Scores [-33.4, 33.4] (0.5*sum - 0.1 over [5,10,3,16,32,1]) softmax to
+    // ~[0,1] -> class 1 -> ALERT. This asserts the full adapter path.
+    CHECK(rec.decision() == "ALERT", "Infer: expected ALERT decision, got " +
+                                         rec.decision());
+    std::cerr << "Infer valid batch OK through Triton, scores=["
+              << rec.scores(0) << ", " << rec.scores(1)
+              << "] decision=" << rec.decision() << "\n";
   }
 
   // -----------------------------------------------------------------------
@@ -438,7 +589,7 @@ void run_e2e_tests() {
       rec->set_dtype("uint64-le");
     }
     masi::edge::v1::InferenceResultBatch resp;
-    auto status = edge.Infer(batch, &resp, 2000);
+    auto status = retry_rpc([&] { return edge.Infer(batch, &resp, 2000); });
     CHECK(!status.ok(),
           "Infer: oversize batch must not succeed");
     std::cerr << "Oversize batch rejected: " << status.error_message() << "\n";
@@ -457,13 +608,37 @@ void run_e2e_tests() {
     route->set_wire_profile("inference-central-grpc-batch/v2");
     route->set_runtime_profile("model-runtime-central-cpu/v1");
     masi::edge::v1::InferenceResultBatch resp;
-    auto status = edge.Infer(batch, &resp, 2000);
+    auto status = retry_rpc([&] { return edge.Infer(batch, &resp, 2000); });
     CHECK(!status.ok(), "Infer: unknown major must not succeed");
     std::cerr << "Unknown major rejected: " << status.error_message() << "\n";
   }
 
   // -----------------------------------------------------------------------
-  // Test 5: Plaintext rejected
+  // Test 5: Empty batch rejected cleanly (no protobuf CHECK, no crash)
+  // -----------------------------------------------------------------------
+  {
+    FakeEdge edge(grpc_endpoint, mtls.ca_path, mtls.client_cert, mtls.client_key);
+    masi::edge::v1::InferenceInputBatch batch;
+    batch.set_schema_version("inference-central-grpc-batch/v1");
+    batch.set_request_id("req-empty-001");
+    batch.set_deadline_unix_ms(9999999999999LL);
+    auto* route = batch.mutable_route();
+    route->set_shard_id("shard-001");
+    route->set_model_control_incarnation_id("inc-001");
+    route->set_logical_pool_id("pool-001");
+    route->set_pool_generation(1);
+    route->set_binding_generation(1);
+    route->set_route_epoch(1);
+    route->set_runtime_profile("model-runtime-central-cpu/v1");
+    route->set_wire_profile("inference-central-grpc-batch/v1");
+    masi::edge::v1::InferenceResultBatch resp;
+    auto status = retry_rpc([&] { return edge.Infer(batch, &resp, 2000); });
+    CHECK(!status.ok(), "Infer: empty batch must not succeed");
+    std::cerr << "Empty batch rejected: " << status.error_message() << "\n";
+  }
+
+  // -----------------------------------------------------------------------
+  // Test 6: Plaintext rejected
   // -----------------------------------------------------------------------
   {
     FakeEdge plaintext_edge(grpc_endpoint, 0);  // plaintext
@@ -477,7 +652,7 @@ void run_e2e_tests() {
   }
 
   // -----------------------------------------------------------------------
-  // Test 6: Wrong identity rejected (optional — may pass TLS but fail app)
+  // Test 7: Wrong identity rejected (optional — may pass TLS but fail app)
   // -----------------------------------------------------------------------
   {
     FakeEdge wrong_edge(grpc_endpoint, mtls.ca_path, mtls.wrong_cert, mtls.wrong_key);
@@ -503,7 +678,7 @@ void run_e2e_tests() {
   }
 
   // -----------------------------------------------------------------------
-  // Test 7: SIGTERM graceful shutdown exit 0
+  // Test 8: SIGTERM graceful shutdown exit 0
   // -----------------------------------------------------------------------
   std::this_thread::sleep_for(std::chrono::milliseconds(200));
   signal_subprocess(sp, SIGTERM);

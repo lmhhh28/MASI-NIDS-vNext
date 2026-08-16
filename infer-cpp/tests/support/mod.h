@@ -195,10 +195,13 @@ inline void run_openssl(const std::vector<std::string>& argv,
   args.push_back(nullptr);
   int rc = std::system(nullptr);  // no-op to silence warning
   (void)rc;
+  // Build a shell command with each argument single-quoted (CNs contain
+  // spaces); arguments never contain single quotes themselves.
   std::string cmd = "openssl";
   for (const auto& a : argv) {
-    cmd += " ";
+    cmd += " '";
     cmd += a;
+    cmd += "'";
   }
   cmd += " >/dev/null 2>&1";
   int status = std::system(cmd.c_str());
@@ -216,14 +219,15 @@ inline MtlsBundle generate_mtls_bundle(const std::string& dir) {
                "-keyout", ca_key, "-out", b.ca_path},
               "generate CA");
 
-  // Server leaf with DNS:inference.test SAN.
+  // Server leaf with DNS:inference.test + IP:127.0.0.1 SANs. The blackbox
+  // test connects over loopback by IP, so the SAN must cover 127.0.0.1.
   b.server_cert = dir + "/inference-server.pem";
   b.server_key = dir + "/inference-server.key";
   std::string server_csr = dir + "/inference-server.csr";
   run_openssl({"req", "-new", "-newkey", "rsa:3072", "-nodes", "-sha256",
                "-subj", "/CN=inference-server",
                "-addext", "extendedKeyUsage=serverAuth",
-               "-addext", "subjectAltName=DNS:inference.test",
+               "-addext", "subjectAltName=DNS:inference.test,IP:127.0.0.1",
                "-keyout", b.server_key, "-out", server_csr},
               "generate server CSR");
   run_openssl({"x509", "-req", "-sha256", "-days", "2", "-set_serial", "201",

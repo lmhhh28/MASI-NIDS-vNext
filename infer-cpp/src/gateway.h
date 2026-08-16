@@ -70,6 +70,7 @@ class CentralInferenceServiceImpl final
   std::shared_ptr<TritonClient> triton_;
   NumericProfile numeric_;
   WireProfile profile_;
+  std::string triton_model_name_;  // exact Triton model name from the closure
 
   mutable std::mutex mu_;
   std::atomic<bool> accepting_{true};

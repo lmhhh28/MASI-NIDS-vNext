@@ -57,9 +57,11 @@ const std::vector<std::string>& result_fence_dimensions() {
 
 void assert_schema_profile(const std::string& schema_version,
                             const std::string& wire_profile) {
-  if (schema_version != "inference-central-grpc-batch-profile/v1")
+  // The request batch carries the wire profile id as its schema_version
+  // (frozen golden valid-batch-v1.json). Any other value, including an
+  // unknown major, is rejected before complete parse.
+  if (schema_version != "inference-central-grpc-batch/v1")
     throw error::Exception(error::Code::kIncompatibleContract, "schema_version unsupported: " + schema_version);
-  // profile_id major must be 1; minor is closed.
   if (wire_profile != "inference-central-grpc-batch/v1")
     throw error::Exception(error::Code::kIncompatibleContract, "wire_profile unsupported: " + wire_profile);
 }

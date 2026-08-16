@@ -1,5 +1,7 @@
 #include "ort_session.h"
 
+#include <cpu_provider_factory.h>  // OrtSessionOptionsAppendExecutionProvider_CPU
+
 #include <algorithm>
 #include <cstring>
 #include <numeric>
@@ -58,12 +60,18 @@ void OrtSession::open(const OrtSessionConfig& cfg) {
                                     cfg.intra_op_affinity.c_str());
   }
 
-  // CPU EP must be the only one. use_arena pinned to 1 by contract.
-  // ORT 1.19 C++ wrapper uses AppendExecutionProvider with provider name.
-  std::unordered_map<std::string, std::string> cpu_opts;
-  if (cfg.enable_cpu_arena) cpu_opts["use_arena"] = "1";
-  else cpu_opts["use_arena"] = "0";
-  session_options_.AppendExecutionProvider("CPUExecutionProvider", cpu_opts);
+  // CPU EP must be the only one. The string-keyed AppendExecutionProvider only
+  // supports the providers registered under the string registry (in this
+  // CPU-only archive: OPENVINO/SNPE/XNNPACK/QNN/WEBNN/AZURE), so pin the CPU
+  // EP through the explicit typed C API with the contract-fixed arena flag.
+  // use_arena=1 by contract; enable_cpu_arena=false disables the arena.
+  Ort::Status cpu_status(
+      OrtSessionOptionsAppendExecutionProvider_CPU(
+          session_options_, cfg.enable_cpu_arena ? 1 : 0));
+  if (cpu_status) {
+    throw error::Exception(error::Code::kProviderPartitionDrift,
+                           "append CPU EP failed: " + cpu_status.GetErrorMessage());
+  }
 
   // Load the model from file (no in-memory buffer, no remote path).
   session_ = Ort::Session(env_, cfg.model_path.c_str(), session_options_);

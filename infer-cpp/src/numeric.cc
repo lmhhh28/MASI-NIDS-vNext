@@ -91,11 +91,27 @@ NumericResult apply_output_adapter(const std::vector<float>& raw_scores,
   assert_output_finite(raw_scores);
   assert_class_order(raw_scores, p);
 
-  NumericResult r;
-  r.scores.resize(p.class_order.size());
-
   // Reorder raw_scores into canonical class order.
-  for (const auto& c : p.class_order) r.scores[c.label] = raw_scores[c.output_index];
+  std::vector<float> scores(p.class_order.size());
+  for (const auto& c : p.class_order) scores[c.label] = raw_scores[c.output_index];
+
+  // If the profile declares a softmax output, the model's raw logits are
+  // converted to probabilities (stable softmax) before the deterministic
+  // OOD/abstain/decision thresholds are applied. The thresholds in the
+  // profile are probability-scale when softmax_output is set.
+  if (p.softmax_output) {
+    const float maxv = *std::max_element(scores.begin(), scores.end());
+    double sum = 0.0;
+    for (float s : scores) sum += std::exp(static_cast<double>(s) - maxv);
+    if (!(sum > 0.0) || !std::isfinite(sum))
+      throw error::Exception(error::Code::kBufferOverflow, "softmax sum not finite");
+    for (float& s : scores)
+      s = static_cast<float>(std::exp(static_cast<double>(s) - maxv) / sum);
+    assert_output_finite(scores);
+  }
+
+  NumericResult r;
+  r.scores = scores;
 
   // argmax over canonical scores.
   uint32_t argmax = 0;
@@ -117,16 +133,20 @@ NumericResult apply_output_adapter(const std::vector<float>& raw_scores,
   // Deterministic abstain: max score below the abstain threshold.
   r.abstain = (best < p.abstain_threshold);
 
+  // Decision follows the canonical class order: the argmax class's name,
+  // gated by the explicit thresholds. ALERT is only emitted when the "alert"
+  // class wins AND its score reaches the alert threshold; otherwise the
+  // decision falls back to BENIGN (no false alerts below threshold).
+  const std::string argmax_name = p.class_order[argmax].name;
   if (r.abstain) {
     r.decision = "ABSTAIN";
-  } else if (!r.out_of_distribution && best >= p.alert_threshold) {
-    r.decision = "ALERT";
-  } else if (!r.out_of_distribution) {
-    r.decision = "BENIGN";
-  } else {
-    // OOD but above abstain: deterministic abstain-equivalent.
+  } else if (r.out_of_distribution) {
     r.decision = "ABSTAIN";
     r.abstain = true;
+  } else if (argmax_name == "alert" && best >= p.alert_threshold) {
+    r.decision = "ALERT";
+  } else {
+    r.decision = "BENIGN";
   }
 
   r.quality = r.out_of_distribution ? "INVALID" : "VALID";

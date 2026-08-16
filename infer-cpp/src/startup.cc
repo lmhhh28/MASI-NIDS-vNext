@@ -116,7 +116,14 @@ StartupResult run_startup(const Config& cfg, int64_t now_unix_ms) {
       triton.connect(to);
       if (!triton.is_server_ready())
         finish_stage(s, false, "", "triton server not ready");
-      triton_meta = triton.model_metadata(env.model_revision_digest, "1");
+      // The exact Triton model name comes from the digest-pinned closure
+      // (model directory name), never from request/envelope data. Fail
+      // closed unless the pinned model is actually loaded with metadata.
+      const std::string model_name = resolve_triton_model_name(cfg.model_repository_path);
+      triton_meta = triton.model_metadata(model_name, "1");
+      if (triton_meta.name != model_name || triton_meta.version != "1" ||
+          triton_meta.inputs.empty() || triton_meta.outputs.empty())
+        finish_stage(s, false, "", "triton model metadata mismatch for " + model_name);
     } catch (const error::Exception& e) {
       finish_stage(s, false, "", e.what());
     }
@@ -130,7 +137,7 @@ StartupResult run_startup(const Config& cfg, int64_t now_unix_ms) {
   {
     auto s = make_stage("warmup-numeric-self-test");
     OrtSessionConfig oc;
-    oc.model_path = cfg.model_repository_path + "/model.onnx";
+    oc.model_path = resolve_model_path(cfg.model_repository_path);
     oc.intra_op_num_threads = cfg.intra_op_num_threads;
     oc.inter_op_num_threads = cfg.inter_op_num_threads;
     oc.intra_op_affinity = cfg.intra_op_affinity;

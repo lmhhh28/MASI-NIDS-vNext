@@ -564,16 +564,78 @@ void test_repository_closure_valid() {
 }
 
 // ---------------------------------------------------------------------------
+// Test: numeric::apply_output_adapter() softmax conversion
+// ---------------------------------------------------------------------------
+void test_output_adapter_softmax() {
+  using masi::inf::apply_output_adapter;
+  using masi::inf::ClassLabel;
+  using masi::inf::NumericProfile;
+  using masi::inf::NumericResult;
+
+  NumericProfile p;
+  p.abs_tol = 1e-6;
+  p.rel_tol = 1e-6;
+  p.ulp_tol = 4;
+  p.ood_threshold = 1.0;
+  p.abstain_threshold = 0.0;
+  p.alert_threshold = 0.5;
+  p.softmax_output = true;
+  ClassLabel benign;
+  benign.label = 0;
+  benign.name = "benign";
+  benign.output_index = 0;
+  ClassLabel alert;
+  alert.label = 1;
+  alert.name = "alert";
+  alert.output_index = 1;
+  p.class_order = {benign, alert};
+
+  // Equal logits -> 0.5/0.5 probabilities, no abstain, BENIGN (max < 0.5).
+  {
+    NumericResult r = apply_output_adapter({0.0f, 0.0f}, p);
+    CHECK(r.scores.size() == 2, "softmax: scores size wrong");
+    CHECK(std::fabs(r.scores[0] - 0.5f) < 1e-6 && std::fabs(r.scores[1] - 0.5f) < 1e-6,
+          "softmax: equal logits must yield 0.5/0.5");
+    CHECK(!r.abstain, "softmax: equal logits must not abstain");
+    CHECK(r.decision == "BENIGN", "softmax: equal logits must be BENIGN");
+    CHECK(!r.out_of_distribution, "softmax: probabilities cannot be OOD");
+  }
+  // Logits [-10, 10] -> probabilities ~[0, 1], ALERT (class 1).
+  {
+    NumericResult r = apply_output_adapter({-10.0f, 10.0f}, p);
+    CHECK(r.predicted_label == 1, "softmax: argmax must be class 1");
+    CHECK(r.scores[1] > 0.99f, "softmax: class 1 probability must be ~1");
+    CHECK(r.decision == "ALERT", "softmax: confident class 1 must be ALERT");
+  }
+  // Logits [-10, -20] -> class 0 wins, BENIGN.
+  {
+    NumericResult r = apply_output_adapter({-10.0f, -20.0f}, p);
+    CHECK(r.predicted_label == 0, "softmax: argmax must be class 0");
+    CHECK(r.decision == "BENIGN", "softmax: confident class 0 must be BENIGN");
+  }
+  // softmax_output=false keeps raw scores and applies logit-scale thresholds.
+  {
+    NumericProfile q = p;
+    q.softmax_output = false;
+    q.ood_threshold = 0.0;
+    NumericResult r = apply_output_adapter({1.0f, 2.0f}, q);
+    CHECK(r.out_of_distribution, "raw mode: score above OOD threshold is OOD");
+    CHECK(r.decision == "ABSTAIN", "raw mode: OOD must abstain");
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Test: admission reject unknown wire profile major
 // ---------------------------------------------------------------------------
 void test_admission_unknown_major_rejected() {
   masi::inf::Config cfg;
   masi::inf::WireProfile profile;
-  masi::inf::assert_schema_profile("inference-central-grpc-batch-profile/v1",
+  // Golden semantics: the batch schema_version is the wire profile id.
+  masi::inf::assert_schema_profile("inference-central-grpc-batch/v1",
                                     "inference-central-grpc-batch/v1");
   bool threw = false;
   try {
-    masi::inf::assert_schema_profile("inference-central-grpc-batch-profile/v1",
+    masi::inf::assert_schema_profile("inference-central-grpc-batch/v2",
                                       "inference-central-grpc-batch/v2");
   } catch (const masi::inf::error::Exception&) {
     threw = true;
@@ -604,7 +666,7 @@ void test_admission_oversize_rejected() {
   masi::inf::WireProfile profile;
   std::vector<uint8_t> feature(48, 0);
   auto d = masi::inf::admit(
-      cfg, profile, "req-001", "inference-central-grpc-batch-profile/v1",
+      cfg, profile, "req-001", "inference-central-grpc-batch/v1",
       "inference-central-grpc-batch/v1", 9999999999999LL,
       profile.maximum_request_bytes + 1, 1, "shard-001", 1, 1, 1,
       "inc-001", feature, {1, 6}, "uint64-le", 8);
@@ -625,6 +687,7 @@ int main() {
   test_nan_inf_rejection();
   test_output_finite_rejection();
   test_float_tolerance();
+  test_output_adapter_softmax();
   test_config_unknown_field_rejected();
   test_config_valid_loads();
   test_config_unsupported_runtime_profile();

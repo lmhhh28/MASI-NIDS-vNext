@@ -81,6 +81,7 @@ TritonModelMetadata TritonClient::model_metadata(const std::string& name,
   inference::ModelMetadataResponse resp;
   auto st = stub_->ModelMetadata(&ctx, req, &resp);
   if (!st.ok()) return m;
+  m.raw_metadata = resp.SerializeAsString();
   m.name = resp.name();
   if (resp.versions_size() > 0) m.version = resp.versions(0);
   for (const auto& in : resp.inputs()) m.inputs.push_back(in.name());

@@ -21,7 +21,7 @@
         "input_id": "input-golden-0001",
         "event_idempotency_key": "event-golden-0001",
         "window_id": "window-golden-0001",
-        "feature_tensor_hex": "05000000000000000a000000000000000300000000000000100000000000000020000000000000000010000000000",
+        "feature_tensor_hex": "05000000000000000a000000000000000300000000000000100000000000000020000000000000000100000000000000",
         "shape": [1, 6],
         "dtype": "uint64-le",
         "final_window": true,
@@ -40,7 +40,7 @@
     "record_status": "OK",
     "scores_stable": true,
     "predicted_label_stable": true,
-    "decision": "benign",
+    "decision": "alert",
     "canonical_event_writable": true,
     "fenced": false
   },

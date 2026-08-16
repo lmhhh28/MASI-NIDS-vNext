@@ -83,6 +83,43 @@ std::vector<ClosureMember> load_closure_manifest(const std::string& repository_r
   return out;
 }
 
+// Internal: rel_path of the unique `role == "model"` closure member.
+// Throws kRepositoryClosureViolation unless exactly one is declared.
+std::string model_member_rel_path(const std::string& repository_root) {
+  std::string model_rel;
+  for (const auto& m : load_closure_manifest(repository_root)) {
+    if (m.role != "model") continue;
+    if (!model_rel.empty())
+      throw error::Exception(error::Code::kRepositoryClosureViolation,
+                             "closure declares multiple model members");
+    model_rel = m.rel_path;
+  }
+  if (model_rel.empty())
+    throw error::Exception(error::Code::kRepositoryClosureViolation,
+                           "closure declares no model member");
+  return model_rel;
+}
+
+std::string resolve_model_path(const std::string& repository_root) {
+  return (fs::path(repository_root) / model_member_rel_path(repository_root)).string();
+}
+
+std::string resolve_triton_model_name(const std::string& repository_root) {
+  // Triton repository layout: <model_name>/<version>/model.onnx. The model
+  // name is the first path component of the closure model member's rel_path
+  // (already validated: relative, no "..", no leading '/').
+  const std::string model_rel = model_member_rel_path(repository_root);
+  const size_t slash = model_rel.find('/');
+  if (slash == std::string::npos)
+    throw error::Exception(error::Code::kRepositoryClosureViolation,
+                           "closure model member lacks <name>/<version> dirs: " + model_rel);
+  const std::string name = model_rel.substr(0, slash);
+  if (name.empty() || name == "." || name == "..")
+    throw error::Exception(error::Code::kRepositoryClosureViolation,
+                           "closure model member name invalid: " + name);
+  return name;
+}
+
 ClosureVerification verify_repository_closure(const std::string& repository_root,
                                               const std::string& expected_identity,
                                               const std::string& expected_closure_digest) {
