@@ -14,7 +14,7 @@ namespace fs = std::filesystem;
 
 namespace {
 
-bool is_symlink(const fs::path& p) {
+bool is_symlink_path(const fs::path& p) {
   std::error_code ec;
   if (fs::is_symlink(p, ec)) return true;
   // Also reject symlinks encountered during iteration.
@@ -48,7 +48,7 @@ std::vector<ClosureMember> load_closure_manifest(const std::string& repository_r
   fs::path root(repository_root);
   fs::path manifest = root / "closure-manifest.json";
   std::error_code ec;
-  if (!fs::exists(manifest, ec) || is_symlink(manifest) || !is_readonly(manifest))
+  if (!fs::exists(manifest, ec) || is_symlink_path(manifest) || !is_readonly(manifest))
     throw error::Exception(error::Code::kRepositoryClosureViolation, "closure-manifest.json missing/symlink/writable");
   if (fs::file_size(manifest, ec) > 1048576)
     throw error::Exception(error::Code::kRepositoryClosureViolation, "closure-manifest.json exceeds 1MiB");
@@ -91,7 +91,7 @@ ClosureVerification verify_repository_closure(const std::string& repository_root
 
   fs::path root(repository_root);
   std::error_code ec;
-  if (!fs::is_directory(root, ec) || is_symlink(root) || !is_readonly(root))
+  if (!fs::is_directory(root, ec) || is_symlink_path(root) || !is_readonly(root))
     throw error::Exception(error::Code::kRepositoryClosureViolation, "repository root not readonly dir or is symlink");
 
   // 1. manifest must declare exact identity + closure digest.
@@ -117,7 +117,7 @@ ClosureVerification verify_repository_closure(const std::string& repository_root
   for (auto it = fs::recursive_directory_iterator(root, fs::directory_options::none, ec);
        it != fs::recursive_directory_iterator(); it.increment(ec)) {
     const auto& entry = *it;
-    if (is_symlink(entry.path()))
+    if (is_symlink_path(entry.path()))
       throw error::Exception(error::Code::kRepositoryClosureViolation, "symlink in repository: " + entry.path().string());
     if (entry.is_regular_file(ec)) {
       if (!is_readonly(entry.path()))
@@ -137,7 +137,7 @@ ClosureVerification verify_repository_closure(const std::string& repository_root
       v.missing.push_back(m.rel_path);
       continue;
     }
-    if (is_symlink(p) || !is_readonly(p))
+    if (is_symlink_path(p) || !is_readonly(p))
       throw error::Exception(error::Code::kRepositoryClosureViolation, "member not readonly/symlink: " + m.rel_path);
     const std::string d = sha256_file(p.string());
     member_digests.push_back(d);

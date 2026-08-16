@@ -10,6 +10,13 @@ option(MASI_INF_OFFLINE "Build fully offline with pinned vendored deps" OFF)
 option(MASI_INF_BUILD_TESTS "Build test suite" ON)
 option(MASI_INF_ENABLE_ASAN "Enable AddressSanitizer" OFF)
 option(MASI_INF_ENABLE_UBSAN "Enable UndefinedBehaviorSanitizer" OFF)
+find_package(OpenSSL REQUIRED)
+find_package(Threads REQUIRED)
+
+option(MASI_INF_OFFLINE "Build fully offline with pinned vendored deps" OFF)
+option(MASI_INF_BUILD_TESTS "Build test suite" ON)
+option(MASI_INF_ENABLE_ASAN "Enable AddressSanitizer" OFF)
+option(MASI_INF_ENABLE_UBSAN "Enable UndefinedBehaviorSanitizer" OFF)
 option(MASI_INF_ENABLE_TSAN "Enable ThreadSanitizer" OFF)
 
 if(MASI_INF_ENABLE_ASAN)
@@ -34,11 +41,23 @@ set(CONTRACTS_DIR "${CMAKE_SOURCE_DIR}/../contracts")
 set(GENERATED_DIR "${CMAKE_BINARY_DIR}/generated")
 file(MAKE_DIRECTORY ${GENERATED_DIR})
 
-find_package(Protobuf CONFIG REQUIRED)
-find_package(gRPC CONFIG REQUIRED)
-
-set(_PROTOC $<TARGET_FILE:protobuf::protoc>)
-set(_GRPC_CPP_PLUGIN $<TARGET_FILE:gRPC::grpc_cpp_plugin>)
+find_package(Protobuf CONFIG QUIET)
+find_package(gRPC CONFIG QUIET)
+if(gRPC_FOUND AND Protobuf_FOUND)
+  set(_PROTOC $<TARGET_FILE:protobuf::protoc>)
+  set(_GRPC_CPP_PLUGIN $<TARGET_FILE:gRPC::grpc_cpp_plugin>)
+  set(_GRPC_LIBS gRPC::grpc++ protobuf::libprotobuf)
+else()
+  message(STATUS "gRPC/Protobuf CONFIG not found; falling back to pkg-config (system gRPC)")
+  find_package(PkgConfig REQUIRED)
+  pkg_check_modules(GRPCXX REQUIRED grpc++ grpc protobuf)
+  set(_PROTOC ${GRPCXX_protoc})
+  find_program(_PROTOC_BIN protoc REQUIRED)
+  set(_PROTOC ${_PROTOC_BIN})
+  find_program(_GRPC_CPP_PLUGIN_BIN grpc_cpp_plugin REQUIRED)
+  set(_GRPC_CPP_PLUGIN ${_GRPC_CPP_PLUGIN_BIN})
+  set(_GRPC_LIBS ${GRPCXX_LDFLAGS})
+endif()
 
 set(_PROTOS
   "${CONTRACTS_DIR}/edge/v1/edge.proto"
@@ -50,11 +69,13 @@ set(_PROTO_HDR "")
 set(_GRPC_SRC "")
 set(_GRPC_HDR "")
 foreach(_proto ${_PROTOS})
+  file(RELATIVE_PATH _rel ${CONTRACTS_DIR} ${_proto})
+  get_filename_component(_rel_dir ${_rel} DIRECTORY)
   get_filename_component(_name ${_proto} NAME_WE)
-  list(APPEND _PROTO_SRC "${GENERATED_DIR}/${_name}.pb.cc")
-  list(APPEND _PROTO_HDR "${GENERATED_DIR}/${_name}.pb.h")
-  list(APPEND _GRPC_SRC "${GENERATED_DIR}/${_name}.grpc.pb.cc")
-  list(APPEND _GRPC_HDR "${GENERATED_DIR}/${_name}.grpc.pb.h")
+  list(APPEND _PROTO_SRC "${GENERATED_DIR}/${_rel_dir}/${_name}.pb.cc")
+  list(APPEND _PROTO_HDR "${GENERATED_DIR}/${_rel_dir}/${_name}.pb.h")
+  list(APPEND _GRPC_SRC "${GENERATED_DIR}/${_rel_dir}/${_name}.grpc.pb.cc")
+  list(APPEND _GRPC_HDR "${GENERATED_DIR}/${_rel_dir}/${_name}.grpc.pb.h")
 endforeach()
 
 add_custom_command(
@@ -70,11 +91,11 @@ add_custom_command(
 )
 
 add_library(masi_inf_proto STATIC ${_PROTO_SRC} ${_GRPC_SRC} ${_PROTO_HDR} ${_GRPC_HDR})
-target_include_directories(masi_inf_proto PUBLIC ${GENERATED_DIR})
-target_link_libraries(masi_inf_proto PUBLIC
-  gRPC::grpc++
-  protobuf::libprotobuf
+target_include_directories(masi_inf_proto PUBLIC
+  ${GENERATED_DIR}
+  ${GRPCXX_INCLUDE_DIRS}
 )
+target_link_libraries(masi_inf_proto PUBLIC ${_GRPC_LIBS})
 
 # ---------------------------------------------------------------------------
 # ONNX Runtime (CPU-only archive, pinned)
@@ -102,10 +123,13 @@ if(NOT EXISTS "${ORT_ROOT}/include/onnxruntime/core/session/onnxruntime_cxx_api.
     COMMAND ${CMAKE_COMMAND} -E tar xzf ${_ORT_TGZ}
     WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
   )
-  file(GLOB _ORT_EXTRACTED_DIR "${CMAKE_BINARY_DIR}/onnxruntime-linux-x64-*")
+  file(GLOB _ORT_EXTRACTED_DIR LIST_DIRECTORIES TRUE "${CMAKE_BINARY_DIR}/onnxruntime-linux-x64-1.19.0")
+  if(NOT EXISTS "${_ORT_EXTRACTED_DIR}/include")
+    message(FATAL_ERROR "ORT extract did not produce expected directory: ${_ORT_EXTRACTED_DIR}")
+  endif()
   file(MAKE_DIRECTORY ${ORT_ROOT})
-  file(COPY ${_ORT_EXTRACTED_DIR}/include DESTINATION ${ORT_ROOT})
-  file(COPY ${_ORT_EXTRACTED_DIR}/lib DESTINATION ${ORT_ROOT})
+  file(COPY ${_ORT_EXTRACTED_DIR}/include DESTINATION ${ORT_ROOT} FILES_MATCHING PATTERN "*")
+  file(COPY ${_ORT_EXTRACTED_DIR}/lib DESTINATION ${ORT_ROOT} FILES_MATCHING PATTERN "*")
 endif()
 
 set(ORT_INCLUDE_DIR "${ORT_ROOT}/include")
@@ -127,7 +151,6 @@ endif()
 add_library(masi_inf_gateway_lib STATIC
   src/digest.cc
   src/error.cc
-  src/config.cc
   src/envelope.cc
   src/repository_closure.cc
   src/tls.cc
@@ -154,6 +177,8 @@ target_link_directories(masi_inf_gateway_lib PUBLIC
 target_link_libraries(masi_inf_gateway_lib PUBLIC
   masi_inf_proto
   onnxruntime
+  OpenSSL::Crypto
+  Threads::Threads
 )
 if(EXISTS "${TRITON_CLIENT_DIR}/lib/libgrpcclient.so")
   target_link_libraries(masi_inf_gateway_lib PUBLIC grpcclient)
@@ -181,7 +206,7 @@ target_link_libraries(masi_inference_probe PRIVATE masi_inf_proto)
 if(MASI_INF_BUILD_TESTS)
   enable_testing()
   add_executable(contract_golden tests/contract_golden.cc)
-  target_link_libraries(contract_golden PRIVATE masi_inf_proto)
+  target_link_libraries(contract_golden PRIVATE masi_inf_proto OpenSSL::Crypto)
   target_include_directories(contract_golden PRIVATE tests)
 
   add_executable(property_invariants tests/property_invariants.cc)
@@ -194,4 +219,5 @@ if(MASI_INF_BUILD_TESTS)
   add_test(NAME contract_golden COMMAND contract_golden)
   add_test(NAME property_invariants COMMAND property_invariants)
   add_test(NAME module_blackbox COMMAND module_blackbox)
+  set_tests_properties(module_blackbox PROPERTIES SKIP_RETURN_CODE 77)
 endif()

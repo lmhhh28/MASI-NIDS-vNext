@@ -4,6 +4,7 @@
 #include <fstream>
 #include <map>
 #include <nlohmann/json.hpp>
+#include <set>
 #include <stdexcept>
 #include <string>
 #include <sys/stat.h>

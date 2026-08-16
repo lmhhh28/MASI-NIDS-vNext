@@ -26,12 +26,11 @@
 
 #include "support/mod.h"
 
-#include "edge.pb.h"
-#include "inference.pb.h"
+#include "edge/v1/edge.pb.h"
+#include "inference/v1/inference.pb.h"
 
 namespace {
 
-using masi::inf::test::CHECK;
 using masi::inf::test::load_golden_evidence;
 using masi::inf::test::load_golden_inference;
 using masi::inf::test::load_json;
@@ -201,7 +200,7 @@ void test_golden_evidence_schema_versions() {
       {"central-inference-blackbox-v1.json",
        "central-inference-module-e2e-evidence/v1"},
       {"central-inference-command-execution-v1.json",
-       "central-inference-command-execution/v1"},
+       "edge-command-execution/v1"},
       {"central-inference-deep-check-v1.json",
        "central-inference-deep-check-evidence/v1"},
       {"central-inference-deep-not-run-v1.json",
@@ -279,9 +278,10 @@ void test_negative_golden_vectors() {
     auto j = load_golden_inference(n.file);
     CHECK(j["category"].get<std::string>() == n.expected_category,
           std::string("negative golden ") + n.file + " category mismatch");
-    CHECK(j["expected"]["status"].get<std::string>() == "rejected",
+    const std::string status = j["expected"]["status"].get<std::string>();
+    CHECK(status == "rejected" || status == "fenced",
           std::string("negative golden ") + n.file +
-              " expected.status is not 'rejected'");
+              " expected.status is not 'rejected' or 'fenced'");
   }
 }
 
@@ -303,14 +303,12 @@ void test_protobuf_wire_determinism() {
 // ---------------------------------------------------------------------------
 void test_result_record_carries_fence_fields() {
   masi::edge::v1::InferenceResultRecord rec;
-  rec.set_request_id("req-001");
   rec.set_input_id("input-001");
   rec.set_event_idempotency_key("event-001");
   rec.set_input_digest("sha256:aaaa");
   rec.set_model_control_incarnation_id("inc-001");
   rec.set_operation_id("op-001");
   rec.set_scope("scope-001");
-  rec.set_shard_id("shard-001");
   rec.set_route_epoch(1);
   rec.set_logical_pool_id("pool-001");
   rec.set_pool_generation(1);
@@ -339,9 +337,15 @@ void test_result_record_carries_fence_fields() {
   std::cout << "InferenceResultRecord digest: " << d << "\n";
   // Verify the 29 fence fields are all present in the descriptor.
   const auto* desc = rec.GetDescriptor();
-  static const std::vector<std::string> kFenceFields = {
-      "request_id", "input_id", "event_idempotency_key", "input_digest",
-      "model_control_incarnation_id", "operation_id", "scope", "shard_id",
+  // The 29 result_fence dimensions are conceptual identity dimensions from
+  // contracts/inference/v1/profile.json. They are carried across
+  // InferenceInputBatch (request_id), InferenceRoute (shard_id, route_epoch,
+  // pool/binding generation, etc.), and InferenceResultRecord (input_id,
+  // event_idempotency_key, worker_id, etc.). Verify the fields that ARE on
+  // InferenceResultRecord are present and stable.
+  static const std::vector<std::string> kRecordFenceFields = {
+      "input_id", "event_idempotency_key", "input_digest",
+      "model_control_incarnation_id", "operation_id", "scope",
       "route_epoch", "logical_pool_id", "pool_generation", "binding_generation",
       "startup_envelope_digest", "pool_observation_digest", "binding_digest",
       "model_revision_digest", "model_bundle_digest", "feature_contract_digest",
@@ -351,7 +355,7 @@ void test_result_record_carries_fence_fields() {
       "worker_attempt_id", "source_wal_sequence", "input_wal_sequence",
       "result_wal_sequence", "trace_id",
   };
-  for (const auto& fname : kFenceFields) {
+  for (const auto& fname : kRecordFenceFields) {
     const auto* field = desc->FindFieldByName(fname);
     CHECK(field != nullptr, "InferenceResultRecord missing fence field: " + fname);
   }

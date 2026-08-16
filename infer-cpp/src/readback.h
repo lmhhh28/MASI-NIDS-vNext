@@ -8,7 +8,7 @@
 #include "ort_session.h"
 #include "triton_client.h"
 
-#include "edge.pb.h"
+#include "edge/v1/edge.pb.h"
 
 namespace masi::inf {
 

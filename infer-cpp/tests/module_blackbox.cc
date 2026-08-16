@@ -23,23 +23,24 @@
 #include <cstdlib>
 #include <cstring>
 #include <filesystem>
+#include <fcntl.h>
 #include <fstream>
 #include <iostream>
 #include <nlohmann/json.hpp>
 #include <sstream>
 #include <string>
 #include <sys/wait.h>
+#include <thread>
 #include <unistd.h>
 #include <vector>
 
 #include "support/mod.h"
 
-#include "edge.pb.h"
-#include "inference.pb.h"
+#include "edge/v1/edge.pb.h"
+#include "inference/v1/inference.pb.h"
 
 namespace {
 
-using masi::inf::test::CHECK;
 using masi::inf::test::TempDir;
 using masi::inf::test::FakeEdge;
 using masi::inf::test::build_valid_batch_from_golden;

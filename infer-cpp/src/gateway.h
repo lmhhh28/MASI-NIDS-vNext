@@ -10,14 +10,15 @@
 
 #include "admission.h"
 #include "config.h"
+#include "numeric.h"
 #include "ort_session.h"
 #include "readback.h"
 #include "startup.h"
 #include "triton_client.h"
 
-#include "edge.grpc.pb.h"
-#include "edge.pb.h"
-#include "inference.grpc.pb.h"
+#include "edge/v1/edge.grpc.pb.h"
+#include "edge/v1/edge.pb.h"
+#include "inference/v1/inference.grpc.pb.h"
 
 namespace masi::inf {
 
@@ -53,6 +54,9 @@ class CentralInferenceServiceImpl final
   void shutdown_complete();
   bool accepting() const noexcept;
 
+  // Bounded idempotency cache: request_id -> (input_digest, output_digest).
+  struct IdempEntry { std::string input_digest; std::string output_digest; };
+
  private:
   grpc::Status infer_one(const masi::edge::v1::InferenceRoute& route,
                          const masi::edge::v1::InferenceRecord& rec,
@@ -70,8 +74,6 @@ class CentralInferenceServiceImpl final
   mutable std::mutex mu_;
   std::atomic<bool> accepting_{true};
 
-  // Bounded idempotency cache: request_id -> (input_digest, output_digest).
-  struct IdempEntry { std::string input_digest; std::string output_digest; };
   std::unordered_map<std::string, IdempEntry> idemp_;
   static constexpr size_t kIdempCap = 1024;
 };

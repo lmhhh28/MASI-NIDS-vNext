@@ -48,8 +48,8 @@ void OrtSession::open(const OrtSessionConfig& cfg) {
   // Pinned CPU EP: arena on, sequential execution, all optimizations.
   session_options_.SetIntraOpNumThreads(cfg.intra_op_num_threads > 0 ? cfg.intra_op_num_threads : 1);
   session_options_.SetInterOpNumThreads(cfg.inter_op_num_threads > 0 ? cfg.inter_op_num_threads : 1);
-  session_options_.SetExecutionMode(OrtExecutionMode::ORT_SEQUENTIAL);
-  session_options_.SetGraphOptimizationLevel(GraphOptimizationLevel::ORT_ENABLE_ALL);
+  session_options_.SetExecutionMode(ORT_SEQUENTIAL);
+  session_options_.SetGraphOptimizationLevel(ORT_ENABLE_ALL);
 
   // Affinity string is the project-pinned per-thread placement. ORT 1.19
   // accepts the comma-separated CPU id list via session.intra_op_thread_affinities.
@@ -59,7 +59,11 @@ void OrtSession::open(const OrtSessionConfig& cfg) {
   }
 
   // CPU EP must be the only one. use_arena pinned to 1 by contract.
-  session_options_.AppendExecutionProvider_CPU(cfg.enable_cpu_arena ? 1 : 0);
+  // ORT 1.19 C++ wrapper uses AppendExecutionProvider with provider name.
+  std::unordered_map<std::string, std::string> cpu_opts;
+  if (cfg.enable_cpu_arena) cpu_opts["use_arena"] = "1";
+  else cpu_opts["use_arena"] = "0";
+  session_options_.AppendExecutionProvider("CPUExecutionProvider", cpu_opts);
 
   // Load the model from file (no in-memory buffer, no remote path).
   session_ = Ort::Session(env_, cfg.model_path.c_str(), session_options_);

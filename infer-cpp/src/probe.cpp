@@ -13,9 +13,9 @@
 #include <sstream>
 #include <string>
 
-#include "edge.grpc.pb.h"
-#include "edge.pb.h"
-#include "inference.grpc.pb.h"
+#include "edge/v1/edge.grpc.pb.h"
+#include "edge/v1/edge.pb.h"
+#include "inference/v1/inference.grpc.pb.h"
 
 namespace {
 

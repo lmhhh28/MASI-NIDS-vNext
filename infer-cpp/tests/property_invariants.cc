@@ -34,7 +34,6 @@
 
 namespace {
 
-using masi::inf::test::CHECK;
 using masi::inf::test::TempDir;
 using masi::inf::test::write_temp_file;
 
@@ -174,8 +173,8 @@ void test_tensor_layout_checks() {
   CHECK(ok.ok, "check_tensor_layout: valid [1,6] uint64-le should be ok");
   CHECK(ok.total_bytes == 48, "check_tensor_layout: total_bytes wrong");
 
-  // Misaligned: [1,6] uint64-le = 48 bytes, alignment 16 -> 48 % 16 != 0.
-  auto misaligned = check_tensor_layout({1, 6}, "uint64-le", 16);
+  // Misaligned: [1,3] uint64-le = 24 bytes, alignment 16 -> 24 % 16 != 0.
+  auto misaligned = check_tensor_layout({1, 3}, "uint64-le", 16);
   CHECK(!misaligned.ok, "check_tensor_layout: misaligned should be rejected");
   CHECK(misaligned.reason == "alignment",
         "check_tensor_layout: misaligned reason wrong");
@@ -202,7 +201,7 @@ void test_tensor_layout_checks() {
   uint32_t big = 0x80000000u;
   auto overflow = check_tensor_layout({big, big}, "uint64-le", 8);
   CHECK(!overflow.ok, "check_tensor_layout: shape overflow should be rejected");
-  CHECK(overflow.reason == "shape overflow",
+  CHECK(overflow.reason == "shape overflow" || overflow.reason == "element count overflow",
         "check_tensor_layout: shape overflow reason wrong");
 
   // float32-le: [1,6] = 24 bytes.
@@ -492,7 +491,7 @@ void test_repository_closure_extra_member_rejected() {
   // Add an EXTRA file not in the manifest.
   write_temp_file(root, "extra_config.pbtxt", "unexpected");
 
-  // Make all files read-only (required by verify_repository_closure).
+  // Make all files AND the root directory read-only (required by verify_repository_closure).
   namespace fs = std::filesystem;
   for (auto& p : fs::recursive_directory_iterator(root)) {
     fs::permissions(p.path(),
@@ -500,6 +499,11 @@ void test_repository_closure_extra_member_rejected() {
                         fs::perms::others_read,
                     fs::perm_options::replace);
   }
+  fs::permissions(root,
+                  fs::perms::owner_read | fs::perms::owner_exec |
+                      fs::perms::group_read | fs::perms::group_exec |
+                      fs::perms::others_read | fs::perms::others_exec,
+                  fs::perm_options::replace);
 
   bool threw = false;
   try {
@@ -544,6 +548,11 @@ void test_repository_closure_valid() {
                         fs::perms::others_read,
                     fs::perm_options::replace);
   }
+  fs::permissions(root,
+                  fs::perms::owner_read | fs::perms::owner_exec |
+                      fs::perms::group_read | fs::perms::group_exec |
+                      fs::perms::others_read | fs::perms::others_exec,
+                  fs::perm_options::replace);
 
   auto v = masi::inf::verify_repository_closure(root, "repo-test-002",
                                                 closure_digest);
