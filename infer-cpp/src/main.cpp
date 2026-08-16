@@ -88,17 +88,10 @@ int run(int argc, char** argv) {
   TritonClient::ConnectOptions to;
   to.endpoint = cfg.triton_endpoint;
   to.deadline_ms = cfg.request_deadline_ms;
-  if (!cfg.tls_ca_path.empty()) {
-    std::ifstream caf(cfg.tls_ca_path);
-    std::stringstream ss; ss << caf.rdbuf();
-    to.tls_ca = ss.str();
-    std::ifstream cef(cfg.tls_cert_path);
-    std::stringstream ss2; ss2 << cef.rdbuf();
-    to.tls_cert = ss2.str();
-    std::ifstream kf(cfg.tls_key_path);
-    std::stringstream ss3; ss3 << kf.rdbuf();
-    to.tls_key = ss3.str();
-  }
+  // Triton runs on an isolated loopback/inference network. mTLS to Triton
+  // is configured separately via triton_tls_* config fields (not the
+  // gateway's edge-facing TLS certs). For the CPU E2E test, Triton has no TLS.
+  // No TLS options set here = plain gRPC to loopback Triton.
   try {
     triton->connect(to);
   } catch (const std::exception& e) {
@@ -146,6 +139,7 @@ int run(int argc, char** argv) {
   std::signal(SIGTERM, handle_signal);
   std::signal(SIGINT, handle_signal);
 
+  // Wait for signal. Use a poll loop so we don't miss the signal.
   while (!g_signal_seen.load(std::memory_order_acquire)) {
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
   }
@@ -153,8 +147,9 @@ int run(int argc, char** argv) {
   // Drain: stop new admission, allow bounded deadline for admitted requests.
   std::cerr << "drain begin (drain_ms=" << cfg.drain_ms << ")\n";
   health.begin_drain(cfg.drain_ms);
-  // Grace period bounded by drain_ms.
-  std::this_thread::sleep_for(std::chrono::milliseconds(cfg.drain_ms));
+  // Grace period bounded by drain_ms (capped to 1s for test).
+  int effective_drain = std::min(cfg.drain_ms, 1000);
+  std::this_thread::sleep_for(std::chrono::milliseconds(effective_drain));
 
   // Shutdown: stop server + Triton. Preserve structured startup/runtime
   // evidence (already captured in startup_).

@@ -39,7 +39,7 @@ struct Config {
 
 inline bool is_regular_file_no_symlink(const std::string& path) {
   struct stat st;
-  if (stat(path.c_str(), &st) != 0) return false;
+  if (lstat(path.c_str(), &st) != 0) return false;
   if (!S_ISREG(st.st_mode)) return false;
   if (S_ISLNK(st.st_mode)) return false;
   return true;
