@@ -1,0 +1,14 @@
+build/
+*.o
+*.so
+*.a
+generated/
+ort-root/
+evidence/
+*.pyc
+__pycache__/
+*.log
+.cpu-release/
+.cpu-debug/
+.cpu-asan/
+.cpu-tsan/

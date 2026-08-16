@@ -1,0 +1,15 @@
+*
+!infer-cpp/
+!infer-cpp/CMakeLists.txt
+!infer-cpp/CMakePresets.json
+!infer-cpp/src/
+!infer-cpp/src/**
+!infer-cpp/Dockerfile
+!infer-cpp/Dockerfile.dockerignore
+!contracts/
+!contracts/**
+!testkit/
+!testkit/fixtures/
+!testkit/fixtures/models/
+!testkit/fixtures/models/*.json
+!testkit/fixtures/models/*.onnx

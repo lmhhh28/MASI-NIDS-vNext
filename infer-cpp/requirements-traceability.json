@@ -1,0 +1,316 @@
+{
+  "schema_version": "central-inference-requirement-traceability/v1",
+  "module_id": "MOD-INF-001",
+  "owner_role": "Central Inference Gateway module owner",
+  "design_anchor": "docs/design/modules/central-inference-design.md",
+  "commands": {
+    "stable": "cmake --build build/cpu-release --target contract_golden property_invariants module_blackbox && ./build/cpu-release/contract_golden && ./build/cpu-release/property_invariants && MASI_INF_E2E=0 ./build/cpu-release/module_blackbox",
+    "numeric_golden": "python3 scripts/run-numeric-golden.py --repo .. --evidence-dir evidence/numeric-golden",
+    "formal_soak": "MASI_INF_FORMAL_SOAK=1 scripts/run-module-gates.sh",
+    "deep": "scripts/run-deep-checks.sh",
+    "oci": "scripts/run-oci-smoke.sh",
+    "supply_chain": "scripts/run-supply-chain.sh"
+  },
+  "execution_bindings": [
+    {
+      "command_id": "tests",
+      "log": "tests.log",
+      "mode": "cmake-ctest",
+      "required": true,
+      "targets": [
+        "contract_golden",
+        "property_invariants",
+        "module_blackbox"
+      ]
+    },
+    {
+      "command_id": "numeric-golden",
+      "log": "numeric-golden.log",
+      "mode": "command",
+      "required": true,
+      "targets": ["scripts/run-numeric-golden.py"]
+    },
+    {
+      "command_id": "public-contracts",
+      "log": "public-contracts.log",
+      "mode": "command",
+      "required": true,
+      "targets": ["scripts/validate-public-contracts.py"]
+    },
+    {
+      "command_id": "oci-smoke",
+      "log": "oci-smoke.log",
+      "mode": "command",
+      "required": true,
+      "targets": ["scripts/run-oci-smoke.sh"]
+    },
+    {
+      "command_id": "deep-checks",
+      "log": "deep-checks.log",
+      "mode": "command",
+      "required": true,
+      "targets": ["scripts/run-deep-checks.sh"]
+    },
+    {
+      "command_id": "supply-chain",
+      "log": "supply-chain.log",
+      "mode": "command",
+      "required": true,
+      "targets": ["scripts/run-supply-chain.sh"]
+    },
+    {
+      "command_id": "formal-soak",
+      "log": "formal-soak.log",
+      "mode": "command",
+      "required": false,
+      "targets": []
+    },
+    {
+      "command_id": "gcc-version",
+      "log": "gcc-version.log",
+      "mode": "command",
+      "required": true,
+      "targets": []
+    },
+    {
+      "command_id": "cmake-version",
+      "log": "cmake-version.log",
+      "mode": "command",
+      "required": true,
+      "targets": []
+    },
+    {
+      "command_id": "protoc-version",
+      "log": "protoc-version.log",
+      "mode": "command",
+      "required": true,
+      "targets": []
+    },
+    {
+      "command_id": "format",
+      "log": "format.log",
+      "mode": "command",
+      "required": true,
+      "targets": []
+    },
+    {
+      "command_id": "clang-tidy",
+      "log": "clang-tidy.log",
+      "mode": "command",
+      "required": true,
+      "targets": []
+    },
+    {
+      "command_id": "release-build",
+      "log": "release-build.log",
+      "mode": "command",
+      "required": true,
+      "targets": []
+    },
+    {
+      "command_id": "formal-soak-validation",
+      "log": "formal-soak-validation.log",
+      "mode": "command",
+      "required": false,
+      "targets": []
+    }
+  ],
+  "evidence_catalog": [
+    {"path":"module-blackbox/module-blackbox-e2e.json","schema_version":"central-inference-module-e2e-evidence/v1","test_id":"TEST-INF-MODULE-E2E-001","requirement_ids":["MOD-INF-001","ARCH-005","CONTRACT-INFERENCE-001","FUNC-INF-001","SEC-TEL-INF-001"],"producer_command_ids":["tests"],"producer_test_targets":["module_blackbox"],"required":true},
+    {"path":"numeric-golden/numeric-golden-evidence.json","schema_version":"central-inference-numeric-evidence/v1","test_id":"TEST-INF-NUMERIC-001","requirement_ids":["MOD-INF-001","CONTRACT-MODEL-001","TEST-INF-001"],"producer_command_ids":["numeric-golden"],"producer_test_targets":[],"required":true},
+    {"path":"oci-smoke/oci-smoke-evidence.json","schema_version":"central-inference-oci-startup-evidence/v1","test_id":"TEST-INF-OCI-001","requirement_ids":["MOD-INF-001","TEST-003","TEST-010","TEST-REAL-E2E-001"],"producer_command_ids":["oci-smoke"],"producer_test_targets":[],"required":true},
+    {"path":"deep-checks/deep-check-summary.json","schema_version":"central-inference-deep-check-evidence/v1","test_id":"TEST-INF-CPP-DEEP-001","requirement_ids":["MOD-INF-001","TEST-003","TEST-007","TEST-009"],"producer_command_ids":["deep-checks"],"producer_test_targets":[],"required":true},
+    {"path":"supply-chain/supply-chain.json","schema_version":"central-inference-supply-verification/v1","test_id":"SEC-SUPPLY-001","requirement_ids":["MOD-INF-001","ARCH-REUSE-001","SEC-SUPPLY-001","TEST-010"],"producer_command_ids":["supply-chain"],"producer_test_targets":[],"required":true},
+    {"path":"formal-soak/formal-soak-evidence.json","schema_version":"central-inference-numeric-evidence/v1","test_id":null,"requirement_ids":["MOD-INF-001","TEST-003","TEST-INF-001"],"producer_command_ids":["formal-soak"],"producer_test_targets":[],"required":false}
+  ],
+  "public_contracts": [
+    "contracts/edge/v1/edge.proto",
+    "contracts/inference/v1/inference.proto",
+    "contracts/inference/v1/profile.json",
+    "contracts/evidence/v1/inference-module-schema.json",
+    "contracts/evidence/central-inference-blackbox/v1/schema.json",
+    "contracts/evidence/central-inference-numeric/v1/schema.json",
+    "contracts/evidence/central-inference-readback/v1/schema.json",
+    "contracts/evidence/central-inference-startup/v1/schema.json",
+    "contracts/evidence/central-inference-supply/v1/schema.json",
+    "contracts/evidence/command/v1/schema.json",
+    "contracts/evidence/module-findings/v1/schema.json",
+    "contracts/evidence/soak/v1/schema.json",
+    "contracts/evidence/traceability/v1/schema.json",
+    "contracts/golden/inference/catalog.json",
+    "contracts/golden/inference/valid-batch-v1.json",
+    "contracts/golden/inference/oversize-batch-v1.json",
+    "contracts/golden/inference/malformed-tensor-v1.json",
+    "contracts/golden/inference/unknown-major-v1.json",
+    "contracts/golden/inference/nan-inf-reject-v1.json",
+    "contracts/golden/inference/cross-generation-fence-v1.json",
+    "contracts/golden/inference/digest-conflict-v1.json",
+    "contracts/golden/inference/repository-closure-v1.json",
+    "contracts/golden/inference/implicit-instance-group-v1.json",
+    "contracts/golden/inference/provider-drift-v1.json",
+    "contracts/golden/evidence/central-inference-blackbox-v1.json",
+    "contracts/golden/evidence/central-inference-command-execution-v1.json",
+    "contracts/golden/evidence/central-inference-deep-check-v1.json",
+    "contracts/golden/evidence/central-inference-deep-not-run-v1.json",
+    "contracts/golden/evidence/central-inference-module-findings-v1.json",
+    "contracts/golden/evidence/central-inference-module-v1.json",
+    "contracts/golden/evidence/central-inference-numeric-v1.json",
+    "contracts/golden/evidence/central-inference-oci-not-run-v1.json",
+    "contracts/golden/evidence/central-inference-oci-startup-v1.json",
+    "contracts/golden/evidence/central-inference-readback-v1.json",
+    "contracts/golden/evidence/central-inference-startup-v1.json",
+    "contracts/golden/evidence/central-inference-supply-failure-v1.json",
+    "contracts/golden/evidence/central-inference-supply-not-run-v1.json",
+    "contracts/golden/evidence/central-inference-supply-verification-v1.json",
+    "contracts/golden/evidence/central-inference-traceability-v1.json",
+    "module-findings.json"
+  ],
+  "requirements": [
+    {
+      "requirement_id": "MOD-INF-001",
+      "scenario_ids": ["TEST-INF-MODULE-E2E-001"],
+      "test_targets": ["module_blackbox"],
+      "evidence_files": ["module-blackbox/module-blackbox-e2e.json"],
+      "qualification_limit": "independent module boundary"
+    },
+    {
+      "requirement_id": "ARCH-005",
+      "scenario_ids": ["TEST-INF-MODULE-E2E-001", "TEST-INF-STARTUP-001", "TEST-INF-READBACK-001"],
+      "test_targets": ["module_blackbox"],
+      "evidence_files": ["module-blackbox/module-blackbox-e2e.json"],
+      "qualification_limit": "stateless Gateway; no durable queue; no PostgreSQL"
+    },
+    {
+      "requirement_id": "ARCH-MODEL-001",
+      "scenario_ids": ["TEST-INF-STARTUP-001"],
+      "test_targets": ["module_blackbox"],
+      "evidence_files": ["module-blackbox/module-blackbox-e2e.json"],
+      "qualification_limit": "Gateway does not own model current; Go Control does"
+    },
+    {
+      "requirement_id": "CONTRACT-INFERENCE-001",
+      "scenario_ids": ["TEST-INF-GOLDEN-001", "TEST-INF-GOLDEN-002", "TEST-INF-GOLDEN-003", "TEST-INF-GOLDEN-004", "TEST-INF-GOLDEN-005"],
+      "test_targets": ["contract_golden", "property_invariants"],
+      "evidence_files": ["tests.log"],
+      "qualification_limit": "exact contract and golden mapping"
+    },
+    {
+      "requirement_id": "CONTRACT-MODEL-001",
+      "scenario_ids": ["TEST-INF-NUMERIC-001", "TEST-INF-READBACK-001"],
+      "test_targets": ["numeric-golden", "property_invariants"],
+      "evidence_files": ["numeric-golden/numeric-golden-evidence.json"],
+      "qualification_limit": "immutable model bundle; exact binding readback"
+    },
+    {
+      "requirement_id": "FUNC-INF-001",
+      "scenario_ids": ["TEST-INF-MODULE-E2E-001"],
+      "test_targets": ["module_blackbox"],
+      "evidence_files": ["module-blackbox/module-blackbox-e2e.json"],
+      "qualification_limit": "mTLS batched gRPC boundary only"
+    },
+    {
+      "requirement_id": "FUNC-INF-MODEL-001",
+      "scenario_ids": ["TEST-INF-STARTUP-001", "TEST-INF-NUMERIC-001"],
+      "test_targets": ["module_blackbox", "numeric-golden"],
+      "evidence_files": ["module-blackbox/module-blackbox-e2e.json", "numeric-golden/numeric-golden-evidence.json"],
+      "qualification_limit": "startup exact binding; no runtime POLL"
+    },
+    {
+      "requirement_id": "PERF-INF-001",
+      "scenario_ids": ["TEST-INF-FORMAL-SOAK-001"],
+      "test_targets": ["formal-soak"],
+      "evidence_files": ["formal-soak/formal-soak-evidence.json"],
+      "qualification_limit": "DEC-001 absolute thresholds are not frozen"
+    },
+    {
+      "requirement_id": "REL-INF-001",
+      "scenario_ids": ["TEST-INF-READBACK-001"],
+      "test_targets": ["module_blackbox"],
+      "evidence_files": ["module-blackbox/module-blackbox-e2e.json"],
+      "qualification_limit": "exact pool readback; eligible workers bounded to 64"
+    },
+    {
+      "requirement_id": "REL-INF-POOL-001",
+      "scenario_ids": ["TEST-INF-READBACK-001"],
+      "test_targets": ["module_blackbox"],
+      "evidence_files": ["module-blackbox/module-blackbox-e2e.json"],
+      "qualification_limit": "same-generation equivalent replicas only"
+    },
+    {
+      "requirement_id": "SEC-TEL-INF-001",
+      "scenario_ids": ["TEST-INF-MODULE-E2E-001"],
+      "test_targets": ["module_blackbox"],
+      "evidence_files": ["module-blackbox/module-blackbox-e2e.json"],
+      "qualification_limit": "mTLS only; plaintext rejected; no secret in logs"
+    },
+    {
+      "requirement_id": "DEP-INF-001",
+      "scenario_ids": ["TEST-INF-STARTUP-001", "TEST-INF-OCI-001"],
+      "test_targets": ["module_blackbox", "oci-smoke"],
+      "evidence_files": ["module-blackbox/module-blackbox-e2e.json", "oci-smoke/oci-smoke-evidence.json"],
+      "qualification_limit": "read-only rootfs; no-new-privileges; cap_drop=ALL"
+    },
+    {
+      "requirement_id": "OBS-INF-001",
+      "scenario_ids": ["TEST-INF-READBACK-001"],
+      "test_targets": ["module_blackbox"],
+      "evidence_files": ["module-blackbox/module-blackbox-e2e.json"],
+      "qualification_limit": "Gateway observes but does not own canonical facts"
+    },
+    {
+      "requirement_id": "TEST-003",
+      "scenario_ids": ["TEST-INF-MODULE-E2E-001", "TEST-INF-OCI-001"],
+      "test_targets": ["module_blackbox", "oci-smoke"],
+      "evidence_files": ["module-blackbox/module-blackbox-e2e.json", "oci-smoke/oci-smoke-evidence.json"],
+      "qualification_limit": "real Gateway binary with mTLS boundary"
+    },
+    {
+      "requirement_id": "TEST-INF-001",
+      "scenario_ids": ["TEST-INF-GOLDEN-001", "TEST-INF-NUMERIC-001", "TEST-INF-STARTUP-001"],
+      "test_targets": ["contract_golden", "property_invariants", "numeric-golden", "module_blackbox"],
+      "evidence_files": ["tests.log", "numeric-golden/numeric-golden-evidence.json"],
+      "qualification_limit": "module CI gates"
+    },
+    {
+      "requirement_id": "TEST-TEL-INF-001",
+      "scenario_ids": ["TEST-INF-MODULE-E2E-001"],
+      "test_targets": ["module_blackbox"],
+      "evidence_files": ["module-blackbox/module-blackbox-e2e.json"],
+      "qualification_limit": "independent module boundary; formal pairwise is NOT_RUN"
+    },
+    {
+      "requirement_id": "TEST-REAL-E2E-001",
+      "scenario_ids": ["TEST-INF-MODULE-E2E-001", "TEST-INF-OCI-001"],
+      "test_targets": ["module_blackbox", "oci-smoke"],
+      "evidence_files": ["module-blackbox/module-blackbox-e2e.json", "oci-smoke/oci-smoke-evidence.json"],
+      "qualification_limit": "real Gateway deployable only; formal pairwise/system NOT_RUN"
+    },
+    {
+      "requirement_id": "DEC-002",
+      "scenario_ids": ["TEST-INF-MODULE-COMPLETION-001"],
+      "test_targets": ["scripts/validate-public-contracts.py"],
+      "evidence_files": ["public-contracts.log"],
+      "qualification_limit": "operational completion independent from release qualification"
+    },
+    {
+      "requirement_id": "DEC-042",
+      "scenario_ids": ["TEST-INF-FORMAL-SOAK-001"],
+      "test_targets": ["formal-soak"],
+      "evidence_files": ["formal-soak/formal-soak-evidence.json"],
+      "qualification_limit": "formal soak HOLD until DEC-001 thresholds are frozen"
+    },
+    {
+      "requirement_id": "DEC-044",
+      "scenario_ids": ["TEST-INF-MODULE-COMPLETION-001"],
+      "test_targets": ["scripts/validate-public-contracts.py"],
+      "evidence_files": ["public-contracts.log"],
+      "qualification_limit": "operational Module Complete is independent from release/pairwise/system qualification"
+    }
+  ],
+  "conditional_applicability": [
+    {"profile": "model-runtime-central-cuda/v1", "applicability": "NOT_APPLICABLE", "result": "NOT_RUN", "stable_reason": "CPU_PROFILE_FIRST_RELEASE_ONLY"},
+    {"profile": "availability-ha/v1", "applicability": "NOT_APPLICABLE", "result": "NOT_RUN", "stable_reason": "SINGLE_FAILURE_DOMAIN_HOST"},
+    {"profile": "tensorrt-future/v1", "applicability": "NOT_APPLICABLE", "result": "NOT_RUN", "stable_reason": "NOT_FIRST_RELEASE_BACKEND"},
+    {"profile": "libtorch/v1", "applicability": "NOT_APPLICABLE", "result": "NOT_RUN", "stable_reason": "REJECTED_NOT_FIRST_RELEASE_BACKEND"}
+  ]
+}
