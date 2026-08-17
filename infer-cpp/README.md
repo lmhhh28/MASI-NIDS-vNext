@@ -2,15 +2,11 @@
 
 `masi_inference_gateway` 是 MASI-NIDS-vNext 的独立 C++ Central Inference Gateway。它是一个无状态 mTLS gRPC 服务，只暴露 `GetBinding` 和 `Infer` 两个公开边界。Gateway 不连接 PostgreSQL、不访问 P4、不拥有业务状态或 durable queue。**Gateway 自身没有任何执行引擎**：唯一执行面与唯一延迟型 batch scheduler 都是固定资格 profile 的 Triton；Gateway 只做合同/身份/配额/结果适配。
 
-## 当前状态（不得声称 Module Complete）
+## 当前状态与完成判定
 
-按 `DEC-044`，operational Module Complete 要求 append-only findings registry 中 open P0 为 0、必需实现无隐藏 fallback、真实候选 binary 与 OCI 已启动、全部适用门禁已实际执行。当前：
+按 `DEC-044`，operational Module Complete 由 `scripts/run-module-gates.sh` 机器派生；唯一权威字段是本次 run 的 `gate-summary.json#overall_module_complete`。当前代码审计登记 28 条 finding，全部 CLOSED、open P0/P1/P2 均为 0。完整门禁必须实际运行 release binary、真实 Triton/Gateway mTLS 边界、真实 OCI、ASan/UBSan/TSan、网络隔离供应链重建和 3,600 秒合格 soak；任一证据缺失或 schema 不符都会阻断完成。
 
-- `module-findings.json` 中 open P0 为 0，但仍有 **1 条 open P1**（`INF-AUDIT-0012`：隔离容器内无可达 Triton，OCI 镜像的 startup/readiness 未取得证据）与 1 条 open P2（`INF-AUDIT-0013`：本适配器不计算 OOD，已在冻结 profile 中显式声明）。
-- `scripts/run-module-gates.sh` 尚未产出 `evidence/module-gates/**` 与 `gate-summary.json`。
-- 因此 **operational 状态为 `INCOMPLETE`**，总体资格仍为 `HOLD/NOT_QUALIFIED`（`DEC-001` 绝对阈值未冻结、受保护发布基线未形成、正式 pairwise/system 未运行）。
-
-2026-08-16 的独立审计发现并修复了 3 条 P0 与 6 条 P1，其中最重的是"任何多于一条记录的批都被拒绝"（`INF-AUDIT-0001`）、"binding readback 自证"（`INF-AUDIT-0002`）与"Gateway 内进程内 ORT 执行面 + 隐藏 fallback"（`INF-AUDIT-0003`）。全部条目及其真实边界证据见 `module-findings.json`。
+`overall_module_complete=true` 不等于 production qualified。dirty tree、`DEC-001` 绝对生产阈值、受保护提交/tag 与未来 pairwise/system 可以继续保持 `HOLD/NOT_QUALIFIED` 或 `NOT_RUN`，但不得改变已执行门禁的原始结果。
 
 ## 所有权边界
 
@@ -20,7 +16,7 @@
 - 在线推理唯一生产路径是 `inference-central-grpc-batch/v1` mTLS batched-unary gRPC。Edge 是每个 shard 的唯一 canonical input router。
 - 启动时通过 immutable startup envelope 显式选择 `model-runtime-central-cpu/v1` 或 `model-runtime-central-cuda/v1`。当前构建只资格化 CPU profile，选择 CUDA 会以 `RUNTIME_PROFILE_UNSUPPORTED` fail closed。
 - Triton 固定 `model-control-mode=none`、只读 repository、严格 readiness。startup 对 **live ModelConfig ↔ pin 住的 `config.pbtxt` ↔ 冻结 profile** 做三方比对（`max_batch_size`/`dynamic_batching`/`preferred_batch_size`/queue delay/queue size/显式 `instance_group`/张量名与 dtype/dims），并校验 `ModelReady` 与 server 版本。
-- output adapter 是按 `adapter_id` 选中的**已资格化确定性实现**，其参数（`score_domain`、`class_order`、`axis`、`top_k`、alert/abstain 阈值）全部来自 digest-pinned closure 的 `role=bundle-manifest` 成员，并与 envelope 声明的 feature/label/adapter digest 交叉校验；不一致即 fail closed。规则与 canonical `float32-le` 分数编码冻结在 `contracts/inference/v1/profile.json#output_adapter_binding`。
+- output adapter 是按 `adapter_id` 选中的**已资格化确定性实现**，其参数（`score_domain`、`class_order`、`axis`、`top_k`、alert/abstain 阈值和 OOD policy）全部来自 digest-pinned closure 的 `role=bundle-manifest` 成员，并与 envelope 声明的 feature/label/adapter digest 交叉校验；不一致即 fail closed。r3 固定 `max-probability-below-threshold=0.55`，命中即 `out_of_distribution=true` 且强制 abstain。规则与 canonical `float32-le` 分数编码冻结在 `contracts/inference/v1/profile.json#output_adapter_binding`。
 - 每条记录的 `input_digest` 在 admission 阶段被重算校验，不是透传值。
 - readback 由**对 Triton 的真实观测**构造（ServerMetadata/ModelMetadata/ModelConfig 的规范化投影 + 已验证的 closure/bundle digest），并填齐 `pool_observation_digest` 与 `binding_digest`；它不是 envelope 的回声。`GetBinding` 对应证据 schema 的 `get_loaded_model`/`get_pool_status` 字段（保留 wire 方法名，映射在此显式记录）。
 - 29 维 result fence：`request_id`、`input_id`、`event_idempotency_key`、`input_digest`、`model_control_incarnation_id`、`operation_id`、`scope`、`shard_id`、`route_epoch`、`logical_pool_id`、`pool_generation`、`binding_generation`、`startup_envelope_digest`、`pool_observation_digest`、`binding_digest`、`model_revision_digest`、`model_bundle_digest`、`feature_contract_digest`、`label_contract_digest`、`output_adapter_digest`、`wire_profile_digest`、`runtime_profile_digest`、`optimization_profile_digest`、`worker_id`、`worker_digest`、`worker_attempt_id`、`source_input_result_WAL_sequence`、`source_window_identity`、`trace_id`。未知/旧/跨 generation → `RESULT_IDENTITY_MISMATCH`。
@@ -69,7 +65,7 @@ cmake --build build/cpu-release --target masi_inference_gateway
 ./build/cpu-release/masi_inference_gateway /absolute/path/to/gateway.json
 ```
 
-配置必须是小于等于 1 MiB 的普通非 symlink JSON，schema 为 `inference-config/v1`，未知字段被拒绝，`client_san_allowlist` 必填非空。TLS PEM 也必须是普通非 symlink 文件，私钥不得授予 group/other 权限。`startup_envelope_path` 指向 immutable 启动信封（必须声明 feature/label/output_adapter/runtime/optimization digest 与 `triton_server_version`），`model_repository_path` 指向 digest-pinned read-only 闭包。进程收到 SIGTERM/SIGINT 后停止接收、按配置 `drain_ms` 等待在途请求并以 0 退出。
+配置必须是小于等于 1 MiB 的普通非 symlink JSON，schema 为 `inference-config/v1`，未知字段被拒绝，`client_san_allowlist` 必填非空。TLS PEM 也必须是普通非 symlink 文件，私钥不得授予 group/other 权限。`startup_envelope_path` 指向 immutable 启动信封（必须声明 feature/label/output_adapter/runtime/optimization digest 与 `triton_server_version`），`model_repository_path` 指向 digest-pinned read-only 闭包。进程收到 SIGTERM/SIGINT 后停止接收、按配置 `drain_ms` 等待在途请求，依次销毁 server/health/service/Triton channel 并以 0 退出；成功路径完成这些同步边界后使用 `_Exit(0)`，避开 pinned gRPC/OpenSSL 已复现的进程级全局析构竞态，失败路径仍返回非零。
 
 ## 字节级可复现性契约
 
@@ -88,8 +84,7 @@ nlohmann/json **不从发行版包安装**：ubuntu:22.04 是 3.10.5，宿主机
 CMake 在 configure 期比对 digest，`src/envelope.h` 再用 `static_assert` 锁定
 `NLOHMANN_JSON_VERSION_*`，确保系统头无法顶替。构建期还断言 builder 的 g++/cmake 版本与登记值一致。
 
-`offline-rebuild.json` 记录两侧 digest、两侧嵌入的 gRPC 源码路径出现次数及其是否相等、
-vendored header digest 与 `SOURCE_DATE_EPOCH`，因此一旦再次不匹配，证据能直接指出漂移的是哪一项输入。
+供应链 runner 从固定 source tar 解包新快照，在 builder 容器内以 `--network none` 重建并与 OCI binary 逐字节比较；随后使用 digest-pinned Syft/Trivy/Cosign 离线生成双 SPDX、漏洞/secret/config 扫描、签名、篡改/错误发布者负例、provenance 与 SHA256SUMS exact closure。任一工具或工件缺失均不能 PASS。
 
 ## 可复制门禁
 
@@ -120,13 +115,13 @@ scripts/run-supply-chain.sh
 
 ### 真实进程黑盒 E2E
 
-`tests/module_blackbox.cc` 在 `MASI_INF_E2E=1` 时启动真实 `masi_inference_gateway` 子进程，生成 mTLS 材料，用 fake Edge gRPC client 走公开边界。它**硬要求**一个真实 Triton 服务 digest-pinned 的 r2 闭包；缺失时输出结构化 `HOLD/NOT_RUN` 并以 77 跳过，绝不记 PASS。
+`tests/module_blackbox.cc` 在 `MASI_INF_E2E=1` 时启动真实 `masi_inference_gateway` 子进程，生成 mTLS 材料，用 contract-consistent Edge client 走公开边界。它**硬要求**一个真实 Triton 服务 digest-pinned 的 r3 闭包；缺失时输出结构化 `HOLD/NOT_RUN` 并以 77 跳过，绝不记 PASS。
 
 ```bash
 # 1) 起一个服务 pin 住闭包的 Triton（端口任选）
-docker run -d --name masi-triton-r2 \
+docker run -d --name masi-triton-r3 \
   -p 127.0.0.1:8010:8000 -p 127.0.0.1:8011:8001 -p 127.0.0.1:8012:8002 \
-  -v "$PWD/../testkit/fixtures/repositories/masi-ids-window-v1-r2:/models:ro" \
+  -v "$PWD/../testkit/fixtures/repositories/masi-ids-window-v1-r3:/models:ro" \
   nvcr.io/nvidia/tritonserver@sha256:75bcfa5b0043898ece3e603c17a5bbbb1c9bddc390563db24312ef59d83735e5 \
   tritonserver --model-repository=/models --model-control-mode=none \
   --disable-auto-complete-config --strict-readiness=true
@@ -142,12 +137,12 @@ MASI_INF_E2E=1 MASI_INF_TRITON_ENDPOINT=127.0.0.1:8011 \
 
 运行结束写出 `central-inference-module-e2e-evidence/v1`（`MASI_INF_EVIDENCE_DIR`），其中每个布尔位只在对应断言真正通过时被置位。
 
-若 `testkit/fixtures/repositories/masi-ids-window-v1-r2` 需要重建：
+若 `testkit/fixtures/repositories/masi-ids-window-v1-r3` 需要重建：
 
 ```bash
-python3 ../testkit/fixtures/models/scripts/generate_fixture.py --revision r2
-python3 ../testkit/fixtures/models/scripts/build_repository.py --revision r2 \
-  --out ../testkit/fixtures/repositories/masi-ids-window-v1-r2
+python3 ../testkit/fixtures/models/scripts/generate_fixture.py --revision r3
+python3 ../testkit/fixtures/models/scripts/build_repository.py --revision r3 \
+  --out ../testkit/fixtures/repositories/masi-ids-window-v1-r3
 ```
 
 ### 深度 C++ 检查
@@ -163,11 +158,11 @@ scripts/run-deep-checks.sh
 
 ### 正式 soak
 
-冻结的 `qualification-soak/v1` profile 固定 60-90s warmup、4 × 900s 阶段、10s 采样与 1/32/128/256 批量。soak 驱动内置于 `module_blackbox`，由 `MASI_INF_SOAK_SECONDS` 触发，通过真实 mTLS 边界向真实 Gateway 进程持续加压，并从 `/proc` 采样 Gateway 自身的 RSS/FD/线程/CPU：
+冻结的 `qualification-soak/v1` profile 固定 60s warmup、4 × 900s 阶段、10s 采样、100 batch requests/s 单调定速与 1/32/128/256 批量。`MASI_INF_SOAK_SECONDS=3600` 只表示合格窗口，warmup 另计，因此真实负载约 61 分钟。驱动通过真实 mTLS 边界持续加压，从 `/proc` 采样 Gateway 自身的 RSS/FD/线程/CPU，并以 Triton 的单调 inference/execution/success counters 侦测 provider reset、把成功记录数绑定到真实执行计数；每一条返回记录都对照 alert/OOD golden digest。PASS 还要求 validator 独立复算四阶段速率与 10s 采样节拍、所有样本可测、零 gap/oracle/error/OOM/restart/resource violation 与清理完整：
 
 ```bash
 cd infer-cpp
-# 正式窗口（约 62 分钟）
+# 正式窗口（负载约 61 分钟；完整门禁另含构建/扫描）
 MASI_INF_FORMAL_SOAK=1 MASI_INF_SOAK_SECONDS=3600 scripts/run-module-gates.sh
 
 # 仅验证机制的短跑（只能产出 REHEARSAL）
@@ -183,7 +178,7 @@ Dockerfile 的 builder/runtime 均按 manifest digest 固定；构建要求真�
 
 ## 证据与资格状态
 
-`scripts/run-module-gates.sh` 在 `evidence/module-gates/runs/<run-id>/` 生成命令日志及对应的 `central-inference-command-execution/v1` sidecar、每个 black-box JSON、OCI/deep/supply evidence、`gate-summary.json`，并原子更新只含路径和 digest 的 `latest.json`；历史 run 不覆盖。`requirements-traceability.json` 将全部 20 个适用需求 ID 绑定到精确 run-relative evidence、test symbol、scenario、producer command 和资格上限。
+`scripts/run-module-gates.sh` 在 `evidence/module-gates/runs/<run-id>/` 生成命令日志及对应的 `edge-command-execution/v1` 通用 sidecar、每个 black-box JSON、OCI/deep/supply/soak evidence、`gate-summary.json`，并原子更新只含路径和 digest 的 `latest.json`；历史 run 不覆盖。所有 sidecar、嵌套 latest、供应链、soak 与最终 summary 都在发布前严格校验。`requirements-traceability.json` 将全部 20 个适用需求 ID 绑定到精确 run-relative evidence、test symbol、scenario、producer command 和资格上限。
 
 以下项目在外部决策或环境满足前必须保持原状态：
 

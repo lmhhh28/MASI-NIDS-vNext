@@ -10,14 +10,9 @@ option(MASI_INF_OFFLINE "Build fully offline with pinned vendored deps" OFF)
 option(MASI_INF_BUILD_TESTS "Build test suite" ON)
 option(MASI_INF_ENABLE_ASAN "Enable AddressSanitizer" OFF)
 option(MASI_INF_ENABLE_UBSAN "Enable UndefinedBehaviorSanitizer" OFF)
+option(MASI_INF_ENABLE_TSAN "Enable ThreadSanitizer" OFF)
 find_package(OpenSSL REQUIRED)
 find_package(Threads REQUIRED)
-
-option(MASI_INF_OFFLINE "Build fully offline with pinned vendored deps" OFF)
-option(MASI_INF_BUILD_TESTS "Build test suite" ON)
-option(MASI_INF_ENABLE_ASAN "Enable AddressSanitizer" OFF)
-option(MASI_INF_ENABLE_UBSAN "Enable UndefinedBehaviorSanitizer" OFF)
-option(MASI_INF_ENABLE_TSAN "Enable ThreadSanitizer" OFF)
 
 # ---------------------------------------------------------------------------
 # Registry-pinned toolchain
@@ -26,6 +21,7 @@ option(MASI_INF_ENABLE_TSAN "Enable ThreadSanitizer" OFF)
 # must use the exact registered version instead of whatever the host provides.
 # contracts/supply-chain/v1/central-inference-cpu-components.json
 set(MASI_INF_REQUIRED_GRPC_VERSION "1.82.1" CACHE STRING "Registered gRPC C++ version")
+set(MASI_INF_REQUIRED_PROTOBUF_VERSION "35.0.0" CACHE STRING "Registered Protobuf version")
 set(MASI_INF_GRPC_PREFIX "" CACHE PATH "Install prefix of the registry-pinned gRPC")
 if(MASI_INF_GRPC_PREFIX STREQUAL "" AND DEFINED ENV{MASI_INF_GRPC_PREFIX})
   set(MASI_INF_GRPC_PREFIX "$ENV{MASI_INF_GRPC_PREFIX}")
@@ -73,6 +69,12 @@ if(NOT gRPC_VERSION VERSION_EQUAL MASI_INF_REQUIRED_GRPC_VERSION)
   message(FATAL_ERROR
     "gRPC version drift: found ${gRPC_VERSION}, supply chain registers "
     "${MASI_INF_REQUIRED_GRPC_VERSION} "
+    "(contracts/supply-chain/v1/central-inference-cpu-components.json).")
+endif()
+if(NOT Protobuf_VERSION VERSION_EQUAL MASI_INF_REQUIRED_PROTOBUF_VERSION)
+  message(FATAL_ERROR
+    "Protobuf version drift: found ${Protobuf_VERSION}, supply chain registers "
+    "${MASI_INF_REQUIRED_PROTOBUF_VERSION} "
     "(contracts/supply-chain/v1/central-inference-cpu-components.json).")
 endif()
 message(STATUS "gRPC ${gRPC_VERSION} / protobuf ${Protobuf_VERSION} (registry-pinned)")
@@ -204,8 +206,16 @@ endif()
 # declares a different revision fails closed instead of being echoed back.
 file(SHA256 "${CMAKE_CURRENT_SOURCE_DIR}/../contracts/inference/v1/profile.json"
      MASI_INF_WIRE_PROFILE_SHA256)
+file(SHA256
+     "${CMAKE_CURRENT_SOURCE_DIR}/../contracts/inference/v1/model-runtime-central-cpu.json"
+     MASI_INF_RUNTIME_PROFILE_SHA256)
+file(SHA256
+     "${CMAKE_CURRENT_SOURCE_DIR}/../contracts/inference/v1/optimization-profile-central-cpu.json"
+     MASI_INF_OPTIMIZATION_PROFILE_SHA256)
 target_compile_definitions(masi_inf_gateway_lib PUBLIC
-  MASI_INF_WIRE_PROFILE_DIGEST="sha256:${MASI_INF_WIRE_PROFILE_SHA256}")
+  MASI_INF_WIRE_PROFILE_DIGEST="sha256:${MASI_INF_WIRE_PROFILE_SHA256}"
+  MASI_INF_RUNTIME_PROFILE_DIGEST="sha256:${MASI_INF_RUNTIME_PROFILE_SHA256}"
+  MASI_INF_OPTIMIZATION_PROFILE_DIGEST="sha256:${MASI_INF_OPTIMIZATION_PROFILE_SHA256}")
 
 target_include_directories(masi_inf_gateway_lib BEFORE PUBLIC
   ${MASI_INF_VENDORED_JSON_DIR}

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Central Inference numeric golden reference runner.
 
-Loads the pinned r2 fixture ONNX through ONNX Runtime CPU, runs every golden
+Loads the pinned r3 fixture ONNX through ONNX Runtime CPU, runs every golden
 vector (single-record and multi-record), and compares both layers:
 
   1. the raw model output (logits), and
@@ -29,7 +29,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
-REVISION = "r2"
+REVISION = "r3"
 
 
 def sha256_hex(data: bytes) -> str:
@@ -86,7 +86,11 @@ def apply_adapter(row: list[float], taxonomy: dict, adapter: dict) -> dict:
     top_score = scores[top_index]
     baseline_label = int(class_order[0])
 
-    abstain = top_score < float(taxonomy["threshold"]["value"])
+    ood_policy = adapter["ood_policy"]
+    if ood_policy["mode"] != "max-probability-below-threshold":
+        raise ValueError("unsupported OOD policy")
+    out_of_distribution = top_score < float(ood_policy["threshold"])
+    abstain = out_of_distribution or top_score < float(taxonomy["threshold"]["value"])
     if abstain:
         decision = "abstain"
     elif predicted_label != baseline_label and top_score >= float(adapter["threshold"]):
@@ -99,7 +103,7 @@ def apply_adapter(row: list[float], taxonomy: dict, adapter: dict) -> dict:
         "scores": scores,
         "predicted_label": predicted_label,
         "decision": decision,
-        "out_of_distribution": False,
+        "out_of_distribution": out_of_distribution,
         "abstain": abstain,
         "quality": "valid",
         "output_digest": sha256_hex(score_bytes),
@@ -238,8 +242,20 @@ def main() -> int:
             )
             label_match = adapted["predicted_label"] == exp["predicted_label"]
             decision_match = adapted["decision"] == exp["decision"]
+            ood_match = adapted["out_of_distribution"] == exp["out_of_distribution"]
+            abstain_match = adapted["abstain"] == exp["abstain"]
             digest_match = adapted["output_digest"] == exp["output_digest"]
-            row_ok = all((raw_match, scores_match, label_match, decision_match, digest_match))
+            row_ok = all(
+                (
+                    raw_match,
+                    scores_match,
+                    label_match,
+                    decision_match,
+                    ood_match,
+                    abstain_match,
+                    digest_match,
+                )
+            )
             vector_ok = vector_ok and row_ok
             result["rows"].append(
                 {
@@ -254,6 +270,8 @@ def main() -> int:
                     "scores_match": scores_match,
                     "label_match": label_match,
                     "decision_match": decision_match,
+                    "ood_match": ood_match,
+                    "abstain_match": abstain_match,
                     "output_digest_match": digest_match,
                     "result": "PASS" if row_ok else "FAIL",
                 }

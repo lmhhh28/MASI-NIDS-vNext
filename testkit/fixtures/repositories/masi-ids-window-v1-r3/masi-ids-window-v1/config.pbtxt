@@ -1,0 +1,30 @@
+name: "masi-ids-window-v1"
+backend: "onnxruntime"
+max_batch_size: 256
+input [
+  {
+    name: "features"
+    data_type: TYPE_UINT64
+    dims: [ 6 ]
+  }
+]
+output [
+  {
+    name: "scores"
+    data_type: TYPE_FP32
+    dims: [ 2 ]
+  }
+]
+dynamic_batching {
+  preferred_batch_size: [ 32, 64, 128, 256 ]
+  max_queue_delay_microseconds: 200
+  default_queue_policy {
+    max_queue_size: 1024
+  }
+}
+instance_group [
+  {
+    count: 1
+    kind: KIND_CPU
+  }
+]

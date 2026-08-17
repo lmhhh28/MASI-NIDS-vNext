@@ -19,54 +19,62 @@ uint32_t float_to_ulp(float f) {
   FloatBits b;
   b.f = f;
   uint32_t u = b.u;
-  if ((u & 0x80000000u) != 0) u = 0x80000000u - u;  // map -x to symmetric
+  if ((u & 0x80000000u) != 0)
+    u = 0x80000000u - u; // map -x to symmetric
   return u;
 }
 
-}  // namespace
+} // namespace
 
-void assert_input_finite(const std::vector<uint8_t>& bytes, const std::string& dtype) {
+void assert_input_finite(const std::vector<uint8_t> &bytes, const std::string &dtype) {
   if (dtype == "uint64-le") {
     // uint64 cannot represent NaN/Inf by construction; the tensor is integer.
     if (bytes.size() % 8 != 0)
-      throw error::Exception(error::Code::kBufferOverflow, "uint64 tensor length not multiple of 8");
+      throw error::Exception(error::Code::kBufferOverflow,
+                             "uint64 tensor length not multiple of 8");
     return;
   }
   if (dtype == "float32-le") {
     if (bytes.size() % 4 != 0)
-      throw error::Exception(error::Code::kBufferOverflow, "float32 tensor length not multiple of 4");
+      throw error::Exception(error::Code::kBufferOverflow,
+                             "float32 tensor length not multiple of 4");
     size_t n = bytes.size() / 4;
     for (size_t i = 0; i < n; ++i) {
       float v;
       std::memcpy(&v, bytes.data() + i * 4, 4);
       if (std::isnan(v) || std::isinf(v))
-        throw error::Exception(error::Code::kBufferOverflow, "input tensor NaN/Inf at index " + std::to_string(i));
+        throw error::Exception(error::Code::kBufferOverflow,
+                               "input tensor NaN/Inf at index " + std::to_string(i));
     }
     return;
   }
   if (dtype == "float64-le") {
     if (bytes.size() % 8 != 0)
-      throw error::Exception(error::Code::kBufferOverflow, "float64 tensor length not multiple of 8");
+      throw error::Exception(error::Code::kBufferOverflow,
+                             "float64 tensor length not multiple of 8");
     size_t n = bytes.size() / 8;
     for (size_t i = 0; i < n; ++i) {
       double v;
       std::memcpy(&v, bytes.data() + i * 8, 8);
       if (std::isnan(v) || std::isinf(v))
-        throw error::Exception(error::Code::kBufferOverflow, "input tensor NaN/Inf at index " + std::to_string(i));
+        throw error::Exception(error::Code::kBufferOverflow,
+                               "input tensor NaN/Inf at index " + std::to_string(i));
     }
     return;
   }
-  throw error::Exception(error::Code::kIncompatibleContract, "assert_input_finite: unknown dtype " + dtype);
+  throw error::Exception(error::Code::kIncompatibleContract,
+                         "assert_input_finite: unknown dtype " + dtype);
 }
 
-void assert_output_finite(const std::vector<float>& scores) {
+void assert_output_finite(const std::vector<float> &scores) {
   for (size_t i = 0; i < scores.size(); ++i) {
     if (std::isnan(scores[i]) || std::isinf(scores[i]))
-      throw error::Exception(error::Code::kBufferOverflow, "output tensor NaN/Inf at index " + std::to_string(i));
+      throw error::Exception(error::Code::kBufferOverflow,
+                             "output tensor NaN/Inf at index " + std::to_string(i));
   }
 }
 
-void assert_class_order(const std::vector<float>& scores, const NumericProfile& p) {
+void assert_class_order(const std::vector<float> &scores, const NumericProfile &p) {
   if (p.class_order.empty())
     throw error::Exception(error::Code::kIncompatibleContract, "adapter class_order empty");
   if (scores.size() != p.class_order.size())
@@ -80,13 +88,13 @@ void assert_class_order(const std::vector<float>& scores, const NumericProfile& 
       throw error::Exception(error::Code::kIncompatibleContract, "class label out of range");
     for (uint32_t s : seen)
       if (s == label)
-        throw error::Exception(error::Code::kIncompatibleContract, "duplicate class label in class_order");
+        throw error::Exception(error::Code::kIncompatibleContract,
+                               "duplicate class label in class_order");
     seen.push_back(label);
   }
 }
 
-NumericResult apply_output_adapter(const std::vector<float>& raw_scores,
-                                   const NumericProfile& p) {
+NumericResult apply_output_adapter(const std::vector<float> &raw_scores, const NumericProfile &p) {
   assert_output_finite(raw_scores);
   assert_class_order(raw_scores, p);
 
@@ -95,7 +103,8 @@ NumericResult apply_output_adapter(const std::vector<float>& raw_scores,
   if (p.score_domain == "logit") {
     const float maxv = *std::max_element(raw_scores.begin(), raw_scores.end());
     double sum = 0.0;
-    for (float s : raw_scores) sum += std::exp(static_cast<double>(s) - maxv);
+    for (float s : raw_scores)
+      sum += std::exp(static_cast<double>(s) - maxv);
     if (!(sum > 0.0) || !std::isfinite(sum))
       throw error::Exception(error::Code::kBufferOverflow, "softmax sum not finite");
     for (size_t i = 0; i < raw_scores.size(); ++i)
@@ -126,11 +135,12 @@ NumericResult apply_output_adapter(const std::vector<float>& raw_scores,
   r.predicted_label = p.class_order[top_index];
   const uint32_t baseline_label = p.class_order[0];
 
-  // This adapter does not compute OOD; the frozen profile declares
-  // ood_rule = not-computed-by-this-adapter-always-false.
-  r.out_of_distribution = false;
-
-  r.abstain = (static_cast<double>(top_score) < p.abstain_below);
+  if (p.ood_mode != "max-probability-below-threshold" || p.ood_below < 0.0 || p.ood_below > 1.0) {
+    throw error::Exception(error::Code::kIncompatibleContract,
+                           "output adapter OOD policy is not qualified");
+  }
+  r.out_of_distribution = static_cast<double>(top_score) < p.ood_below;
+  r.abstain = r.out_of_distribution || (static_cast<double>(top_score) < p.abstain_below);
   if (r.abstain) {
     r.decision = "abstain";
   } else if (r.predicted_label != baseline_label &&
@@ -144,17 +154,19 @@ NumericResult apply_output_adapter(const std::vector<float>& raw_scores,
   return r;
 }
 
-bool float_within_tolerance(float a, float b, const NumericProfile& p) {
-  if (std::isnan(a) || std::isnan(b)) return false;
+bool float_within_tolerance(float a, float b, const NumericProfile &p) {
+  if (std::isnan(a) || std::isnan(b))
+    return false;
   double abs_diff = std::fabs(static_cast<double>(a) - static_cast<double>(b));
-  if (abs_diff <= p.abs_tol) return true;
-  double rel = p.rel_tol * std::max(std::fabs(static_cast<double>(a)),
-                                    std::fabs(static_cast<double>(b)));
-  if (abs_diff <= rel) return true;
+  if (abs_diff <= p.abs_tol)
+    return true;
+  double rel =
+      p.rel_tol * std::max(std::fabs(static_cast<double>(a)), std::fabs(static_cast<double>(b)));
+  if (abs_diff <= rel)
+    return true;
   uint64_t ulp = static_cast<uint64_t>(
-      std::abs(static_cast<int64_t>(float_to_ulp(a)) -
-               static_cast<int64_t>(float_to_ulp(b))));
+      std::abs(static_cast<int64_t>(float_to_ulp(a)) - static_cast<int64_t>(float_to_ulp(b))));
   return ulp <= p.ulp_tol;
 }
 
-}  // namespace masi::inf
+} // namespace masi::inf

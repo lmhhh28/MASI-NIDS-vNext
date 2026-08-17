@@ -16,6 +16,12 @@
 
 namespace masi::inf {
 
+inline constexpr int32_t kProfileMaxRecordsPerBatch = 256;
+inline constexpr int32_t kProfileMaxMessageBytes = 4194304;
+inline constexpr int32_t kProfileMaxInFlight = 64;
+inline constexpr int32_t kProfileMaxRequestDeadlineMs = 2000;
+inline constexpr int32_t kProfileMaxDrainMs = 30000;
+
 struct Config {
   std::string startup_envelope_path;
   std::string model_repository_path;
@@ -47,18 +53,23 @@ struct Config {
   int32_t drain_ms = 5000;
 };
 
-inline bool is_regular_file_no_symlink(const std::string& path) {
+inline bool is_regular_file_no_symlink(const std::string &path) {
   struct stat st;
-  if (lstat(path.c_str(), &st) != 0) return false;
-  if (!S_ISREG(st.st_mode)) return false;
-  if (S_ISLNK(st.st_mode)) return false;
+  if (lstat(path.c_str(), &st) != 0)
+    return false;
+  if (!S_ISREG(st.st_mode))
+    return false;
+  if (S_ISLNK(st.st_mode))
+    return false;
   return true;
 }
 
-inline void validate_file_path(const std::string& path, const std::string& field) {
-  if (path.empty()) throw error::Exception(error::Code::kInvalidManifest, field + " empty");
+inline void validate_file_path(const std::string &path, const std::string &field) {
+  if (path.empty())
+    throw error::Exception(error::Code::kInvalidManifest, field + " empty");
   if (!is_regular_file_no_symlink(path))
-    throw error::Exception(error::Code::kInvalidManifest, field + " not regular file or is symlink");
+    throw error::Exception(error::Code::kInvalidManifest,
+                           field + " not regular file or is symlink");
   struct stat st;
   if (stat(path.c_str(), &st) != 0)
     throw error::Exception(error::Code::kInvalidManifest, field + " stat failed");
@@ -66,15 +77,17 @@ inline void validate_file_path(const std::string& path, const std::string& field
     throw error::Exception(error::Code::kInvalidManifest, field + " exceeds 1MiB");
 }
 
-inline Config load_config(const std::string& path) {
+inline Config load_config(const std::string &path) {
   validate_file_path(path, "config");
   std::ifstream f(path);
-  if (!f) throw error::Exception(error::Code::kInvalidManifest, "config open failed");
+  if (!f)
+    throw error::Exception(error::Code::kInvalidManifest, "config open failed");
   nlohmann::json j;
   try {
     f >> j;
-  } catch (const std::exception& e) {
-    throw error::Exception(error::Code::kInvalidManifest, std::string("config json parse: ") + e.what());
+  } catch (const std::exception &e) {
+    throw error::Exception(error::Code::kInvalidManifest,
+                           std::string("config json parse: ") + e.what());
   }
   if (!j.is_object())
     throw error::Exception(error::Code::kInvalidManifest, "config not object");
@@ -91,12 +104,13 @@ inline Config load_config(const std::string& path) {
   cfg.tls_cert_path = j.value("tls_cert_path", "");
   cfg.tls_key_path = j.value("tls_key_path", "");
   if (j.contains("client_san_allowlist")) {
-    const auto& a = j.at("client_san_allowlist");
+    const auto &a = j.at("client_san_allowlist");
     if (!a.is_array())
       throw error::Exception(error::Code::kInvalidManifest, "client_san_allowlist not array");
     if (a.size() > 64)
-      throw error::Exception(error::Code::kInvalidManifest, "client_san_allowlist exceeds 64 entries");
-    for (const auto& v : a) {
+      throw error::Exception(error::Code::kInvalidManifest,
+                             "client_san_allowlist exceeds 64 entries");
+    for (const auto &v : a) {
       if (!v.is_string() || v.get<std::string>().empty())
         throw error::Exception(error::Code::kInvalidManifest,
                                "client_san_allowlist entry not a non-empty string");
@@ -118,16 +132,14 @@ inline Config load_config(const std::string& path) {
   // Unknown fields reject
   for (auto it = j.begin(); it != j.end(); ++it) {
     static const std::set<std::string> known = {
-      "startup_envelope_path", "model_repository_path", "triton_endpoint",
-      "triton_tls_ca_path", "triton_tls_cert_path", "triton_tls_key_path",
-      "triton_tls_server_name",
-      "gateway_listen", "tls_ca_path", "tls_cert_path", "tls_key_path",
-      "client_san_allowlist",
-      "max_records_per_batch", "max_request_bytes", "max_response_bytes",
-      "max_in_flight", "request_deadline_ms", "runtime_profile",
-      "availability_profile", "intra_op_num_threads", "inter_op_num_threads",
-      "intra_op_affinity", "enable_cpu_arena", "drain_ms"
-    };
+        "startup_envelope_path",  "model_repository_path", "triton_endpoint",
+        "triton_tls_ca_path",     "triton_tls_cert_path",  "triton_tls_key_path",
+        "triton_tls_server_name", "gateway_listen",        "tls_ca_path",
+        "tls_cert_path",          "tls_key_path",          "client_san_allowlist",
+        "max_records_per_batch",  "max_request_bytes",     "max_response_bytes",
+        "max_in_flight",          "request_deadline_ms",   "runtime_profile",
+        "availability_profile",   "intra_op_num_threads",  "inter_op_num_threads",
+        "intra_op_affinity",      "enable_cpu_arena",      "drain_ms"};
     if (known.find(it.key()) == known.end())
       throw error::Exception(error::Code::kInvalidManifest, "config unknown field: " + it.key());
   }
@@ -138,20 +150,29 @@ inline Config load_config(const std::string& path) {
   if (cfg.client_san_allowlist.empty())
     throw error::Exception(error::Code::kInvalidManifest,
                            "client_san_allowlist must declare at least one exact SAN");
-  if (cfg.max_in_flight <= 0)
-    throw error::Exception(error::Code::kInvalidManifest, "max_in_flight must be positive");
-  if (cfg.drain_ms <= 0)
-    throw error::Exception(error::Code::kInvalidManifest, "drain_ms must be positive");
-  if (cfg.request_deadline_ms <= 0)
-    throw error::Exception(error::Code::kInvalidManifest, "request_deadline_ms must be positive");
-  const bool any_triton_tls = !cfg.triton_tls_ca_path.empty() ||
-                              !cfg.triton_tls_cert_path.empty() ||
-                              !cfg.triton_tls_key_path.empty() ||
-                              !cfg.triton_tls_server_name.empty();
-  const bool all_triton_tls = !cfg.triton_tls_ca_path.empty() &&
-                              !cfg.triton_tls_cert_path.empty() &&
-                              !cfg.triton_tls_key_path.empty() &&
-                              !cfg.triton_tls_server_name.empty();
+  auto bounded_positive = [](int32_t value, int32_t ceiling, const char *field) {
+    if (value <= 0 || value > ceiling) {
+      throw error::Exception(error::Code::kInvalidManifest, std::string(field) + " must be in [1," +
+                                                                std::to_string(ceiling) + "]");
+    }
+  };
+  bounded_positive(cfg.max_records_per_batch, kProfileMaxRecordsPerBatch, "max_records_per_batch");
+  bounded_positive(cfg.max_request_bytes, kProfileMaxMessageBytes, "max_request_bytes");
+  bounded_positive(cfg.max_response_bytes, kProfileMaxMessageBytes, "max_response_bytes");
+  bounded_positive(cfg.max_in_flight, kProfileMaxInFlight, "max_in_flight");
+  bounded_positive(cfg.drain_ms, kProfileMaxDrainMs, "drain_ms");
+  bounded_positive(cfg.request_deadline_ms, kProfileMaxRequestDeadlineMs, "request_deadline_ms");
+  if (cfg.intra_op_num_threads < 0 || cfg.intra_op_num_threads > 512 ||
+      cfg.inter_op_num_threads < 0 || cfg.inter_op_num_threads > 512) {
+    throw error::Exception(error::Code::kInvalidManifest,
+                           "intra/inter_op_num_threads must be in [0,512]");
+  }
+  const bool any_triton_tls =
+      !cfg.triton_tls_ca_path.empty() || !cfg.triton_tls_cert_path.empty() ||
+      !cfg.triton_tls_key_path.empty() || !cfg.triton_tls_server_name.empty();
+  const bool all_triton_tls =
+      !cfg.triton_tls_ca_path.empty() && !cfg.triton_tls_cert_path.empty() &&
+      !cfg.triton_tls_key_path.empty() && !cfg.triton_tls_server_name.empty();
   if (any_triton_tls && !all_triton_tls)
     throw error::Exception(error::Code::kInvalidManifest,
                            "triton_tls_* requires ca, cert, key and server_name together");
@@ -161,4 +182,4 @@ inline Config load_config(const std::string& path) {
   return cfg;
 }
 
-}  // namespace masi::inf
+} // namespace masi::inf

@@ -2,7 +2,7 @@
   "schema_version": "inference-golden/v1",
   "vector_id": "inference-valid-multi-record-batch-0001",
   "category": "valid",
-  "description": "Valid two-record batch. Each record carries its own [1,6] uint64 tensor and verified input_digest; the Gateway must submit one Triton ModelInfer of shape [2,6] and split the [2,2] output row by row. Row 0 alerts, row 1 stays benign, proving rows are not collapsed or reused.",
+  "description": "Valid two-record batch. Each record carries its own [1,6] uint64 tensor and verified input_digest; the Gateway must submit one Triton ModelInfer of shape [2,6] and split the [2,2] output row by row. Row 0 alerts while the ambiguous zero row is OOD and abstains, proving rows are not collapsed or reused.",
   "input": {
     "schema_version": "inference-central-grpc-batch/v1",
     "request_id": "request-golden-multi-0001",
@@ -48,7 +48,8 @@
     "score_domain": "logit",
     "class_order": [0, 1],
     "alert_threshold": 0.5,
-    "abstain_below": 0.0
+    "abstain_below": 0.0,
+    "ood_policy": {"mode": "max-probability-below-threshold", "threshold": 0.55, "decision": "abstain"}
   },
   "expected": {
     "status": "accepted",
@@ -60,20 +61,24 @@
     "rows": [
       {
         "record_status": "OK",
-        "raw_scores": [-33.400001525878906, 33.400001525878906],
-        "scores": [9.75275426120175e-30, 1.0],
+        "raw_scores": [-28.399999618530273, 28.399999618530273],
+        "scores": [2.148195202218749e-25, 1.0],
         "predicted_label": 1,
         "decision": "alert",
         "quality": "valid",
-        "output_digest": "sha256:39fd4be7aa31a9c573e552e281a614e7c584f3a9191fb956103f795690a6adc6"
+        "out_of_distribution": false,
+        "abstain": false,
+        "output_digest": "sha256:3fdaaa5605f835ec748c0795734317d2f9c4e22c2f1bc23461ee1b892c5ca0d9"
       },
       {
         "record_status": "OK",
         "raw_scores": [0.10000000149011612, -0.10000000149011612],
         "scores": [0.5498340129852295, 0.4501660168170929],
         "predicted_label": 0,
-        "decision": "benign",
+        "decision": "abstain",
         "quality": "valid",
+        "out_of_distribution": true,
+        "abstain": true,
         "output_digest": "sha256:1903448c143c39c0e3207c4fd7cb8a59402013e6538b047e84d1e683d316e742"
       }
     ],

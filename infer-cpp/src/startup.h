@@ -56,21 +56,20 @@ struct TritonExecutionExpectation {
 //                                    execution plane)
 //   7. gateway-readback             (observation-derived, no envelope echo)
 //   8. readiness
-StartupResult run_startup(const Config& cfg, TritonClient& triton, int64_t now_unix_ms);
+StartupResult run_startup(const Config &cfg, TritonClient &triton, int64_t now_unix_ms);
 
 // Build the deterministic adapter parameters from the verified bundle manifest.
-NumericProfile make_numeric_profile(const BundleManifest& bundle);
+NumericProfile make_numeric_profile(const BundleManifest &bundle);
 
 // Parse the pinned Triton `config.pbtxt` text into the same projection shape the
 // live ModelConfig RPC produces, so the two can be compared field by field.
-TritonModelConfigProjection parse_pinned_config_text(const std::string& text);
+TritonModelConfigProjection parse_pinned_config_text(const std::string &text);
 
 // Compare the pinned config, the live Triton config and the frozen profile.
 // Throws on any mismatch.
-void assert_triton_config_matches(const TritonModelConfigProjection& live,
-                                  const TritonModelConfigProjection& pinned,
-                                  const TritonExecutionExpectation& expected,
-                                  const BundleManifest& bundle,
-                                  const StartupEnvelope& env);
+void assert_triton_config_matches(const TritonModelConfigProjection &live,
+                                  const TritonModelConfigProjection &pinned,
+                                  const TritonExecutionExpectation &expected,
+                                  const BundleManifest &bundle, const StartupEnvelope &env);
 
-}  // namespace masi::inf
+} // namespace masi::inf

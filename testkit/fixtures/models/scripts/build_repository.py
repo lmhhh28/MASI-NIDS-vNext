@@ -20,7 +20,7 @@ so relocating or re-roling a member changes the digest. Digest of that preimage
 is `sha256:<hex>`.
 
 Usage:
-  ./build_repository.py --revision r2 --out testkit/fixtures/repositories/masi-ids-window-v1-r2
+  ./build_repository.py --revision r3 --out testkit/fixtures/repositories/masi-ids-window-v1-r3
 """
 import argparse
 import hashlib
@@ -108,7 +108,7 @@ def make_writable(root: str) -> None:
 
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--revision", default="r2", choices=["r2"])
+    parser.add_argument("--revision", default="r3", choices=["r2", "r3"])
     parser.add_argument("--out", required=True, help="Repository output directory")
     parser.add_argument(
         "--fixtures-dir",
@@ -160,6 +160,9 @@ def main() -> int:
         "contract_digests": fixture_manifest["contract_digests"],
         "triton": fixture_manifest["triton"],
     }
+    if "model_revision_digest" in fixture_manifest:
+        bundle["model_revision_digest"] = fixture_manifest["model_revision_digest"]
+        bundle["binding_identity"] = fixture_manifest["binding_identity"]
     with open(os.path.join(out, bundle_rel), "w") as f:
         json.dump(bundle, f, indent=2, sort_keys=True)
 
@@ -203,7 +206,9 @@ def main() -> int:
             "repository_root": out,
             "identity": identity,
             "closure_digest": digest,
-            "model_digest": members[0]["member_digest"] if members[0]["role"] == "model" else None,
+            "model_digest": next(
+                member["member_digest"] for member in members if member["role"] == "model"
+            ),
             "members": members,
             "contract_digests": fixture_manifest["contract_digests"],
         },

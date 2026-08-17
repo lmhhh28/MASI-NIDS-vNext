@@ -2,11 +2,11 @@
 # OCI startup smoke for the Central Inference Gateway (MOD-INF-001).
 #
 # Builds the real distroless OCI image, then starts it for real against a REAL
-# Triton sidecar (the digest-pinned r2 fixture server) on an isolated Docker
+# Triton sidecar (the digest-pinned r3 fixture server) on an isolated Docker
 # network. The Gateway connects to Triton over mutual TLS (non-loopback endpoint
 # => triton_tls_* is required); plaintext/loopback shortcuts and --network host
 # are deliberately not used. A real, digest-pinned startup envelope is generated
-# from the r2 closure manifests so the Gateway's startup gate (live ModelConfig
+# from the r3 closure manifests so the Gateway's startup gate (live ModelConfig
 # vs pinned config.pbtxt vs frozen profile, exact triton_server_version, wire
 # profile digest, envelope_digest self-check) actually passes. An independent
 # client leaf then exercises the public mTLS boundary (GetBinding) and the
@@ -20,6 +20,7 @@ repo_root="$(cd -- "${script_dir}/../.." && pwd)"
 inf_root="${repo_root}/infer-cpp"
 evidence_dir="${MASI_INF_EVIDENCE_DIR:-${inf_root}/evidence/oci-smoke}"
 image_ref="${MASI_INF_IMAGE_REF:-masi-inference:module-smoke}"
+builder_ref="${MASI_INF_BUILDER_IMAGE_REF:-masi-inference-builder:module-gates}"
 source_revision="$(git -C "${repo_root}" rev-parse HEAD)"
 temporary_root="$(mktemp -d /tmp/masi-inf-oci-smoke.XXXXXX)"
 container_name="masi-inf-oci-smoke-${$}"
@@ -28,7 +29,7 @@ smoke_network="masi-inf-oci-smoke-net-${$}"
 
 # Pinned Triton sidecar (contracts/profiles/v1/central-inference-cpu.json#triton).
 triton_image="nvcr.io/nvidia/tritonserver@sha256:75bcfa5b0043898ece3e603c17a5bbbb1c9bddc390563db24312ef59d83735e5"
-fixture_repo="${repo_root}/testkit/fixtures/repositories/masi-ids-window-v1-r2"
+fixture_repo="${repo_root}/testkit/fixtures/repositories/masi-ids-window-v1-r3"
 proto_dir="${inf_root}/proto/vendor/triton"
 
 cleanup() {
@@ -42,26 +43,27 @@ cleanup() {
 trap cleanup EXIT
 
 mkdir -p -- "${evidence_dir}" "${temporary_root}/secrets" "${temporary_root}/probe" \
-  "${temporary_root}/config" "${temporary_root}/data" "${temporary_root}/triton-tls"
+  "${temporary_root}/config" "${temporary_root}/data" "${temporary_root}/triton-ca" \
+  "${temporary_root}/triton-server" "${temporary_root}/triton-client"
 for output in inference-image.tar image-archive-manifest.json image-config.json \
   oci-probe.json oci-smoke-evidence.json; do
   [[ ! -e "${evidence_dir}/${output}" && ! -L "${evidence_dir}/${output}" ]] \
     || { echo "OCI evidence output already exists: ${output}" >&2; exit 1; }
 done
 
-# The r2 fixture must be a digest-pinned, read-only, symlink-free closure. The
+# The r3 fixture must be a digest-pinned, read-only, symlink-free closure. The
 # Gateway's repository-closure validator checks mode bits (not mount ro-ness),
 # so fail fast here with a clear message instead of a deep startup failure.
 if ! [[ -d "${fixture_repo}" ]]; then
-  echo "r2 fixture repository missing: ${fixture_repo}" >&2
+  echo "r3 fixture repository missing: ${fixture_repo}" >&2
   exit 1
 fi
 if [[ -n "$(find "${fixture_repo}" \( -perm /u+w -o -perm /g+w -o -perm /o+w \) -print -quit 2>/dev/null)" ]]; then
-  echo "r2 fixture has writable path(s); expected a read-only digest-pinned closure" >&2
+  echo "r3 fixture has writable path(s); expected a read-only digest-pinned closure" >&2
   exit 1
 fi
 if [[ -n "$(find "${fixture_repo}" -type l -print -quit 2>/dev/null)" ]]; then
-  echo "r2 fixture contains symlinks; repository closure forbids symlinks" >&2
+  echo "r3 fixture contains symlinks; repository closure forbids symlinks" >&2
   exit 1
 fi
 
@@ -113,14 +115,16 @@ probe_certificate_digest="sha256:$(openssl x509 \
 # grpcurl version probe) + Gateway client leaf (presented to Triton under
 # mutual TLS). The Gateway mounts ca + client cert/key; Triton mounts ca +
 # server cert/key.
-generate_ca "${temporary_root}/triton-tls" "MASI Inference Triton smoke CA"
-cp -- "${temporary_root}/triton-tls/ca.pem" "${temporary_root}/probe/triton-ca.pem"
-generate_leaf "${temporary_root}/triton-tls" triton-server 401 serverAuth \
-  "DNS:triton,IP:127.0.0.1" "${temporary_root}/triton-tls/ca.pem" "${temporary_root}/triton-tls/ca.key"
-generate_leaf "${temporary_root}/triton-tls" triton-client 402 clientAuth \
-  "DNS:masi-gateway.test" "${temporary_root}/triton-tls/ca.pem" "${temporary_root}/triton-tls/ca.key"
+generate_ca "${temporary_root}/triton-ca" "MASI Inference Triton smoke CA"
+cp -- "${temporary_root}/triton-ca/ca.pem" "${temporary_root}/probe/triton-ca.pem"
+generate_leaf "${temporary_root}/triton-server" triton-server 401 serverAuth \
+  "DNS:triton,IP:127.0.0.1" "${temporary_root}/triton-ca/ca.pem" "${temporary_root}/triton-ca/ca.key"
+generate_leaf "${temporary_root}/triton-client" triton-client 402 clientAuth \
+  "DNS:masi-gateway.test" "${temporary_root}/triton-ca/ca.pem" "${temporary_root}/triton-ca/ca.key"
+cp -- "${temporary_root}/triton-ca/ca.pem" "${temporary_root}/triton-server/ca.pem"
+cp -- "${temporary_root}/triton-ca/ca.pem" "${temporary_root}/triton-client/ca.pem"
 
-# Read the real r2 closure digests straight from the committed manifests. The
+# Read the real r3 closure digests straight from the committed manifests. The
 # Gateway's repository-closure validator recomputes member hashes and the
 # sorted-line closure digest and compares to closure-manifest.json, so these
 # values must be the manifest's own (never recomputed in bash).
@@ -128,10 +132,12 @@ closure_manifest="${fixture_repo}/closure-manifest.json"
 bundle_manifest="${fixture_repo}/bundle-manifest.json"
 repo_identity="$(jq -er '.identity' "${closure_manifest}")"
 closure_digest="$(jq -er '.closure_digest' "${closure_manifest}")"
-model_revision_digest="$(jq -er '.members[] | select(.role=="model") | .member_digest' "${closure_manifest}")"
+model_revision_digest="$(jq -er '.model_revision_digest' "${bundle_manifest}")"
 feature_digest="$(jq -er '.contract_digests.feature_contract_digest' "${bundle_manifest}")"
 label_digest="$(jq -er '.contract_digests.label_contract_digest' "${bundle_manifest}")"
 adapter_digest="$(jq -er '.contract_digests.output_adapter_digest' "${bundle_manifest}")"
+runtime_profile_digest="$(jq -er '.binding_identity.runtime_profile_digest' "${bundle_manifest}")"
+optimization_profile_digest="$(jq -er '.binding_identity.optimization_profile_digest' "${bundle_manifest}")"
 
 # The one build-time-pinned digest: raw-byte SHA-256 of the frozen wire profile.
 # CMake injects this as MASI_INF_WIRE_PROFILE_DIGEST (CMakeLists.txt); the
@@ -163,15 +169,26 @@ fi
 # pinned commit (verified against GRPC_COMMIT inside the RUN) and so needs
 # build-time network access; this is distinct from the runtime prohibition on
 # --network host. The image has no baked-in config/secret.
+docker build --platform linux/amd64 --provenance=false --sbom=false --target builder \
+  --file "${inf_root}/Dockerfile" \
+  --build-arg "SOURCE_REVISION=${source_revision}" \
+  --build-arg "SOURCE_TREE_DIGEST=${source_tree_digest}" \
+  --tag "${builder_ref}" "${repo_root}"
 docker build --platform linux/amd64 --provenance=false --sbom=false \
   --file "${inf_root}/Dockerfile" \
   --build-arg "SOURCE_REVISION=${source_revision}" \
   --build-arg "SOURCE_TREE_DIGEST=${source_tree_digest}" \
   --tag "${image_ref}" "${repo_root}"
 
-# Build the probe binary.
-cmake --preset cpu-release -DCMAKE_BUILD_TYPE=Release >/dev/null 2>&1 || true
-cmake --build build/cpu-release --target masi_inference_probe >/dev/null 2>&1 || true
+# Build the probe from this source snapshot. A stale probe cannot qualify a new
+# image, so configure/build failures are fatal and the resulting digest is
+# recorded below.
+cd -- "${inf_root}"
+cmake --preset cpu-release -DCMAKE_BUILD_TYPE=Release >/dev/null
+cmake --build build/cpu-release --target masi_inference_probe >/dev/null
+probe_bin="${inf_root}/build/cpu-release/masi_inference_probe"
+[[ -x "${probe_bin}" ]] || { echo "current-source OCI probe was not built" >&2; exit 1; }
+probe_binary_digest="sha256:$(sha256sum "${probe_bin}" | awk '{print $1}')"
 
 image_user="$(docker image inspect --format '{{.Config.User}}' "${image_ref}")"
 if [[ "${image_user}" != "65532:65532" ]]; then
@@ -190,11 +207,14 @@ fi
 # supply-chain gate independently extracts the same binary and compares it to an
 # offline rebuild; recording it here makes the smoke evidence self-describing.
 docker image inspect "${image_ref}" >"${evidence_dir}/image-config.json"
-image_config_digest="sha256:$(sha256sum "${evidence_dir}/image-config.json" | awk '{print $1}')"
+image_repo_digest="$(docker image inspect --format '{{index .RepoDigests 0}}' "${image_ref}")"
+image_manifest_digest="${image_repo_digest##*@}"
+[[ "${image_manifest_digest}" =~ ^sha256:[0-9a-f]{64}$ ]] \
+  || { echo "OCI image has no immutable manifest RepoDigest" >&2; exit 1; }
 extract_container="$(docker create "${image_ref}" true)"
 docker cp "${extract_container}:/usr/local/bin/masi_inference_gateway" \
-  "${temporary_root}/gateway-binary" 2>/dev/null || true
-docker rm --force "${extract_container}" >/dev/null 2>&1 || true
+  "${temporary_root}/gateway-binary"
+docker rm --force "${extract_container}" >/dev/null
 if [[ ! -s "${temporary_root}/gateway-binary" ]]; then
   echo "could not extract masi_inference_gateway from image" >&2
   exit 1
@@ -213,9 +233,11 @@ gateway_binary_digest="sha256:$(sha256sum "${temporary_root}/gateway-binary" | a
 docker network create "${smoke_network}" >/dev/null
 docker run --detach --name "${triton_container}" --network "${smoke_network}" \
   --network-alias triton \
+  --read-only --cap-drop ALL --security-opt no-new-privileges:true \
+  --pids-limit 512 --memory 4g --cpus 4 --tmpfs /tmp:rw,noexec,nosuid,size=256m \
   --publish 127.0.0.1:0:8001 \
   --volume "${fixture_repo}:/models:ro" \
-  --volume "${temporary_root}/triton-tls:/tls:ro" \
+  --volume "${temporary_root}/triton-server:/tls:ro" \
   "${triton_image}" \
   tritonserver --model-repository=/models --model-control-mode=none \
     --disable-auto-complete-config --strict-readiness=true \
@@ -246,9 +268,9 @@ fi
 
 # grpcurl invocation against the mutual-TLS Triton endpoint. The triton-server
 # leaf carries IP:127.0.0.1 so the host probe (no SNI override) verifies.
-grpcurl_args=(-cacert "${temporary_root}/triton-tls/ca.pem"
-  -cert "${temporary_root}/triton-tls/triton-client.pem"
-  -key "${temporary_root}/triton-tls/triton-client.key"
+grpcurl_args=(-cacert "${temporary_root}/triton-client/ca.pem"
+  -cert "${temporary_root}/triton-client/triton-client.pem"
+  -key "${temporary_root}/triton-client/triton-client.key"
   -import-path "${proto_dir}"
   -proto grpc_service.proto -proto model_config.proto)
 
@@ -316,8 +338,8 @@ envelope_digest="sha256:$(printf '%s\n' \
   "${adapter_digest}" \
   "${wire_profile_digest}" \
   "model-runtime-central-cpu/v1" \
-  "${zero_digest}" \
-  "${zero_digest}" \
+  "${runtime_profile_digest}" \
+  "${optimization_profile_digest}" \
   "${triton_version}" \
   "${repo_identity}" \
   "${closure_digest}" \
@@ -335,6 +357,8 @@ jq -n \
   --arg label_digest "${label_digest}" \
   --arg adapter_digest "${adapter_digest}" \
   --arg wire_profile_digest "${wire_profile_digest}" \
+  --arg runtime_profile_digest "${runtime_profile_digest}" \
+  --arg optimization_profile_digest "${optimization_profile_digest}" \
   --arg triton_server_version "${triton_version}" \
   --arg repo_identity "${repo_identity}" \
   --arg closure_digest "${closure_digest}" \
@@ -353,8 +377,8 @@ jq -n \
     output_adapter_digest:$adapter_digest,
     inference_wire_profile_digest:$wire_profile_digest,
     runtime_profile_id:"model-runtime-central-cpu/v1",
-    runtime_profile_digest:"sha256:0000000000000000000000000000000000000000000000000000000000000000",
-    optimization_profile_digest:"sha256:0000000000000000000000000000000000000000000000000000000000000000",
+    runtime_profile_digest:$runtime_profile_digest,
+    optimization_profile_digest:$optimization_profile_digest,
     triton_server_version:$triton_server_version,
     repository_snapshot:{identity:$repo_identity, closure_digest:$closure_digest},
     instance_group:{kind:"KIND_CPU", count:1, operator_partition_digest:"sha256:0000000000000000000000000000000000000000000000000000000000000000"},
@@ -401,7 +425,7 @@ config_digest="sha256:$(sha256sum "${temporary_root}/config/gateway.json" | awk 
 
 chown -R 65532:65532 \
   "${temporary_root}/secrets" "${temporary_root}/config" "${temporary_root}/data" \
-  "${temporary_root}/triton-tls"
+  "${temporary_root}/triton-server" "${temporary_root}/triton-client"
 
 docker run --detach --name "${container_name}" --network "${smoke_network}" --read-only \
   --cap-drop ALL --security-opt no-new-privileges:true --pids-limit 128 \
@@ -409,7 +433,7 @@ docker run --detach --name "${container_name}" --network "${smoke_network}" --re
   --publish 127.0.0.1:0:7443 \
   --volume "${temporary_root}/config:/run/inference-config:ro" \
   --volume "${temporary_root}/secrets:/run/inference-secrets:ro" \
-  --volume "${temporary_root}/triton-tls:/run/inference-triton-tls:ro" \
+  --volume "${temporary_root}/triton-client:/run/inference-triton-tls:ro" \
   --volume "${fixture_repo}:/run/inference-modelrepo:ro" \
   --volume "${temporary_root}/data:/var/lib/masi-inference" \
   "${image_ref}" /run/inference-config/gateway.json >/dev/null
@@ -432,10 +456,6 @@ if [[ ! "${host_port}" =~ ^[0-9]+$ ]]; then
 fi
 
 probe_succeeded=false
-probe_bin="${inf_root}/build/cpu-release/masi_inference_probe"
-if [[ ! -x "${probe_bin}" ]]; then
-  probe_bin="${inf_root}/build/cpu-debug/masi_inference_probe"
-fi
 for _attempt in $(seq 1 80); do
   if [[ -x "${probe_bin}" ]] && "${probe_bin}" \
     --endpoint="127.0.0.1:${host_port}" \
@@ -457,7 +477,7 @@ for _attempt in $(seq 1 80); do
 done
 
 docker logs "${container_name}" >"${evidence_dir}/inference-oci.log" 2>&1
-cp -- "${temporary_root}/probe.json" "${evidence_dir}/oci-probe.json" 2>/dev/null || true
+cp -- "${temporary_root}/probe.json" "${evidence_dir}/oci-probe.json"
 if [[ "${probe_succeeded}" != "true" ]]; then
   echo "OCI mTLS probe failed" >&2
   exit 1
@@ -483,9 +503,17 @@ fi
 
 image_archive="${evidence_dir}/inference-image.tar"
 docker image save --output "${image_archive}" "${image_ref}"
-image_manifest_digest="sha256:$(sha256sum "${image_archive}" | awk '{print $1}')"
+image_archive_digest="sha256:$(sha256sum "${image_archive}" | awk '{print $1}')"
+archive_config_path="$(tar -xOf "${image_archive}" manifest.json | jq -er '.[0].Config')"
+archive_config_hex="$(basename -- "${archive_config_path}" .json)"
+[[ "${archive_config_hex}" =~ ^[0-9a-f]{64}$ ]] \
+  || { echo "OCI archive config path is not digest-addressed" >&2; exit 1; }
+observed_config_hex="$(tar -xOf "${image_archive}" "${archive_config_path}" | sha256sum | awk '{print $1}')"
+[[ "${observed_config_hex}" == "${archive_config_hex}" ]] \
+  || { echo "OCI archive config bytes do not match their digest path" >&2; exit 1; }
+image_config_digest="sha256:${archive_config_hex}"
 image_archive_bytes="$(stat -c %s "${image_archive}")"
-jq -n --arg archive "inference-image.tar" --arg digest "${image_manifest_digest}" \
+jq -n --arg archive "inference-image.tar" --arg digest "${image_archive_digest}" \
   --argjson bytes "${image_archive_bytes}" \
   '{archive:$archive, digest:$digest, bytes:$bytes}' \
   >"${evidence_dir}/image-archive-manifest.json"
@@ -512,6 +540,8 @@ jq -n \
   --arg image_manifest_digest "${image_manifest_digest}" \
   --arg image_config_digest "${image_config_digest}" \
   --arg gateway_binary_digest "${gateway_binary_digest}" \
+  --arg probe_binary_digest "${probe_binary_digest}" \
+  --arg image_archive_digest "${image_archive_digest}" \
   --arg triton_image "${triton_image}" \
   --arg triton_server_version "${triton_version}" \
   --arg probe_certificate_digest "${probe_certificate_digest}" \
@@ -548,6 +578,8 @@ jq -n \
     image_manifest_digest: $image_manifest_digest,
     image_config_digest: $image_config_digest,
     gateway_binary_digest: $gateway_binary_digest,
+    probe_binary_digest: $probe_binary_digest,
+    image_archive_digest: $image_archive_digest,
     triton_image: $triton_image,
     triton_server_version: $triton_server_version,
     probe_certificate_digest: $probe_certificate_digest,

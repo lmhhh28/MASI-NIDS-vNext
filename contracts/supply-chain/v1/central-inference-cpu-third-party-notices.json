@@ -73,6 +73,21 @@
       "source": "testkit/fixtures/models/"
     },
     {
+      "component": "testkit minimal ONNX fixture (superseded r2)",
+      "license": "project-owned",
+      "source": "testkit/fixtures/models/"
+    },
+    {
+      "component": "testkit minimal ONNX fixture (superseded)",
+      "license": "project-owned",
+      "source": "testkit/fixtures/models/"
+    },
+    {
+      "component": "testkit Triton repository closure",
+      "license": "project-owned",
+      "source": "testkit/fixtures/repositories/"
+    },
+    {
       "component": "nlohmann/json",
       "license": "MIT",
       "source": "https://github.com/nlohmann/json"

@@ -72,7 +72,7 @@
       "command_id": "formal-soak",
       "log": "formal-soak.log",
       "mode": "command",
-      "required": false,
+      "required": true,
       "targets": []
     },
     {
@@ -147,7 +147,7 @@
         "SEC-TEL-INF-001"
       ],
       "producer_command_ids": [
-        "tests"
+        "blackbox-e2e"
       ],
       "producer_test_targets": [
         "module_blackbox"
@@ -219,18 +219,18 @@
     },
     {
       "path": "formal-soak/formal-soak-evidence.json",
-      "schema_version": "central-inference-numeric-evidence/v1",
+      "schema_version": "qualification-soak/v1",
       "test_id": null,
       "requirement_ids": [
         "MOD-INF-001",
-        "TEST-003",
-        "TEST-INF-001"
+        "PERF-INF-001",
+        "DEC-042"
       ],
       "producer_command_ids": [
         "formal-soak"
       ],
       "producer_test_targets": [],
-      "required": false
+      "required": true
     }
   ],
   "public_contracts": [

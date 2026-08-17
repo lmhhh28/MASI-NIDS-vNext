@@ -14,91 +14,99 @@ namespace masi::inf {
 
 namespace {
 
-const std::vector<std::string>& fence_dims_ref() {
-  static const std::vector<std::string> dims = {
-    "request_id",
-    "input_id",
-    "event_idempotency_key",
-    "input_digest",
-    "model_control_incarnation_id",
-    "operation_id",
-    "scope",
-    "shard_id",
-    "route_epoch",
-    "logical_pool_id",
-    "pool_generation",
-    "binding_generation",
-    "startup_envelope_digest",
-    "pool_observation_digest",
-    "binding_digest",
-    "model_revision_digest",
-    "model_bundle_digest",
-    "feature_contract_digest",
-    "label_contract_digest",
-    "output_adapter_digest",
-    "wire_profile_digest",
-    "runtime_profile_digest",
-    "optimization_profile_digest",
-    "worker_id",
-    "worker_digest",
-    "worker_attempt_id",
-    "source_input_result_WAL_sequence",
-    "source_window_identity",
-    "trace_id"
-  };
+const std::vector<std::string> &fence_dims_ref() {
+  static const std::vector<std::string> dims = {"request_id",
+                                                "input_id",
+                                                "event_idempotency_key",
+                                                "input_digest",
+                                                "model_control_incarnation_id",
+                                                "operation_id",
+                                                "scope",
+                                                "shard_id",
+                                                "route_epoch",
+                                                "logical_pool_id",
+                                                "pool_generation",
+                                                "binding_generation",
+                                                "startup_envelope_digest",
+                                                "pool_observation_digest",
+                                                "binding_digest",
+                                                "model_revision_digest",
+                                                "model_bundle_digest",
+                                                "feature_contract_digest",
+                                                "label_contract_digest",
+                                                "output_adapter_digest",
+                                                "wire_profile_digest",
+                                                "runtime_profile_digest",
+                                                "optimization_profile_digest",
+                                                "worker_id",
+                                                "worker_digest",
+                                                "worker_attempt_id",
+                                                "source_input_result_WAL_sequence",
+                                                "source_window_identity",
+                                                "trace_id"};
   return dims;
 }
 
-}  // namespace
+} // namespace
 
-const std::vector<std::string>& result_fence_dimensions() {
-  return fence_dims_ref();
-}
+const std::vector<std::string> &result_fence_dimensions() { return fence_dims_ref(); }
 
-void assert_schema_profile(const std::string& schema_version,
-                            const std::string& wire_profile) {
+void assert_schema_profile(const std::string &schema_version, const std::string &wire_profile) {
   // The request batch carries the wire profile id as its schema_version
   // (frozen golden valid-batch-v1.json). Any other value, including an
   // unknown major, is rejected before complete parse.
   if (schema_version != "inference-central-grpc-batch/v1")
-    throw error::Exception(error::Code::kIncompatibleContract, "schema_version unsupported: " + schema_version);
+    throw error::Exception(error::Code::kIncompatibleContract,
+                           "schema_version unsupported: " + schema_version);
   if (wire_profile != "inference-central-grpc-batch/v1")
-    throw error::Exception(error::Code::kIncompatibleContract, "wire_profile unsupported: " + wire_profile);
+    throw error::Exception(error::Code::kIncompatibleContract,
+                           "wire_profile unsupported: " + wire_profile);
 }
 
-TensorLayoutCheck check_tensor_layout(const std::vector<uint32_t>& shape,
-                                      const std::string& dtype,
+TensorLayoutCheck check_tensor_layout(const std::vector<uint32_t> &shape, const std::string &dtype,
                                       uint32_t alignment) {
   TensorLayoutCheck r;
   size_t element_size = 0;
-  if (dtype == "uint64-le") element_size = 8;
-  else if (dtype == "float32-le") element_size = 4;
-  else if (dtype == "float64-le") element_size = 8;
-  else { r.reason = "unknown dtype"; return r; }
+  if (dtype == "uint64-le")
+    element_size = 8;
+  else {
+    r.reason = "unknown dtype";
+    return r;
+  }
 
-  if (shape.empty()) { r.reason = "empty shape"; return r; }
+  if (shape.empty()) {
+    r.reason = "empty shape";
+    return r;
+  }
   // Checked product of shape dimensions with integer-overflow guard.
   size_t element_count = 1;
   for (uint32_t d : shape) {
-    if (d == 0) { r.reason = "zero dim"; return r; }
-    if (element_count > SIZE_MAX / d) { r.reason = "shape overflow"; return r; }
+    if (d == 0) {
+      r.reason = "zero dim";
+      return r;
+    }
+    if (element_count > SIZE_MAX / d) {
+      r.reason = "shape overflow";
+      return r;
+    }
     element_count *= d;
   }
   if (element_size > 0 && element_count > SIZE_MAX / element_size) {
-    r.reason = "element count overflow"; return r;
+    r.reason = "element count overflow";
+    return r;
   }
   size_t total = element_count * element_size;
   if (alignment > 0 && (total % alignment) != 0) {
-    r.reason = "alignment"; return r;
+    r.reason = "alignment";
+    return r;
   }
   r.ok = true;
   r.total_bytes = total;
   return r;
 }
 
-AdmissionDecision admit(const Config& cfg,
-                        const WireProfile& profile,
-                        const BatchAdmissionInput& in) {
+AdmissionDecision admit(const Config &cfg, const WireProfile &profile,
+                        const BatchAdmissionInput &in) {
   AdmissionDecision d;
   d.request_id = in.request_id;
   d.route_shard_id = in.route_shard_id;
@@ -110,7 +118,7 @@ AdmissionDecision admit(const Config& cfg,
   // 1. schema/profile major/minor.
   try {
     assert_schema_profile(in.schema_version, in.wire_profile);
-  } catch (const error::Exception& e) {
+  } catch (const error::Exception &e) {
     d.verdict = AdmissionVerdict::kFail;
     d.reason_code = e.what();
     return d;
@@ -118,7 +126,8 @@ AdmissionDecision admit(const Config& cfg,
 
   // 2. size/count/deadline/quota.
   int64_t now_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
-      std::chrono::system_clock::now().time_since_epoch()).count();
+                       std::chrono::system_clock::now().time_since_epoch())
+                       .count();
   if (in.deadline_unix_ms <= now_ms) {
     d.verdict = AdmissionVerdict::kFail;
     d.reason_code = "deadline already exceeded";
@@ -156,15 +165,15 @@ AdmissionDecision admit(const Config& cfg,
   std::ostringstream batch_preimage;
   size_t accepted_bytes = 0;
   for (size_t i = 0; i < in.records.size(); ++i) {
-    const auto& rec = in.records[i];
+    const auto &rec = in.records[i];
     const std::string at = " at record " + std::to_string(i);
 
-    // The wire cannot carry path/pointer/FD/argv/executable content: only the
-    // opaque numeric dtypes below are accepted.
-    if (rec.dtype != profile.tensor_dtype && rec.dtype != "float32-le" &&
-        rec.dtype != "float64-le") {
+    // The frozen profile has one exact tensor representation. Accepting a
+    // floating-point spelling here would be unsafe because the serving request
+    // is intentionally submitted to Triton as UINT64.
+    if (rec.dtype != profile.tensor_dtype) {
       d.verdict = AdmissionVerdict::kFail;
-      d.reason_code = "feature dtype not allowed on wire" + at;
+      d.reason_code = "feature dtype must be " + profile.tensor_dtype + at;
       return d;
     }
     if (rec.shape.size() != profile.tensor_shape.size()) {
@@ -195,21 +204,16 @@ AdmissionDecision admit(const Config& cfg,
       d.reason_code = "feature tensor bytes mismatch" + at;
       return d;
     }
-    if (rec.dtype != "uint64-le") {
-      try {
-        assert_input_finite(std::vector<uint8_t>(rec.bytes, rec.bytes + rec.byte_count),
-                            rec.dtype);
-      } catch (const error::Exception& e) {
-        d.verdict = AdmissionVerdict::kFail;
-        d.reason_code = std::string(e.what()) + at;
-        return d;
-      }
+    if (layout.total_bytes != static_cast<size_t>(profile.bytes_per_record)) {
+      d.verdict = AdmissionVerdict::kFail;
+      d.reason_code = "feature tensor bytes != frozen profile" + at;
+      return d;
     }
     // The declared per-record input_digest is a result-fence dimension, so it
     // is recomputed here instead of being copied through to the result.
-    if (rec.input_digest.empty()) {
+    if (!is_sha256_digest(rec.input_digest)) {
       d.verdict = AdmissionVerdict::kFail;
-      d.reason_code = "record input_digest empty" + at;
+      d.reason_code = "record input_digest format invalid" + at;
       return d;
     }
     const std::string computed = sha256_hex(rec.bytes, rec.byte_count);
@@ -233,4 +237,4 @@ AdmissionDecision admit(const Config& cfg,
   return d;
 }
 
-}  // namespace masi::inf
+} // namespace masi::inf

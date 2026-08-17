@@ -1,0 +1,12 @@
+{
+  "schema_version": "optimization-profile-central-cpu/v1",
+  "profile_id": "optimization-profile-central-cpu/v1",
+  "runtime_profile_id": "model-runtime-central-cpu/v1",
+  "model_format": "onnx",
+  "graph_optimization_level": "ORT_ENABLE_ALL",
+  "execution_mode": "ORT_SEQUENTIAL",
+  "preoptimized_artifact": false,
+  "dynamic_batching_owner": "triton",
+  "custom_operators": false,
+  "automatic_backend_switch": false
+}

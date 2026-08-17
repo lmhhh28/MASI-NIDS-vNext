@@ -15,17 +15,23 @@
     "source_revision",
     "source_tree_digest",
     "working_tree_dirty",
-    "overall_module_complete"
+    "working_tree_status_digest",
+    "overall_module_complete",
+    "module_id",
+    "run_id",
+    "generated_at",
+    "baseline_git_tree",
+    "artifact_digests",
+    "executed_gates",
+    "conditional_applicability",
+    "qualification_gates",
+    "requirement_traceability",
+    "overall_status",
+    "blackbox_e2e",
+    "findings"
   ],
   "properties": {
-    "schema_version": {
-      "enum": [
-        "central-inference-oci-startup-evidence/v1",
-        "central-inference-deep-check-evidence/v1",
-        "central-inference-supply-verification/v1",
-        "central-inference-module-gate-summary/v1"
-      ]
-    },
+    "schema_version": {"const": "central-inference-module-gate-summary/v1"},
     "test_id": {"type": "string", "minLength": 1, "maxLength": 128},
     "requirement_ids": {
       "type": "array",
@@ -42,17 +48,109 @@
     "working_tree_dirty": {"type": "boolean"},
     "working_tree_status_digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
     "overall_module_complete": {"type": "boolean"},
+    "run_id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$"},
+    "generated_at": {"type": "string", "format": "date-time"},
+    "baseline_git_tree": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "overall_status": {"enum": ["PASS", "HOLD", "FAIL", "NOT_RUN"]},
     "module_id": {"const": "MOD-INF-001"},
     "runtime_profile": {"enum": ["model-runtime-central-cpu/v1", "model-runtime-central-cuda/v1"]},
     "availability_profile": {"enum": ["availability-single/v1", "availability-ha/v1"]},
     "deployment_tier": {"enum": ["acceptance", "production", "production-ha"]},
     "completion": {"type": "object"},
-    "executed_gates": {"type": "object"},
-    "qualification_gates": {"type": "object"},
-    "conditional_applicability": {"type": "array", "items": {"type": "object"}},
-    "artifact_digests": {"type": "object"},
-    "requirement_traceability": {"type": "object"},
+    "executed_gates": {"type": "object", "minProperties": 13, "maxProperties": 64},
+    "qualification_gates": {"type": "object", "minProperties": 4, "maxProperties": 16},
+    "conditional_applicability": {
+      "type": "array",
+      "minItems": 4,
+      "maxItems": 4,
+      "items": {"type": "object"}
+    },
+    "artifact_digests": {
+      "type": "object",
+      "minProperties": 15,
+      "maxProperties": 64,
+      "required": [
+        "cmake_presets",
+        "inference_contract",
+        "edge_contract",
+        "inference_wire_profile",
+        "inference_evidence_schema",
+        "module_findings_schema",
+        "module_findings_registry",
+        "traceability_manifest",
+        "requirements_baseline",
+        "release_binary",
+        "oci_evidence",
+        "deep_check_evidence",
+        "supply_chain_evidence",
+        "numeric_golden_evidence",
+        "formal_soak_evidence"
+      ],
+      "additionalProperties": {
+        "type": ["string", "null"],
+        "pattern": "^sha256:[0-9a-f]{64}$"
+      }
+    },
+    "requirement_traceability": {
+      "type": "object",
+      "required": ["manifest", "digest", "requirement_count"],
+      "properties": {
+        "manifest": {"const": "infer-cpp/requirements-traceability.json"},
+        "digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+        "requirement_count": {"type": "integer", "minimum": 1}
+      }
+    },
     "findings_registry": {"type": "string", "minLength": 1, "maxLength": 256},
-    "findings_registry_digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}
-  }
+    "findings_registry_digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "blackbox_e2e": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["result", "endpoint"],
+      "properties": {
+        "result": {"enum": ["PASS", "HOLD", "FAIL", "NOT_RUN"]},
+        "endpoint": {"type": "string", "minLength": 1, "maxLength": 512}
+      }
+    },
+    "findings": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["open_total", "open_p0"],
+      "properties": {
+        "open_total": {"type": "integer", "minimum": 0},
+        "open_p0": {"type": "integer", "minimum": 0}
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"result": {"const": "PASS"}}, "required": ["result"]},
+      "then": {"properties": {"overall_status": {"const": "PASS"}}}
+    },
+    {
+      "if": {"properties": {"result": {"const": "HOLD"}}, "required": ["result"]},
+      "then": {"properties": {"overall_status": {"const": "HOLD"}}}
+    },
+    {
+      "if": {"properties": {"result": {"const": "FAIL"}}, "required": ["result"]},
+      "then": {"properties": {"overall_status": {"const": "FAIL"}}}
+    },
+    {
+      "if": {"properties": {"result": {"const": "NOT_RUN"}}, "required": ["result"]},
+      "then": {"properties": {"overall_status": {"const": "NOT_RUN"}}}
+    },
+    {
+      "if": {
+        "properties": {"overall_module_complete": {"const": true}},
+        "required": ["overall_module_complete"]
+      },
+      "then": {
+        "properties": {
+          "result": {"enum": ["PASS", "HOLD"]},
+          "overall_status": {"enum": ["PASS", "HOLD"]},
+          "blackbox_e2e": {"properties": {"result": {"const": "PASS"}}},
+          "findings": {"properties": {"open_p0": {"const": 0}}}
+        }
+      }
+    }
+  ]
 }

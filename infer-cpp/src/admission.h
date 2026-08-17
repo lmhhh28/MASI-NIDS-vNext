@@ -41,38 +41,36 @@ struct AdmissionDecision {
   uint64_t pool_generation = 0;
   uint64_t binding_generation = 0;
   std::string model_control_incarnation_id;
-  std::string input_digest;          // sha256: over accepted input bytes
+  std::string input_digest; // sha256: over accepted input bytes
   size_t accepted_records = 0;
   size_t accepted_bytes = 0;
 };
 
 // The 29 result-fence dimensions, in exact order from profile.json.
-const std::vector<std::string>& result_fence_dimensions();
+const std::vector<std::string> &result_fence_dimensions();
 
 // Verify schema/profile major/minor compatibility. The wire profile is
 // `inference-central-grpc-batch/v1` (major 1). Unknown major rejected.
-void assert_schema_profile(const std::string& schema_version,
-                            const std::string& wire_profile);
+void assert_schema_profile(const std::string &schema_version, const std::string &wire_profile);
 
 // Bounded checked-arithmetic tensor layout check: name/ID/dtype/rank/shape/
 // offset/length/alignment, with integer-overflow protection.
 struct TensorLayoutCheck {
   bool ok = false;
-  size_t total_bytes = 0;          // checked-sum, 0 if overflow
+  size_t total_bytes = 0; // checked-sum, 0 if overflow
   std::string reason;
 };
-TensorLayoutCheck check_tensor_layout(const std::vector<uint32_t>& shape,
-                                      const std::string& dtype,
+TensorLayoutCheck check_tensor_layout(const std::vector<uint32_t> &shape, const std::string &dtype,
                                       uint32_t alignment);
 
 // One record as seen by admission. Every record is checked individually: a
 // batch is never collapsed into a single aggregate tensor.
 struct RecordView {
-  const uint8_t* bytes = nullptr;
+  const uint8_t *bytes = nullptr;
   size_t byte_count = 0;
   std::vector<uint32_t> shape;
   std::string dtype;
-  std::string input_digest;  // declared by the Edge, verified here
+  std::string input_digest; // declared by the Edge, verified here
 };
 
 struct BatchAdmissionInput {
@@ -95,8 +93,7 @@ struct BatchAdmissionInput {
 // `input_digest` is recomputed from its bytes and must match, so the fence
 // dimension is verified rather than echoed. `input_digest` in the decision is
 // the batch digest: sha256 over each record digest followed by "\n".
-AdmissionDecision admit(const Config& cfg,
-                        const WireProfile& profile,
-                        const BatchAdmissionInput& in);
+AdmissionDecision admit(const Config &cfg, const WireProfile &profile,
+                        const BatchAdmissionInput &in);
 
-}  // namespace masi::inf
+} // namespace masi::inf

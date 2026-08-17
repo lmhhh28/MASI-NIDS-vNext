@@ -12,8 +12,7 @@
 // offline rebuild and the OCI image build. CMake verifies the digest of the
 // vendored file; this assertion additionally guarantees that no system copy on
 // the include path can win.
-static_assert(NLOHMANN_JSON_VERSION_MAJOR == 3 &&
-                  NLOHMANN_JSON_VERSION_MINOR == 11 &&
+static_assert(NLOHMANN_JSON_VERSION_MAJOR == 3 && NLOHMANN_JSON_VERSION_MINOR == 11 &&
                   NLOHMANN_JSON_VERSION_PATCH == 3,
               "the Gateway must compile against the vendored nlohmann/json "
               "3.11.3 registered in contracts/supply-chain/v1");
@@ -33,7 +32,7 @@ struct RepositorySnapshotRef {
 // envelope names an explicit kind/count and a frozen operator-partition
 // digest. KIND_CPU is the only qualified first-phase kind.
 struct InstanceGroupRef {
-  std::string kind;   // "KIND_CPU" | "KIND_CUDA"
+  std::string kind; // "KIND_CPU" | "KIND_CUDA"
   int32_t count = 0;
   std::string operator_partition_digest;
 };
@@ -67,7 +66,7 @@ struct StartupEnvelope {
   int64_t issued_at_unix_ms = 0;
   int64_t expires_at_unix_ms = 0;
   std::string trace_id;
-  std::string envelope_digest;  // "sha256:" over the canonical body
+  std::string envelope_digest; // "sha256:" over the canonical body
 };
 
 // Parse and validate a startup envelope JSON file. Rejects:
@@ -76,14 +75,14 @@ struct StartupEnvelope {
 //   - expired envelope (now > expires_at)
 //   - envelope_digest mismatch
 //   - implicit/unsupported instance_group kind
-StartupEnvelope parse_startup_envelope(const std::string& path, int64_t now_unix_ms);
+StartupEnvelope parse_startup_envelope(const std::string &path, int64_t now_unix_ms);
 
 // Re-derive the envelope body digest over a canonical, field-ordered
 // serialization that excludes the `envelope_digest` field itself.
-std::string compute_envelope_body_digest(const StartupEnvelope& env);
+std::string compute_envelope_body_digest(const StartupEnvelope &env);
 
 // Reject an envelope whose incarnation is not strictly newer than the prior
 // incumbent. PITR/restore must rotate to a never-used incarnation.
-void assert_incarnation_advanced(const std::string& prior, const std::string& next);
+void assert_incarnation_advanced(const std::string &prior, const std::string &next);
 
-}  // namespace masi::inf
+} // namespace masi::inf

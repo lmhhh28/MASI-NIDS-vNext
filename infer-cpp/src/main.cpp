@@ -12,6 +12,7 @@
 #include <csignal>
 #include <cstdlib>
 
+#include <grpc/grpc.h>
 #include <grpcpp/grpcpp.h>
 
 #include <atomic>
@@ -36,6 +37,20 @@ namespace {
 
 std::atomic<bool> g_signal_seen{false};
 
+// Hold one process-level gRPC initialization reference until every application
+// owned Server, Service and Channel has been destroyed. The last ordinary
+// grpc_shutdown() is allowed to delegate cleanup to an unjoined EventEngine
+// thread; releasing the final reference synchronously on the main thread avoids
+// racing process-exit/OpenSSL cleanup with that worker.
+class GrpcRuntimeGuard {
+public:
+  GrpcRuntimeGuard() { grpc_init(); }
+  ~GrpcRuntimeGuard() { grpc_shutdown_blocking(); }
+
+  GrpcRuntimeGuard(const GrpcRuntimeGuard &) = delete;
+  GrpcRuntimeGuard &operator=(const GrpcRuntimeGuard &) = delete;
+};
+
 void handle_signal(int sig) {
   (void)sig;
   g_signal_seen.store(true, std::memory_order_release);
@@ -46,7 +61,8 @@ int64_t now_ms() {
   return duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
 }
 
-int run(int argc, char** argv) {
+int run(int argc, char **argv) {
+  GrpcRuntimeGuard grpc_runtime;
   if (argc < 2) {
     std::cerr << "usage: " << argv[0] << " <config.json>\n";
     return 2;
@@ -55,7 +71,7 @@ int run(int argc, char** argv) {
   Config cfg;
   try {
     cfg = load_config(config_path);
-  } catch (const std::exception& e) {
+  } catch (const std::exception &e) {
     std::cerr << "config load failed: " << e.what() << "\n";
     return 1;
   }
@@ -74,7 +90,7 @@ int run(int argc, char** argv) {
       to.tls_target_name = cfg.triton_tls_server_name;
     }
     triton->connect(to);
-  } catch (const std::exception& e) {
+  } catch (const std::exception &e) {
     // No local execution plane exists, so this is fatal by construction.
     std::cerr << "triton connect failed: " << e.what() << "\n";
     return 1;
@@ -83,7 +99,7 @@ int run(int argc, char** argv) {
   StartupResult startup;
   try {
     startup = run_startup(cfg, *triton, now_ms());
-  } catch (const std::exception& e) {
+  } catch (const std::exception &e) {
     std::cerr << "startup failed: " << e.what() << "\n";
     return 1;
   }
@@ -93,22 +109,24 @@ int run(int argc, char** argv) {
   }
 
   auto svc_impl = std::make_shared<CentralInferenceServiceImpl>(cfg, startup, triton);
-  HealthMonitor health(svc_impl, triton, startup);
+  auto health = std::make_unique<HealthMonitor>(svc_impl, triton, startup);
 
-  grpc::ServerBuilder builder;
-  auto server_creds = make_server_credentials(cfg.tls_ca_path,
-                                              cfg.tls_cert_path,
-                                              cfg.tls_key_path);
-  builder.AddListeningPort(cfg.gateway_listen, server_creds);
-  builder.RegisterService(svc_impl.get());
-  builder.SetMaxReceiveMessageSize(cfg.max_request_bytes);
-  builder.SetMaxSendMessageSize(cfg.max_response_bytes);
-  std::unique_ptr<grpc::Server> server(builder.BuildAndStart());
+  std::unique_ptr<grpc::Server> server;
+  {
+    grpc::ServerBuilder builder;
+    auto server_creds =
+        make_server_credentials(cfg.tls_ca_path, cfg.tls_cert_path, cfg.tls_key_path);
+    builder.AddListeningPort(cfg.gateway_listen, server_creds);
+    builder.RegisterService(svc_impl.get());
+    builder.SetMaxReceiveMessageSize(cfg.max_request_bytes);
+    builder.SetMaxSendMessageSize(cfg.max_response_bytes);
+    server = builder.BuildAndStart();
+  }
   if (!server) {
     std::cerr << "grpc server build failed\n";
     return 1;
   }
-  health.mark_ready();
+  health->mark_ready();
   std::cerr << "CentralInference listening on " << cfg.gateway_listen << " (mTLS)\n";
 
   std::signal(SIGTERM, handle_signal);
@@ -122,29 +140,43 @@ int run(int argc, char** argv) {
   // Drain: stop new admission, then wait for admitted work up to the
   // configured bound. The bound comes from config; it is never silently capped.
   std::cerr << "drain begin (drain_ms=" << cfg.drain_ms << ")\n";
-  health.begin_drain(cfg.drain_ms);
+  health->begin_drain(cfg.drain_ms);
   const int64_t drain_deadline = now_ms() + cfg.drain_ms;
   while (svc_impl->in_flight() > 0 && now_ms() < drain_deadline) {
     std::this_thread::sleep_for(std::chrono::milliseconds(10));
   }
   const uint64_t unfinished = svc_impl->in_flight();
   if (unfinished > 0) {
-    health.report_incomplete_attempt();
+    health->report_incomplete_attempt();
     std::cerr << "drain incomplete: in_flight=" << unfinished << "\n";
   }
 
   std::cerr << "shutdown begin\n";
-  health.begin_shutdown();
+  health->begin_shutdown();
   server->Shutdown();
   server->Wait();
+  // Tear the dependency graph down explicitly while all ownership edges are
+  // still visible. This avoids racing process-exit static cleanup with gRPC's
+  // event-engine threads and makes a shutdown allocator failure observable at
+  // a precise boundary.
+  server.reset();
+  health.reset();
+  svc_impl.reset();
+  triton.reset();
   std::cerr << "shutdown complete\n";
-  return 0;
+  std::cerr.flush();
+  // The pinned static gRPC/OpenSSL stack has an intermittent process-global
+  // teardown race after failed TLS handshakes: after every application-owned
+  // object above is synchronously drained and destroyed, its final global
+  // cleanup can still double-free or SIGSEGV an EventEngine worker. This
+  // stateless process has no remaining data to commit. Exit without running
+  // third-party/static destructors only after the complete graceful boundary
+  // above; early startup/runtime failures continue to return normally.
+  std::_Exit(EXIT_SUCCESS);
 }
 
-}  // namespace
+} // namespace
 
-}  // namespace masi::inf
+} // namespace masi::inf
 
-int main(int argc, char** argv) {
-  return masi::inf::run(argc, argv);
-}
+int main(int argc, char **argv) { return masi::inf::run(argc, argv); }

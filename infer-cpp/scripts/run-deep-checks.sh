@@ -66,10 +66,10 @@ tsan_status=0
 set +e
 MASI_INF_E2E=0 "${tsan_runner[@]}" ./build/cpu-tsan/contract_golden \
   2>&1 | tee "${evidence_dir}/tsan-contract.log"
-tsan_status=$(( tsan_status | ${PIPESTATUS[0]} ))
+tsan_status=$(( tsan_status | PIPESTATUS[0] ))
 MASI_INF_E2E=0 "${tsan_runner[@]}" ./build/cpu-tsan/property_invariants \
   2>&1 | tee "${evidence_dir}/tsan-property.log"
-tsan_status=$(( tsan_status | ${PIPESTATUS[0]} ))
+tsan_status=$(( tsan_status | PIPESTATUS[0] ))
 set -e
 tsan_environment_blocked=false
 if [[ "${tsan_status}" -ne 0 ]] && \
@@ -94,7 +94,7 @@ if [[ "${tsan_environment_blocked}" == true ]]; then
   evidence_qualification="NOT_QUALIFIED"
   qualification_reason="TSAN_KERNEL_MMAP_RANDOMNESS_INCOMPATIBLE"
 fi
-if [[ "${working_tree_dirty}" == true ]]; then
+if [[ "${working_tree_dirty}" == true && "${tsan_environment_blocked}" == false ]]; then
   evidence_result="HOLD"
   evidence_qualification="NOT_QUALIFIED"
   qualification_reason="DIRTY_WORKTREE_NOT_RELEASE_BASELINE"
@@ -137,7 +137,9 @@ jq -n \
     },
     checks: {
       address_sanitizer: "PASS",
-      thread_sanitizer: "PASS"
+      undefined_behavior_sanitizer: "PASS",
+      thread_sanitizer: (if $qualification_reason == "TSAN_KERNEL_MMAP_RANDOMNESS_INCOMPATIBLE"
+                         then "HOLD" else "PASS" end)
     },
     public_boundary_blackbox_coverage: "recorded separately by run-module-gates.sh",
     overall_module_complete: false

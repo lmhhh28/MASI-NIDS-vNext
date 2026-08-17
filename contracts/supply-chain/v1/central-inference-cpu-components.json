@@ -156,14 +156,26 @@
     {
       "name": "testkit minimal ONNX fixture",
       "decision": "ADOPT",
-      "version": "masi-ids-window-v1-r2",
-      "digest": "sha256:df0b0d1c9f4c53d817458810d0f3f9d9e52323bd49422ab008e0b224dc7ca7bb",
+      "version": "masi-ids-window-v1-r3",
+      "digest": "sha256:d8844f9b47cffa2f433037546ae5a5e5dc3e883d3bf7671036c1be01a1210e19",
       "license": "project-owned",
       "authority": "serving-framework E2E only; not detection accuracy; symbolic batch dimension so the frozen batch profile is exercisable",
       "runtime_download": false,
       "failure": "module E2E HOLD for serving framework",
       "rollback": "restore exact pinned fixture digest",
       "exit": "replace fixture preserving feature schema contract"
+    },
+    {
+      "name": "testkit minimal ONNX fixture (superseded r2)",
+      "decision": "REJECT",
+      "version": "masi-ids-window-v1-r2",
+      "digest": "sha256:df0b0d1c9f4c53d817458810d0f3f9d9e52323bd49422ab008e0b224dc7ca7bb",
+      "license": "project-owned",
+      "authority": "retained only to reproduce earlier serving evidence; it lacks the frozen OOD policy and verifiable runtime/optimization/model-revision preimages",
+      "runtime_download": false,
+      "failure": "not eligible for new Central Inference evidence",
+      "rollback": "not applicable; r3 is the first complete binding fixture",
+      "exit": "retain immutable bytes for historical digest reproduction"
     },
     {
       "name": "testkit minimal ONNX fixture (superseded)",
@@ -180,8 +192,8 @@
     {
       "name": "testkit Triton repository closure",
       "decision": "ADOPT",
-      "version": "repo-masi-ids-window-v1-r2",
-      "digest": "sha256:ce7c339d0f091822c490c5effc3217c351ae7fd6548e4bb9a05dfa3a6a6001d6",
+      "version": "repo-masi-ids-window-v1-r3",
+      "digest": "sha256:7e2d2b9d710b7812aeeeee7d8be83dac4f7e72986753665cb8c732c519bda130",
       "license": "project-owned",
       "authority": "single digest-pinned read-only closure shared by the Triton mount and the Gateway closure verification",
       "runtime_download": false,

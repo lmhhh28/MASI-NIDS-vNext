@@ -1,0 +1,17 @@
+Checks: >
+  -*,
+  clang-analyzer-*,
+  bugprone-branch-clone,
+  bugprone-misplaced-widening-cast,
+  bugprone-narrowing-conversions,
+  bugprone-sizeof-expression,
+  bugprone-suspicious-*,
+  performance-inefficient-vector-operation,
+  performance-move-const-arg,
+  performance-no-automatic-move,
+  performance-unnecessary-copy-initialization,
+  performance-unnecessary-value-param,
+  portability-*
+WarningsAsErrors: '*'
+HeaderFilterRegex: '^.*/infer-cpp/(src|tests)/.*'
+FormatStyle: file

@@ -8,6 +8,11 @@
   "applicability": "APPLICABLE",
   "result": "PASS",
   "qualification": "QUALIFIED",
+  "source_revision": "0000000000000000000000000000000000000000",
+  "source_tree_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+  "working_tree_dirty": false,
+  "working_tree_status_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+  "manifest_digest": "sha256:7777777777777777777777777777777777777777777777777777777777777777",
   "offline_rebuild": {
     "attempted": true,
     "binary_digest_equal": true,
@@ -19,8 +24,10 @@
   "vulnerability_scan": {"executed": true, "db_offline": true, "policy_loaded": true, "findings_path": "trivy.json", "findings_digest": "sha256:6666666666666666666666666666666666666666666666666666666666666666"},
   "secret_scan": {"executed": true, "secrets_found": 0},
   "config_scan": {"executed": true, "policy_cache_offline": true, "findings_path": "config.json"},
-  "signature": {"valid": true, "tamper_detected": false, "wrong_publisher_rejected": true, "publisher": "local-bootstrap"},
+  "signature": {"valid": true, "tamper_detected": false, "mutated_manifest_rejected": true, "wrong_publisher_rejected": true, "publisher": "local-bootstrap"},
   "release_manifest": {"digest": "sha256:7777777777777777777777777777777777777777777777777777777777777777", "closure_equal": true, "max_bytes": 8388608, "sha256sums_match": true},
   "input_safety": {"symlink_rejected": true, "path_traversal_rejected": true, "tar_traversal_rejected": true, "duplicate_rejected": true, "special_file_rejected": true},
+  "failure_reasons": [],
+  "hold_reasons": [],
   "overall_module_complete": false
 }

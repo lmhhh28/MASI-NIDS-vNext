@@ -1,0 +1,112 @@
+{
+  "schema_version": "masi-fixture-manifest/v2",
+  "model_id": "masi-ids-window-v1",
+  "revision": "0000000000000000000000000000000000000003",
+  "bundle_digest": "sha256:d8844f9b47cffa2f433037546ae5a5e5dc3e883d3bf7671036c1be01a1210e19",
+  "model_digest": "sha256:d8844f9b47cffa2f433037546ae5a5e5dc3e883d3bf7671036c1be01a1210e19",
+  "feature_schema": {
+    "field_order": [
+      "packets",
+      "bytes",
+      "nonzero_cells",
+      "max_cell_packets",
+      "max_cell_bytes",
+      "snapshots"
+    ],
+    "dtype": "uint64-le",
+    "shape": [
+      1,
+      6
+    ],
+    "units": "mixed"
+  },
+  "label_taxonomy": {
+    "label_ids": [
+      0,
+      1
+    ],
+    "id_reuse_policy": "never-reuse",
+    "mode": "single-label",
+    "score_domain": "logit",
+    "threshold": {
+      "kind": "fixed",
+      "value": 0.0
+    },
+    "calibration": {
+      "kind": "none",
+      "config_digest": "sha256:140bedbf9c3f6d56a9846d2ba7088798683f4da0c248231336e6a05679e4fdfe"
+    },
+    "class_order_policy": "stable-explicit-in-manifest",
+    "unknown_label_policy": "old-reader-preserves-unknown-without-triggering-old-effect-policy"
+  },
+  "output_adapter": {
+    "adapter_id": "masi-window-adapter-v1",
+    "version": "v1",
+    "mapping_kind": "deterministic-implementation",
+    "class_order": [
+      0,
+      1
+    ],
+    "axis": 1,
+    "top_k": 1,
+    "threshold": 0.5,
+    "calibration": "sha256:140bedbf9c3f6d56a9846d2ba7088798683f4da0c248231336e6a05679e4fdfe",
+    "executable_policy": "no-executable-code-injected-from-bundle",
+    "ood_policy": {
+      "mode": "max-probability-below-threshold",
+      "threshold": 0.55,
+      "decision": "abstain"
+    },
+    "adapter_digest": "sha256:b24aa57979d4473be9b8d1303a9bbb511eb164e898b898e0f342fcfd24d8d8ff"
+  },
+  "contract_digests": {
+    "feature_contract_digest": "sha256:a7695ca4a65d9dc557d77689a3cc9f9d4cacf9b638da17efe9de74b2c9f11810",
+    "label_contract_digest": "sha256:be5b8e1d9d8fd06ad37f005b51330b5a8756f1cb222d395b74eaa805f44a2180",
+    "output_adapter_digest": "sha256:b24aa57979d4473be9b8d1303a9bbb511eb164e898b898e0f342fcfd24d8d8ff"
+  },
+  "onnx": {
+    "ir_version": 10,
+    "opset": 21,
+    "producer": "testkit-fixtures-models",
+    "input_shape": [
+      "N",
+      6
+    ],
+    "output_shape": [
+      "N",
+      2
+    ]
+  },
+  "triton": {
+    "max_batch_size": 256,
+    "preferred_batch_size": [
+      32,
+      64,
+      128,
+      256
+    ],
+    "max_queue_delay_microseconds": 200,
+    "max_queue_size": 1024,
+    "instance_group": {
+      "kind": "KIND_CPU",
+      "count": 1
+    }
+  },
+  "purpose": "serving-framework-e2e-not-detection-accuracy",
+  "model_revision_digest": "sha256:0fb54e45e48907f7d9bfb5c59fcfb0e44ed3797107f9f00e13233e222a517a89",
+  "binding_identity": {
+    "model_id": "masi-ids-window-v1",
+    "revision": "0000000000000000000000000000000000000003",
+    "model_digest": "sha256:d8844f9b47cffa2f433037546ae5a5e5dc3e883d3bf7671036c1be01a1210e19",
+    "model_bundle_digest": "sha256:d8844f9b47cffa2f433037546ae5a5e5dc3e883d3bf7671036c1be01a1210e19",
+    "feature_contract_digest": "sha256:a7695ca4a65d9dc557d77689a3cc9f9d4cacf9b638da17efe9de74b2c9f11810",
+    "label_contract_digest": "sha256:be5b8e1d9d8fd06ad37f005b51330b5a8756f1cb222d395b74eaa805f44a2180",
+    "output_adapter_digest": "sha256:b24aa57979d4473be9b8d1303a9bbb511eb164e898b898e0f342fcfd24d8d8ff",
+    "inference_wire_profile_digest": "sha256:8e30d532aa6b433346e69256dfaecdc421e4cac668faaeadd04e562827457707",
+    "runtime_profile_id": "model-runtime-central-cpu/v1",
+    "runtime_profile_digest": "sha256:cf25a38fb3e7d288ee918cfa83c4e112e89132ca172affca8d21161ab11faf13",
+    "optimization_profile_id": "optimization-profile-central-cpu/v1",
+    "optimization_profile_digest": "sha256:0ecee17e5a74d87baab1eeeae136dab57b7ecd6a1a23401ba7255719d1427a31"
+  },
+  "expected_outputs_digest": "sha256:756cfac3d4c2dc7a57df5c615e2ba2fb55af4c1fd85ad9ab2d705c4b12016d17"
+}

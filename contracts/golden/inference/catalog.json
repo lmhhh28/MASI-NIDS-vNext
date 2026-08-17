@@ -14,14 +14,14 @@
       "path": "valid-batch-v1.json",
       "category": "valid",
       "test_id": "TEST-INF-GOLDEN-001",
-      "digest": "sha256:e7578447fc062901425f5d44fd5bbbc88605961174af77f0d8c7921f399852e1"
+      "digest": "sha256:2ff81d7d2a3e9a43eba4d83ade34e8a72cd05db373b4e739c93b1465724d5006"
     },
     {
       "id": "inference-valid-multi-record-batch-0001",
       "path": "valid-multi-record-batch-v1.json",
       "category": "valid",
       "test_id": "TEST-INF-GOLDEN-011",
-      "digest": "sha256:e2384dd2b613b65bcf7d0fc8b3bb8985a64052e3813c73b50f48716bd8b2a42a"
+      "digest": "sha256:77b085847920ad2846e24654063788d7539ce1195359b966d4591d7d80d20eca"
     },
     {
       "id": "inference-oversize-0001",

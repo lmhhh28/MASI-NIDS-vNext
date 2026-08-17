@@ -30,10 +30,9 @@ struct HealthSnapshot {
 };
 
 class HealthMonitor {
- public:
+public:
   explicit HealthMonitor(std::shared_ptr<CentralInferenceServiceImpl> svc,
-                          std::shared_ptr<TritonClient> triton,
-                          StartupResult startup);
+                         std::shared_ptr<TritonClient> triton, StartupResult startup);
   ~HealthMonitor() = default;
 
   void mark_ready();
@@ -48,7 +47,7 @@ class HealthMonitor {
   // readback consistent.
   bool readiness_ok() const;
 
- private:
+private:
   std::shared_ptr<CentralInferenceServiceImpl> svc_;
   std::shared_ptr<TritonClient> triton_;
   StartupResult startup_;
@@ -57,4 +56,4 @@ class HealthMonitor {
   int32_t drain_ms_ = 5000;
 };
 
-}  // namespace masi::inf
+} // namespace masi::inf

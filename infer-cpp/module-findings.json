@@ -2,8 +2,8 @@
   "schema_version": "module-findings/v1",
   "module_id": "MOD-INF-001",
   "decision_id": "DEC-044",
-  "reviewed_at": "2026-08-17T03:30:00Z",
-  "review_scope": "MOD-INF-001 first-release CPU profile implementation, public-boundary startup, fault, numeric, supply-chain and gate evidence, including the independent audit of the batched wire path, the binding readback evidence chain and the registered toolchain, plus the gate-runner honesty audit, real fault-injection and the soak profile",
+  "reviewed_at": "2026-08-17T10:29:00Z",
+  "review_scope": "MOD-INF-001 first-release CPU profile implementation, complete route/record result fencing, public-boundary startup, OOD/numeric, fault and shutdown recovery, OCI, sanitizer, supply-chain and strictly validated gate/soak evidence",
   "findings": [
     {
       "finding_id": "INF-E2E-0001",
@@ -192,7 +192,7 @@
       ],
       "opened_at": "2026-08-16T00:00:00Z",
       "closed_at": "2026-08-16T00:00:00Z",
-      "resolution": "A replay of the same request identity previously returned zero records on the assumption that the Edge already held the canonical result, which is false in the exact case that causes a retry. Following the at-least-once compute semantics of the design, a replay is now recomputed and returns the full result with a new worker_attempt_id; the bounded cache keeps only request_id to input_digest for conflict detection and evicts by LRU instead of clearing wholesale."
+      "resolution": "A replay of the same request identity previously returned zero records on the assumption that the Edge already held the canonical result, which is false in the exact case that causes a retry. Following the at-least-once compute semantics of the design, a replay is now recomputed and returns the full result with a new worker_attempt_id. Conflict identities are retained until their request deadline; live entries are never evicted, and capacity pressure fails closed with DEDUP_CAPACITY_EXHAUSTED."
     },
     {
       "finding_id": "INF-AUDIT-0005",
@@ -344,12 +344,12 @@
       ],
       "opened_at": "2026-08-16T00:00:00Z",
       "closed_at": "2026-08-16T19:18:28Z",
-      "resolution": "run-oci-smoke.sh started the isolated container with a fake model repository and a loopback Triton endpoint, so no real Triton was reachable and image startup/readiness was never observed. It now starts the real distroless image (65532:65532, read-only rootfs, cap_drop=ALL, no-new-privileges, bounded pids/memory/CPU/tmpfs) on an isolated Docker network against a REAL digest-pinned Triton sidecar (r2 fixture, model-control-mode=none, gRPC mutual TLS), builds a digest-pinned startup envelope from the r2 closure manifests so the startup gate (live vs pinned config and profile, exact triton_server_version, wire-profile and envelope_digest self-check) passes, exercises the public mTLS boundary with an independent client leaf, and verifies SIGTERM exit 0. The Dockerfile builder-base digest placeholder was corrected to a real ubuntu:22.04 manifest-list digest and a stale host build-dir cache clash fixed. Evidence records image manifest/config/binary digest, read-only rootfs, mTLS probe success and SIGTERM exit 0."
+      "resolution": "run-oci-smoke.sh now starts the real distroless image (65532:65532, read-only rootfs, cap_drop=ALL, no-new-privileges, bounded pids/memory/CPU/tmpfs) on an isolated Docker network against a real digest-pinned Triton sidecar (r3 fixture, model-control-mode=none, gRPC mutual TLS). The startup envelope binds the r3 model revision plus exact wire/runtime/optimization preimages, an independently built current-source probe exercises GetBinding, and SIGTERM exit 0 is verified. OCI manifest, config blob, archive, Gateway and probe digests are recorded as distinct identities."
     },
     {
       "finding_id": "INF-AUDIT-0013",
       "severity": "P2",
-      "status": "OPEN",
+      "status": "CLOSED",
       "title": "This adapter does not compute out-of-distribution scores; the declared ood field is always false",
       "requirement_ids": [
         "MOD-INF-001",
@@ -357,11 +357,13 @@
       ],
       "evidence_refs": [
         "contracts/inference/v1/profile.json",
-        "infer-cpp/src/numeric.cc"
+        "infer-cpp/src/numeric.cc",
+        "testkit/fixtures/repositories/masi-ids-window-v1-r3/bundle-manifest.json",
+        "infer-cpp/tests/module_blackbox.cc"
       ],
       "opened_at": "2026-08-16T00:00:00Z",
-      "closed_at": null,
-      "resolution": null
+      "closed_at": "2026-08-17T08:45:00Z",
+      "resolution": "The r3 immutable bundle defines max-probability-below-threshold at 0.55 with deterministic abstention. C++ recomputes probabilities, sets out_of_distribution and forces abstain; Python numeric golden uses the same rule. Unit tests cover the threshold and the real Gateway-to-Triton E2E proves a zero row becomes OOD/abstain while a confident baseline row remains benign."
     },
     {
       "finding_id": "INF-AUDIT-0014",
@@ -471,12 +473,12 @@
       ],
       "opened_at": "2026-08-16T16:30:00Z",
       "closed_at": "2026-08-16T16:30:00Z",
-      "resolution": "The gate resolves the evidence path from the published latest.json, and a missing image binary now yields HOLD with OCI_IMAGE_NOT_BUILT_FOR_BINARY_COMPARISON while a real digest mismatch still fails. ThreadSanitizer, which aborted on this kernel's 32-bit mmap randomness, now runs under setarch -R and reports HOLD with a stable reason only if it still cannot start."
+      "resolution": "The gate resolves the nested evidence only through a schema-checked, digest-checked, symlink-free latest.json path. The supply runner now requires a real image, clean network-none snapshot rebuild, exact binary equality, two SPDX SBOMs, offline pinned Trivy DB/policy scans, signed release/provenance/bundle closure and Cosign tamper/wrong-publisher negatives. Any missing tool or evidence is fail closed; dirty source remains the sole permitted qualification-only HOLD."
     },
     {
       "finding_id": "INF-AUDIT-0020",
       "severity": "P2",
-      "status": "OPEN",
+      "status": "CLOSED",
       "title": "runtime_profile_digest and optimization_profile_digest have no verifiable preimage in the frozen contract, so they remain declared-only values",
       "requirement_ids": [
         "MOD-INF-001",
@@ -484,11 +486,14 @@
       ],
       "evidence_refs": [
         "contracts/inference/v1/profile.json",
-        "infer-cpp/src/envelope.cc"
+        "infer-cpp/src/envelope.cc",
+        "contracts/inference/v1/model-runtime-central-cpu.json",
+        "contracts/inference/v1/optimization-profile-central-cpu.json",
+        "testkit/fixtures/repositories/masi-ids-window-v1-r3/bundle-manifest.json"
       ],
       "opened_at": "2026-08-16T16:30:00Z",
-      "closed_at": null,
-      "resolution": null
+      "closed_at": "2026-08-17T08:45:00Z",
+      "resolution": "CMake hashes the exact frozen wire, CPU runtime and optimization profile files and compiles those digests into the Gateway. Envelope parsing rejects malformed or foreign digests; the r3 binding_identity carries the same preimages; startup recomputes model_revision_digest and cross-checks all three values before observing Triton. Property negatives prove empty/foreign values fail closed."
     },
     {
       "finding_id": "INF-AUDIT-0021",
@@ -549,6 +554,61 @@
       "opened_at": "2026-08-17T03:30:00Z",
       "closed_at": "2026-08-17T03:30:00Z",
       "resolution": "Protocol Buffers carried commit \"pinned-as-grpc-v1.82.1-submodule\", which does not match the registry schema's 40-hex commit pattern, and Abseil carried no commit at all. Both are now the exact submodule commits recorded by the pinned gRPC tree (protobuf e59364c38e10de3686a3305ff11fbfc59a10dbd8, abseil 76bb24329e8bf5f39704eb10d21b9a80befa7c81, read from git ls-tree at gRPC acccf84c0df20487d64101f528e5d426541ca4e5). The registry now validates against its schema with zero errors."
+    },
+    {
+      "finding_id": "INF-AUDIT-0024",
+      "severity": "P0",
+      "status": "CLOSED",
+      "title": "Infer executed records without validating the complete route and record fence tuple",
+      "requirement_ids": ["MOD-INF-001", "CONTRACT-INF-001", "SEC-INF-001"],
+      "evidence_refs": ["infer-cpp/src/gateway.cc", "infer-cpp/tests/property_invariants.cc", "infer-cpp/tests/module_blackbox.cc"],
+      "opened_at": "2026-08-17T05:00:00Z",
+      "closed_at": "2026-08-17T08:45:00Z",
+      "resolution": "Before any Triton call, Infer now requires the exact route schema, incarnation/pool/binding/route generations, operation/scope, model/feature/label/adapter/wire/runtime/optimization identities and all readback digests. Every record must carry an exact final-window source/WAL/quality/time tuple matching that route; duplicate input/event identities are rejected. Exhaustive one-field mutation tests and real cross-generation/adapter-drift E2E prove execution counters do not move on a mismatch."
+    },
+    {
+      "finding_id": "INF-AUDIT-0025",
+      "severity": "P1",
+      "status": "CLOSED",
+      "title": "Configuration and response resources were not bounded by frozen ceilings and live conflict identities could be evicted",
+      "requirement_ids": ["MOD-INF-001", "REQ-RES-001"],
+      "evidence_refs": ["infer-cpp/src/config.h", "infer-cpp/src/gateway.cc", "infer-cpp/tests/property_invariants.cc"],
+      "opened_at": "2026-08-17T05:00:00Z",
+      "closed_at": "2026-08-17T08:45:00Z",
+      "resolution": "Startup rejects zero, negative or over-ceiling request/response bytes, batch count, in-flight count, deadlines, drain and thread settings. Infer performs a conservative response-size preflight before Triton and a final serialized-size check. Conflict entries expire only at their request deadline; live identities are never LRU-evicted, and full capacity fails closed. SHA-256 file hashing is streaming rather than loading unbounded files."
+    },
+    {
+      "finding_id": "INF-AUDIT-0026",
+      "severity": "P1",
+      "status": "CLOSED",
+      "title": "Supply verification could report PASS when SBOM, scans and signature were absent and its evidence did not match the public schema",
+      "requirement_ids": ["MOD-INF-001", "SEC-SUPPLY-001", "ARCH-REUSE-001"],
+      "evidence_refs": ["infer-cpp/scripts/run-supply-chain.sh", "infer-cpp/scripts/build-supply-manifest.py", "infer-cpp/scripts/verify-supply-chain.py", "contracts/evidence/central-inference-supply/v1/schema.json"],
+      "opened_at": "2026-08-17T05:00:00Z",
+      "closed_at": "2026-08-17T08:45:00Z",
+      "resolution": "All optional best-effort tool calls were removed. The runner rebuilds a fresh source snapshot with Docker network none and compares the exact image binary, runs digest-pinned Syft/Trivy/Cosign images offline, verifies fresh pinned DB/policy caches, signs a schema-valid release/provenance/bundle manifest, exercises tamper and wrong-publisher negatives, and validates the final evidence strictly. The observed full run has no hard-check failures; only dirty-tree qualification remains."
+    },
+    {
+      "finding_id": "INF-AUDIT-0027",
+      "severity": "P1",
+      "status": "CLOSED",
+      "title": "Module aggregation trusted partial evidence, misparsed boolean false, and accepted an unvalidated formal-soak summary",
+      "requirement_ids": ["MOD-INF-001", "TEST-010", "DEC-042", "DEC-044"],
+      "evidence_refs": ["infer-cpp/scripts/run-module-gates.sh", "infer-cpp/scripts/validate-evidence.py", "infer-cpp/scripts/test-evidence-validator.py", "contracts/evidence/soak/v1/schema.json"],
+      "opened_at": "2026-08-17T05:00:00Z",
+      "closed_at": "2026-08-17T08:45:00Z",
+      "resolution": "Boolean state is converted inside jq instead of treating false as extraction failure; nested supply evidence is resolved through exact schema/version/path/digest checks; command sidecars and the final summary are schema-valid; format and clang-tidy execute real tools. Formal soak now treats 3600 seconds as the qualified window plus a separate 60-second warmup and requires strict schema/profile digest, four 900-second PASS phases, per-record golden output oracles, monotonic Triton statistics bound to the successful record count, independently recomputed rates and sample cadence, zero gaps/errors/restarts/OOM/resource violations, and verified cleanup. A formal PASS additionally requires command exit 0 and is bound by exact evidence path/digest in the module summary. Discriminating negative vectors reject rehearsal PASS, fabricated rate success, unbound formal evidence, invalid signatures, and not-measurable samples."
+    },
+    {
+      "finding_id": "INF-AUDIT-0028",
+      "severity": "P1",
+      "status": "CLOSED",
+      "title": "Pinned gRPC/OpenSSL process-global teardown intermittently double-freed or SIGSEGVed an EventEngine worker after graceful shutdown completed",
+      "requirement_ids": ["MOD-INF-001", "REL-INF-001", "TEST-003"],
+      "evidence_refs": ["infer-cpp/src/main.cpp", "infer-cpp/tests/module_blackbox.cc", "infer-cpp/scripts/run-deep-checks.sh"],
+      "opened_at": "2026-08-17T09:35:00Z",
+      "closed_at": "2026-08-17T10:29:00Z",
+      "resolution": "The release black-box test exposed an intermittent allocator diagnostic and later a waitpid=139 after the Gateway had logged shutdown complete. Repetition reproduced the failure within 2-40 runs; strace -ff identified a gRPC worker LWP receiving SIGSEGV during process-exit cleanup, while Debug and Release ASan/UBSan runs were clean with the registered Protobuf/OpenSSL compatibility options. The Gateway now retains a process-level grpc_init reference, synchronously drains and destroys Server, HealthMonitor, Service and Triton Channel in dependency order, flushes its final evidence log, then uses _Exit(0) only on the fully successful stateless shutdown path so the pinned third-party global destructors cannot race process exit. Failure paths still return normally; black-box and soak reject allocator/sanitizer/segfault markers. The repaired release binary completed 100 consecutive real mTLS/fault/SIGKILL-restart/SIGTERM E2E runs without a marker, signal or non-zero exit."
     }
   ]
 }

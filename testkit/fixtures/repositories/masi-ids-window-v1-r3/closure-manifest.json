@@ -1,0 +1,22 @@
+{
+  "schema_version": "masi-repository-closure/v1",
+  "identity": "repo-masi-ids-window-v1-r3",
+  "closure_digest": "sha256:7e2d2b9d710b7812aeeeee7d8be83dac4f7e72986753665cb8c732c519bda130",
+  "members": [
+    {
+      "rel_path": "bundle-manifest.json",
+      "member_digest": "sha256:2900990cfacea803369aaa11c8e1ce69b7c322d790057b7ad83dc3e47c8ff076",
+      "role": "bundle-manifest"
+    },
+    {
+      "rel_path": "masi-ids-window-v1/1/model.onnx",
+      "member_digest": "sha256:d8844f9b47cffa2f433037546ae5a5e5dc3e883d3bf7671036c1be01a1210e19",
+      "role": "model"
+    },
+    {
+      "rel_path": "masi-ids-window-v1/config.pbtxt",
+      "member_digest": "sha256:5baa377b2827a7d67fc6d703f10085d2a96bb6a2050c0241198f82b0258dbfff",
+      "role": "config"
+    }
+  ]
+}

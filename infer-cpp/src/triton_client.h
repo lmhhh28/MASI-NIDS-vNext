@@ -12,8 +12,8 @@
 // Stubs generated from the vendored upstream Triton protocol definition
 // (proto/vendor/triton, provenance registered in
 // contracts/supply-chain/v1/central-inference-vendored-sources.json).
-#include "grpc_service.pb.h"
 #include "grpc_service.grpc.pb.h"
+#include "grpc_service.pb.h"
 
 namespace masi::inf {
 
@@ -24,7 +24,7 @@ struct TritonServerMetadata {
 };
 
 struct TritonModelMetadata {
-  std::string raw_metadata;      // canonical projection, not the raw protobuf
+  std::string raw_metadata; // canonical projection, not the raw protobuf
   std::string name;
   std::string version;
   std::vector<std::string> inputs;
@@ -75,12 +75,12 @@ struct TritonInferResult {
 // ModelInfer. Model-control and shared-memory RPCs are never called; see the
 // method allowlist in the vendored-source registry.
 class TritonClient {
- public:
+public:
   TritonClient() = default;
   ~TritonClient() = default;
 
-  TritonClient(const TritonClient&) = delete;
-  TritonClient& operator=(const TritonClient&) = delete;
+  TritonClient(const TritonClient &) = delete;
+  TritonClient &operator=(const TritonClient &) = delete;
 
   struct ConnectOptions {
     std::string endpoint;
@@ -89,52 +89,45 @@ class TritonClient {
     std::string tls_ca;
     std::string tls_cert;
     std::string tls_key;
-    std::string tls_target_name;   // exact SAN expected from Triton
+    std::string tls_target_name; // exact SAN expected from Triton
     int32_t deadline_ms = 2000;
     int32_t max_message_bytes = 16777216;
   };
 
   bool available() const noexcept { return available_; }
-  const std::string& endpoint() const noexcept { return opts_.endpoint; }
+  const std::string &endpoint() const noexcept { return opts_.endpoint; }
   bool tls_enabled() const noexcept { return !opts_.tls_ca.empty(); }
 
   // Fails closed when a plaintext channel is requested for a non-loopback
   // endpoint: "same host" is never treated as an identity.
-  void connect(const ConnectOptions& opts);
+  void connect(const ConnectOptions &opts);
 
   bool is_server_ready(int32_t deadline_ms = 0);
-  bool is_model_ready(const std::string& name, const std::string& version,
-                      int32_t deadline_ms = 0);
+  bool is_model_ready(const std::string &name, const std::string &version, int32_t deadline_ms = 0);
 
   TritonServerMetadata server_metadata(int32_t deadline_ms = 0);
-  TritonModelMetadata model_metadata(const std::string& name,
-                                     const std::string& version,
+  TritonModelMetadata model_metadata(const std::string &name, const std::string &version,
                                      int32_t deadline_ms = 0);
-  TritonModelConfigProjection model_config(const std::string& name,
-                                           const std::string& version,
+  TritonModelConfigProjection model_config(const std::string &name, const std::string &version,
                                            int32_t deadline_ms = 0);
-  TritonModelStatistics model_statistics(const std::string& name,
-                                         const std::string& version,
+  TritonModelStatistics model_statistics(const std::string &name, const std::string &version,
                                          int32_t deadline_ms = 0);
 
   // One batched inference call for a whole admitted batch. `input_shape` is the
   // full request shape (batch dimension first). `deadline_ms` is the remaining
   // budget of the originating Edge request; `parent` propagates the Edge
   // deadline and cancellation when provided.
-  TritonInferResult model_infer(const std::string& name,
-                                const std::string& version,
-                                const std::string& input_name,
-                                const std::string& input_datatype,
-                                const std::vector<uint8_t>& input_bytes,
-                                const std::vector<int64_t>& input_shape,
-                                int32_t deadline_ms,
-                                const grpc::ServerContext* parent = nullptr);
+  TritonInferResult model_infer(const std::string &name, const std::string &version,
+                                const std::string &input_name, const std::string &input_datatype,
+                                const std::vector<uint8_t> &input_bytes,
+                                const std::vector<int64_t> &input_shape, int32_t deadline_ms,
+                                const grpc::ServerContext *parent = nullptr);
 
- private:
+private:
   bool available_ = false;
   ConnectOptions opts_;
   std::shared_ptr<grpc::Channel> channel_;
   std::unique_ptr<::inference::GRPCInferenceService::Stub> stub_;
 };
 
-}  // namespace masi::inf
+} // namespace masi::inf

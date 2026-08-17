@@ -57,6 +57,10 @@ REVISIONS = {
         "revision": "0000000000000000000000000000000000000002",
         "batch_dim": "N",
     },
+    "r3": {
+        "revision": "0000000000000000000000000000000000000003",
+        "batch_dim": "N",
+    },
 }
 
 FIELD_ORDER = [
@@ -77,6 +81,17 @@ W = np.random.randn(FEATURE_COUNT, NUM_CLASSES).astype(np.float32)
 W[:, 0] = -0.5  # benign weights negative
 W[:, 1] = 0.5  # alert weights positive
 B = np.array([0.1, -0.1], dtype=np.float32)
+
+
+def weights_for_revision(rev_tag: str) -> np.ndarray:
+    weights = W.copy()
+    if rev_tag == "r3":
+        # r3 deliberately makes feature 0 evidence for the baseline class.
+        # This gives the real serving E2E observable benign, alert and OOD/
+        # abstain rows instead of a fixture that can only ever alert.
+        weights[0, 0] = 0.5
+        weights[0, 1] = -0.5
+    return weights
 
 
 def canonical_json(obj) -> str:
@@ -111,7 +126,10 @@ def build_model(rev_tag: str, batch_dim) -> ModelProto:
     features_f32 = "features_f32"
     scores = helper.make_tensor_value_info(OUTPUT_NAME, TensorProto.FLOAT, output_shape)
 
-    W_init = helper.make_tensor("W", TensorProto.FLOAT, [FEATURE_COUNT, NUM_CLASSES], W.flatten().tolist())
+    weights = weights_for_revision(rev_tag)
+    W_init = helper.make_tensor(
+        "W", TensorProto.FLOAT, [FEATURE_COUNT, NUM_CLASSES], weights.flatten().tolist()
+    )
     B_init = helper.make_tensor("B", TensorProto.FLOAT, [NUM_CLASSES], B.flatten().tolist())
 
     cast_node = helper.make_node(
@@ -150,9 +168,9 @@ def build_model(rev_tag: str, batch_dim) -> ModelProto:
     return model
 
 
-def raw_logits(features: np.ndarray) -> np.ndarray:
+def raw_logits(features: np.ndarray, rev_tag: str) -> np.ndarray:
     """Deterministic raw model output for an [N,6] uint64 input."""
-    return features.astype(np.float32) @ W + B
+    return features.astype(np.float32) @ weights_for_revision(rev_tag) + B
 
 
 def stable_softmax(row: np.ndarray) -> np.ndarray:
@@ -172,7 +190,8 @@ def apply_adapter(row_logits: np.ndarray, taxonomy: dict, adapter: dict) -> dict
       - baseline label is `class_order[0]`
       - alert iff predicted != baseline and score >= output_adapter.threshold
       - abstain iff top-1 score < label_taxonomy.threshold.value
-      - this adapter does not compute OOD (always false)
+      - OOD iff the maximum normalized score is below the adapter threshold;
+        OOD always forces abstention
     """
     domain = taxonomy["score_domain"]
     if domain == "logit":
@@ -189,7 +208,14 @@ def apply_adapter(row_logits: np.ndarray, taxonomy: dict, adapter: dict) -> dict
     top_score = float(scores[top_index])
     baseline_label = int(class_order[0])
 
-    abstain = top_score < float(taxonomy["threshold"]["value"])
+    ood_policy = adapter.get("ood_policy")
+    if ood_policy is None:
+        out_of_distribution = False
+    else:
+        if ood_policy["mode"] != "max-probability-below-threshold":
+            raise ValueError("unsupported OOD policy")
+        out_of_distribution = top_score < float(ood_policy["threshold"])
+    abstain = out_of_distribution or top_score < float(taxonomy["threshold"]["value"])
     if abstain:
         decision = "abstain"
     elif predicted_label != baseline_label and top_score >= float(adapter["threshold"]):
@@ -201,15 +227,15 @@ def apply_adapter(row_logits: np.ndarray, taxonomy: dict, adapter: dict) -> dict
         "canonical_scores": [float(s) for s in scores],
         "predicted_label": predicted_label,
         "decision": decision,
-        "out_of_distribution": False,
+        "out_of_distribution": out_of_distribution,
         "abstain": abstain,
         "quality": "valid",
         "output_digest": sha256_bytes(scores.tobytes()),
     }
 
 
-def build_contract_blocks() -> tuple[dict, dict, dict]:
-    """`contracts/model/v1`-shaped feature/label/adapter blocks for r2."""
+def build_contract_blocks(enable_ood: bool) -> tuple[dict, dict, dict]:
+    """Build immutable adapter blocks; OOD was introduced by r3."""
     none_calibration_digest = sha256_text("none")
 
     feature_schema = {
@@ -243,6 +269,12 @@ def build_contract_blocks() -> tuple[dict, dict, dict]:
         "calibration": none_calibration_digest,
         "executable_policy": "no-executable-code-injected-from-bundle",
     }
+    if enable_ood:
+        adapter_body["ood_policy"] = {
+            "mode": "max-probability-below-threshold",
+            "threshold": 0.55,
+            "decision": "abstain",
+        }
     # adapter_digest is the digest of the adapter body without the digest field.
     adapter_digest = sha256_text(canonical_json(adapter_body))
     output_adapter = dict(adapter_body)
@@ -286,13 +318,14 @@ def main() -> int:
         np.array([[5, 10, 3, 1, 2, 1]], dtype=np.uint64),  # benign-leaning
         np.array([[100, 200, 50, 10, 20, 10]], dtype=np.uint64),  # alert-leaning
         np.array([[0, 0, 0, 0, 0, 0]], dtype=np.uint64),  # zero input
+        np.array([[100, 0, 0, 0, 0, 0]], dtype=np.uint64),  # r3 benign
     ]
 
     if rev_tag == "r1":
         # Legacy revision: single-row only, raw logits, no adapter block.
         expected = []
         for i, inp in enumerate(golden_inputs):
-            logits = raw_logits(inp).reshape(1, -1)
+            logits = raw_logits(inp, rev_tag).reshape(1, -1)
             predicted_label = int(np.argmax(logits, axis=1)[0])
             out = {
                 "scores": logits.flatten().tolist(),
@@ -358,7 +391,47 @@ def main() -> int:
             "purpose": "serving-framework-e2e-not-detection-accuracy",
         }
     else:
-        feature_schema, label_taxonomy, output_adapter = build_contract_blocks()
+        feature_schema, label_taxonomy, output_adapter = build_contract_blocks(
+            enable_ood=rev_tag == "r3"
+        )
+
+        repo_root = os.path.abspath(os.path.join(here, "..", "..", "..", ".."))
+        wire_profile_path = os.path.join(repo_root, "contracts/inference/v1/profile.json")
+        runtime_profile_path = os.path.join(
+            repo_root, "contracts/inference/v1/model-runtime-central-cpu.json"
+        )
+        optimization_profile_path = os.path.join(
+            repo_root, "contracts/inference/v1/optimization-profile-central-cpu.json"
+        )
+        for contract_path in (
+            wire_profile_path,
+            runtime_profile_path,
+            optimization_profile_path,
+        ):
+            if not os.path.isfile(contract_path):
+                raise FileNotFoundError(contract_path)
+
+        feature_contract_digest = sha256_text(canonical_json(feature_schema))
+        label_contract_digest = sha256_text(canonical_json(label_taxonomy))
+        output_adapter_digest = output_adapter["adapter_digest"]
+        binding_identity = None
+        model_revision_digest = None
+        if rev_tag == "r3":
+            binding_identity = {
+                "model_id": MODEL_ID,
+                "revision": revision,
+                "model_digest": model_digest,
+                "model_bundle_digest": bundle_digest,
+                "feature_contract_digest": feature_contract_digest,
+                "label_contract_digest": label_contract_digest,
+                "output_adapter_digest": output_adapter_digest,
+                "inference_wire_profile_digest": sha256_file(wire_profile_path),
+                "runtime_profile_id": "model-runtime-central-cpu/v1",
+                "runtime_profile_digest": sha256_file(runtime_profile_path),
+                "optimization_profile_id": "optimization-profile-central-cpu/v1",
+                "optimization_profile_digest": sha256_file(optimization_profile_path),
+            }
+            model_revision_digest = sha256_text(canonical_json(binding_identity))
 
         # Multi-row batch vectors so the batched wire path has golden coverage.
         batch_inputs = [
@@ -368,7 +441,7 @@ def main() -> int:
 
         vectors = []
         for i, inp in enumerate(golden_inputs + batch_inputs):
-            logits = raw_logits(inp)
+            logits = raw_logits(inp, rev_tag)
             rows = []
             for row in range(logits.shape[0]):
                 adapted = apply_adapter(logits[row], label_taxonomy, output_adapter)
@@ -412,9 +485,9 @@ def main() -> int:
             "label_taxonomy": label_taxonomy,
             "output_adapter": output_adapter,
             "contract_digests": {
-                "feature_contract_digest": sha256_text(canonical_json(feature_schema)),
-                "label_contract_digest": sha256_text(canonical_json(label_taxonomy)),
-                "output_adapter_digest": output_adapter["adapter_digest"],
+                "feature_contract_digest": feature_contract_digest,
+                "label_contract_digest": label_contract_digest,
+                "output_adapter_digest": output_adapter_digest,
             },
             "onnx": {
                 "ir_version": IR_VERSION,
@@ -432,6 +505,9 @@ def main() -> int:
             },
             "purpose": "serving-framework-e2e-not-detection-accuracy",
         }
+        if binding_identity is not None:
+            manifest["model_revision_digest"] = model_revision_digest
+            manifest["binding_identity"] = binding_identity
 
     expected_path = os.path.join(out_dir, f"{MODEL_ID}-{rev_tag}-expected-outputs.json")
     with open(expected_path, "w") as f:

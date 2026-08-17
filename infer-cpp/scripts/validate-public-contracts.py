@@ -496,23 +496,10 @@ def main() -> int:
     reject(traceability_schema, bad_traceability2, "traceability-conditional-pass")
     negative_vectors += 1
 
-    # ---- Module summary evidence: HOLD is valid; PASS must be complete ----
-    # The inference-module-schema is the generic gate-summary schema. The
-    # golden file has extra descriptive fields (run_id, generated_at, etc.)
-    # that the schema allows via additionalProperties=false but the golden
-    # uses a superset. We validate the required fields and schema_version
-    # match, and run the negative unknown-field test with a strict check.
+    # ---- Module summary evidence: strict shape, including publication fields ----
     module_schema = load(repo / "contracts" / "evidence" / "v1" / "inference-module-schema.json")
     module_golden = load(repo / "contracts" / "golden" / "evidence" / "central-inference-module-v1.json")
-    # Verify schema_version is in the allowed enum.
-    sv = module_golden["schema_version"]
-    allowed_sv = module_schema["properties"]["schema_version"]["enum"]
-    if sv not in allowed_sv:
-        raise ValueError(f"module gate summary schema_version {sv} not in allowed enum")
-    # Verify required fields exist.
-    for req in module_schema.get("required", []):
-        if req not in module_golden:
-            raise ValueError(f"module gate summary missing required field: {req}")
+    validate(module_schema, module_golden, "inference-module-summary")
     # Negative: unknown top-level field must be rejected by the schema.
     module_unknown = copy.deepcopy(module_golden)
     module_unknown["unknown_public_field"] = True

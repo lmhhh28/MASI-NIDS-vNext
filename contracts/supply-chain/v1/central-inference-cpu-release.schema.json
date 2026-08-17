@@ -61,12 +61,12 @@
     "inventory": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["component_registry", "third_party_notices", "cmake_lock", "ort_archive", "working_tree_status", "sboms", "scans", "evidence_inputs"],
+      "required": ["component_registry", "third_party_notices", "vendored_sources", "cmake_presets", "working_tree_status", "sboms", "scans", "evidence_inputs"],
       "properties": {
         "component_registry": {"$ref": "#/$defs/digestFile"},
         "third_party_notices": {"$ref": "#/$defs/digestFile"},
-        "cmake_lock": {"$ref": "#/$defs/digestFile"},
-        "ort_archive": {"$ref": "#/$defs/digestFile"},
+        "vendored_sources": {"$ref": "#/$defs/digestFile"},
+        "cmake_presets": {"$ref": "#/$defs/digestFile"},
         "working_tree_status": {"$ref": "#/$defs/digestFile"},
         "sboms": {"type": "array", "minItems": 2, "maxItems": 8, "uniqueItems": true, "items": {"$ref": "#/$defs/sizedDigestFile"}},
         "scans": {"type": "array", "minItems": 3, "maxItems": 16, "uniqueItems": true, "items": {"$ref": "#/$defs/sizedDigestFile"}},

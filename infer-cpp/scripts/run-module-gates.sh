@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# shellcheck disable=SC2016  # nested bash -lc intentionally expands its own $0
 set -euo pipefail
 
 umask 077
@@ -86,7 +87,7 @@ write_command_sidecar() {
     --arg log_path "${log_name}.log" --arg log_digest "${log_digest}" \
     --argjson log_bytes "${log_bytes}" \
     --args '$ARGS.positional as $argv | {
-      schema_version:"central-inference-command-execution/v1",run_id:$run_id,command_id:$command_id,
+      schema_version:"edge-command-execution/v1",run_id:$run_id,command_id:$command_id,
       started_at:$started_at,finished_at:$finished_at,duration_ms:$duration_ms,
       working_directory:"infer-cpp",argv:$argv,exit_code:$exit_code,result:$result,
       qualification:$qualification,source_tree_digest:$source_tree_digest,
@@ -94,6 +95,9 @@ write_command_sidecar() {
       stable_reason:(if $stable_reason == "" then null else $stable_reason end),
       log:{path:$log_path,sha256:$log_digest,bytes:$log_bytes,media_type:"text/plain"}
     }' -- "${command[@]}" >"${temporary}" || return 1
+  python3 "${script_dir}/validate-evidence.py" \
+    --schema "${repo_root}/contracts/evidence/command/v1/schema.json" \
+    --document "${temporary}" >/dev/null || return 1
   [[ ! -L "${sidecar}" ]] || return 1
   mv -T -- "${temporary}" "${sidecar}" || return 1
 }
@@ -102,7 +106,7 @@ run_logged() {
   local log_name="$1"
   shift
   local -a command=("$@")
-  local started_at finished_at started_ns finished_ns duration_ms command_status tee_status
+  local started_at finished_at started_ns finished_ns duration_ms command_status filter_status tee_status
   local result qualification stable_reason log_digest log_bytes
   local log_path="${evidence_root}/${log_name}.log"
   local temporary_log="${evidence_root}/.${log_name}.log.$$.tmp"
@@ -119,15 +123,32 @@ run_logged() {
   started_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
   started_ns="$(date +%s%N)"
   set +e
-  "${command[@]}" 2>&1 | tee "${temporary_log}"
+  timeout --signal=TERM --kill-after=30s \
+    "${MASI_INF_COMMAND_TIMEOUT_SECONDS:-7200}s" "${command[@]}" 2>&1 |
+    awk -v max_bytes="${MASI_INF_MAX_LOG_BYTES:-16777216}" '
+      BEGIN { used=0; truncated=0 }
+      {
+        bytes=length($0)+1
+        if (used+bytes <= max_bytes) { print; used+=bytes }
+        else if (!truncated) {
+          print "[MASI_LOG_TRUNCATED_AT_BYTE_LIMIT]"
+          truncated=1
+        }
+      }
+      { fflush() }
+    ' | tee "${temporary_log}"
   local -a pipeline_status=("${PIPESTATUS[@]}")
   command_status="${pipeline_status[0]}"
-  tee_status="${pipeline_status[1]}"
+  filter_status="${pipeline_status[1]}"
+  tee_status="${pipeline_status[2]}"
   finished_ns="$(date +%s%N)"
   finished_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
   duration_ms="$(((finished_ns - started_ns) / 1000000))"
   if [[ "${tee_status}" -ne 0 && "${command_status}" -eq 0 ]]; then
     command_status="${tee_status}"
+  fi
+  if [[ "${filter_status}" -ne 0 && "${command_status}" -eq 0 ]]; then
+    command_status="${filter_status}"
   fi
   if ! mv -T -- "${temporary_log}" "${log_path}"; then
     command_status=1
@@ -204,6 +225,31 @@ recorded_result() {
   jq -er '.result' "${sidecar}" 2>/dev/null || printf 'FAIL\n'
 }
 
+resolve_supply_evidence() {
+  local latest="${supply_evidence}/latest.json"
+  local child_run relative declared target lexical resolved observed
+  [[ -f "${latest}" && ! -L "${latest}" ]] || return 1
+  jq -e 'type == "object" and
+    keys == ["digest","evidence","run_id","schema_version"] and
+    .schema_version == "central-inference-supply-latest/v1"' \
+    "${latest}" >/dev/null 2>&1 || return 1
+  child_run="$(jq -er '.run_id | strings | select(test("^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$"))' \
+    "${latest}" 2>/dev/null)" || return 1
+  relative="$(jq -er '.evidence | strings' "${latest}" 2>/dev/null)" || return 1
+  declared="$(jq -er '.digest | strings | select(test("^sha256:[0-9a-f]{64}$"))' \
+    "${latest}" 2>/dev/null)" || return 1
+  [[ "${relative}" == "runs/${child_run}/supply-chain.json" ]] || return 1
+  target="${supply_evidence}/${relative}"
+  lexical="$(realpath -m -s -- "${target}")" || return 1
+  resolved="$(realpath -e -- "${target}" 2>/dev/null)" || return 1
+  [[ "${lexical}" == "${resolved}" \
+    && "${resolved}" == "${supply_evidence}/runs/${child_run}/supply-chain.json" \
+    && -f "${resolved}" && ! -L "${resolved}" ]] || return 1
+  observed="sha256:$(sha256sum "${resolved}" | awk '{print $1}')" || return 1
+  [[ "${observed}" == "${declared}" ]] || return 1
+  printf '%s\n' "${resolved}"
+}
+
 record_not_run() {
   local log_name="$1"
   local stable_reason="$2"
@@ -229,13 +275,18 @@ record_not_run() {
     --arg log_digest "sha256:$(sha256sum "${evidence_root}/${log_name}.log" | awk '{print $1}')" \
     --argjson log_bytes "$(stat -c '%s' "${evidence_root}/${log_name}.log")" \
     --args '$ARGS.positional as $argv | {
-      schema_version:"central-inference-command-execution/v1",run_id:$run_id,command_id:$command_id,
+      schema_version:"edge-command-execution/v1",run_id:$run_id,command_id:$command_id,
       started_at:$timestamp,finished_at:$timestamp,duration_ms:0,
       working_directory:"infer-cpp",argv:$argv,exit_code:null,result:"NOT_RUN",
       qualification:"NOT_QUALIFIED",source_tree_digest:$source_tree_digest,
       working_tree_status_digest:$working_tree_status_digest,stable_reason:$stable_reason,
       log:{path:$log_path,sha256:$log_digest,bytes:$log_bytes,media_type:"text/plain"}
     }' -- "${command[@]}" >"${temporary}" || record_status=1
+  if [[ "${record_status}" -eq 0 ]] && ! python3 "${script_dir}/validate-evidence.py" \
+      --schema "${repo_root}/contracts/evidence/command/v1/schema.json" \
+      --document "${temporary}" >/dev/null; then
+    record_status=1
+  fi
   if [[ "${record_status}" -eq 0 ]]; then
     mv -T -- "${temporary}" "${evidence_root}/${log_name}.command.json" || record_status=1
   fi
@@ -295,11 +346,11 @@ run_gate cmake-version cmake --version
 run_gate protoc-version protoc --version
 run_gate public-contracts python3 "${script_dir}/validate-public-contracts.py" \
   --repo "${repo_root}"
-run_gate format bash -lc 'cd "${0}" && cmake --preset cpu-release >/dev/null 2>&1 && cmake --build build/cpu-release --target contract_golden property_invariants >/dev/null 2>&1 && echo format-ok' "${inf_root}"
-run_gate clang-tidy bash -lc 'cd "${0}" && if command -v clang-tidy >/dev/null 2>&1; then clang-tidy --warnings-as-errors=* infer-cpp/src/*.cc infer-cpp/src/*.h 2>&1 || true; else echo clang-tidy-not-installed; fi' "${inf_root}"
+run_gate format "${script_dir}/run-static-checks.sh" format
+run_gate clang-tidy "${script_dir}/run-static-checks.sh" tidy
 
 MASI_INF_EVIDENCE_DIR="${blackbox_evidence}" \
-  run_gate tests bash -lc 'cd "${0}" && cmake --preset cpu-release >/dev/null 2>&1 && cmake --build build/cpu-release --target contract_golden property_invariants module_blackbox >/dev/null 2>&1 && ./build/cpu-release/contract_golden && ./build/cpu-release/property_invariants' "${inf_root}"
+  run_gate tests bash -lc 'cd "${0}" && cmake --preset cpu-release >/dev/null 2>&1 && cmake --build build/cpu-release --target contract_golden property_invariants module_blackbox >/dev/null 2>&1 && ./build/cpu-release/contract_golden && ./build/cpu-release/property_invariants && python3 scripts/test-evidence-validator.py' "${inf_root}"
 
 # Real-process public-boundary E2E. It is a separate gate from the unit and
 # contract tests, and it actually runs: a missing real Triton yields exit 77,
@@ -320,6 +371,10 @@ if [[ "${blackbox_e2e_status}" -eq 77 ]]; then
   rm -f -- "${evidence_root}/blackbox-e2e.log" "${evidence_root}/blackbox-e2e.command.json"
   record_not_run blackbox-e2e REAL_TRITON_PRECONDITION_MISSING \
     "./build/cpu-release/module_blackbox (MASI_INF_E2E=1, endpoint ${blackbox_e2e_endpoint})"
+elif [[ "${blackbox_e2e_status}" -eq 0 ]] && ! python3 "${script_dir}/validate-evidence.py" \
+    --schema "${repo_root}/contracts/evidence/central-inference-blackbox/v1/schema.json" \
+    --document "${blackbox_evidence}/module-blackbox-e2e.json" >/dev/null; then
+  blackbox_e2e_status=1
 fi
 
 MASI_INF_EVIDENCE_DIR="${numeric_evidence}" \
@@ -344,7 +399,7 @@ if [[ "${MASI_INF_SKIP_OCI:-0}" != "1" ]]; then
       || oci_qualification="NOT_QUALIFIED"
     oci_source_tree_digest="$(jq -er '.source_tree_digest' "${oci_evidence}/oci-smoke-evidence.json")" \
       || oci_source_tree_digest=""
-    oci_working_tree_dirty="$(jq -er '.working_tree_dirty' "${oci_evidence}/oci-smoke-evidence.json")" \
+    oci_working_tree_dirty="$(jq -er '.working_tree_dirty | if type == "boolean" then tostring else error("working_tree_dirty is not boolean") end' "${oci_evidence}/oci-smoke-evidence.json")" \
       || oci_working_tree_dirty="invalid"
     oci_working_tree_status_digest="$(jq -er '.working_tree_status_digest' "${oci_evidence}/oci-smoke-evidence.json")" \
       || oci_working_tree_status_digest=""
@@ -404,7 +459,7 @@ if [[ "${MASI_INF_SKIP_DEEP:-0}" != "1" ]]; then
       || deep_qualification="NOT_QUALIFIED"
     deep_source_tree_digest="$(jq -er '.source_tree_digest' "${deep_evidence}/deep-check-summary.json")" \
       || deep_source_tree_digest=""
-    deep_working_tree_dirty="$(jq -er '.working_tree_dirty' "${deep_evidence}/deep-check-summary.json")" \
+    deep_working_tree_dirty="$(jq -er '.working_tree_dirty | if type == "boolean" then tostring else error("working_tree_dirty is not boolean") end' "${deep_evidence}/deep-check-summary.json")" \
       || deep_working_tree_dirty="invalid"
     deep_working_tree_status_digest="$(jq -er '.working_tree_status_digest' "${deep_evidence}/deep-check-summary.json")" \
       || deep_working_tree_status_digest=""
@@ -460,24 +515,32 @@ if [[ "${MASI_INF_SKIP_SUPPLY:-0}" != "1" ]]; then
   # run-supply-chain.sh writes evidence under runs/<run-id>/ and publishes the
   # path in latest.json; reading the directory root would always miss the file
   # and be misread as a hard failure.
-  supply_evidence_file="${supply_evidence}/supply-chain.json"
-  if [[ -f "${supply_evidence}/latest.json" ]]; then
-    supply_relative="$(jq -er '.evidence' "${supply_evidence}/latest.json" 2>/dev/null || printf '')"
-    if [[ -n "${supply_relative}" && -f "${supply_evidence}/${supply_relative}" ]]; then
-      supply_evidence_file="${supply_evidence}/${supply_relative}"
+  supply_evidence_file="$(resolve_supply_evidence 2>/dev/null || printf '')"
+  if [[ -f "${supply_evidence_file}" ]] && python3 "${script_dir}/validate-evidence.py" \
+      --schema "${repo_root}/contracts/evidence/central-inference-supply/v1/schema.json" \
+      --document "${supply_evidence_file}" >/dev/null; then
+    supply_snapshot_temporary="${supply_evidence}/.supply-chain.$$.json"
+    supply_snapshot_status=0
+    if ! cp -- "${supply_evidence_file}" "${supply_snapshot_temporary}" \
+      || ! cmp -s "${supply_evidence_file}" "${supply_snapshot_temporary}" \
+      || ! mv -T -- "${supply_snapshot_temporary}" "${supply_evidence}/supply-chain.json"; then
+      supply_snapshot_status=1
+      unlink -- "${supply_snapshot_temporary}" 2>/dev/null || true
     fi
-  fi
-  if [[ -f "${supply_evidence_file}" ]]; then
     supply_result="$(jq -er '.result' "${supply_evidence_file}")" \
       || supply_result="FAIL"
     supply_qualification="$(jq -er '.qualification' "${supply_evidence_file}")" \
       || supply_qualification="NOT_QUALIFIED"
     supply_source_tree_digest="$(jq -er '.source_tree_digest' "${supply_evidence_file}")" \
       || supply_source_tree_digest=""
-    supply_working_tree_dirty="$(jq -er '.working_tree_dirty' "${supply_evidence_file}")" \
+    supply_working_tree_dirty="$(jq -er '.working_tree_dirty | if type == "boolean" then tostring else error("working_tree_dirty is not boolean") end' "${supply_evidence_file}")" \
       || supply_working_tree_dirty="invalid"
     supply_working_tree_status_digest="$(jq -er '.working_tree_status_digest' "${supply_evidence_file}")" \
       || supply_working_tree_status_digest=""
+    if [[ "${supply_snapshot_status}" -ne 0 ]]; then
+      supply_result="FAIL"
+      supply_qualification="NOT_QUALIFIED"
+    fi
   else
     supply_result="FAIL"
     supply_source_tree_digest=""
@@ -513,6 +576,7 @@ else
       working_tree_status_digest:$working_tree_status_digest,overall_module_complete:false,
       manifest_digest:null,checks:{},failure_reasons:[],hold_reasons:["SUPPLY_GATE_EXPLICITLY_SKIPPED"]
     }' >"${supply_evidence}/supply-chain.json"
+  supply_evidence_file="${supply_evidence}/supply-chain.json"
 fi
 
 formal_soak_result="NOT_RUN"
@@ -528,10 +592,21 @@ if [[ "${MASI_INF_FORMAL_SOAK:-0}" == "1" ]]; then
     run_gate formal-soak bash -lc 'cd "${0}" && ./build/cpu-release/module_blackbox 2>&1' "${inf_root}"
   formal_soak_status="${last_command_status}"
   formal_soak_evidence_file="${formal_soak_evidence}/formal-soak-evidence.json"
-  if [[ -f "${formal_soak_evidence_file}" ]]; then
+  if [[ -f "${formal_soak_evidence_file}" ]] && python3 "${script_dir}/validate-evidence.py" \
+      --schema "${repo_root}/contracts/evidence/soak/v1/schema.json" \
+      --document "${formal_soak_evidence_file}" --kind soak \
+      --profile "${repo_root}/contracts/profiles/v1/qualification-soak-3600s.json" >/dev/null; then
     formal_soak_result="$(jq -er '.result' "${formal_soak_evidence_file}" 2>/dev/null || printf 'FAIL\n')"
+    formal_soak_qualification="$(jq -er '.qualification' "${formal_soak_evidence_file}" 2>/dev/null || printf 'NOT_QUALIFIED\n')"
     formal_soak_measured_ms="$(jq -er '.qualified_elapsed_ms' "${formal_soak_evidence_file}" 2>/dev/null || printf '0\n')"
-  elif [[ -f "${formal_soak_evidence}/formal-soak-rehearsal.json" ]]; then
+  elif [[ -f "${formal_soak_evidence}/formal-soak-rehearsal.json" ]] && \
+      python3 "${script_dir}/validate-evidence.py" \
+        --schema "${repo_root}/contracts/evidence/soak/v1/schema.json" \
+        --document "${formal_soak_evidence}/formal-soak-rehearsal.json" --kind soak \
+        --profile "${repo_root}/contracts/profiles/v1/qualification-soak-3600s.json" >/dev/null && \
+      jq -e '.level == "REHEARSAL" and .result == "HOLD" and
+        .qualification == "NOT_QUALIFIED"' \
+        "${formal_soak_evidence}/formal-soak-rehearsal.json" >/dev/null; then
     # The driver refused to file a rehearsal as module soak evidence: the frozen
     # window was not measured, which is a missing precondition, not a failure.
     formal_soak_result="HOLD"
@@ -540,18 +615,33 @@ if [[ "${MASI_INF_FORMAL_SOAK:-0}" == "1" ]]; then
   else
     formal_soak_result="FAIL"
   fi
-  if [[ "${formal_soak_status}" -ne 0 && "${formal_soak_status}" -ne 2 ]]; then
-    formal_soak_result="FAIL"
-  fi
   if [[ "${formal_soak_measured_ms}" -lt "${formal_soak_required_ms}" ]]; then
     # Not a failure of the module: the required soak window was not measured.
     if [[ "${formal_soak_result}" != "FAIL" ]]; then
       formal_soak_result="HOLD"
     fi
   fi
-  if [[ "${formal_soak_result}" == "PASS" ]]; then
-    formal_soak_qualification="QUALIFIED"
-  fi
+  case "${formal_soak_status}" in
+    0)
+      if [[ "${formal_soak_result}" != "PASS" \
+        || "${formal_soak_qualification}" != "QUALIFIED" \
+        || "${formal_soak_measured_ms}" -lt "${formal_soak_required_ms}" ]]; then
+        formal_soak_result="FAIL"
+        formal_soak_qualification="NOT_QUALIFIED"
+      fi
+      ;;
+    2)
+      if [[ "${formal_soak_result}" != "HOLD" \
+        || "${formal_soak_qualification}" != "NOT_QUALIFIED" ]]; then
+        formal_soak_result="FAIL"
+        formal_soak_qualification="NOT_QUALIFIED"
+      fi
+      ;;
+    *)
+      formal_soak_result="FAIL"
+      formal_soak_qualification="NOT_QUALIFIED"
+      ;;
+  esac
 else
   record_not_run formal-soak FORMAL_SOAK_NOT_REQUESTED \
     ./build/cpu-release/module_blackbox
@@ -579,12 +669,18 @@ if [[ -f "${deep_evidence}/deep-check-summary.json" ]]; then
   deep_evidence_digest="sha256:$(sha256sum "${deep_evidence}/deep-check-summary.json" | awk '{print $1}')"
 fi
 supply_evidence_digest=""
-if [[ -f "${supply_evidence}/supply-chain.json" ]]; then
-  supply_evidence_digest="sha256:$(sha256sum "${supply_evidence}/supply-chain.json" | awk '{print $1}')"
+if [[ -n "${supply_evidence_file:-}" && -f "${supply_evidence_file}" ]]; then
+  supply_evidence_digest="sha256:$(sha256sum "${supply_evidence_file}" | awk '{print $1}')"
 fi
 numeric_evidence_digest=""
 if [[ -f "${numeric_evidence}/numeric-golden-evidence.json" ]]; then
   numeric_evidence_digest="sha256:$(sha256sum "${numeric_evidence}/numeric-golden-evidence.json" | awk '{print $1}')"
+fi
+formal_soak_evidence_digest=""
+formal_soak_evidence_relative=""
+if [[ -f "${formal_soak_evidence}/formal-soak-evidence.json" ]]; then
+  formal_soak_evidence_digest="sha256:$(sha256sum "${formal_soak_evidence}/formal-soak-evidence.json" | awk '{print $1}')"
+  formal_soak_evidence_relative="formal-soak/formal-soak-evidence.json"
 fi
 generated_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 
@@ -607,29 +703,60 @@ numeric_result="$(recorded_result numeric-golden)"
 release_build_result="$(recorded_result release-build)"
 
 overall_status="HOLD"
-if [[ "${supply_result}" == "FAIL" ]]; then
-  overall_status="FAIL"
-fi
-for required_result in "${oci_result}" "${deep_result}" "${formal_soak_result}" "${absolute_result}" "${baseline_result}"; do
+for required_result in "${gcc_result}" "${cmake_result}" "${protoc_result}" \
+  "${public_contracts_result}" "${format_result}" "${clang_tidy_result}" \
+  "${tests_result}" "${numeric_result}" "${release_build_result}" \
+  "${oci_result}" "${deep_result}" "${supply_result}" "${formal_soak_result}"; do
   if [[ "${required_result}" == "FAIL" ]]; then
     overall_status="FAIL"
   fi
 done
+if [[ "${blackbox_e2e_status}" -ne 0 && "${blackbox_e2e_status}" -ne 77 ]]; then
+  overall_status="FAIL"
+fi
 
 conditional_applicability="$(jq -c '.conditional_applicability' \
   "${inf_root}/requirements-traceability.json" 2>/dev/null || printf '[]\n')"
 requirement_ids="$(jq -c '[.requirements[].requirement_id]' \
   "${inf_root}/requirements-traceability.json" 2>/dev/null || printf '["MOD-INF-001"]\n')"
 
-module_complete=false
-if [[ "${overall_status}" == "HOLD" || "${overall_status}" == "PASS" ]]; then
-  module_complete=true
+module_complete=true
+
+qualification_only_dirty_hold() {
+  local kind="$1" path="$2"
+  [[ -f "${path}" ]] || return 1
+  case "${kind}" in
+    oci|deep)
+      jq -e '.result == "HOLD" and .qualification == "NOT_QUALIFIED" and
+        .qualification_reason == "DIRTY_WORKTREE_NOT_RELEASE_BASELINE"' \
+        "${path}" >/dev/null 2>&1
+      ;;
+    supply)
+      jq -e '.result == "HOLD" and .qualification == "NOT_QUALIFIED" and
+        ((.failure_reasons // []) | length) == 0 and
+        (.hold_reasons // []) == ["DIRTY_WORKTREE_NOT_RELEASE_BASELINE"]' \
+        "${path}" >/dev/null 2>&1
+      ;;
+    *) return 1 ;;
+  esac
+}
+
+if [[ "${oci_result}" != "PASS" ]] &&
+   ! qualification_only_dirty_hold oci "${oci_evidence}/oci-smoke-evidence.json"; then
+  module_complete=false
 fi
-for command_result in "${oci_result}" "${deep_result}" "${supply_result}" "${formal_soak_result}"; do
-  if [[ "${command_result}" == "FAIL" ]]; then
-    module_complete=false
-  fi
-done
+if [[ "${deep_result}" != "PASS" ]] &&
+   ! qualification_only_dirty_hold deep "${deep_evidence}/deep-check-summary.json"; then
+  module_complete=false
+fi
+if [[ "${supply_result}" != "PASS" ]] &&
+   ! qualification_only_dirty_hold supply "${supply_evidence_file:-}"; then
+  module_complete=false
+fi
+# DEC-042/DEC-044: the applicable 3600-second module soak must actually pass.
+if [[ "${formal_soak_result}" != "PASS" ]]; then
+  module_complete=false
+fi
 
 # DEC-044 operational completion additionally requires that the real
 # public-boundary E2E actually ran, that the OCI image really started, and that
@@ -652,9 +779,6 @@ for executed_result in "${gcc_result}" "${cmake_result}" "${protoc_result}" \
     module_complete=false
   fi
 done
-if [[ "${oci_result}" == "NOT_RUN" ]]; then
-  module_complete=false
-fi
 open_p0_findings="$(jq '[.findings[] | select(.status=="OPEN" and .severity=="P0")] | length' \
   "${inf_root}/module-findings.json" 2>/dev/null || printf '1\n')"
 open_findings_total="$(jq '[.findings[] | select(.status=="OPEN")] | length' \
@@ -701,6 +825,8 @@ jq -n \
   --arg deep_evidence_digest "${deep_evidence_digest}" \
   --arg supply_evidence_digest "${supply_evidence_digest}" \
   --arg numeric_evidence_digest "${numeric_evidence_digest}" \
+  --arg formal_soak_evidence_digest "${formal_soak_evidence_digest}" \
+  --arg formal_soak_evidence_relative "${formal_soak_evidence_relative}" \
   --arg overall_status "${overall_status}" \
   --argjson module_complete "${module_complete}" --argjson requirement_ids "${requirement_ids}" \
   --argjson conditional_applicability "${conditional_applicability}" '{
@@ -733,7 +859,8 @@ jq -n \
       oci_evidence: (if $oci_evidence_digest == "" then null else $oci_evidence_digest end),
       deep_check_evidence: (if $deep_evidence_digest == "" then null else $deep_evidence_digest end),
       supply_chain_evidence: (if $supply_evidence_digest == "" then null else $supply_evidence_digest end),
-      numeric_golden_evidence: (if $numeric_evidence_digest == "" then null else $numeric_evidence_digest end)
+      numeric_golden_evidence: (if $numeric_evidence_digest == "" then null else $numeric_evidence_digest end),
+      formal_soak_evidence: (if $formal_soak_evidence_digest == "" then null else $formal_soak_evidence_digest end)
     },
     executed_gates: {
       gcc_version: $gcc_result,
@@ -755,7 +882,9 @@ jq -n \
       absolute_performance: {result:$absolute_result,qualification:"NOT_QUALIFIED",reason:$absolute_reason},
       formal_soak_3600_seconds: {
         result:$formal_soak_result,qualification:$formal_soak_qualification,
-        command:"MASI_INF_FORMAL_SOAK=1 scripts/run-module-gates.sh"
+        command:"MASI_INF_FORMAL_SOAK=1 scripts/run-module-gates.sh",
+        evidence:(if $formal_soak_evidence_relative == "" then null else $formal_soak_evidence_relative end),
+        evidence_digest:(if $formal_soak_evidence_digest == "" then null else $formal_soak_evidence_digest end)
       },
       protected_release_baseline: {result:$baseline_result,qualification:"NOT_QUALIFIED",reason:$baseline_reason},
       formal_pairwise_and_system_integration: {
@@ -774,6 +903,11 @@ jq -n \
   }' >"${gate_summary_temporary}"
 gate_summary_status=$?
 set -e
+if [[ "${gate_summary_status}" -eq 0 ]] && ! python3 "${script_dir}/validate-evidence.py" \
+    --schema "${repo_root}/contracts/evidence/v1/inference-module-schema.json" \
+    --document "${gate_summary_temporary}" --kind module >/dev/null; then
+  gate_summary_status=1
+fi
 if [[ "${gate_summary_status}" -ne 0 ]] \
   || ! mv -T -- "${gate_summary_temporary}" "${evidence_root}/gate-summary.json"; then
   echo "failed to produce the module gate summary" >&2

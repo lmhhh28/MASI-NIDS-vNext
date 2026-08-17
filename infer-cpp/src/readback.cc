@@ -9,23 +9,19 @@ namespace masi::inf {
 
 namespace {
 
-std::string gen_attempt_id(int64_t now_unix_ms, const std::string& inc) {
+std::string gen_attempt_id(int64_t now_unix_ms, const std::string &inc) {
   std::ostringstream oss;
   oss << "readback:" << inc << ":" << now_unix_ms;
   const std::string s = oss.str();
   return sha256_hex(s.data(), s.size());
 }
 
-std::string digest_of(const std::string& s) {
-  return sha256_hex(s.data(), s.size());
-}
+std::string digest_of(const std::string &s) { return sha256_hex(s.data(), s.size()); }
 
-}  // namespace
+} // namespace
 
-PoolReadback build_pool_readback(const StartupEnvelope& env,
-                                 const BundleManifest& bundle,
-                                 const TritonObservation& observed,
-                                 int64_t now_unix_ms) {
+PoolReadback build_pool_readback(const StartupEnvelope &env, const BundleManifest &bundle,
+                                 const TritonObservation &observed, int64_t now_unix_ms) {
   PoolReadback rb;
   rb.model_control_incarnation_id = env.model_control_incarnation_id;
   rb.operation_id = env.operation_id;
@@ -55,17 +51,15 @@ PoolReadback build_pool_readback(const StartupEnvelope& env,
 
   // Worker identity is derived from what the serving runtime actually reports.
   std::ostringstream wid;
-  wid << env.logical_pool_id << ':' << env.pool_generation << ':'
-      << env.runtime_profile_id << ':' << observed.model_name << ':'
-      << observed.model_version;
+  wid << env.logical_pool_id << ':' << env.pool_generation << ':' << env.runtime_profile_id << ':'
+      << observed.model_name << ':' << observed.model_version;
   rb.worker.worker_id = digest_of(wid.str());
   rb.worker.runtime_observation_digest = digest_of(observed.canonical_projection);
 
   std::ostringstream obs;
-  obs << "backend=" << observed.config.backend
-      << ";platform=" << observed.config.platform
+  obs << "backend=" << observed.config.backend << ";platform=" << observed.config.platform
       << ";server_version=" << observed.server.version;
-  for (const auto& ig : observed.config.instance_groups)
+  for (const auto &ig : observed.config.instance_groups)
     obs << ";instance_group=" << ig.first << ':' << ig.second;
   obs << ";max_batch_size=" << observed.config.max_batch_size
       << ";dynamic_batching=" << (observed.config.dynamic_batching ? "1" : "0");
@@ -80,7 +74,8 @@ PoolReadback build_pool_readback(const StartupEnvelope& env,
   // Same-generation equivalent replica set: bounded to 64 by contract. In a
   // single-replica first-phase deployment the only eligible worker is this one.
   rb.eligible_workers.push_back(rb.worker);
-  if (rb.eligible_workers.size() > 64) rb.eligible_workers.resize(64);
+  if (rb.eligible_workers.size() > 64)
+    rb.eligible_workers.resize(64);
 
   // pool_observation_digest binds what was observed from the serving runtime
   // plus the verified on-disk closure; binding_digest binds the exact binding
@@ -88,8 +83,7 @@ PoolReadback build_pool_readback(const StartupEnvelope& env,
   // digest.
   {
     std::ostringstream po;
-    po << observed.canonical_projection
-       << "closure_digest=" << rb.repository_closure_digest << '\n'
+    po << observed.canonical_projection << "closure_digest=" << rb.repository_closure_digest << '\n'
        << "repository_identity=" << rb.repository_identity << '\n'
        << "instance_group=" << rb.instance_group_kind << ':' << rb.instance_group_count << '\n'
        << "model_ready=" << (observed.model_ready ? "1" : "0") << '\n'
@@ -125,7 +119,7 @@ PoolReadback build_pool_readback(const StartupEnvelope& env,
   return rb;
 }
 
-masi::edge::v1::BindingReadback to_binding_readback_proto(const PoolReadback& rb) {
+masi::edge::v1::BindingReadback to_binding_readback_proto(const PoolReadback &rb) {
   masi::edge::v1::BindingReadback out;
   out.set_logical_pool_id(rb.logical_pool_id);
   out.set_pool_generation(rb.pool_generation);
@@ -148,8 +142,8 @@ masi::edge::v1::BindingReadback to_binding_readback_proto(const PoolReadback& rb
   out.set_optimization_profile_digest(rb.optimization_profile_digest);
   out.set_readback_attempt_id(rb.readback_attempt_id);
   out.set_observed_at_unix_ms(rb.observed_at_unix_ms);
-  for (const auto& w : rb.eligible_workers) {
-    auto* ew = out.add_eligible_workers();
+  for (const auto &w : rb.eligible_workers) {
+    auto *ew = out.add_eligible_workers();
     ew->set_worker_id(w.worker_id);
     ew->set_worker_digest(w.worker_digest);
   }
@@ -158,4 +152,4 @@ masi::edge::v1::BindingReadback to_binding_readback_proto(const PoolReadback& rb
   return out;
 }
 
-}  // namespace masi::inf
+} // namespace masi::inf

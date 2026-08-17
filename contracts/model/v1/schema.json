@@ -216,7 +216,7 @@
     "output_adapter": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["adapter_id", "version", "adapter_digest", "mapping_kind", "class_order", "axis", "top_k", "threshold", "calibration", "executable_policy"],
+      "required": ["adapter_id", "version", "adapter_digest", "mapping_kind", "class_order", "axis", "top_k", "threshold", "ood_policy", "calibration", "executable_policy"],
       "properties": {
         "adapter_id": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]{1,127}$"},
         "version": {"type": "string", "pattern": "^v[0-9]+$"},
@@ -226,6 +226,16 @@
         "axis": {"type": "integer", "minimum": 0, "maximum": 7},
         "top_k": {"type": "integer", "minimum": 1, "maximum": 256},
         "threshold": {"type": "number", "minimum": 0},
+        "ood_policy": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["mode", "threshold", "decision"],
+          "properties": {
+            "mode": {"const": "max-probability-below-threshold"},
+            "threshold": {"type": "number", "minimum": 0, "maximum": 1},
+            "decision": {"const": "abstain"}
+          }
+        },
         "calibration": {"$ref": "#/$defs/digest"},
         "executable_policy": {"const": "no-executable-code-injected-from-bundle"}
       }

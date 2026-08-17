@@ -3,7 +3,6 @@
 #include <atomic>
 #include <grpcpp/grpcpp.h>
 
-#include <list>
 #include <memory>
 #include <mutex>
 #include <set>
@@ -24,6 +23,14 @@
 
 namespace masi::inf {
 
+// Public-boundary validators used by the service and exhaustive property tests.
+// A non-OK status always uses RESULT_IDENTITY_MISMATCH and names the first
+// mismatching fence dimension in its details.
+grpc::Status validate_route_fence(const masi::edge::v1::InferenceRoute &route,
+                                  const PoolReadback &readback);
+grpc::Status validate_record_fence(const masi::edge::v1::InferenceRoute &route,
+                                   const masi::edge::v1::InferenceRecord &record);
+
 // CentralInference gRPC service implementation.
 //
 // Contract summary:
@@ -37,21 +44,17 @@ namespace masi::inf {
 //     RESULT_IDENTITY_MISMATCH.
 //   - Same request_id + same input_digest: recomputed with a new attempt id.
 //   - Same request_id + different input_digest: RESULT_DIGEST_CONFLICT.
-class CentralInferenceServiceImpl final
-    : public masi::inference::v1::CentralInference::Service {
- public:
-  CentralInferenceServiceImpl(Config cfg,
-                              StartupResult startup,
+class CentralInferenceServiceImpl final : public masi::inference::v1::CentralInference::Service {
+public:
+  CentralInferenceServiceImpl(Config cfg, StartupResult startup,
                               std::shared_ptr<TritonClient> triton);
   ~CentralInferenceServiceImpl() override = default;
 
-  grpc::Status GetBinding(grpc::ServerContext* ctx,
-                          const masi::edge::v1::GetBindingRequest* req,
-                          masi::edge::v1::BindingReadback* resp) override;
+  grpc::Status GetBinding(grpc::ServerContext *ctx, const masi::edge::v1::GetBindingRequest *req,
+                          masi::edge::v1::BindingReadback *resp) override;
 
-  grpc::Status Infer(grpc::ServerContext* ctx,
-                     const masi::edge::v1::InferenceInputBatch* req,
-                     masi::edge::v1::InferenceResultBatch* resp) override;
+  grpc::Status Infer(grpc::ServerContext *ctx, const masi::edge::v1::InferenceInputBatch *req,
+                     masi::edge::v1::InferenceResultBatch *resp) override;
 
   // Health integration: drain / shutdown hooks.
   void drain_begin();
@@ -59,32 +62,31 @@ class CentralInferenceServiceImpl final
   bool accepting() const noexcept;
   uint64_t in_flight() const noexcept;
 
- private:
+private:
   // Bounded in-flight gate. Enforces the frozen profile's
   // maximum_in_flight_batches_per_target = 1 and the process-wide cap.
   class InFlightGate {
-   public:
-    InFlightGate(CentralInferenceServiceImpl* owner, const std::string& route_key);
+  public:
+    InFlightGate(CentralInferenceServiceImpl *owner, const std::string &route_key);
     ~InFlightGate();
     bool acquired() const noexcept { return acquired_; }
-    const std::string& reason() const noexcept { return reason_; }
+    const std::string &reason() const noexcept { return reason_; }
 
-   private:
-    CentralInferenceServiceImpl* owner_;
+  private:
+    CentralInferenceServiceImpl *owner_;
     std::string route_key_;
     bool acquired_ = false;
     std::string reason_;
   };
 
   // Verify the exact binding identity of a route against the loaded binding.
-  grpc::Status check_route_fence(const masi::edge::v1::InferenceRoute& route) const;
+  grpc::Status check_route_fence(const masi::edge::v1::InferenceRoute &route) const;
 
   // Fill one result record's identity, timing and adapted numeric output.
-  void fill_result_record(const masi::edge::v1::InferenceRoute& route,
-                          const masi::edge::v1::InferenceRecord& rec,
-                          const std::string& trace_id,
-                          const std::string& worker_attempt_id,
-                          masi::edge::v1::InferenceResultRecord* out) const;
+  void fill_result_record(const masi::edge::v1::InferenceRoute &route,
+                          const masi::edge::v1::InferenceRecord &rec, const std::string &trace_id,
+                          const std::string &worker_attempt_id,
+                          masi::edge::v1::InferenceResultRecord *out) const;
 
   // Every execution of a request identity gets a fresh attempt id, so a
   // same-generation recompute is distinguishable from the first attempt.
@@ -105,12 +107,15 @@ class CentralInferenceServiceImpl final
   std::atomic<uint64_t> attempt_counter_{0};
   std::set<std::string> in_flight_routes_;
 
-  // Bounded conflict-detection cache: request_id -> input_digest, LRU evicted.
-  // Results are recomputed on replay (at-least-once compute semantics), so no
-  // result bytes are retained.
-  std::unordered_map<std::string, std::string> request_digest_;
-  std::list<std::string> request_lru_;
+  struct RequestDigestEntry {
+    std::string input_digest;
+    int64_t expires_at_unix_ms = 0;
+  };
+  // Bounded conflict detection for the complete frozen request-deadline
+  // horizon. Live entries are never evicted: capacity pressure rejects a new
+  // identity instead of forgetting an old identity and accepting a conflict.
+  std::unordered_map<std::string, RequestDigestEntry> request_digest_;
   static constexpr size_t kRequestCacheCap = 1024;
 };
 
-}  // namespace masi::inf
+} // namespace masi::inf

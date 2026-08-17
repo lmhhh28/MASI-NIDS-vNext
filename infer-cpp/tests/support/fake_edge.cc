@@ -12,4 +12,4 @@ namespace masi::inf::test::fake_edge {
 
 // All logic is inline in mod.h.
 
-}  // namespace masi::inf::test::fake_edge
+} // namespace masi::inf::test::fake_edge

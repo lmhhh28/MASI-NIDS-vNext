@@ -29,17 +29,17 @@ enum class Code {
   kAborted,
 };
 
-const char* to_string(Code c);
+const char *to_string(Code c);
 bool retryable(Code c);
 
 class Exception : public std::runtime_error {
- public:
-  explicit Exception(Code c, std::string msg)
-      : std::runtime_error(std::string(to_string(c)) + ": " + msg), code_(c) {}
+public:
+  explicit Exception(Code c, std::string_view msg)
+      : std::runtime_error(std::string(to_string(c)) + ": " + std::string(msg)), code_(c) {}
   Code code() const { return code_; }
 
- private:
+private:
   Code code_;
 };
 
-}  // namespace masi::inf::error
+} // namespace masi::inf::error

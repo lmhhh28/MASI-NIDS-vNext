@@ -59,6 +59,9 @@
     "same_generation_equivalent_worker_set": "exact BindingReadback.eligible_workers set, bounded to 64 unique worker identities",
     "result_worker_requirement": "worker_id and worker_digest must be an exact eligible pair; worker_attempt_id must be a non-empty stable identity",
     "deadline_scope": "one global monotonic budget shared by all attempts and backoffs",
+    "conflict_identity_retention": "retain request_id and input_digest until the caller deadline; live entries are never evicted",
+    "conflict_identity_capacity": 1024,
+    "conflict_identity_capacity_exhaustion": "RESOURCE_EXHAUSTED/DEDUP_CAPACITY_EXHAUSTED",
     "per_attempt_timeout": "remaining global monotonic budget",
     "cancellation": "gRPC deadline plus local monotonic timeout-at-global-deadline",
     "late_result": "reject at the complete result fence"
@@ -154,10 +157,11 @@
       "label_taxonomy.score_domain",
       "label_taxonomy.threshold",
       "label_taxonomy.calibration",
-      "output_adapter.class_order",
+    "output_adapter.class_order",
       "output_adapter.axis",
       "output_adapter.top_k",
-      "output_adapter.threshold"
+      "output_adapter.threshold",
+      "output_adapter.ood_policy"
     ],
     "adapter_digest_preimage": "canonical JSON of output_adapter without the adapter_digest field (sorted keys, no whitespace)",
     "contract_digest_preimages": {
@@ -174,13 +178,19 @@
     },
     "baseline_label": "output_adapter.class_order[0]",
     "decision_rule": "top-1 over canonical class-ordered scores; abstain iff top-1 < label_taxonomy.threshold.value; else alert iff predicted_label != baseline_label and top-1 >= output_adapter.threshold; else benign",
-    "ood_rule": "not-computed-by-this-adapter-always-false",
+    "ood_rule": "out_of_distribution iff maximum canonical normalized score is below output_adapter.ood_policy.threshold; OOD always forces abstain",
     "decision_values": ["benign", "alert", "abstain"],
     "quality_values": ["valid", "partial", "gap", "stale", "invalid", "reset", "not-covered", "not-measurable"],
     "canonical_score_encoding": "repeated float32 little-endian in canonical class order",
     "output_digest_preimage": "concatenated canonical float32-le scores",
     "unqualified_adapter_id": "reject INCOMPATIBLE_CONTRACT before readiness",
     "unknown_score_domain": "reject INCOMPATIBLE_CONTRACT before readiness"
+  },
+  "binding_digest_preimages": {
+    "runtime_profile_digest": "sha256 over the exact bytes of contracts/inference/v1/model-runtime-central-cpu.json for the CPU profile",
+    "optimization_profile_digest": "sha256 over the exact bytes of contracts/inference/v1/optimization-profile-central-cpu.json",
+    "model_revision_digest": "sha256 over canonical JSON of bundle-manifest binding_identity (sorted keys, no whitespace)",
+    "startup_cross_check": "Gateway recomputes all three preimages and rejects before readiness on any mismatch"
   },
   "repository_closure": {
     "member_roles": ["model", "config", "version", "backend", "bundle-manifest"],

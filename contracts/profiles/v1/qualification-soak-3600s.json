@@ -6,6 +6,11 @@
   "qualified_duration_seconds": 3600,
   "sample_interval_seconds": 10,
   "max_samples": 400,
+  "load": {
+    "batch_requests_per_second": 100,
+    "pacing": "monotonic-fixed-rate",
+    "rationale": "stays below the measured saturation capacity and keeps the 1,024-entry request conflict horizon below capacity for the 2-second request budget while exercising every frozen batch size"
+  },
   "phases": [
     {"name": "steady", "duration_seconds": 900},
     {"name": "peak", "duration_seconds": 900},

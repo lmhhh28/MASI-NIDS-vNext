@@ -1,0 +1,325 @@
+{
+  "schema_version": "masi-fixture-expected-outputs/v2",
+  "model_id": "masi-ids-window-v1",
+  "revision": "0000000000000000000000000000000000000003",
+  "input_shape": [
+    "N",
+    6
+  ],
+  "record_shape": [
+    1,
+    6
+  ],
+  "input_dtype": "uint64-le",
+  "class_order": [
+    0,
+    1
+  ],
+  "score_domain": "logit",
+  "canonical_score_encoding": "repeated-float32-le-class-ordered",
+  "adapter_id": "masi-window-adapter-v1",
+  "adapter_digest": "sha256:b24aa57979d4473be9b8d1303a9bbb511eb164e898b898e0f342fcfd24d8d8ff",
+  "tolerance": {
+    "absolute": 1e-06,
+    "relative": 1e-05,
+    "ulp": 4
+  },
+  "nan_policy": "reject",
+  "inf_policy": "reject",
+  "vectors": [
+    {
+      "vector_id": "fixture-expected-0000",
+      "record_count": 1,
+      "input": [
+        [
+          5,
+          10,
+          3,
+          1,
+          2,
+          1
+        ]
+      ],
+      "input_digest": "sha256:637fd46f9327033fb1aeb244de99178c50f007c74a4355d047f4c8fa662cb3a7",
+      "rows": [
+        {
+          "canonical_scores": [
+            7.504499990318436e-06,
+            0.9999924898147583
+          ],
+          "predicted_label": 1,
+          "decision": "alert",
+          "out_of_distribution": false,
+          "abstain": false,
+          "quality": "valid",
+          "output_digest": "sha256:51feacc839fbd66afc618dbfc5f3c04e4e7d62f14f7d45db0bf252be0bd80abf",
+          "raw_scores": [
+            -5.900000095367432,
+            5.900000095367432
+          ]
+        }
+      ]
+    },
+    {
+      "vector_id": "fixture-expected-0001",
+      "record_count": 1,
+      "input": [
+        [
+          100,
+          200,
+          50,
+          10,
+          20,
+          10
+        ]
+      ],
+      "input_digest": "sha256:1d324602c89a33d7e66166156d9034dd2c00d559c99d401964f95a134572eccf",
+      "rows": [
+        {
+          "canonical_scores": [
+            0.0,
+            1.0
+          ],
+          "predicted_label": 1,
+          "decision": "alert",
+          "out_of_distribution": false,
+          "abstain": false,
+          "quality": "valid",
+          "output_digest": "sha256:22b6f43bd8d27738d3213f29e96b62d01d9d6c0ab4f9732aaae803186f51eab7",
+          "raw_scores": [
+            -94.9000015258789,
+            94.9000015258789
+          ]
+        }
+      ]
+    },
+    {
+      "vector_id": "fixture-expected-0002",
+      "record_count": 1,
+      "input": [
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      ],
+      "input_digest": "sha256:17b0761f87b081d5cf10757ccc89f12be355c70e2e29df288b65b30710dcbcd1",
+      "rows": [
+        {
+          "canonical_scores": [
+            0.5498340129852295,
+            0.4501660168170929
+          ],
+          "predicted_label": 0,
+          "decision": "abstain",
+          "out_of_distribution": true,
+          "abstain": true,
+          "quality": "valid",
+          "output_digest": "sha256:1903448c143c39c0e3207c4fd7cb8a59402013e6538b047e84d1e683d316e742",
+          "raw_scores": [
+            0.10000000149011612,
+            -0.10000000149011612
+          ]
+        }
+      ]
+    },
+    {
+      "vector_id": "fixture-expected-0003",
+      "record_count": 1,
+      "input": [
+        [
+          100,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      ],
+      "input_digest": "sha256:225f662f2d10753ce8fd6ec71a10772d9a5734ea0a652fe63d352848bcaf9562",
+      "rows": [
+        {
+          "canonical_scores": [
+            1.0,
+            3.0828566215145976e-44
+          ],
+          "predicted_label": 0,
+          "decision": "benign",
+          "out_of_distribution": false,
+          "abstain": false,
+          "quality": "valid",
+          "output_digest": "sha256:bea357724b46fc5cbc737f28fa3120728a7c5b716ed1d4aacd985a0767901f16",
+          "raw_scores": [
+            50.099998474121094,
+            -50.099998474121094
+          ]
+        }
+      ]
+    },
+    {
+      "vector_id": "fixture-expected-0004",
+      "record_count": 4,
+      "input": [
+        [
+          5,
+          10,
+          3,
+          1,
+          2,
+          1
+        ],
+        [
+          100,
+          200,
+          50,
+          10,
+          20,
+          10
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          100,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      ],
+      "input_digest": "sha256:859263f0d76f95513e733b6c0caf72c06c5624669fe65e9bf747aa2d5031e29c",
+      "rows": [
+        {
+          "canonical_scores": [
+            7.504499990318436e-06,
+            0.9999924898147583
+          ],
+          "predicted_label": 1,
+          "decision": "alert",
+          "out_of_distribution": false,
+          "abstain": false,
+          "quality": "valid",
+          "output_digest": "sha256:51feacc839fbd66afc618dbfc5f3c04e4e7d62f14f7d45db0bf252be0bd80abf",
+          "raw_scores": [
+            -5.900000095367432,
+            5.900000095367432
+          ]
+        },
+        {
+          "canonical_scores": [
+            0.0,
+            1.0
+          ],
+          "predicted_label": 1,
+          "decision": "alert",
+          "out_of_distribution": false,
+          "abstain": false,
+          "quality": "valid",
+          "output_digest": "sha256:22b6f43bd8d27738d3213f29e96b62d01d9d6c0ab4f9732aaae803186f51eab7",
+          "raw_scores": [
+            -94.9000015258789,
+            94.9000015258789
+          ]
+        },
+        {
+          "canonical_scores": [
+            0.5498340129852295,
+            0.4501660168170929
+          ],
+          "predicted_label": 0,
+          "decision": "abstain",
+          "out_of_distribution": true,
+          "abstain": true,
+          "quality": "valid",
+          "output_digest": "sha256:1903448c143c39c0e3207c4fd7cb8a59402013e6538b047e84d1e683d316e742",
+          "raw_scores": [
+            0.10000000149011612,
+            -0.10000000149011612
+          ]
+        },
+        {
+          "canonical_scores": [
+            1.0,
+            3.0828566215145976e-44
+          ],
+          "predicted_label": 0,
+          "decision": "benign",
+          "out_of_distribution": false,
+          "abstain": false,
+          "quality": "valid",
+          "output_digest": "sha256:bea357724b46fc5cbc737f28fa3120728a7c5b716ed1d4aacd985a0767901f16",
+          "raw_scores": [
+            50.099998474121094,
+            -50.099998474121094
+          ]
+        }
+      ]
+    },
+    {
+      "vector_id": "fixture-expected-0005",
+      "record_count": 2,
+      "input": [
+        [
+          5,
+          10,
+          3,
+          16,
+          32,
+          1
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      ],
+      "input_digest": "sha256:259dfbe37531b90bae954aab270a8b9a19ea122bdf2dd93eb9a194d1a0cea88e",
+      "rows": [
+        {
+          "canonical_scores": [
+            2.148195202218749e-25,
+            1.0
+          ],
+          "predicted_label": 1,
+          "decision": "alert",
+          "out_of_distribution": false,
+          "abstain": false,
+          "quality": "valid",
+          "output_digest": "sha256:3fdaaa5605f835ec748c0795734317d2f9c4e22c2f1bc23461ee1b892c5ca0d9",
+          "raw_scores": [
+            -28.399999618530273,
+            28.399999618530273
+          ]
+        },
+        {
+          "canonical_scores": [
+            0.5498340129852295,
+            0.4501660168170929
+          ],
+          "predicted_label": 0,
+          "decision": "abstain",
+          "out_of_distribution": true,
+          "abstain": true,
+          "quality": "valid",
+          "output_digest": "sha256:1903448c143c39c0e3207c4fd7cb8a59402013e6538b047e84d1e683d316e742",
+          "raw_scores": [
+            0.10000000149011612,
+            -0.10000000149011612
+          ]
+        }
+      ]
+    }
+  ]
+}

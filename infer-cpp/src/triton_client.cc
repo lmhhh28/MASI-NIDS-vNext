@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <chrono>
 #include <cstring>
+#include <limits>
 #include <sstream>
 
 namespace masi::inf {
@@ -12,19 +13,22 @@ namespace masi::inf {
 namespace {
 
 // Endpoint host part of "host:port" (IPv6 literals use "[addr]:port").
-std::string host_of(const std::string& endpoint) {
+std::string host_of(const std::string &endpoint) {
   if (!endpoint.empty() && endpoint[0] == '[') {
     const auto close = endpoint.find(']');
-    if (close == std::string::npos) return "";
+    if (close == std::string::npos)
+      return "";
     return endpoint.substr(1, close - 1);
   }
   const auto colon = endpoint.rfind(':');
-  if (colon == std::string::npos) return endpoint;
+  if (colon == std::string::npos)
+    return endpoint;
   return endpoint.substr(0, colon);
 }
 
-bool is_loopback_host(const std::string& host) {
-  if (host == "localhost" || host == "::1") return true;
+bool is_loopback_host(const std::string &host) {
+  if (host == "localhost" || host == "::1")
+    return true;
   // 127.0.0.0/8
   unsigned a = 0, b = 0, c = 0, d = 0;
   if (std::sscanf(host.c_str(), "%u.%u.%u.%u", &a, &b, &c, &d) == 4)
@@ -32,32 +36,35 @@ bool is_loopback_host(const std::string& host) {
   return false;
 }
 
-void set_deadline(grpc::ClientContext& ctx, int32_t deadline_ms, int32_t fallback_ms) {
+void set_deadline(grpc::ClientContext &ctx, int32_t deadline_ms, int32_t fallback_ms) {
   const int32_t ms = deadline_ms > 0 ? deadline_ms : fallback_ms;
-  ctx.set_deadline(std::chrono::system_clock::now() + std::chrono::milliseconds(ms > 0 ? ms : 2000));
+  ctx.set_deadline(std::chrono::system_clock::now() +
+                   std::chrono::milliseconds(ms > 0 ? ms : 2000));
 }
 
-std::string join_i64(const std::vector<int64_t>& v) {
+std::string join_i64(const std::vector<int64_t> &v) {
   std::ostringstream oss;
   for (size_t i = 0; i < v.size(); ++i) {
-    if (i) oss << ',';
+    if (i)
+      oss << ',';
     oss << v[i];
   }
   return oss.str();
 }
 
-std::string join_i32(const std::vector<int32_t>& v) {
+std::string join_i32(const std::vector<int32_t> &v) {
   std::ostringstream oss;
   for (size_t i = 0; i < v.size(); ++i) {
-    if (i) oss << ',';
+    if (i)
+      oss << ',';
     oss << v[i];
   }
   return oss.str();
 }
 
-}  // namespace
+} // namespace
 
-void TritonClient::connect(const ConnectOptions& opts) {
+void TritonClient::connect(const ConnectOptions &opts) {
   opts_ = opts;
   if (opts.endpoint.empty())
     throw error::Exception(error::Code::kInvalidManifest, "triton endpoint empty");
@@ -66,7 +73,8 @@ void TritonClient::connect(const ConnectOptions& opts) {
   if (!tls && !is_loopback_host(host_of(opts.endpoint)))
     throw error::Exception(error::Code::kIncompatibleContract,
                            "plaintext Triton channel requires a loopback endpoint; "
-                           "configure triton_tls_* for " + opts.endpoint);
+                           "configure triton_tls_* for " +
+                               opts.endpoint);
   if (tls && (opts.tls_cert.empty() || opts.tls_key.empty()))
     throw error::Exception(error::Code::kInvalidManifest,
                            "triton mTLS requires both client cert and key");
@@ -100,20 +108,22 @@ void TritonClient::connect(const ConnectOptions& opts) {
 }
 
 bool TritonClient::is_server_ready(int32_t deadline_ms) {
-  if (!available_) return false;
+  if (!available_)
+    return false;
   grpc::ClientContext ctx;
   set_deadline(ctx, deadline_ms, opts_.deadline_ms);
   ::inference::ServerReadyRequest req;
   ::inference::ServerReadyResponse resp;
   auto st = stub_->ServerReady(&ctx, req, &resp);
-  if (!st.ok()) return false;
+  if (!st.ok())
+    return false;
   return resp.ready();
 }
 
-bool TritonClient::is_model_ready(const std::string& name,
-                                  const std::string& version,
+bool TritonClient::is_model_ready(const std::string &name, const std::string &version,
                                   int32_t deadline_ms) {
-  if (!available_) return false;
+  if (!available_)
+    return false;
   grpc::ClientContext ctx;
   set_deadline(ctx, deadline_ms, opts_.deadline_ms);
   ::inference::ModelReadyRequest req;
@@ -121,7 +131,8 @@ bool TritonClient::is_model_ready(const std::string& name,
   req.set_version(version);
   ::inference::ModelReadyResponse resp;
   auto st = stub_->ModelReady(&ctx, req, &resp);
-  if (!st.ok()) return false;
+  if (!st.ok())
+    return false;
   return resp.ready();
 }
 
@@ -139,14 +150,14 @@ TritonServerMetadata TritonClient::server_metadata(int32_t deadline_ms) {
                            "triton ServerMetadata failed: " + st.error_message());
   m.name = resp.name();
   m.version = resp.version();
-  for (const auto& e : resp.extensions()) m.extensions.push_back(e);
+  for (const auto &e : resp.extensions())
+    m.extensions.push_back(e);
   std::sort(m.extensions.begin(), m.extensions.end());
   return m;
 }
 
-TritonModelMetadata TritonClient::model_metadata(const std::string& name,
-                                                 const std::string& version,
-                                                 int32_t deadline_ms) {
+TritonModelMetadata TritonClient::model_metadata(const std::string &name,
+                                                 const std::string &version, int32_t deadline_ms) {
   TritonModelMetadata m;
   if (!available_)
     throw error::Exception(error::Code::kPoolUnavailable, "triton client not connected");
@@ -161,19 +172,22 @@ TritonModelMetadata TritonClient::model_metadata(const std::string& name,
     throw error::Exception(error::Code::kPoolUnavailable,
                            "triton ModelMetadata failed: " + st.error_message());
   m.name = resp.name();
-  if (resp.versions_size() > 0) m.version = resp.versions(0);
-  for (const auto& in : resp.inputs()) {
+  if (resp.versions_size() > 0)
+    m.version = resp.versions(0);
+  for (const auto &in : resp.inputs()) {
     m.inputs.push_back(in.name());
     if (m.input_datatype.empty()) {
       m.input_datatype = in.datatype();
-      for (auto d : in.shape()) m.input_shape.push_back(d);
+      for (auto d : in.shape())
+        m.input_shape.push_back(d);
     }
   }
-  for (const auto& out : resp.outputs()) {
+  for (const auto &out : resp.outputs()) {
     m.outputs.push_back(out.name());
     if (m.output_datatype.empty()) {
       m.output_datatype = out.datatype();
-      for (auto d : out.shape()) m.output_shape.push_back(d);
+      for (auto d : out.shape())
+        m.output_shape.push_back(d);
     }
   }
   // Stable canonical projection instead of the raw serialized protobuf, so the
@@ -183,18 +197,20 @@ TritonModelMetadata TritonClient::model_metadata(const std::string& name,
   oss << "name=" << m.name << '\n'
       << "version=" << m.version << '\n'
       << "platform=" << resp.platform() << '\n';
-  for (size_t i = 0; i < m.inputs.size(); ++i) oss << "input=" << m.inputs[i] << '\n';
+  for (size_t i = 0; i < m.inputs.size(); ++i)
+    oss << "input=" << m.inputs[i] << '\n';
   oss << "input_datatype=" << m.input_datatype << '\n'
       << "input_shape=" << join_i64(m.input_shape) << '\n';
-  for (size_t i = 0; i < m.outputs.size(); ++i) oss << "output=" << m.outputs[i] << '\n';
+  for (size_t i = 0; i < m.outputs.size(); ++i)
+    oss << "output=" << m.outputs[i] << '\n';
   oss << "output_datatype=" << m.output_datatype << '\n'
       << "output_shape=" << join_i64(m.output_shape) << '\n';
   m.raw_metadata = oss.str();
   return m;
 }
 
-TritonModelConfigProjection TritonClient::model_config(const std::string& name,
-                                                       const std::string& version,
+TritonModelConfigProjection TritonClient::model_config(const std::string &name,
+                                                       const std::string &version,
                                                        int32_t deadline_ms) {
   TritonModelConfigProjection c;
   if (!available_)
@@ -210,7 +226,7 @@ TritonModelConfigProjection TritonClient::model_config(const std::string& name,
     throw error::Exception(error::Code::kPoolUnavailable,
                            "triton ModelConfig failed: " + st.error_message());
 
-  const auto& cfg = resp.config();
+  const auto &cfg = resp.config();
   c.name = cfg.name();
   c.platform = cfg.platform();
   c.backend = cfg.backend();
@@ -221,22 +237,30 @@ TritonModelConfigProjection TritonClient::model_config(const std::string& name,
       c.preferred_batch_size.push_back(p);
     c.max_queue_delay_microseconds =
         static_cast<int64_t>(cfg.dynamic_batching().max_queue_delay_microseconds());
-    if (cfg.dynamic_batching().has_default_queue_policy())
-      c.max_queue_size = cfg.dynamic_batching().default_queue_policy().max_queue_size();
+    if (cfg.dynamic_batching().has_default_queue_policy()) {
+      const uint64_t max_queue_size =
+          cfg.dynamic_batching().default_queue_policy().max_queue_size();
+      if (max_queue_size > static_cast<uint64_t>(std::numeric_limits<int32_t>::max()))
+        throw error::Exception(error::Code::kIncompatibleContract,
+                               "triton max_queue_size exceeds int32");
+      c.max_queue_size = static_cast<int32_t>(max_queue_size);
+    }
   }
-  for (const auto& ig : cfg.instance_group()) {
+  for (const auto &ig : cfg.instance_group()) {
     c.instance_groups.emplace_back(::inference::ModelInstanceGroup_Kind_Name(ig.kind()),
                                    ig.count());
   }
   if (cfg.input_size() > 0) {
     c.input_name = cfg.input(0).name();
     c.input_datatype = ::inference::DataType_Name(cfg.input(0).data_type());
-    for (auto d : cfg.input(0).dims()) c.input_dims.push_back(d);
+    for (auto d : cfg.input(0).dims())
+      c.input_dims.push_back(d);
   }
   if (cfg.output_size() > 0) {
     c.output_name = cfg.output(0).name();
     c.output_datatype = ::inference::DataType_Name(cfg.output(0).data_type());
-    for (auto d : cfg.output(0).dims()) c.output_dims.push_back(d);
+    for (auto d : cfg.output(0).dims())
+      c.output_dims.push_back(d);
   }
 
   std::ostringstream oss;
@@ -248,16 +272,18 @@ TritonModelConfigProjection TritonClient::model_config(const std::string& name,
       << "preferred_batch_size=" << join_i32(c.preferred_batch_size) << '\n'
       << "max_queue_delay_microseconds=" << c.max_queue_delay_microseconds << '\n'
       << "max_queue_size=" << c.max_queue_size << '\n';
-  for (const auto& ig : c.instance_groups)
+  for (const auto &ig : c.instance_groups)
     oss << "instance_group=" << ig.first << ':' << ig.second << '\n';
-  oss << "input=" << c.input_name << ':' << c.input_datatype << ':' << join_i64(c.input_dims) << '\n'
-      << "output=" << c.output_name << ':' << c.output_datatype << ':' << join_i64(c.output_dims) << '\n';
+  oss << "input=" << c.input_name << ':' << c.input_datatype << ':' << join_i64(c.input_dims)
+      << '\n'
+      << "output=" << c.output_name << ':' << c.output_datatype << ':' << join_i64(c.output_dims)
+      << '\n';
   c.canonical_projection = oss.str();
   return c;
 }
 
-TritonModelStatistics TritonClient::model_statistics(const std::string& name,
-                                                     const std::string& version,
+TritonModelStatistics TritonClient::model_statistics(const std::string &name,
+                                                     const std::string &version,
                                                      int32_t deadline_ms) {
   TritonModelStatistics s;
   if (!available_)
@@ -272,8 +298,9 @@ TritonModelStatistics TritonClient::model_statistics(const std::string& name,
   if (!st.ok())
     throw error::Exception(error::Code::kPoolUnavailable,
                            "triton ModelStatistics failed: " + st.error_message());
-  for (const auto& ms : resp.model_stats()) {
-    if (ms.name() != name) continue;
+  for (const auto &ms : resp.model_stats()) {
+    if (ms.name() != name)
+      continue;
     s.observed = true;
     s.inference_count = ms.inference_count();
     s.execution_count = ms.execution_count();
@@ -283,14 +310,13 @@ TritonModelStatistics TritonClient::model_statistics(const std::string& name,
   return s;
 }
 
-TritonInferResult TritonClient::model_infer(const std::string& name,
-                                            const std::string& version,
-                                            const std::string& input_name,
-                                            const std::string& input_datatype,
-                                            const std::vector<uint8_t>& input_bytes,
-                                            const std::vector<int64_t>& input_shape,
+TritonInferResult TritonClient::model_infer(const std::string &name, const std::string &version,
+                                            const std::string &input_name,
+                                            const std::string &input_datatype,
+                                            const std::vector<uint8_t> &input_bytes,
+                                            const std::vector<int64_t> &input_shape,
                                             int32_t deadline_ms,
-                                            const grpc::ServerContext* parent) {
+                                            const grpc::ServerContext *parent) {
   TritonInferResult result;
   if (!available_)
     throw error::Exception(error::Code::kPoolUnavailable, "triton client not connected");
@@ -311,20 +337,20 @@ TritonInferResult TritonClient::model_infer(const std::string& name,
   req.set_model_name(name);
   req.set_model_version(version);
 
-  auto* inp = req.add_inputs();
+  auto *inp = req.add_inputs();
   inp->set_name(input_name);
   inp->set_datatype(input_datatype);
-  for (auto d : input_shape) inp->add_shape(d);
+  for (auto d : input_shape)
+    inp->add_shape(d);
 
   req.add_raw_input_contents(
-      std::string(reinterpret_cast<const char*>(input_bytes.data()), input_bytes.size()));
+      std::string(reinterpret_cast<const char *>(input_bytes.data()), input_bytes.size()));
 
   ::inference::ModelInferResponse resp;
   auto st = stub_->ModelInfer(ctx.get(), req, &resp);
   if (!st.ok()) {
     if (st.error_code() == grpc::StatusCode::DEADLINE_EXCEEDED)
-      throw error::Exception(error::Code::kDeadlineExceeded,
-                             "triton ModelInfer deadline exceeded");
+      throw error::Exception(error::Code::kDeadlineExceeded, "triton ModelInfer deadline exceeded");
     if (st.error_code() == grpc::StatusCode::CANCELLED)
       throw error::Exception(error::Code::kAborted, "triton ModelInfer cancelled");
     throw error::Exception(error::Code::kPoolUnavailable,
@@ -333,15 +359,16 @@ TritonInferResult TritonClient::model_infer(const std::string& name,
 
   if (resp.outputs_size() == 0)
     throw error::Exception(error::Code::kIncompatibleContract, "triton returned no output tensor");
-  const auto& out = resp.outputs(0);
+  const auto &out = resp.outputs(0);
   result.datatype = out.datatype();
-  for (auto d : out.shape()) result.shape.push_back(d);
+  for (auto d : out.shape())
+    result.shape.push_back(d);
   if (result.datatype != "FP32")
     throw error::Exception(error::Code::kIncompatibleContract,
                            "triton output datatype not FP32: " + result.datatype);
 
   if (resp.raw_output_contents_size() > 0) {
-    const auto& raw = resp.raw_output_contents(0);
+    const auto &raw = resp.raw_output_contents(0);
     if (raw.size() % sizeof(float) != 0)
       throw error::Exception(error::Code::kBufferOverflow,
                              "triton raw output length not a multiple of float32");
@@ -357,4 +384,4 @@ TritonInferResult TritonClient::model_infer(const std::string& name,
   return result;
 }
 
-}  // namespace masi::inf
+} // namespace masi::inf

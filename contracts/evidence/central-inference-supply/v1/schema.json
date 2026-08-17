@@ -6,6 +6,7 @@
   "additionalProperties": false,
   "required": [
     "schema_version",
+    "test_id",
     "run_id",
     "module",
     "requirement_ids",
@@ -13,16 +14,25 @@
     "applicability",
     "result",
     "qualification",
+    "source_revision",
+    "source_tree_digest",
+    "working_tree_dirty",
+    "working_tree_status_digest",
     "offline_rebuild",
     "sbom",
     "vulnerability_scan",
     "secret_scan",
     "config_scan",
     "signature",
-    "release_manifest"
+    "release_manifest",
+    "input_safety",
+    "failure_reasons",
+    "hold_reasons",
+    "overall_module_complete"
   ],
   "properties": {
     "schema_version": {"const": "central-inference-supply-verification/v1"},
+    "test_id": {"const": "SEC-SUPPLY-001"},
     "run_id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$"},
     "module": {"const": "MOD-INF-001"},
     "requirement_ids": {
@@ -36,6 +46,11 @@
     "applicability": {"const": "APPLICABLE"},
     "result": {"enum": ["PASS", "FAIL", "HOLD", "NOT_RUN"]},
     "qualification": {"enum": ["QUALIFIED", "NOT_QUALIFIED"]},
+    "source_revision": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "source_tree_digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "working_tree_dirty": {"type": "boolean"},
+    "working_tree_status_digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "manifest_digest": {"type": ["string", "null"], "pattern": "^sha256:[0-9a-f]{64}$"},
     "offline_rebuild": {
       "type": "object",
       "additionalProperties": false,
@@ -93,10 +108,11 @@
     "signature": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["valid", "tamper_detected", "wrong_publisher_rejected"],
+      "required": ["valid", "tamper_detected", "mutated_manifest_rejected", "wrong_publisher_rejected"],
       "properties": {
         "valid": {"type": "boolean"},
         "tamper_detected": {"type": "boolean"},
+        "mutated_manifest_rejected": {"type": "boolean"},
         "wrong_publisher_rejected": {"type": "boolean"},
         "publisher": {"type": "string", "minLength": 1, "maxLength": 128}
       }
@@ -123,7 +139,20 @@
         "duplicate_rejected": {"type": "boolean"},
         "special_file_rejected": {"type": "boolean"}
       }
-    }
+    },
+    "failure_reasons": {
+      "type": "array",
+      "maxItems": 128,
+      "uniqueItems": true,
+      "items": {"type": "string", "pattern": "^[A-Z][A-Z0-9_]{2,127}$"}
+    },
+    "hold_reasons": {
+      "type": "array",
+      "maxItems": 128,
+      "uniqueItems": true,
+      "items": {"type": "string", "pattern": "^[A-Z][A-Z0-9_]{2,127}$"}
+    },
+    "overall_module_complete": {"const": false}
   },
   "allOf": [
     {
@@ -132,12 +161,15 @@
         "properties": {
           "qualification": {"const": "QUALIFIED"},
           "offline_rebuild": {"properties": {"binary_digest_equal": {"const": true}, "network_used": {"const": false}}},
-          "sbom": {"properties": {"generated": {"const": true}}},
-          "vulnerability_scan": {"properties": {"db_offline": {"const": true}, "policy_loaded": {"const": true}}},
-          "secret_scan": {"properties": {"secrets_found": {"const": 0}}},
-          "config_scan": {"properties": {"policy_cache_offline": {"const": true}}},
-          "signature": {"properties": {"valid": {"const": true}, "tamper_detected": {"const": false}, "wrong_publisher_rejected": {"const": true}}},
-          "release_manifest": {"properties": {"closure_equal": {"const": true}, "sha256sums_match": {"const": true}}}
+          "sbom": {"required": ["path", "digest"], "properties": {"generated": {"const": true}}},
+          "vulnerability_scan": {"required": ["findings_path", "findings_digest"], "properties": {"executed": {"const": true}, "db_offline": {"const": true}, "policy_loaded": {"const": true}}},
+          "secret_scan": {"properties": {"executed": {"const": true}, "secrets_found": {"const": 0}}},
+          "config_scan": {"required": ["findings_path"], "properties": {"executed": {"const": true}, "policy_cache_offline": {"const": true}}},
+          "signature": {"properties": {"valid": {"const": true}, "tamper_detected": {"const": false}, "mutated_manifest_rejected": {"const": true}, "wrong_publisher_rejected": {"const": true}}},
+          "release_manifest": {"properties": {"closure_equal": {"const": true}, "sha256sums_match": {"const": true}}},
+          "input_safety": {"properties": {"symlink_rejected": {"const": true}, "path_traversal_rejected": {"const": true}, "tar_traversal_rejected": {"const": true}, "duplicate_rejected": {"const": true}, "special_file_rejected": {"const": true}}},
+          "failure_reasons": {"maxItems": 0},
+          "hold_reasons": {"maxItems": 0}
         }
       }
     }

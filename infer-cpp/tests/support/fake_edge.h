@@ -13,4 +13,4 @@ namespace masi::inf::test::fake_edge {
 // Re-export the FakeEdge client from mod.h under a stable name.
 using FakeEdgeClient = ::masi::inf::test::FakeEdge;
 
-}  // namespace masi::inf::test::fake_edge
+} // namespace masi::inf::test::fake_edge
