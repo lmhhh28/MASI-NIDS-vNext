@@ -40,6 +40,32 @@
       "tests": "infer-cpp/tests/module_blackbox.cc (startup ModelConfig comparison against the pinned config.pbtxt)",
       "update_policy": "re-vendor only together with a re-pinned Triton server image; record the new commit and digests",
       "exit_policy": "replace with another qualified Triton protocol revision while preserving the config projection fields"
+    },
+    {
+      "vendored_path": "infer-cpp/third_party/nlohmann/json.hpp",
+      "upstream_repository": "https://github.com/nlohmann/json",
+      "upstream_ref": "v3.11.3",
+      "upstream_commit": "9cca280a4d0ccf0c08f47a99aa71d1b0e52f8d03",
+      "upstream_path": "single_include/nlohmann/json.hpp",
+      "retrieved_at": "2026-08-17",
+      "archive_url": "https://github.com/nlohmann/json/releases/download/v3.11.3/json.hpp",
+      "sha256": "9bea4c8066ef4a1c206b2be5a36302f8926f7fdc6087af5d20b417d0cf103ea6",
+      "size_bytes": 919975,
+      "license": "MIT",
+      "spdx_id": "MIT",
+      "copyright": "SPDX-FileCopyrightText: 2013-2023 Niels Lohmann <https://nlohmann.me>",
+      "modifications": "none (byte-identical to the upstream v3.11.3 release asset)",
+      "digest_cross_checks": [
+        "https://github.com/nlohmann/json/releases/download/v3.11.3/json.hpp",
+        "https://raw.githubusercontent.com/nlohmann/json/v3.11.3/single_include/nlohmann/json.hpp",
+        "https://github.com/nlohmann/json/discussions/4223 (official v3.11.3 release announcement publishes the same SHA-256)"
+      ],
+      "notice_obligation": "retain the upstream MIT SPDX header in the vendored file and in THIRD_PARTY_NOTICES",
+      "reason_for_vendoring": "The header is compiled into the Gateway, so its revision is part of the module's binary identity. Distribution packages disagree (ubuntu:22.04 ships 3.10.5, the host carried a manually installed 3.11.3 owned by no dpkg package) and the inline ABI namespace introduced in 3.11 makes the generated code differ, which broke byte-level reproducibility between the host offline rebuild and the OCI image build (ISSUE-INF-001).",
+      "verification": "infer-cpp/CMakeLists.txt verifies file(SHA256) against the registered digest at configure time and fails closed on drift; src/envelope.h additionally static_asserts NLOHMANN_JSON_VERSION_{MAJOR,MINOR,PATCH} == 3.11.3 so no system copy on the include path can win; scripts/run-supply-chain.sh re-verifies the digest.",
+      "tests": "infer-cpp/tests/contract_golden.cc, infer-cpp/tests/property_invariants.cc, infer-cpp/tests/module_blackbox.cc",
+      "update_policy": "re-vendor only as an explicit revision change: update the digest in the registry, in CMakeLists.txt and in the compile-time assertion together, then re-run the supply-chain gate to confirm binary reproducibility still holds",
+      "exit_policy": "replace with another qualified JSON library only together with a new envelope/config parsing qualification; the system package must never be used as an implicit substitute"
     }
   ],
   "method_allowlist": {

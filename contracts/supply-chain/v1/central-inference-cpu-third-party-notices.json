@@ -2,19 +2,80 @@
   "schema_version": "third-party-notices/v1",
   "module": "central-inference",
   "notices": [
-    {"component": "ONNX Runtime CPU", "license": "MIT", "source": "https://github.com/microsoft/onnxruntime"},
-    {"component": "gRPC C++", "license": "Apache-2.0", "source": "https://github.com/grpc/grpc"},
-    {"component": "Abseil", "license": "Apache-2.0", "source": "https://github.com/abseil/abseil-cpp"},
-    {"component": "Protocol Buffers", "license": "BSD-3-Clause", "source": "https://github.com/protocolbuffers/protobuf"},
-    {"component": "NVIDIA Triton Inference Server", "license": "Apache-2.0", "source": "https://github.com/triton-inference-server/server"},
-    {"component": "tritonclient C++", "license": "Apache-2.0", "source": "https://github.com/triton-inference-server/client"},
-    {"component": "OpenSSL", "license": "Apache-2.0", "source": "https://github.com/openssl/openssl"},
-    {"component": "libonnxruntime C++ header", "license": "MIT", "source": "https://github.com/microsoft/onnxruntime"},
-    {"component": "GCC", "license": "GPL-3.0-or-later", "source": "https://gcc.gnu.org"},
-    {"component": "CMake", "license": "BSD-3-Clause", "source": "https://cmake.org"},
-    {"component": "Syft", "license": "Apache-2.0", "source": "https://github.com/anchore/syft"},
-    {"component": "Trivy", "license": "Apache-2.0", "source": "https://github.com/aquasecurity/trivy"},
-    {"component": "Cosign", "license": "Apache-2.0", "source": "https://github.com/sigstore/cosign"},
-    {"component": "testkit minimal ONNX fixture", "license": "project-owned", "source": "testkit/fixtures/models/"}
+    {
+      "component": "ONNX Runtime CPU",
+      "license": "MIT",
+      "source": "https://github.com/microsoft/onnxruntime"
+    },
+    {
+      "component": "gRPC C++",
+      "license": "Apache-2.0",
+      "source": "https://github.com/grpc/grpc"
+    },
+    {
+      "component": "Abseil",
+      "license": "Apache-2.0",
+      "source": "https://github.com/abseil/abseil-cpp"
+    },
+    {
+      "component": "Protocol Buffers",
+      "license": "BSD-3-Clause",
+      "source": "https://github.com/protocolbuffers/protobuf"
+    },
+    {
+      "component": "NVIDIA Triton Inference Server",
+      "license": "Apache-2.0",
+      "source": "https://github.com/triton-inference-server/server"
+    },
+    {
+      "component": "tritonclient C++",
+      "license": "Apache-2.0",
+      "source": "https://github.com/triton-inference-server/client"
+    },
+    {
+      "component": "OpenSSL",
+      "license": "Apache-2.0",
+      "source": "https://github.com/openssl/openssl"
+    },
+    {
+      "component": "libonnxruntime C++ header",
+      "license": "MIT",
+      "source": "https://github.com/microsoft/onnxruntime"
+    },
+    {
+      "component": "GCC",
+      "license": "GPL-3.0-or-later",
+      "source": "https://gcc.gnu.org"
+    },
+    {
+      "component": "CMake",
+      "license": "BSD-3-Clause",
+      "source": "https://cmake.org"
+    },
+    {
+      "component": "Syft",
+      "license": "Apache-2.0",
+      "source": "https://github.com/anchore/syft"
+    },
+    {
+      "component": "Trivy",
+      "license": "Apache-2.0",
+      "source": "https://github.com/aquasecurity/trivy"
+    },
+    {
+      "component": "Cosign",
+      "license": "Apache-2.0",
+      "source": "https://github.com/sigstore/cosign"
+    },
+    {
+      "component": "testkit minimal ONNX fixture",
+      "license": "project-owned",
+      "source": "testkit/fixtures/models/"
+    },
+    {
+      "component": "nlohmann/json",
+      "license": "MIT",
+      "source": "https://github.com/nlohmann/json"
+    }
   ]
 }

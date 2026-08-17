@@ -25,18 +25,43 @@ ARG GRPC_COMMIT=acccf84c0df20487d64101f528e5d426541ca4e5
 
 ENV DEBIAN_FRONTEND=noninteractive
 
+ARG REGISTERED_GCC_VERSION=11.4.0
+ARG REGISTERED_CMAKE_VERSION=3.22.1
+
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    cmake g++ g++-12 git make python3 python3-pip \
+    cmake g++ git make python3 python3-pip \
     libssl-dev zlib1g-dev ca-certificates curl xz-utils \
   && rm -rf /var/lib/apt/lists/*
+
+# The Gateway binary must be byte-identical to the host offline rebuild, so the
+# builder toolchain cannot drift from the versions registered in
+# contracts/supply-chain/v1/central-inference-cpu-components.json. A drifted
+# base image fails the build here instead of silently producing a binary that
+# cannot be reproduced.
+RUN set -eu; \
+    observed_gcc="$(g++ -dumpfullversion)"; \
+    observed_cmake="$(cmake --version | head -1 | awk '{print $3}')"; \
+    if [ "${observed_gcc}" != "${REGISTERED_GCC_VERSION}" ]; then \
+      echo "builder g++ drift: registered=${REGISTERED_GCC_VERSION} observed=${observed_gcc}" >&2; exit 1; \
+    fi; \
+    if [ "${observed_cmake}" != "${REGISTERED_CMAKE_VERSION}" ]; then \
+      echo "builder cmake drift: registered=${REGISTERED_CMAKE_VERSION} observed=${observed_cmake}" >&2; exit 1; \
+    fi
 
 # Build the registered gRPC/Protobuf from the pinned commit. The Gateway build
 # refuses any other version, so the image cannot silently link a different
 # gRPC than the one bound to the module's wire evidence.
+# The clone directory is part of the reproducibility contract: gRPC bakes
+# __FILE__ into 488 assertion/log strings, so building at a different absolute
+# path yields a different Gateway binary. GRPC_SOURCE_DIR therefore matches the
+# host toolchain source path exactly (see infer-cpp/README.md). Do not change it
+# on one side only.
+ARG GRPC_SOURCE_DIR=/opt/masi-toolchain/grpc-src
+
 RUN git clone --depth 1 -b v${GRPC_VERSION} --recurse-submodules --shallow-submodules \
-      https://github.com/grpc/grpc /tmp/grpc && \
-    test "$(git -C /tmp/grpc rev-parse HEAD)" = "${GRPC_COMMIT}" && \
-    cmake -S /tmp/grpc -B /tmp/grpc-build \
+      https://github.com/grpc/grpc "${GRPC_SOURCE_DIR}" && \
+    test "$(git -C "${GRPC_SOURCE_DIR}" rev-parse HEAD)" = "${GRPC_COMMIT}" && \
+    cmake -S "${GRPC_SOURCE_DIR}" -B /tmp/grpc-build \
       -DCMAKE_BUILD_TYPE=Release \
       -DCMAKE_CXX_STANDARD=20 \
       -DgRPC_INSTALL=ON \
@@ -48,17 +73,14 @@ RUN git clone --depth 1 -b v${GRPC_VERSION} --recurse-submodules --shallow-submo
       -DBUILD_SHARED_LIBS=OFF && \
     cmake --build /tmp/grpc-build -- -j"$(nproc)" && \
     cmake --install /tmp/grpc-build && \
-    rm -rf /tmp/grpc /tmp/grpc-build
+    rm -rf "${GRPC_SOURCE_DIR}" /tmp/grpc-build
 
-# nlohmann/json is a header-only dependency the Gateway sources include
-# directly (envelope/startup parsing); there is no find_package for it, the
-# compiler just needs <nlohmann/json.hpp> on the default include path. It is
-# installed in its OWN layer AFTER the expensive gRPC build so that the gRPC
-# layer cache is preserved when this dependency is added/changed. (ubuntu:22.04
-# ships nlohmann-json3-dev; the host toolchain has the same header at
-# /usr/include/nlohmann/json.hpp.)
-RUN apt-get update && apt-get install -y --no-install-recommends nlohmann-json3-dev \
-  && rm -rf /var/lib/apt/lists/*
+# nlohmann/json is NOT installed from apt. ubuntu:22.04 ships 3.10.5 while the
+# host toolchain carried 3.11.3, and the inline ABI namespace introduced in 3.11
+# made the two builds produce different code. The exact header is vendored at
+# infer-cpp/third_party/nlohmann/json.hpp, registered in
+# contracts/supply-chain/v1/central-inference-vendored-sources.json, verified by
+# digest at cmake configure time and asserted again at compile time.
 
 WORKDIR /workspace
 

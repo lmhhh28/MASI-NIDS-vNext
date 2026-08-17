@@ -158,6 +158,38 @@ if docker image inspect "${image_ref}" >/dev/null 2>&1; then
   fi
 fi
 
+
+# Reproducibility diagnostics: the two builds must embed the SAME absolute gRPC
+# source path, because gRPC bakes __FILE__ into its assertion/log strings. When
+# the digests disagree, these observations say which input drifted instead of
+# leaving the gate with an unexplained mismatch (ISSUE-INF-001).
+registered_grpc_source_dir="${MASI_INF_GRPC_SOURCE_DIR:-/opt/masi-toolchain/grpc-src}"
+embedded_path_count_rebuilt=0
+embedded_path_count_image=0
+foreign_path_samples="[]"
+# grep exits non-zero when a pattern is absent, which under `set -o pipefail`
+# would abort these pipelines, so the non-match is swallowed inside the group
+# and the final jq always emits exactly one JSON document.
+if [[ -f "${supply_dir}/masi_inference_gateway.offline-rebuild.bin" ]]; then
+  embedded_path_count_rebuilt="$(strings -a \
+    "${supply_dir}/masi_inference_gateway.offline-rebuild.bin" \
+    | { grep -c -- "${registered_grpc_source_dir}" || true; })"
+fi
+if [[ -f "${supply_dir}/masi_inference_gateway.image.bin" ]]; then
+  embedded_path_count_image="$(strings -a \
+    "${supply_dir}/masi_inference_gateway.image.bin" \
+    | { grep -c -- "${registered_grpc_source_dir}" || true; })"
+  foreign_path_samples="$(strings -a "${supply_dir}/masi_inference_gateway.image.bin" \
+    | { grep -oE '(/tmp|/build|/workspace|/root|/home)/[A-Za-z0-9_./-]*(grpc|json)[A-Za-z0-9_./-]*' \
+        || true; } \
+    | sort -u | head -5 | jq -R . | jq -sc .)"
+fi
+[[ -n "${embedded_path_count_rebuilt}" ]] || embedded_path_count_rebuilt=0
+[[ -n "${embedded_path_count_image}" ]] || embedded_path_count_image=0
+[[ -n "${foreign_path_samples}" ]] || foreign_path_samples="[]"
+vendored_json_digest="$(jq -r '.files[] | select(.vendored_path | endswith("nlohmann/json.hpp")) | .sha256' \
+  "${vendored_registry}" 2>/dev/null || true)"
+
 binary_digest_match=false
 if [[ "${offline_rebuild_status}" -eq 0 && -n "${rebuilt_binary_digest}" \
   && "${image_binary_digest}" == "${rebuilt_binary_digest}" ]]; then
@@ -170,7 +202,13 @@ jq -n \
   --arg rebuilt_binary_digest "${rebuilt_binary_digest}" \
   --arg image_binary_digest "${image_binary_digest}" \
   --argjson exit_code "${offline_rebuild_status}" \
-  --argjson binary_digest_match "${binary_digest_match}" '{
+  --argjson binary_digest_match "${binary_digest_match}" \
+  --arg registered_grpc_source_dir "${registered_grpc_source_dir}" \
+  --argjson embedded_path_count_rebuilt "${embedded_path_count_rebuilt:-0}" \
+  --argjson embedded_path_count_image "${embedded_path_count_image:-0}" \
+  --argjson foreign_path_samples "${foreign_path_samples}" \
+  --arg vendored_json_digest "${vendored_json_digest}" \
+  --arg source_date_epoch "${SOURCE_DATE_EPOCH:-1786233600}" '{
     schema_version: "central-inference-offline-rebuild/v1",
     started_at: $started_at,
     finished_at: $finished_at,
@@ -179,7 +217,17 @@ jq -n \
     exit_code: $exit_code,
     rebuilt_binary_digest: $rebuilt_binary_digest,
     image_binary_digest: $image_binary_digest,
-    binary_digest_match: $binary_digest_match
+    binary_digest_match: $binary_digest_match,
+    source_date_epoch: $source_date_epoch,
+    vendored_json_digest: (if $vendored_json_digest == "" then null
+                           else "sha256:" + $vendored_json_digest end),
+    embedded_grpc_source_dir: $registered_grpc_source_dir,
+    embedded_grpc_source_path_occurrences: {
+      offline_rebuild: $embedded_path_count_rebuilt,
+      image: $embedded_path_count_image,
+      equal: ($embedded_path_count_rebuilt == $embedded_path_count_image)
+    },
+    foreign_source_path_samples_in_image: $foreign_path_samples
   }' >"${supply_dir}/offline-rebuild.json"
 
 # Generate SBOM if syft is available.

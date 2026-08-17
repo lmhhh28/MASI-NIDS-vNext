@@ -2,7 +2,7 @@
   "schema_version": "module-findings/v1",
   "module_id": "MOD-INF-001",
   "decision_id": "DEC-044",
-  "reviewed_at": "2026-08-16T16:30:00Z",
+  "reviewed_at": "2026-08-17T03:30:00Z",
   "review_scope": "MOD-INF-001 first-release CPU profile implementation, public-boundary startup, fault, numeric, supply-chain and gate evidence, including the independent audit of the batched wire path, the binding readback evidence chain and the registered toolchain, plus the gate-runner honesty audit, real fault-injection and the soak profile",
   "findings": [
     {
@@ -489,6 +489,66 @@
       "opened_at": "2026-08-16T16:30:00Z",
       "closed_at": null,
       "resolution": null
+    },
+    {
+      "finding_id": "INF-AUDIT-0021",
+      "severity": "P1",
+      "status": "CLOSED",
+      "title": "nlohmann/json was taken from whatever the build base happened to ship, so the host rebuild compiled 3.11.3 while the OCI image compiled 3.10.5 and the dependency was registered nowhere",
+      "requirement_ids": [
+        "MOD-INF-001",
+        "CONTRACT-SUPPLY-001",
+        "SEC-SUPPLY-001",
+        "ARCH-REUSE-001"
+      ],
+      "evidence_refs": [
+        "docs/issues/ISSUE-INF-001-supply-chain-binary-reproducibility.md",
+        "contracts/supply-chain/v1/central-inference-vendored-sources.json",
+        "contracts/supply-chain/v1/central-inference-cpu-components.json",
+        "infer-cpp/third_party/nlohmann/json.hpp",
+        "infer-cpp/CMakeLists.txt",
+        "infer-cpp/src/envelope.h"
+      ],
+      "opened_at": "2026-08-17T03:30:00Z",
+      "closed_at": "2026-08-17T03:30:00Z",
+      "resolution": "The header is compiled into the Gateway, so its revision is part of the binary identity. The host copy at /usr/include/nlohmann/json.hpp was owned by no dpkg package and the Dockerfile apt-installed ubuntu:22.04's 3.10.5; the inline ABI namespace added in 3.11 made the two builds emit different symbols (nlohmann::basic_json vs nlohmann::json_abi_v3_11_3::basic_json) and different code. The exact upstream v3.11.3 single header is now vendored at infer-cpp/third_party/nlohmann/json.hpp (sha256:9bea4c8066ef4a1c206b2be5a36302f8926f7fdc6087af5d20b417d0cf103ea6, cross-checked against the release asset, the v3.11.3 tag tree and the official release announcement), registered in the vendored source registry, the component registry and the third-party notices, verified by file(SHA256) at cmake configure time and by a compile-time static_assert on NLOHMANN_JSON_VERSION_*, and the apt install was removed from the Dockerfile."
+    },
+    {
+      "finding_id": "INF-AUDIT-0022",
+      "severity": "P2",
+      "status": "CLOSED",
+      "title": "The gRPC source directory differed between the host toolchain and the image builder, so the absolute path reached the Gateway binary through __FILE__ and broke byte-level reproducibility",
+      "requirement_ids": [
+        "MOD-INF-001",
+        "CONTRACT-SUPPLY-001",
+        "SEC-SUPPLY-001"
+      ],
+      "evidence_refs": [
+        "docs/issues/ISSUE-INF-001-supply-chain-binary-reproducibility.md",
+        "infer-cpp/Dockerfile",
+        "infer-cpp/scripts/build-grpc-toolchain.sh",
+        "infer-cpp/scripts/run-supply-chain.sh"
+      ],
+      "opened_at": "2026-08-17T03:30:00Z",
+      "closed_at": "2026-08-17T03:30:00Z",
+      "resolution": "gRPC bakes __FILE__ into its assertion and log strings: the host toolchain built at /opt/masi-toolchain/grpc-src and the Dockerfile cloned to /tmp/grpc, which put 488 differing path strings into the two binaries. The install prefix could not be changed because it also appears in the binary (15 occurrences, already identical), so the clone directory was unified on the registered host path via the GRPC_SOURCE_DIR build argument. The recipe is no longer implicit: scripts/build-grpc-toolchain.sh reproduces the host toolchain with the same flags, cross-checks the version and commit against the component registry and refuses to overwrite an existing prefix. The offline-rebuild evidence now records the embedded source path occurrence counts on both sides so a future mismatch names the drifted input."
+    },
+    {
+      "finding_id": "INF-AUDIT-0023",
+      "severity": "P2",
+      "status": "CLOSED",
+      "title": "The component registry carried a placeholder instead of a commit for the protobuf and Abseil submodules, which its own schema rejects",
+      "requirement_ids": [
+        "MOD-INF-001",
+        "CONTRACT-SUPPLY-001"
+      ],
+      "evidence_refs": [
+        "contracts/supply-chain/v1/central-inference-cpu-components.json",
+        "contracts/supply-chain/v1/schema.json"
+      ],
+      "opened_at": "2026-08-17T03:30:00Z",
+      "closed_at": "2026-08-17T03:30:00Z",
+      "resolution": "Protocol Buffers carried commit \"pinned-as-grpc-v1.82.1-submodule\", which does not match the registry schema's 40-hex commit pattern, and Abseil carried no commit at all. Both are now the exact submodule commits recorded by the pinned gRPC tree (protobuf e59364c38e10de3686a3305ff11fbfc59a10dbd8, abseil 76bb24329e8bf5f39704eb10d21b9a80befa7c81, read from git ls-tree at gRPC acccf84c0df20487d64101f528e5d426541ca4e5). The registry now validates against its schema with zero errors."
     }
   ]
 }

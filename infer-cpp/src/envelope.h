@@ -6,6 +6,18 @@
 
 #include "error.h"
 
+// The vendored nlohmann/json revision is part of the module's supply-chain
+// identity: 3.10.x and 3.11.x generate different code (the inline ABI namespace
+// changed in 3.11), which broke byte-level reproducibility between the host
+// offline rebuild and the OCI image build. CMake verifies the digest of the
+// vendored file; this assertion additionally guarantees that no system copy on
+// the include path can win.
+static_assert(NLOHMANN_JSON_VERSION_MAJOR == 3 &&
+                  NLOHMANN_JSON_VERSION_MINOR == 11 &&
+                  NLOHMANN_JSON_VERSION_PATCH == 3,
+              "the Gateway must compile against the vendored nlohmann/json "
+              "3.11.3 registered in contracts/supply-chain/v1");
+
 namespace masi::inf {
 
 // Reference into the digest-pinned repository snapshot declared by the

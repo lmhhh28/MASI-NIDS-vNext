@@ -176,6 +176,29 @@ add_library(masi_inf_gateway_lib STATIC
   src/gateway.cc
   src/health.cc
 )
+# nlohmann/json is vendored at an exact revision instead of taken from the host
+# include path. The system header is NOT interchangeable: Ubuntu 22.04 ships
+# 3.10.5 while the host toolchain carried a manually installed 3.11.3, and the
+# two produce different code (the inline ABI namespace changed in 3.11), which
+# made the host rebuild and the OCI image build byte-different. The digest is
+# verified at configure time so the vendored copy cannot drift silently.
+# Registered in contracts/supply-chain/v1/central-inference-vendored-sources.json.
+set(MASI_INF_VENDORED_JSON_DIR "${CMAKE_CURRENT_SOURCE_DIR}/third_party")
+set(MASI_INF_VENDORED_JSON_HEADER
+    "${MASI_INF_VENDORED_JSON_DIR}/nlohmann/json.hpp")
+set(MASI_INF_REGISTERED_JSON_SHA256
+    "9bea4c8066ef4a1c206b2be5a36302f8926f7fdc6087af5d20b417d0cf103ea6")
+if(NOT EXISTS "${MASI_INF_VENDORED_JSON_HEADER}")
+  message(FATAL_ERROR
+    "vendored nlohmann/json header missing: ${MASI_INF_VENDORED_JSON_HEADER}")
+endif()
+file(SHA256 "${MASI_INF_VENDORED_JSON_HEADER}" MASI_INF_OBSERVED_JSON_SHA256)
+if(NOT MASI_INF_OBSERVED_JSON_SHA256 STREQUAL MASI_INF_REGISTERED_JSON_SHA256)
+  message(FATAL_ERROR
+    "vendored nlohmann/json digest drift: registered="
+    "${MASI_INF_REGISTERED_JSON_SHA256} observed=${MASI_INF_OBSERVED_JSON_SHA256}")
+endif()
+
 # The Gateway implements one exact frozen wire profile revision. Its digest is
 # computed at configure time and compiled in, so a startup envelope that
 # declares a different revision fails closed instead of being echoed back.
@@ -184,7 +207,8 @@ file(SHA256 "${CMAKE_CURRENT_SOURCE_DIR}/../contracts/inference/v1/profile.json"
 target_compile_definitions(masi_inf_gateway_lib PUBLIC
   MASI_INF_WIRE_PROFILE_DIGEST="sha256:${MASI_INF_WIRE_PROFILE_SHA256}")
 
-target_include_directories(masi_inf_gateway_lib PUBLIC
+target_include_directories(masi_inf_gateway_lib BEFORE PUBLIC
+  ${MASI_INF_VENDORED_JSON_DIR}
   src
   ${GENERATED_DIR}
 )

@@ -58,8 +58,9 @@
 构建必须使用供应链登记的 gRPC/protobuf。CMake 找不到该版本或版本不符会直接 `FATAL_ERROR`，不会静默回落到系统 gRPC：
 
 ```bash
-# 一次性：按 registry pin 构建 gRPC v1.82.1（commit acccf84c…）
-# 参考 infer-cpp/Dockerfile 的 builder 阶段，或安装到 /opt/masi-toolchain/grpc-1.82.1
+# 一次性：按 registry pin 构建 gRPC v1.82.1（commit acccf84c…）。
+# 该脚本与 Dockerfile builder 阶段的 flags 完全一致，且已存在 prefix 时拒绝覆盖。
+sudo scripts/build-grpc-toolchain.sh
 export MASI_INF_GRPC_PREFIX=/opt/masi-toolchain/grpc-1.82.1
 
 cd infer-cpp
@@ -69,6 +70,26 @@ cmake --build build/cpu-release --target masi_inference_gateway
 ```
 
 配置必须是小于等于 1 MiB 的普通非 symlink JSON，schema 为 `inference-config/v1`，未知字段被拒绝，`client_san_allowlist` 必填非空。TLS PEM 也必须是普通非 symlink 文件，私钥不得授予 group/other 权限。`startup_envelope_path` 指向 immutable 启动信封（必须声明 feature/label/output_adapter/runtime/optimization digest 与 `triton_server_version`），`model_repository_path` 指向 digest-pinned read-only 闭包。进程收到 SIGTERM/SIGINT 后停止接收、按配置 `drain_ms` 等待在途请求并以 0 退出。
+
+## 字节级可复现性契约
+
+供应链门禁要求宿主机离线重建的 Gateway 二进制与 OCI 镜像内的二进制**逐字节相同**
+（`binary_digest_match=true`）。以下三项是承载该等式的输入，任何一项只改一侧都会立刻破坏它：
+
+| 输入 | 取值 | 为什么会进入二进制 |
+|---|---|---|
+| gRPC 源码目录 | `/opt/masi-toolchain/grpc-src` | gRPC 把 `__FILE__` 编进 488 处断言/日志字符串 |
+| gRPC 安装 prefix | `/opt/masi-toolchain/grpc-1.82.1` | prefix 出现在 15 处编译产物字符串中 |
+| nlohmann/json | vendored `third_party/nlohmann/json.hpp` 3.11.3 | 3.11 引入 inline ABI 命名空间，3.10.5 与 3.11.3 生成不同代码 |
+
+nlohmann/json **不从发行版包安装**：ubuntu:22.04 是 3.10.5，宿主机上曾是手工安装、无任何 dpkg
+出处的 3.11.3，二者编译结果不同。现在唯一来源是仓库内 vendored 单头文件，digest
+`sha256:9bea4c80…03ea6`，已登记在 `contracts/supply-chain/v1/central-inference-vendored-sources.json`；
+CMake 在 configure 期比对 digest，`src/envelope.h` 再用 `static_assert` 锁定
+`NLOHMANN_JSON_VERSION_*`，确保系统头无法顶替。构建期还断言 builder 的 g++/cmake 版本与登记值一致。
+
+`offline-rebuild.json` 记录两侧 digest、两侧嵌入的 gRPC 源码路径出现次数及其是否相等、
+vendored header digest 与 `SOURCE_DATE_EPOCH`，因此一旦再次不匹配，证据能直接指出漂移的是哪一项输入。
 
 ## 可复制门禁
 

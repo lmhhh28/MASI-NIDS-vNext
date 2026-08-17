@@ -37,7 +37,8 @@
       "runtime_download": false,
       "failure": "ABI mismatch HOLD",
       "rollback": "re-pin abseil matching gRPC version",
-      "exit": "replace with matching C++ standard"
+      "exit": "replace with matching C++ standard",
+      "commit": "76bb24329e8bf5f39704eb10d21b9a80befa7c81"
     },
     {
       "name": "Protocol Buffers",
@@ -49,7 +50,7 @@
       "failure": "wire serialization gate HOLD",
       "rollback": "re-pin protobuf matching gRPC version",
       "exit": "replace while preserving inference wire contract",
-      "commit": "pinned-as-grpc-v1.82.1-submodule"
+      "commit": "e59364c38e10de3686a3305ff11fbfc59a10dbd8"
     },
     {
       "name": "NVIDIA Triton Inference Server",
@@ -187,6 +188,21 @@
       "failure": "startup closure verification fail closed",
       "rollback": "rebuild with testkit/fixtures/models/scripts/build_repository.py",
       "exit": "replace closure preserving model/config/bundle-manifest roles"
+    },
+    {
+      "name": "nlohmann/json",
+      "decision": "ADOPT",
+      "version": "3.11.3",
+      "commit": "9cca280a4d0ccf0c08f47a99aa71d1b0e52f8d03",
+      "archive": "json.hpp (single header)",
+      "archive_url": "https://github.com/nlohmann/json/releases/download/v3.11.3/json.hpp",
+      "digest": "sha256:9bea4c8066ef4a1c206b2be5a36302f8926f7fdc6087af5d20b417d0cf103ea6",
+      "license": "MIT",
+      "authority": "startup envelope / config / repository closure manifest parsing; no wire codec authority and no canonical digest authority (canonical JSON is produced by the module's own serializer)",
+      "runtime_download": false,
+      "failure": "vendored digest drift or a foreign version on the include path fails the cmake configure and the compile-time assertion, so the build fails closed",
+      "rollback": "restore the registered vendored header from the recorded upstream URL and digest",
+      "exit": "replace with another qualified parser only with a new parsing qualification; distribution packages must not be used as an implicit substitute because their revisions disagree across bases"
     }
   ]
 }
