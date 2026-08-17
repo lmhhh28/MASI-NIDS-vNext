@@ -146,11 +146,60 @@
     "same_identity_different_digest": "RESULT_DIGEST_CONFLICT and route HOLD",
     "canonical_ack": "only after PostgreSQL Event commit"
   },
+  "output_adapter_binding": {
+    "qualified_adapter_ids": ["masi-window-adapter-v1"],
+    "mapping_kind": "deterministic-implementation",
+    "parameter_source": "digest-pinned repository closure member with role=bundle-manifest",
+    "parameter_fields": [
+      "label_taxonomy.score_domain",
+      "label_taxonomy.threshold",
+      "label_taxonomy.calibration",
+      "output_adapter.class_order",
+      "output_adapter.axis",
+      "output_adapter.top_k",
+      "output_adapter.threshold"
+    ],
+    "adapter_digest_preimage": "canonical JSON of output_adapter without the adapter_digest field (sorted keys, no whitespace)",
+    "contract_digest_preimages": {
+      "feature_contract_digest": "canonical JSON of bundle-manifest feature_schema",
+      "label_contract_digest": "canonical JSON of bundle-manifest label_taxonomy",
+      "output_adapter_digest": "equal to output_adapter.adapter_digest"
+    },
+    "envelope_cross_check": "startup rejects unless the envelope feature/label/output_adapter digests equal the bundle-manifest digests",
+    "normalization_by_score_domain": {
+      "logit": "stable-softmax-over-axis",
+      "probability": "none",
+      "distance": "reject-incompatible-contract",
+      "raw-score": "reject-incompatible-contract"
+    },
+    "baseline_label": "output_adapter.class_order[0]",
+    "decision_rule": "top-1 over canonical class-ordered scores; abstain iff top-1 < label_taxonomy.threshold.value; else alert iff predicted_label != baseline_label and top-1 >= output_adapter.threshold; else benign",
+    "ood_rule": "not-computed-by-this-adapter-always-false",
+    "decision_values": ["benign", "alert", "abstain"],
+    "quality_values": ["valid", "partial", "gap", "stale", "invalid", "reset", "not-covered", "not-measurable"],
+    "canonical_score_encoding": "repeated float32 little-endian in canonical class order",
+    "output_digest_preimage": "concatenated canonical float32-le scores",
+    "unqualified_adapter_id": "reject INCOMPATIBLE_CONTRACT before readiness",
+    "unknown_score_domain": "reject INCOMPATIBLE_CONTRACT before readiness"
+  },
+  "repository_closure": {
+    "member_roles": ["model", "config", "version", "backend", "bundle-manifest"],
+    "manifest_file": "closure-manifest.json",
+    "manifest_is_member": false,
+    "exactly_one_model_member": true,
+    "exactly_one_bundle_manifest_member": true,
+    "triton_model_name_source": "first path component of the role=model member rel_path",
+    "closure_digest_preimage": "sorted lines of \"role\\trel_path\\tmember_digest\" joined by \"\\n\" with a trailing \"\\n\"",
+    "read_only": "no write bit for owner/group/other on any entry",
+    "symlink_policy": "reject any symlink in the tree",
+    "extra_member": "reject REPOSITORY_CLOSURE_VIOLATION"
+  },
   "fallback": {
     "edge_local_inference": false,
     "old_model": false,
     "automatic_cpu_cuda_switch": false,
     "uds_or_shared_memory": false,
-    "json_or_http": false
+    "json_or_http": false,
+    "gateway_local_inference": false
   }
 }

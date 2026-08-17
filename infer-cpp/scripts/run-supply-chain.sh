@@ -63,6 +63,71 @@ if [[ -n "${MASI_INF_EXPECTED_SOURCE_TREE_DIGEST:-}" \
   fail "supply-chain source tree changed after module gate snapshot"
 fi
 
+# ---------------------------------------------------------------------------
+# Vendored third-party source verification.
+# Every vendored file must match the registered upstream digest byte for byte,
+# and the Gateway sources must never reference a forbidden Triton RPC.
+# ---------------------------------------------------------------------------
+vendored_registry="${repo_root}/contracts/supply-chain/v1/central-inference-vendored-sources.json"
+[[ -f "${vendored_registry}" ]] || fail "vendored source registry missing"
+vendored_checked=0
+while IFS=$'\t' read -r vendored_path expected_digest; do
+  [[ -n "${vendored_path}" ]] || continue
+  abs="${repo_root}/${vendored_path}"
+  [[ -f "${abs}" ]] || fail "registered vendored file missing: ${vendored_path}"
+  observed="$(sha256sum "${abs}" | awk '{print $1}')"
+  if [[ "${observed}" != "${expected_digest}" ]]; then
+    fail "vendored file digest drift: ${vendored_path} observed=${observed} registered=${expected_digest}"
+  fi
+  vendored_checked=$((vendored_checked + 1))
+done < <(jq -r '.files[] | [.vendored_path, .sha256] | @tsv' "${vendored_registry}")
+[[ "${vendored_checked}" -gt 0 ]] || fail "vendored source registry lists no files"
+
+forbidden_hits="${supply_dir}/forbidden-triton-rpcs.txt"
+: >"${forbidden_hits}"
+while read -r rpc; do
+  [[ -n "${rpc}" ]] || continue
+  # Match only call sites in the Gateway's own sources; the vendored protocol
+  # definition legitimately declares the full upstream service.
+  if grep -rn --include='*.cc' --include='*.h' --include='*.cpp' \
+      -e "->${rpc}(" -e "\\.${rpc}(" "${inf_root}/src" >>"${forbidden_hits}" 2>/dev/null; then
+    :
+  fi
+done < <(jq -r '.method_allowlist.forbidden_client_rpcs[]' "${vendored_registry}")
+if [[ -s "${forbidden_hits}" ]]; then
+  cat -- "${forbidden_hits}" >&2
+  fail "Gateway sources call a forbidden Triton RPC (model-control or shared memory)"
+fi
+
+# ---------------------------------------------------------------------------
+# Registry vs actual toolchain. Wire evidence must be bound to the registered
+# gRPC/protobuf version, so a drifted local toolchain fails the gate.
+# ---------------------------------------------------------------------------
+components_registry="${repo_root}/contracts/supply-chain/v1/central-inference-cpu-components.json"
+registered_grpc="$(jq -r '.components[] | select(.name=="gRPC C++") | .version' "${components_registry}" | sed 's/^v//')"
+registered_protobuf="$(jq -r '.components[] | select(.name=="Protocol Buffers") | .version' "${components_registry}")"
+grpc_prefix="${MASI_INF_GRPC_PREFIX:-/opt/masi-toolchain/grpc-${registered_grpc}}"
+observed_grpc=""
+observed_protobuf=""
+if [[ -f "${grpc_prefix}/lib/pkgconfig/grpc++.pc" ]]; then
+  observed_grpc="$(PKG_CONFIG_PATH="${grpc_prefix}/lib/pkgconfig" pkg-config --modversion grpc++ 2>/dev/null || true)"
+  observed_protobuf="$(PKG_CONFIG_PATH="${grpc_prefix}/lib/pkgconfig" pkg-config --modversion protobuf 2>/dev/null || true)"
+fi
+[[ "${observed_grpc}" == "${registered_grpc}" ]] || \
+  fail "gRPC version drift: registry=${registered_grpc} observed=${observed_grpc:-<not found at ${grpc_prefix}>}"
+[[ "${observed_protobuf}" == "${registered_protobuf}" ]] || \
+  fail "protobuf version drift: registry=${registered_protobuf} observed=${observed_protobuf:-<not found>}"
+
+jq -n --arg grpc "${observed_grpc}" --arg protobuf "${observed_protobuf}" \
+  --arg prefix "${grpc_prefix}" --argjson vendored_files "${vendored_checked}" '{
+    schema_version: "central-inference-toolchain-binding/v1",
+    grpc_version: $grpc,
+    protobuf_version: $protobuf,
+    toolchain_prefix: $prefix,
+    vendored_files_verified: $vendored_files,
+    forbidden_triton_rpc_references: 0
+  }' >"${supply_dir}/toolchain-binding.json"
+
 # Offline rebuild verification: build the Gateway from source with no network.
 cd -- "${inf_root}"
 offline_started_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
@@ -150,16 +215,42 @@ if [[ "${working_tree_dirty}" == true ]]; then
   qualification_reason="DIRTY_WORKTREE_NOT_RELEASE_BASELINE"
 fi
 if [[ "${binary_digest_match}" != true ]]; then
-  evidence_result="FAIL"
-  evidence_qualification="NOT_QUALIFIED"
-  qualification_reason="OFFLINE_REBUILD_BINARY_DIGEST_MISMATCH"
+  if [[ -z "${image_binary_digest}" ]]; then
+    # Missing precondition, not a contradiction: no OCI image is available to
+    # compare against. Report HOLD instead of FAIL and never PASS.
+    evidence_result="HOLD"
+    evidence_qualification="NOT_QUALIFIED"
+    qualification_reason="OCI_IMAGE_NOT_BUILT_FOR_BINARY_COMPARISON"
+  elif [[ "${offline_rebuild_status}" -ne 0 ]]; then
+    evidence_result="FAIL"
+    evidence_qualification="NOT_QUALIFIED"
+    qualification_reason="OFFLINE_REBUILD_FAILED"
+  else
+    evidence_result="FAIL"
+    evidence_qualification="NOT_QUALIFIED"
+    qualification_reason="OFFLINE_REBUILD_BINARY_DIGEST_MISMATCH"
+  fi
 fi
+
+sbom_generated=false
+if [[ -s "${supply_dir}/source.spdx.json" ]]; then
+  sbom_generated=true
+fi
+scan_completed=false
+if [[ -s "${supply_dir}/trivy-image.json" ]]; then
+  scan_completed=true
+fi
+toolchain_binding_digest="sha256:$(sha256sum "${supply_dir}/toolchain-binding.json" | awk '{print $1}')"
 
 jq -n --arg run_id "${run_id}" --arg reason "${qualification_reason}" \
   --arg source_revision "${source_revision}" --arg source_tree_digest "${source_tree_digest}" \
   --argjson working_tree_dirty "${working_tree_dirty}" \
   --arg working_tree_status_digest "${working_tree_status_digest}" \
   --arg result "${evidence_result}" --arg qualification "${evidence_qualification}" \
+  --argjson offline_rebuild "${binary_digest_match}" \
+  --argjson sbom_generated "${sbom_generated}" \
+  --argjson scan_completed "${scan_completed}" \
+  --arg toolchain_binding_digest "${toolchain_binding_digest}" \
   --arg offline_rebuild_digest "sha256:$(sha256sum "${supply_dir}/offline-rebuild.json" | awk '{print $1}')" '{
     schema_version:"central-inference-supply-verification/v1",
     test_id:"SEC-SUPPLY-001",
@@ -170,7 +261,8 @@ jq -n --arg run_id "${run_id}" --arg reason "${qualification_reason}" \
     working_tree_dirty:$working_tree_dirty,working_tree_status_digest:$working_tree_status_digest,
     overall_module_complete:false,
     manifest_digest:null,
-    checks:{offline_rebuild:$binary_digest_match,sbom_generated:$binary_digest_match,scan:$binary_digest_match},
+    checks:{offline_rebuild:$offline_rebuild,sbom_generated:$sbom_generated,scan:$scan_completed},
+    toolchain_binding_digest:$toolchain_binding_digest,
     offline_rebuild_digest:$offline_rebuild_digest,
     failure_reasons:(if $result == "FAIL" then [$reason] else [] end),
     hold_reasons:(if $result == "HOLD" then [$reason] else [] end)

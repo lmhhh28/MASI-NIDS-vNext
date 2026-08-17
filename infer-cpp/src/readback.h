@@ -5,7 +5,7 @@
 #include <vector>
 
 #include "envelope.h"
-#include "ort_session.h"
+#include "repository_closure.h"
 #include "triton_client.h"
 
 #include "edge/v1/edge.pb.h"
@@ -16,7 +16,7 @@ namespace masi::inf {
 // these so the Edge can compare an exact loaded model/runtime against the
 // immutable startup envelope.
 struct StageResult {
-  std::string stage;          // "verification" | "load" | "backend-session"
+  std::string stage;          // startup stage id
   std::string status;         // "OK" | "HOLD" | "FAIL"
   int64_t started_at_unix_ms = 0;
   int64_t completed_at_unix_ms = 0;
@@ -24,11 +24,29 @@ struct StageResult {
   std::string reason_code;
 };
 
+// Everything the Gateway actually observed from the serving runtime (Triton).
+// The Gateway holds no execution engine of its own, so this is the only source
+// of runtime observation; nothing here is copied from the envelope.
+struct TritonObservation {
+  std::string model_name;
+  std::string model_version;
+  bool server_ready = false;
+  bool model_ready = false;
+  TritonServerMetadata server;
+  TritonModelMetadata model;
+  TritonModelConfigProjection config;
+  // Stable newline-delimited projection of everything above.
+  std::string canonical_projection;
+};
+
 struct WorkerRuntimeIdentity {
-  std::string worker_id;          // stable per replica
-  std::string worker_digest;       // sha256: of worker_id + provider identity
-  std::string provider_identity;   // from OrtSession::provider_identity()
-  std::string session_options_identity;
+  std::string worker_id;      // stable per replica
+  std::string worker_digest;  // sha256: over worker_id + observed runtime
+  // Digest over the Triton observation projection (server/model/config).
+  std::string runtime_observation_digest;
+  // Observable evidence of the execution placement, e.g.
+  // "backend=onnxruntime;instance_group=KIND_CPU:1;server_version=2.59.0".
+  std::string runtime_observation;
 };
 
 struct PoolReadback {
@@ -45,7 +63,8 @@ struct PoolReadback {
   int32_t instance_group_count = 0;
   std::string instance_group_operator_partition_digest;
 
-  // Observed identity (from loaded model + session).
+  // Exact binding digests: declared by the envelope and verified against the
+  // digest-pinned bundle manifest before readiness.
   std::string model_revision_digest;
   std::string model_bundle_digest;
   std::string feature_contract_digest;
@@ -56,6 +75,10 @@ struct PoolReadback {
   std::string runtime_profile;
   std::string runtime_profile_digest;
   std::string optimization_profile_digest;
+
+  // Observation-derived fence dimensions.
+  std::string pool_observation_digest;
+  std::string binding_digest;
 
   WorkerRuntimeIdentity worker;
   std::vector<WorkerRuntimeIdentity> eligible_workers;
@@ -68,11 +91,12 @@ struct PoolReadback {
   bool loaded_not_current = false;  // true if observed != proposed binding
 };
 
-// Build a readback object from the verified startup state. `eligible_workers`
-// is bounded to 64 by contract.
+// Build the readback from the verified envelope, the digest-pinned bundle
+// manifest and the live Triton observation. `eligible_workers` is bounded to 64
+// by contract.
 PoolReadback build_pool_readback(const StartupEnvelope& env,
-                                 const OrtSession& session,
-                                 const TritonClient& triton,
+                                 const BundleManifest& bundle,
+                                 const TritonObservation& observed,
                                  int64_t now_unix_ms);
 
 // Serialize the readback into the canonical Edge `BindingReadback` protobuf.

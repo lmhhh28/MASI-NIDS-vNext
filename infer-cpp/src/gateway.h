@@ -3,15 +3,17 @@
 #include <atomic>
 #include <grpcpp/grpcpp.h>
 
+#include <list>
 #include <memory>
 #include <mutex>
+#include <set>
 #include <string>
 #include <unordered_map>
+#include <vector>
 
 #include "admission.h"
 #include "config.h"
 #include "numeric.h"
-#include "ort_session.h"
 #include "readback.h"
 #include "startup.h"
 #include "triton_client.h"
@@ -25,20 +27,22 @@ namespace masi::inf {
 // CentralInference gRPC service implementation.
 //
 // Contract summary:
-//   - No durable queue. Bounded in-flight only.
-//   - No second batch timer. Triton is the only delayed batcher.
-//   - mTLS only; peer verification is done by gRPC.
-//   - Result fence: 29 dimensions. Unknown/cross-generation -> RESULT_IDENTITY_MISMATCH.
-//   - Same request_id + same input_digest: idempotent.
+//   - No durable queue. Bounded in-flight only: process-wide `max_in_flight`
+//     plus exactly one in-flight batch per route target.
+//   - No second batch timer and no in-process execution engine. Triton is the
+//     only executor and the only delayed batcher; one admitted batch is one
+//     ModelInfer call.
+//   - mTLS only; the CA chain plus an exact client SAN allowlist are enforced.
+//   - Result fence: 29 dimensions. Unknown/cross-generation ->
+//     RESULT_IDENTITY_MISMATCH.
+//   - Same request_id + same input_digest: recomputed with a new attempt id.
 //   - Same request_id + different input_digest: RESULT_DIGEST_CONFLICT.
 class CentralInferenceServiceImpl final
     : public masi::inference::v1::CentralInference::Service {
  public:
   CentralInferenceServiceImpl(Config cfg,
                               StartupResult startup,
-                              std::shared_ptr<OrtSession> session,
-                              std::shared_ptr<TritonClient> triton,
-                              NumericProfile numeric);
+                              std::shared_ptr<TritonClient> triton);
   ~CentralInferenceServiceImpl() override = default;
 
   grpc::Status GetBinding(grpc::ServerContext* ctx,
@@ -53,30 +57,60 @@ class CentralInferenceServiceImpl final
   void drain_begin();
   void shutdown_complete();
   bool accepting() const noexcept;
-
-  // Bounded idempotency cache: request_id -> (input_digest, output_digest).
-  struct IdempEntry { std::string input_digest; std::string output_digest; };
+  uint64_t in_flight() const noexcept;
 
  private:
-  grpc::Status infer_one(const masi::edge::v1::InferenceRoute& route,
-                         const masi::edge::v1::InferenceRecord& rec,
-                         int64_t deadline_unix_ms,
-                         const std::string& trace_id,
-                         masi::edge::v1::InferenceResultRecord* out);
+  // Bounded in-flight gate. Enforces the frozen profile's
+  // maximum_in_flight_batches_per_target = 1 and the process-wide cap.
+  class InFlightGate {
+   public:
+    InFlightGate(CentralInferenceServiceImpl* owner, const std::string& route_key);
+    ~InFlightGate();
+    bool acquired() const noexcept { return acquired_; }
+    const std::string& reason() const noexcept { return reason_; }
+
+   private:
+    CentralInferenceServiceImpl* owner_;
+    std::string route_key_;
+    bool acquired_ = false;
+    std::string reason_;
+  };
+
+  // Verify the exact binding identity of a route against the loaded binding.
+  grpc::Status check_route_fence(const masi::edge::v1::InferenceRoute& route) const;
+
+  // Fill one result record's identity, timing and adapted numeric output.
+  void fill_result_record(const masi::edge::v1::InferenceRoute& route,
+                          const masi::edge::v1::InferenceRecord& rec,
+                          const std::string& trace_id,
+                          const std::string& worker_attempt_id,
+                          masi::edge::v1::InferenceResultRecord* out) const;
+
+  // Every execution of a request identity gets a fresh attempt id, so a
+  // same-generation recompute is distinguishable from the first attempt.
+  std::string next_worker_attempt_id();
 
   Config cfg_;
   StartupResult startup_;
-  std::shared_ptr<OrtSession> session_;
   std::shared_ptr<TritonClient> triton_;
   NumericProfile numeric_;
   WireProfile profile_;
-  std::string triton_model_name_;  // exact Triton model name from the closure
+  std::string triton_model_name_;
+  std::string triton_model_version_;
+  std::string triton_input_name_;
 
   mutable std::mutex mu_;
   std::atomic<bool> accepting_{true};
+  std::atomic<uint64_t> in_flight_{0};
+  std::atomic<uint64_t> attempt_counter_{0};
+  std::set<std::string> in_flight_routes_;
 
-  std::unordered_map<std::string, IdempEntry> idemp_;
-  static constexpr size_t kIdempCap = 1024;
+  // Bounded conflict-detection cache: request_id -> input_digest, LRU evicted.
+  // Results are recomputed on replay (at-least-once compute semantics), so no
+  // result bytes are retained.
+  std::unordered_map<std::string, std::string> request_digest_;
+  std::list<std::string> request_lru_;
+  static constexpr size_t kRequestCacheCap = 1024;
 };
 
 }  // namespace masi::inf

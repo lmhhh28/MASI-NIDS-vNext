@@ -1,0 +1,12 @@
+# Keep host build artifacts, generated evidence, caches, the git database and
+# the local out/ snapshot tree out of every image build context. These are never
+# source the images build from. In particular, a stale host
+# infer-cpp/build/cpu-release/CMakeCache.txt (referencing the host source path
+# /home/.../MASI-NIDS-vNext/infer-cpp) breaks the in-image cmake configure with
+# "source does not match the source ... used to generate cache".
+**/build/
+**/evidence/
+**/__pycache__/
+**/target/
+.git/
+out/

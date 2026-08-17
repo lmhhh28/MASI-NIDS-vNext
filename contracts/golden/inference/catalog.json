@@ -1,19 +1,95 @@
 {
-  "schema_version": "inference-golden-catalog/v1",
+  "schema_version": "inference-golden-catalog/v2",
   "contract_source": "contracts/inference/v1/profile.json",
   "model_contract_source": "contracts/model/v1/schema.json",
+  "digest_policy": {
+    "algorithm": "sha256",
+    "preimage": "exact file bytes",
+    "enforcement": "infer-cpp/scripts/validate-public-contracts.py recomputes every vector digest and fails when it differs from this catalog, so a frozen golden cannot be edited without an explicit catalog revision",
+    "on_intentional_change": "record a module finding, update the digest here in the same commit"
+  },
   "vectors": [
-    {"id": "inference-valid-batch-0001", "path": "valid-batch-v1.json", "category": "valid", "test_id": "TEST-INF-GOLDEN-001"},
-    {"id": "inference-oversize-0001", "path": "oversize-batch-v1.json", "category": "reject-oversize", "test_id": "TEST-INF-GOLDEN-002"},
-    {"id": "inference-malformed-0001", "path": "malformed-tensor-v1.json", "category": "reject-malformed", "test_id": "TEST-INF-GOLDEN-003"},
-    {"id": "inference-unknown-major-0001", "path": "unknown-major-v1.json", "category": "reject-unknown-major", "test_id": "TEST-INF-GOLDEN-004"},
-    {"id": "inference-nan-inf-0001", "path": "nan-inf-reject-v1.json", "category": "reject-nan-inf", "test_id": "TEST-INF-GOLDEN-005"},
-    {"id": "inference-cross-generation-fence-0001", "path": "cross-generation-fence-v1.json", "category": "fence-cross-generation", "test_id": "TEST-INF-GOLDEN-006"},
-    {"id": "inference-digest-conflict-0001", "path": "digest-conflict-v1.json", "category": "fence-digest-conflict", "test_id": "TEST-INF-GOLDEN-007"},
-    {"id": "inference-repository-closure-0001", "path": "repository-closure-v1.json", "category": "repository-closure", "test_id": "TEST-INF-GOLDEN-008"},
-    {"id": "inference-implicit-instance-group-0001", "path": "implicit-instance-group-v1.json", "category": "instance-group", "test_id": "TEST-INF-GOLDEN-009"},
-    {"id": "inference-provider-drift-0001", "path": "provider-drift-v1.json", "category": "provider-drift", "test_id": "TEST-INF-GOLDEN-010"}
+    {
+      "id": "inference-valid-batch-0001",
+      "path": "valid-batch-v1.json",
+      "category": "valid",
+      "test_id": "TEST-INF-GOLDEN-001",
+      "digest": "sha256:e7578447fc062901425f5d44fd5bbbc88605961174af77f0d8c7921f399852e1"
+    },
+    {
+      "id": "inference-valid-multi-record-batch-0001",
+      "path": "valid-multi-record-batch-v1.json",
+      "category": "valid",
+      "test_id": "TEST-INF-GOLDEN-011",
+      "digest": "sha256:e2384dd2b613b65bcf7d0fc8b3bb8985a64052e3813c73b50f48716bd8b2a42a"
+    },
+    {
+      "id": "inference-oversize-0001",
+      "path": "oversize-batch-v1.json",
+      "category": "reject-oversize",
+      "test_id": "TEST-INF-GOLDEN-002",
+      "digest": "sha256:01759eec808489d0ec15244ae41eef70f66447afd0fe7d6ca725549d1669c0a1"
+    },
+    {
+      "id": "inference-malformed-0001",
+      "path": "malformed-tensor-v1.json",
+      "category": "reject-malformed",
+      "test_id": "TEST-INF-GOLDEN-003",
+      "digest": "sha256:a3d21f69911108b593c242ecb27bf595508bd38348d3502ecb81ff429aae04ff"
+    },
+    {
+      "id": "inference-unknown-major-0001",
+      "path": "unknown-major-v1.json",
+      "category": "reject-unknown-major",
+      "test_id": "TEST-INF-GOLDEN-004",
+      "digest": "sha256:0f449d260fc2454857e48f0f9e519add8012256b211437e4c9296f44f235bf12"
+    },
+    {
+      "id": "inference-nan-inf-0001",
+      "path": "nan-inf-reject-v1.json",
+      "category": "reject-nan-inf",
+      "test_id": "TEST-INF-GOLDEN-005",
+      "digest": "sha256:8c7a98ebdf97d943ffea0bc4db0dd183950c79c76fb7057aac1e3b54d15f7516"
+    },
+    {
+      "id": "inference-cross-generation-fence-0001",
+      "path": "cross-generation-fence-v1.json",
+      "category": "fence-cross-generation",
+      "test_id": "TEST-INF-GOLDEN-006",
+      "digest": "sha256:ab7431645e2c6757563ca05f56cb19840b373832633291cd9ff71a408ca52ffc"
+    },
+    {
+      "id": "inference-digest-conflict-0001",
+      "path": "digest-conflict-v1.json",
+      "category": "fence-digest-conflict",
+      "test_id": "TEST-INF-GOLDEN-007",
+      "digest": "sha256:0cd1335ccc6f11b85b8866b196fd1911d9dfd885f0878bdb67de4ae65a614767"
+    },
+    {
+      "id": "inference-repository-closure-0001",
+      "path": "repository-closure-v1.json",
+      "category": "repository-closure",
+      "test_id": "TEST-INF-GOLDEN-008",
+      "digest": "sha256:a478ea8e7122d1b762a04e1d6127ee4c4d4d7032bd24cd260f2efde63c1a2666"
+    },
+    {
+      "id": "inference-implicit-instance-group-0001",
+      "path": "implicit-instance-group-v1.json",
+      "category": "instance-group",
+      "test_id": "TEST-INF-GOLDEN-009",
+      "digest": "sha256:4e1597a4c3f09c4d773b32cd220c8e8c8909316a3391f7edce3663c0c6c5b104"
+    },
+    {
+      "id": "inference-provider-drift-0001",
+      "path": "provider-drift-v1.json",
+      "category": "provider-drift",
+      "test_id": "TEST-INF-GOLDEN-010",
+      "digest": "sha256:650ed7f5564222dc643801bb86d55ab70ba918409de53381f51d0c3aeb96b6d7"
+    }
   ],
-  "language_runners": ["cpp", "python"],
+  "language_runners": [
+    "cpp",
+    "python"
+  ],
   "result_digest_written_into_evidence_envelope": true
 }

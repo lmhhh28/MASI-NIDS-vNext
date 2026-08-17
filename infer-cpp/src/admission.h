@@ -65,26 +65,38 @@ TensorLayoutCheck check_tensor_layout(const std::vector<uint32_t>& shape,
                                       const std::string& dtype,
                                       uint32_t alignment);
 
+// One record as seen by admission. Every record is checked individually: a
+// batch is never collapsed into a single aggregate tensor.
+struct RecordView {
+  const uint8_t* bytes = nullptr;
+  size_t byte_count = 0;
+  std::vector<uint32_t> shape;
+  std::string dtype;
+  std::string input_digest;  // declared by the Edge, verified here
+};
+
+struct BatchAdmissionInput {
+  std::string request_id;
+  std::string schema_version;
+  std::string wire_profile;
+  int64_t deadline_unix_ms = 0;
+  size_t request_bytes = 0;
+  std::string route_shard_id;
+  uint64_t route_epoch = 0;
+  uint64_t pool_generation = 0;
+  uint64_t binding_generation = 0;
+  std::string model_control_incarnation_id;
+  std::vector<RecordView> records;
+  uint32_t alignment = 8;
+};
+
 // Run the full admission pipeline against an InferenceInputBatch. Rejects
-// before any large allocation or model execution. The wire cannot carry
-// path/pointer/FD/argv/executable content; `bytes` is the raw feature tensor
-// and is only inspected for size/dtype/NaN where applicable.
+// before any large allocation or model execution. Each record's declared
+// `input_digest` is recomputed from its bytes and must match, so the fence
+// dimension is verified rather than echoed. `input_digest` in the decision is
+// the batch digest: sha256 over each record digest followed by "\n".
 AdmissionDecision admit(const Config& cfg,
                         const WireProfile& profile,
-                        const std::string& request_id,
-                        const std::string& schema_version,
-                        const std::string& wire_profile,
-                        int64_t deadline_unix_ms,
-                        size_t request_bytes,
-                        size_t record_count,
-                        const std::string& route_shard_id,
-                        uint64_t route_epoch,
-                        uint64_t pool_generation,
-                        uint64_t binding_generation,
-                        const std::string& model_control_incarnation_id,
-                        const std::vector<uint8_t>& feature_tensor_bytes,
-                        const std::vector<uint32_t>& feature_shape,
-                        const std::string& feature_dtype,
-                        uint32_t feature_alignment);
+                        const BatchAdmissionInput& in);
 
 }  // namespace masi::inf

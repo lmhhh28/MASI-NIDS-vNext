@@ -3,49 +3,51 @@
   "cmakeMinimumRequired": {"major": 3, "minor": 22, "patch": 0},
   "configurePresets": [
     {
-      "name": "cpu-release",
-      "displayName": "CPU Release (C++20)",
+      "name": "base",
+      "hidden": true,
       "generator": "Unix Makefiles",
+      "cacheVariables": {
+        "MASI_INF_OFFLINE": "OFF",
+        "MASI_INF_BUILD_TESTS": "ON",
+        "MASI_INF_GRPC_PREFIX": "$env{MASI_INF_GRPC_PREFIX}"
+      }
+    },
+    {
+      "name": "cpu-release",
+      "inherits": "base",
+      "displayName": "CPU Release (C++20)",
       "binaryDir": "${sourceDir}/build/cpu-release",
       "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Release",
-        "MASI_INF_OFFLINE": "OFF",
-        "MASI_INF_BUILD_TESTS": "ON"
+        "CMAKE_BUILD_TYPE": "Release"
       }
     },
     {
       "name": "cpu-debug",
+      "inherits": "base",
       "displayName": "CPU Debug (C++20)",
-      "generator": "Unix Makefiles",
       "binaryDir": "${sourceDir}/build/cpu-debug",
       "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Debug",
-        "MASI_INF_OFFLINE": "OFF",
-        "MASI_INF_BUILD_TESTS": "ON"
+        "CMAKE_BUILD_TYPE": "Debug"
       }
     },
     {
       "name": "cpu-asan",
+      "inherits": "base",
       "displayName": "CPU Debug + ASan/UBSan",
-      "generator": "Unix Makefiles",
       "binaryDir": "${sourceDir}/build/cpu-asan",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
-        "MASI_INF_OFFLINE": "OFF",
-        "MASI_INF_BUILD_TESTS": "ON",
         "MASI_INF_ENABLE_ASAN": "ON",
         "MASI_INF_ENABLE_UBSAN": "ON"
       }
     },
     {
       "name": "cpu-tsan",
+      "inherits": "base",
       "displayName": "CPU Debug + TSan",
-      "generator": "Unix Makefiles",
       "binaryDir": "${sourceDir}/build/cpu-tsan",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
-        "MASI_INF_OFFLINE": "OFF",
-        "MASI_INF_BUILD_TESTS": "ON",
         "MASI_INF_ENABLE_TSAN": "ON"
       }
     }

@@ -2,7 +2,9 @@
 
 #include <grpcpp/grpcpp.h>
 
+#include <memory>
 #include <string>
+#include <vector>
 
 #include "error.h"
 
@@ -35,5 +37,20 @@ std::shared_ptr<grpc::ServerCredentials> make_server_credentials(const std::stri
 std::shared_ptr<grpc::ChannelCredentials> make_client_credentials(const std::string& ca_path,
                                                                    const std::string& cert_path,
                                                                    const std::string& key_path);
+
+// Result of the exact client identity check.
+struct PeerIdentityCheck {
+  bool allowed = false;
+  std::string reason;             // stable reason code on rejection
+  std::string matched_identity;   // the allowlisted SAN that matched
+};
+
+// Enforce the frozen profile's `peer_verification: CA-chain-plus-exact-SAN`.
+// The CA chain is verified by gRPC; this additionally requires the peer
+// certificate to present at least one subjectAltName that appears in the
+// deployment allowlist. A certificate without any SAN is rejected: a valid CA
+// signature alone is never treated as an identity.
+PeerIdentityCheck check_peer_identity(const grpc::ServerContext& ctx,
+                                      const std::vector<std::string>& san_allowlist);
 
 }  // namespace masi::inf

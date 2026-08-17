@@ -192,6 +192,18 @@ run_gate() {
   return 0
 }
 
+# Read the recorded result of a gate command from its own sidecar so the summary
+# can never assert a result the command did not produce.
+recorded_result() {
+  local log_name="$1"
+  local sidecar="${evidence_root}/${log_name}.command.json"
+  if [[ ! -f "${sidecar}" ]]; then
+    printf 'NOT_RUN\n'
+    return 0
+  fi
+  jq -er '.result' "${sidecar}" 2>/dev/null || printf 'FAIL\n'
+}
+
 record_not_run() {
   local log_name="$1"
   local stable_reason="$2"
@@ -287,7 +299,28 @@ run_gate format bash -lc 'cd "${0}" && cmake --preset cpu-release >/dev/null 2>&
 run_gate clang-tidy bash -lc 'cd "${0}" && if command -v clang-tidy >/dev/null 2>&1; then clang-tidy --warnings-as-errors=* infer-cpp/src/*.cc infer-cpp/src/*.h 2>&1 || true; else echo clang-tidy-not-installed; fi' "${inf_root}"
 
 MASI_INF_EVIDENCE_DIR="${blackbox_evidence}" \
-  run_gate tests bash -lc 'cd "${0}" && cmake --preset cpu-release >/dev/null 2>&1 && cmake --build build/cpu-release --target contract_golden property_invariants module_blackbox >/dev/null 2>&1 && ./build/cpu-release/contract_golden && ./build/cpu-release/property_invariants && MASI_INF_E2E=0 ./build/cpu-release/module_blackbox; rc=$?; if [[ $rc -eq 77 ]]; then exit 0; else exit $rc; fi' "${inf_root}"
+  run_gate tests bash -lc 'cd "${0}" && cmake --preset cpu-release >/dev/null 2>&1 && cmake --build build/cpu-release --target contract_golden property_invariants module_blackbox >/dev/null 2>&1 && ./build/cpu-release/contract_golden && ./build/cpu-release/property_invariants' "${inf_root}"
+
+# Real-process public-boundary E2E. It is a separate gate from the unit and
+# contract tests, and it actually runs: a missing real Triton yields exit 77,
+# which is recorded as NOT_RUN with a stable reason instead of being mapped to
+# a pass.
+blackbox_e2e_endpoint="${MASI_INF_TRITON_ENDPOINT:-127.0.0.1:8011}"
+# MASI_INF_SOAK_SECONDS is explicitly cleared: an ambient soak request must
+# never replace the functional public-boundary matrix with a soak run.
+MASI_INF_EVIDENCE_DIR="${blackbox_evidence}" \
+  MASI_INF_E2E=1 MASI_INF_TRITON_ENDPOINT="${blackbox_e2e_endpoint}" \
+  MASI_INF_SOAK_SECONDS=0 \
+  run_gate blackbox-e2e bash -lc 'cd "${0}" && ./build/cpu-release/module_blackbox' "${inf_root}"
+blackbox_e2e_status="${last_command_status}"
+if [[ "${blackbox_e2e_status}" -eq 77 ]]; then
+  # The test refused to run because the real Triton precondition is missing.
+  # Replace the attempt record with a structured NOT_RUN so the gate summary can
+  # never read a skipped real-boundary test as a pass.
+  rm -f -- "${evidence_root}/blackbox-e2e.log" "${evidence_root}/blackbox-e2e.command.json"
+  record_not_run blackbox-e2e REAL_TRITON_PRECONDITION_MISSING \
+    "./build/cpu-release/module_blackbox (MASI_INF_E2E=1, endpoint ${blackbox_e2e_endpoint})"
+fi
 
 MASI_INF_EVIDENCE_DIR="${numeric_evidence}" \
   run_gate numeric-golden python3 "${script_dir}/run-numeric-golden.py" \
@@ -424,16 +457,26 @@ if [[ "${MASI_INF_SKIP_SUPPLY:-0}" != "1" ]]; then
     MASI_INF_EXPECTED_SOURCE_TREE_DIGEST="${source_tree_digest}" \
     run_gate supply-chain "${script_dir}/run-supply-chain.sh"
   supply_status="${last_command_status}"
-  if [[ -f "${supply_evidence}/supply-chain.json" ]]; then
-    supply_result="$(jq -er '.result' "${supply_evidence}/supply-chain.json")" \
+  # run-supply-chain.sh writes evidence under runs/<run-id>/ and publishes the
+  # path in latest.json; reading the directory root would always miss the file
+  # and be misread as a hard failure.
+  supply_evidence_file="${supply_evidence}/supply-chain.json"
+  if [[ -f "${supply_evidence}/latest.json" ]]; then
+    supply_relative="$(jq -er '.evidence' "${supply_evidence}/latest.json" 2>/dev/null || printf '')"
+    if [[ -n "${supply_relative}" && -f "${supply_evidence}/${supply_relative}" ]]; then
+      supply_evidence_file="${supply_evidence}/${supply_relative}"
+    fi
+  fi
+  if [[ -f "${supply_evidence_file}" ]]; then
+    supply_result="$(jq -er '.result' "${supply_evidence_file}")" \
       || supply_result="FAIL"
-    supply_qualification="$(jq -er '.qualification' "${supply_evidence}/supply-chain.json")" \
+    supply_qualification="$(jq -er '.qualification' "${supply_evidence_file}")" \
       || supply_qualification="NOT_QUALIFIED"
-    supply_source_tree_digest="$(jq -er '.source_tree_digest' "${supply_evidence}/supply-chain.json")" \
+    supply_source_tree_digest="$(jq -er '.source_tree_digest' "${supply_evidence_file}")" \
       || supply_source_tree_digest=""
-    supply_working_tree_dirty="$(jq -er '.working_tree_dirty' "${supply_evidence}/supply-chain.json")" \
+    supply_working_tree_dirty="$(jq -er '.working_tree_dirty' "${supply_evidence_file}")" \
       || supply_working_tree_dirty="invalid"
-    supply_working_tree_status_digest="$(jq -er '.working_tree_status_digest' "${supply_evidence}/supply-chain.json")" \
+    supply_working_tree_status_digest="$(jq -er '.working_tree_status_digest' "${supply_evidence_file}")" \
       || supply_working_tree_status_digest=""
   else
     supply_result="FAIL"
@@ -474,16 +517,40 @@ fi
 
 formal_soak_result="NOT_RUN"
 formal_soak_qualification="NOT_QUALIFIED"
+# The frozen qualification profile requires a 3600-second soak. A functional
+# black-box run is not a soak: this gate may only PASS when a soak evidence
+# file exists whose measured qualified_elapsed_ms reaches the required window.
+formal_soak_required_ms=3600000
+formal_soak_measured_ms=0
 if [[ "${MASI_INF_FORMAL_SOAK:-0}" == "1" ]]; then
   MASI_INF_E2E=1 MASI_INF_EVIDENCE_DIR="${formal_soak_evidence}" \
+    MASI_INF_SOAK_SECONDS="${MASI_INF_SOAK_SECONDS:-3600}" \
     run_gate formal-soak bash -lc 'cd "${0}" && ./build/cpu-release/module_blackbox 2>&1' "${inf_root}"
   formal_soak_status="${last_command_status}"
-  if [[ "${formal_soak_status}" -eq 0 ]]; then
-    formal_soak_result="PASS"
-    formal_soak_qualification="QUALIFIED"
+  formal_soak_evidence_file="${formal_soak_evidence}/formal-soak-evidence.json"
+  if [[ -f "${formal_soak_evidence_file}" ]]; then
+    formal_soak_result="$(jq -er '.result' "${formal_soak_evidence_file}" 2>/dev/null || printf 'FAIL\n')"
+    formal_soak_measured_ms="$(jq -er '.qualified_elapsed_ms' "${formal_soak_evidence_file}" 2>/dev/null || printf '0\n')"
+  elif [[ -f "${formal_soak_evidence}/formal-soak-rehearsal.json" ]]; then
+    # The driver refused to file a rehearsal as module soak evidence: the frozen
+    # window was not measured, which is a missing precondition, not a failure.
+    formal_soak_result="HOLD"
+    formal_soak_measured_ms="$(jq -er '.qualified_elapsed_ms' \
+      "${formal_soak_evidence}/formal-soak-rehearsal.json" 2>/dev/null || printf '0\n')"
   else
     formal_soak_result="FAIL"
-    formal_soak_qualification="NOT_QUALIFIED"
+  fi
+  if [[ "${formal_soak_status}" -ne 0 && "${formal_soak_status}" -ne 2 ]]; then
+    formal_soak_result="FAIL"
+  fi
+  if [[ "${formal_soak_measured_ms}" -lt "${formal_soak_required_ms}" ]]; then
+    # Not a failure of the module: the required soak window was not measured.
+    if [[ "${formal_soak_result}" != "FAIL" ]]; then
+      formal_soak_result="HOLD"
+    fi
+  fi
+  if [[ "${formal_soak_result}" == "PASS" ]]; then
+    formal_soak_qualification="QUALIFIED"
   fi
 else
   record_not_run formal-soak FORMAL_SOAK_NOT_REQUESTED \
@@ -529,6 +596,16 @@ if [[ "${working_tree_dirty}" == false ]]; then
   baseline_reason="clean tree observed, but protected commit/tag attestation is not present"
 fi
 
+gcc_result="$(recorded_result gcc-version)"
+cmake_result="$(recorded_result cmake-version)"
+protoc_result="$(recorded_result protoc-version)"
+public_contracts_result="$(recorded_result public-contracts)"
+format_result="$(recorded_result format)"
+clang_tidy_result="$(recorded_result clang-tidy)"
+tests_result="$(recorded_result tests)"
+numeric_result="$(recorded_result numeric-golden)"
+release_build_result="$(recorded_result release-build)"
+
 overall_status="HOLD"
 if [[ "${supply_result}" == "FAIL" ]]; then
   overall_status="FAIL"
@@ -554,6 +631,38 @@ for command_result in "${oci_result}" "${deep_result}" "${supply_result}" "${for
   fi
 done
 
+# DEC-044 operational completion additionally requires that the real
+# public-boundary E2E actually ran, that the OCI image really started, and that
+# the append-only findings registry has no open P0.
+blackbox_e2e_result="PASS"
+if [[ "${blackbox_e2e_status}" -eq 77 ]]; then
+  blackbox_e2e_result="NOT_RUN"
+elif [[ "${blackbox_e2e_status}" -ne 0 ]]; then
+  blackbox_e2e_result="FAIL"
+fi
+if [[ "${blackbox_e2e_result}" != "PASS" ]]; then
+  module_complete=false
+fi
+# Any executed language-level or contract gate that did not pass blocks
+# operational completion.
+for executed_result in "${gcc_result}" "${cmake_result}" "${protoc_result}" \
+  "${public_contracts_result}" "${format_result}" "${clang_tidy_result}" \
+  "${tests_result}" "${numeric_result}" "${release_build_result}"; do
+  if [[ "${executed_result}" != "PASS" ]]; then
+    module_complete=false
+  fi
+done
+if [[ "${oci_result}" == "NOT_RUN" ]]; then
+  module_complete=false
+fi
+open_p0_findings="$(jq '[.findings[] | select(.status=="OPEN" and .severity=="P0")] | length' \
+  "${inf_root}/module-findings.json" 2>/dev/null || printf '1\n')"
+open_findings_total="$(jq '[.findings[] | select(.status=="OPEN")] | length' \
+  "${inf_root}/module-findings.json" 2>/dev/null || printf '1\n')"
+if [[ "${open_p0_findings}" != "0" ]]; then
+  module_complete=false
+fi
+
 gate_summary_temporary="${evidence_root}/.gate-summary.$$.json"
 set +e
 jq -n \
@@ -569,6 +678,16 @@ jq -n \
   --arg inf_evidence_schema_digest "${inf_evidence_schema_digest}" \
   --arg module_findings_schema_digest "${module_findings_schema_digest}" \
   --arg module_findings_registry_digest "${module_findings_registry_digest}" \
+  --arg gcc_result "${gcc_result}" --arg cmake_result "${cmake_result}" \
+  --arg protoc_result "${protoc_result}" \
+  --arg public_contracts_result "${public_contracts_result}" \
+  --arg format_result "${format_result}" --arg clang_tidy_result "${clang_tidy_result}" \
+  --arg tests_result "${tests_result}" --arg numeric_result "${numeric_result}" \
+  --arg release_build_result "${release_build_result}" \
+  --arg blackbox_e2e_result "${blackbox_e2e_result}" \
+  --arg blackbox_e2e_endpoint "${blackbox_e2e_endpoint}" \
+  --arg open_findings_total "${open_findings_total}" \
+  --arg open_p0_findings "${open_p0_findings}" \
   --arg traceability_digest "${traceability_digest}" --arg requirements_digest "${requirements_digest}" \
   --arg binary_digest "${binary_digest}" --arg oci_result "${oci_result}" \
   --arg oci_qualification "${oci_qualification}" --arg deep_result "${deep_result}" \
@@ -617,16 +736,16 @@ jq -n \
       numeric_golden_evidence: (if $numeric_evidence_digest == "" then null else $numeric_evidence_digest end)
     },
     executed_gates: {
-      gcc_version: "PASS",
-      cmake_version: "PASS",
-      protoc_version: "PASS",
-      public_contract_schema_golden_negative: "PASS",
-      format: "PASS",
-      clang_tidy_deny_warnings: "PASS",
-      unit_property_contract_golden: "PASS",
-      numeric_golden_python_reference: "PASS",
-      real_process_public_boundary_blackbox: "PASS",
-      release_build: "PASS",
+      gcc_version: $gcc_result,
+      cmake_version: $cmake_result,
+      protoc_version: $protoc_result,
+      public_contract_schema_golden_negative: $public_contracts_result,
+      format: $format_result,
+      clang_tidy_deny_warnings: $clang_tidy_result,
+      unit_property_contract_golden: $tests_result,
+      numeric_golden_python_reference: $numeric_result,
+      real_process_public_boundary_blackbox: $blackbox_e2e_result,
+      release_build: $release_build_result,
       oci_startup_mtls_probe_graceful_shutdown: {result:$oci_result,qualification:$oci_qualification},
       asan_ubsan_tsan_library_scope: {result:$deep_result,qualification:$deep_qualification},
       supply_chain: {result:$supply_result,qualification:$supply_qualification}
@@ -649,7 +768,9 @@ jq -n \
       requirement_count:($requirement_ids | length)
     },
     overall_module_complete: $module_complete,
-    overall_status: $overall_status
+    overall_status: $overall_status,
+    blackbox_e2e: {result: $blackbox_e2e_result, endpoint: $blackbox_e2e_endpoint},
+    findings: {open_total: ($open_findings_total | tonumber), open_p0: ($open_p0_findings | tonumber)}
   }' >"${gate_summary_temporary}"
 gate_summary_status=$?
 set -e

@@ -1,0 +1,72 @@
+{
+  "schema_version": "vendored-source-registry/v1",
+  "module": "MOD-INF-001",
+  "purpose": "Gateway-to-Triton read-only control and inference gRPC stubs generated from the upstream protocol definition instead of a hand-maintained subset.",
+  "files": [
+    {
+      "vendored_path": "infer-cpp/proto/vendor/triton/grpc_service.proto",
+      "upstream_repository": "https://github.com/triton-inference-server/common",
+      "upstream_ref": "r25.06",
+      "upstream_commit": "8a7a9167a9c4df591f64a923595464b58a92ef9d",
+      "upstream_path": "protobuf/grpc_service.proto",
+      "retrieved_at": "2026-08-16",
+      "archive_url": "https://raw.githubusercontent.com/triton-inference-server/common/8a7a9167a9c4df591f64a923595464b58a92ef9d/protobuf/grpc_service.proto",
+      "sha256": "a2cca0548e8b647f35c2d7d4aaee24d711fa786150dd5e2437c6830843301462",
+      "size_bytes": 49563,
+      "license": "BSD-3-Clause",
+      "spdx_id": "BSD-3-Clause",
+      "copyright": "Copyright 2020-2024, NVIDIA CORPORATION & AFFILIATES. All rights reserved.",
+      "modifications": "none (byte-identical to upstream)",
+      "notice_obligation": "retain upstream copyright and license header in the vendored file and in THIRD_PARTY_NOTICES",
+      "tests": "infer-cpp/tests/property_invariants.cc (Triton config projection), infer-cpp/tests/module_blackbox.cc (real Triton ModelConfig/ModelStatistics assertions)",
+      "update_policy": "re-vendor only together with a re-pinned Triton server image; record the new commit and digests",
+      "exit_policy": "replace with another qualified Triton protocol revision while preserving the read-only method allowlist"
+    },
+    {
+      "vendored_path": "infer-cpp/proto/vendor/triton/model_config.proto",
+      "upstream_repository": "https://github.com/triton-inference-server/common",
+      "upstream_ref": "r25.06",
+      "upstream_commit": "8a7a9167a9c4df591f64a923595464b58a92ef9d",
+      "upstream_path": "protobuf/model_config.proto",
+      "retrieved_at": "2026-08-16",
+      "archive_url": "https://raw.githubusercontent.com/triton-inference-server/common/8a7a9167a9c4df591f64a923595464b58a92ef9d/protobuf/model_config.proto",
+      "sha256": "8f30f093b616966407888659a0019580ce54980cf14fc1204a36890550058372",
+      "size_bytes": 75143,
+      "license": "BSD-3-Clause",
+      "spdx_id": "BSD-3-Clause",
+      "copyright": "Copyright 2018-2024, NVIDIA CORPORATION & AFFILIATES. All rights reserved.",
+      "modifications": "none (byte-identical to upstream)",
+      "notice_obligation": "retain upstream copyright and license header in the vendored file and in THIRD_PARTY_NOTICES",
+      "tests": "infer-cpp/tests/module_blackbox.cc (startup ModelConfig comparison against the pinned config.pbtxt)",
+      "update_policy": "re-vendor only together with a re-pinned Triton server image; record the new commit and digests",
+      "exit_policy": "replace with another qualified Triton protocol revision while preserving the config projection fields"
+    }
+  ],
+  "method_allowlist": {
+    "rationale": "The upstream service definition also declares model-control and shared-memory RPCs. The Gateway wrapper never calls them and the Triton server runs with model-control-mode=none.",
+    "allowed_client_rpcs": [
+      "ServerReady",
+      "ModelReady",
+      "ServerMetadata",
+      "ModelMetadata",
+      "ModelConfig",
+      "ModelStatistics",
+      "ModelInfer"
+    ],
+    "forbidden_client_rpcs": [
+      "RepositoryIndex",
+      "RepositoryModelLoad",
+      "RepositoryModelUnload",
+      "SystemSharedMemoryStatus",
+      "SystemSharedMemoryRegister",
+      "SystemSharedMemoryUnregister",
+      "CudaSharedMemoryStatus",
+      "CudaSharedMemoryRegister",
+      "CudaSharedMemoryUnregister",
+      "TraceSetting",
+      "LogSettings",
+      "ModelStreamInfer"
+    ],
+    "enforcement": "scripts/run-supply-chain.sh greps the Gateway sources for forbidden RPC symbols and fails the gate if any appears"
+  }
+}

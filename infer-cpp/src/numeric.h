@@ -8,36 +8,42 @@
 
 namespace masi::inf {
 
-// Canonical class-order label descriptor. `output_index` is the position in
-// the raw model output tensor that corresponds to `label`. The output adapter
-// only emits predictions in this explicit order.
-struct ClassLabel {
-  uint32_t label = 0;
-  std::string name;
-  uint32_t output_index = 0;
-};
-
+// Deterministic output-adapter parameters. Every field is data supplied by the
+// digest-pinned repository closure `role=bundle-manifest` member; the mapping
+// implementation itself is qualified Gateway code selected by `adapter_id`.
+// See contracts/inference/v1/profile.json#output_adapter_binding.
 struct NumericProfile {
   // Tolerances for float comparison (golden numeric test / readback).
   double abs_tol = 1e-6;
   double rel_tol = 1e-6;
   uint64_t ulp_tol = 4;
-  // Thresholds for the deterministic OOD / abstain / decision rules.
-  double ood_threshold = 0.0;       // score > threshold => out_of_distribution
-  double abstain_threshold = 0.0;   // max score < threshold => abstain
-  double alert_threshold = 0.5;     // >= threshold => ALERT, else BENIGN
-  bool softmax_output = false;      // if true, convert raw logits to softmax
-                                    // probabilities before thresholding
-  std::vector<ClassLabel> class_order;
+
+  // Qualified adapter identity (verified against the frozen profile).
+  std::string adapter_id;
+  std::string adapter_digest;
+
+  // label_taxonomy.score_domain: "logit" => stable softmax before thresholds,
+  // "probability" => no normalization. Anything else is rejected earlier.
+  std::string score_domain = "probability";
+
+  // Canonical class order: position i holds label class_order[i]; the raw
+  // model output index equals the label id. class_order[0] is the baseline
+  // (no-alert) label.
+  std::vector<uint32_t> class_order;
+
+  // output_adapter.threshold: alert floor in the normalized score domain.
+  double alert_threshold = 0.0;
+  // label_taxonomy.threshold.value: abstain floor in the normalized domain.
+  double abstain_below = 0.0;
 };
 
 struct NumericResult {
-  std::vector<float> scores;
+  std::vector<float> scores;   // canonical class-ordered float32
   uint32_t predicted_label = 0;
-  std::string decision;        // "BENIGN" | "ALERT" | "ABSTAIN"
+  std::string decision;        // "benign" | "alert" | "abstain"
   bool out_of_distribution = false;
   bool abstain = false;
-  std::string quality;         // "VALID" | "INVALID"
+  std::string quality;         // "valid" | ... (contracts/model/v1 enum)
 };
 
 // Reject NaN/Inf in the input tensor (checked before model execution).
@@ -49,8 +55,11 @@ void assert_output_finite(const std::vector<float>& scores);
 // Verify the raw output shape and class order matches the profile.
 void assert_class_order(const std::vector<float>& scores, const NumericProfile& p);
 
-// Deterministic OOD/abstain/decision computation. No randomness, no learned
-// threshold beyond the explicit profile.
+// Deterministic abstain/decision computation for `masi-window-adapter-v1`:
+// normalize by score_domain, reorder into canonical class order, take top-1,
+// abstain below `abstain_below`, alert when the predicted label is not the
+// baseline label and the top score reaches `alert_threshold`. This adapter
+// does not compute OOD (always false, declared in the frozen profile).
 NumericResult apply_output_adapter(const std::vector<float>& raw_scores,
                                    const NumericProfile& p);
 

@@ -10,7 +10,7 @@
       "archive": "onnxruntime-linux-x64-1.19.0.tgz",
       "archive_url": "https://github.com/microsoft/onnxruntime/releases/download/v1.19.0/onnxruntime-linux-x64-1.19.0.tgz",
       "license": "MIT",
-      "authority": "CPU-only inference execution provider; CUDA EP not linked",
+      "authority": "CPU execution provider inside the pinned Triton onnxruntime backend; NOT linked into the Gateway binary (the Gateway has no in-process executor)",
       "runtime_download": false,
       "failure": "startup fail closed; no CUDA fallback",
       "rollback": "re-pin prior qualified ORT CPU archive",
@@ -22,7 +22,7 @@
       "version": "v1.82.1",
       "commit": "acccf84c0df20487d64101f528e5d426541ca4e5",
       "license": "Apache-2.0",
-      "authority": "mTLS gRPC server/client for Edge-facing boundary",
+      "authority": "mTLS gRPC server/client for the Edge-facing boundary and the Gateway-to-Triton channel; built from source at the pinned commit, and the build fails closed when a different version is found",
       "runtime_download": false,
       "failure": "mTLS or framing gate HOLD",
       "rollback": "re-pin prior qualified gRPC C++ version",
@@ -31,7 +31,7 @@
     {
       "name": "Abseil",
       "decision": "ADOPT",
-      "version": "pinned-with-grpc-v1.82.1",
+      "version": "pinned-as-grpc-v1.82.1-submodule",
       "license": "Apache-2.0",
       "authority": "gRPC C++ dependency; same C++20 standard as gRPC",
       "runtime_download": false,
@@ -42,13 +42,14 @@
     {
       "name": "Protocol Buffers",
       "decision": "ADOPT",
-      "version": "pinned-with-grpc-v1.82.1",
+      "version": "35.0.0",
       "license": "BSD-3-Clause",
-      "authority": "protobuf runtime for inference wire messages",
+      "authority": "protobuf runtime for inference wire messages; built from the gRPC v1.82.1 submodule",
       "runtime_download": false,
       "failure": "wire serialization gate HOLD",
       "rollback": "re-pin protobuf matching gRPC version",
-      "exit": "replace while preserving inference wire contract"
+      "exit": "replace while preserving inference wire contract",
+      "commit": "pinned-as-grpc-v1.82.1-submodule"
     },
     {
       "name": "NVIDIA Triton Inference Server",
@@ -65,14 +66,14 @@
     },
     {
       "name": "tritonclient C++",
-      "decision": "ADOPT",
-      "version": "pinned-with-triton-25.06",
+      "decision": "REJECT",
+      "version": "not-installed",
       "license": "Apache-2.0",
-      "authority": "Gateway-to-Triton isolated gRPC client",
+      "authority": "replaced by stubs generated from the vendored upstream Triton protocol definition; see central-inference-vendored-sources.json",
       "runtime_download": false,
-      "failure": "Triton readback/inference gate HOLD",
-      "rollback": "re-pin matching tritonclient version",
-      "exit": "replace client while preserving Triton gRPC contract"
+      "failure": "not applicable",
+      "rollback": "not applicable",
+      "exit": "re-adopt the SDK only if the generated stubs become insufficient"
     },
     {
       "name": "OpenSSL",
@@ -87,14 +88,14 @@
     },
     {
       "name": "libonnxruntime C++ header",
-      "decision": "ADOPT",
+      "decision": "REJECT",
       "version": "1.19.0",
       "license": "MIT",
-      "authority": "header-only C++ wrapper over ORT C API",
+      "authority": "no longer used: the Gateway holds no in-process ORT session, so the C++ headers are not part of the build",
       "runtime_download": false,
-      "failure": "compile gate HOLD",
-      "rollback": "re-pin matching header version",
-      "exit": "replace header while preserving ORT API contract"
+      "failure": "not applicable",
+      "rollback": "not applicable",
+      "exit": "not applicable"
     },
     {
       "name": "GCC",
@@ -154,13 +155,38 @@
     {
       "name": "testkit minimal ONNX fixture",
       "decision": "ADOPT",
-      "version": "masi-ids-window-v1-r1",
+      "version": "masi-ids-window-v1-r2",
+      "digest": "sha256:df0b0d1c9f4c53d817458810d0f3f9d9e52323bd49422ab008e0b224dc7ca7bb",
       "license": "project-owned",
-      "authority": "serving-framework E2E only; not detection accuracy",
+      "authority": "serving-framework E2E only; not detection accuracy; symbolic batch dimension so the frozen batch profile is exercisable",
       "runtime_download": false,
       "failure": "module E2E HOLD for serving framework",
       "rollback": "restore exact pinned fixture digest",
       "exit": "replace fixture preserving feature schema contract"
+    },
+    {
+      "name": "testkit minimal ONNX fixture (superseded)",
+      "decision": "REJECT",
+      "version": "masi-ids-window-v1-r1",
+      "digest": "sha256:add7c3e2a4d3bedc9f825d38774fcd428157e11462020ea074405be8d61a27e7",
+      "license": "project-owned",
+      "authority": "not usable for new evidence: fixed [1,6] shape forces Triton max_batch_size 0, so the frozen dynamic-batching profile cannot be verified",
+      "runtime_download": false,
+      "failure": "batch profile verification impossible",
+      "rollback": "not applicable; superseded by r2",
+      "exit": "retained only for reproducing already-published r1 digests"
+    },
+    {
+      "name": "testkit Triton repository closure",
+      "decision": "ADOPT",
+      "version": "repo-masi-ids-window-v1-r2",
+      "digest": "sha256:ce7c339d0f091822c490c5effc3217c351ae7fd6548e4bb9a05dfa3a6a6001d6",
+      "license": "project-owned",
+      "authority": "single digest-pinned read-only closure shared by the Triton mount and the Gateway closure verification",
+      "runtime_download": false,
+      "failure": "startup closure verification fail closed",
+      "rollback": "rebuild with testkit/fixtures/models/scripts/build_repository.py",
+      "exit": "replace closure preserving model/config/bundle-manifest roles"
     }
   ]
 }

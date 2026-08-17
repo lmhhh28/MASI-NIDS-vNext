@@ -9,6 +9,7 @@
 #include <string>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <vector>
 
 #include "digest.h"
 #include "error.h"
@@ -19,10 +20,19 @@ struct Config {
   std::string startup_envelope_path;
   std::string model_repository_path;
   std::string triton_endpoint = "127.0.0.1:8001";
+  // Gateway-to-Triton channel identity. When these are empty the endpoint must
+  // be loopback; a non-loopback plaintext endpoint is rejected at connect().
+  std::string triton_tls_ca_path;
+  std::string triton_tls_cert_path;
+  std::string triton_tls_key_path;
+  std::string triton_tls_server_name;
   std::string gateway_listen = "0.0.0.0:7443";
   std::string tls_ca_path;
   std::string tls_cert_path;
   std::string tls_key_path;
+  // Exact client SAN allowlist. Required and non-empty: the frozen profile
+  // demands CA-chain-plus-exact-SAN peer verification.
+  std::vector<std::string> client_san_allowlist;
   int32_t max_records_per_batch = 256;
   int32_t max_request_bytes = 4194304;
   int32_t max_response_bytes = 4194304;
@@ -72,10 +82,27 @@ inline Config load_config(const std::string& path) {
   cfg.startup_envelope_path = j.value("startup_envelope_path", "");
   cfg.model_repository_path = j.value("model_repository_path", "");
   cfg.triton_endpoint = j.value("triton_endpoint", cfg.triton_endpoint);
+  cfg.triton_tls_ca_path = j.value("triton_tls_ca_path", "");
+  cfg.triton_tls_cert_path = j.value("triton_tls_cert_path", "");
+  cfg.triton_tls_key_path = j.value("triton_tls_key_path", "");
+  cfg.triton_tls_server_name = j.value("triton_tls_server_name", "");
   cfg.gateway_listen = j.value("gateway_listen", cfg.gateway_listen);
   cfg.tls_ca_path = j.value("tls_ca_path", "");
   cfg.tls_cert_path = j.value("tls_cert_path", "");
   cfg.tls_key_path = j.value("tls_key_path", "");
+  if (j.contains("client_san_allowlist")) {
+    const auto& a = j.at("client_san_allowlist");
+    if (!a.is_array())
+      throw error::Exception(error::Code::kInvalidManifest, "client_san_allowlist not array");
+    if (a.size() > 64)
+      throw error::Exception(error::Code::kInvalidManifest, "client_san_allowlist exceeds 64 entries");
+    for (const auto& v : a) {
+      if (!v.is_string() || v.get<std::string>().empty())
+        throw error::Exception(error::Code::kInvalidManifest,
+                               "client_san_allowlist entry not a non-empty string");
+      cfg.client_san_allowlist.push_back(v.get<std::string>());
+    }
+  }
   cfg.max_records_per_batch = j.value("max_records_per_batch", cfg.max_records_per_batch);
   cfg.max_request_bytes = j.value("max_request_bytes", cfg.max_request_bytes);
   cfg.max_response_bytes = j.value("max_response_bytes", cfg.max_response_bytes);
@@ -92,7 +119,10 @@ inline Config load_config(const std::string& path) {
   for (auto it = j.begin(); it != j.end(); ++it) {
     static const std::set<std::string> known = {
       "startup_envelope_path", "model_repository_path", "triton_endpoint",
+      "triton_tls_ca_path", "triton_tls_cert_path", "triton_tls_key_path",
+      "triton_tls_server_name",
       "gateway_listen", "tls_ca_path", "tls_cert_path", "tls_key_path",
+      "client_san_allowlist",
       "max_records_per_batch", "max_request_bytes", "max_response_bytes",
       "max_in_flight", "request_deadline_ms", "runtime_profile",
       "availability_profile", "intra_op_num_threads", "inter_op_num_threads",
@@ -105,6 +135,26 @@ inline Config load_config(const std::string& path) {
     throw error::Exception(error::Code::kInvalidManifest, "startup_envelope_path empty");
   if (cfg.model_repository_path.empty())
     throw error::Exception(error::Code::kInvalidManifest, "model_repository_path empty");
+  if (cfg.client_san_allowlist.empty())
+    throw error::Exception(error::Code::kInvalidManifest,
+                           "client_san_allowlist must declare at least one exact SAN");
+  if (cfg.max_in_flight <= 0)
+    throw error::Exception(error::Code::kInvalidManifest, "max_in_flight must be positive");
+  if (cfg.drain_ms <= 0)
+    throw error::Exception(error::Code::kInvalidManifest, "drain_ms must be positive");
+  if (cfg.request_deadline_ms <= 0)
+    throw error::Exception(error::Code::kInvalidManifest, "request_deadline_ms must be positive");
+  const bool any_triton_tls = !cfg.triton_tls_ca_path.empty() ||
+                              !cfg.triton_tls_cert_path.empty() ||
+                              !cfg.triton_tls_key_path.empty() ||
+                              !cfg.triton_tls_server_name.empty();
+  const bool all_triton_tls = !cfg.triton_tls_ca_path.empty() &&
+                              !cfg.triton_tls_cert_path.empty() &&
+                              !cfg.triton_tls_key_path.empty() &&
+                              !cfg.triton_tls_server_name.empty();
+  if (any_triton_tls && !all_triton_tls)
+    throw error::Exception(error::Code::kInvalidManifest,
+                           "triton_tls_* requires ca, cert, key and server_name together");
   if (cfg.runtime_profile != "model-runtime-central-cpu/v1" &&
       cfg.runtime_profile != "model-runtime-central-cuda/v1")
     throw error::Exception(error::Code::kRuntimeProfileUnsupported, cfg.runtime_profile);

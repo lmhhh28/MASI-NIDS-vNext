@@ -1,0 +1,268 @@
+{
+  "schema_version": "masi-fixture-expected-outputs/v2",
+  "model_id": "masi-ids-window-v1",
+  "revision": "0000000000000000000000000000000000000002",
+  "input_shape": [
+    "N",
+    6
+  ],
+  "record_shape": [
+    1,
+    6
+  ],
+  "input_dtype": "uint64-le",
+  "class_order": [
+    0,
+    1
+  ],
+  "score_domain": "logit",
+  "canonical_score_encoding": "repeated-float32-le-class-ordered",
+  "adapter_id": "masi-window-adapter-v1",
+  "adapter_digest": "sha256:e409a035d4be8b031fd6d2532350ba71b98a29e8d86f154280a143e77829ae2f",
+  "tolerance": {
+    "absolute": 1e-06,
+    "relative": 1e-05,
+    "ulp": 4
+  },
+  "nan_policy": "reject",
+  "inf_policy": "reject",
+  "vectors": [
+    {
+      "vector_id": "fixture-expected-0000",
+      "record_count": 1,
+      "input": [
+        [
+          5,
+          10,
+          3,
+          1,
+          2,
+          1
+        ]
+      ],
+      "input_digest": "sha256:637fd46f9327033fb1aeb244de99178c50f007c74a4355d047f4c8fa662cb3a7",
+      "rows": [
+        {
+          "canonical_scores": [
+            3.4070665733132444e-10,
+            1.0
+          ],
+          "predicted_label": 1,
+          "decision": "alert",
+          "out_of_distribution": false,
+          "abstain": false,
+          "quality": "valid",
+          "output_digest": "sha256:441abcc4e8ec396af1080b14acfbd2077e1620f01d56c0b1581b145ac975c5f0",
+          "raw_scores": [
+            -10.899999618530273,
+            10.899999618530273
+          ]
+        }
+      ]
+    },
+    {
+      "vector_id": "fixture-expected-0001",
+      "record_count": 1,
+      "input": [
+        [
+          100,
+          200,
+          50,
+          10,
+          20,
+          10
+        ]
+      ],
+      "input_digest": "sha256:1d324602c89a33d7e66166156d9034dd2c00d559c99d401964f95a134572eccf",
+      "rows": [
+        {
+          "canonical_scores": [
+            0.0,
+            1.0
+          ],
+          "predicted_label": 1,
+          "decision": "alert",
+          "out_of_distribution": false,
+          "abstain": false,
+          "quality": "valid",
+          "output_digest": "sha256:22b6f43bd8d27738d3213f29e96b62d01d9d6c0ab4f9732aaae803186f51eab7",
+          "raw_scores": [
+            -194.89999389648438,
+            194.89999389648438
+          ]
+        }
+      ]
+    },
+    {
+      "vector_id": "fixture-expected-0002",
+      "record_count": 1,
+      "input": [
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      ],
+      "input_digest": "sha256:17b0761f87b081d5cf10757ccc89f12be355c70e2e29df288b65b30710dcbcd1",
+      "rows": [
+        {
+          "canonical_scores": [
+            0.5498340129852295,
+            0.4501660168170929
+          ],
+          "predicted_label": 0,
+          "decision": "benign",
+          "out_of_distribution": false,
+          "abstain": false,
+          "quality": "valid",
+          "output_digest": "sha256:1903448c143c39c0e3207c4fd7cb8a59402013e6538b047e84d1e683d316e742",
+          "raw_scores": [
+            0.10000000149011612,
+            -0.10000000149011612
+          ]
+        }
+      ]
+    },
+    {
+      "vector_id": "fixture-expected-0003",
+      "record_count": 3,
+      "input": [
+        [
+          5,
+          10,
+          3,
+          1,
+          2,
+          1
+        ],
+        [
+          100,
+          200,
+          50,
+          10,
+          20,
+          10
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      ],
+      "input_digest": "sha256:20ed70b6f811d81ae50d9bd99d7c4b5c95618ed1d2aa75e58b18e496955241b3",
+      "rows": [
+        {
+          "canonical_scores": [
+            3.4070665733132444e-10,
+            1.0
+          ],
+          "predicted_label": 1,
+          "decision": "alert",
+          "out_of_distribution": false,
+          "abstain": false,
+          "quality": "valid",
+          "output_digest": "sha256:441abcc4e8ec396af1080b14acfbd2077e1620f01d56c0b1581b145ac975c5f0",
+          "raw_scores": [
+            -10.899999618530273,
+            10.899999618530273
+          ]
+        },
+        {
+          "canonical_scores": [
+            0.0,
+            1.0
+          ],
+          "predicted_label": 1,
+          "decision": "alert",
+          "out_of_distribution": false,
+          "abstain": false,
+          "quality": "valid",
+          "output_digest": "sha256:22b6f43bd8d27738d3213f29e96b62d01d9d6c0ab4f9732aaae803186f51eab7",
+          "raw_scores": [
+            -194.89999389648438,
+            194.89999389648438
+          ]
+        },
+        {
+          "canonical_scores": [
+            0.5498340129852295,
+            0.4501660168170929
+          ],
+          "predicted_label": 0,
+          "decision": "benign",
+          "out_of_distribution": false,
+          "abstain": false,
+          "quality": "valid",
+          "output_digest": "sha256:1903448c143c39c0e3207c4fd7cb8a59402013e6538b047e84d1e683d316e742",
+          "raw_scores": [
+            0.10000000149011612,
+            -0.10000000149011612
+          ]
+        }
+      ]
+    },
+    {
+      "vector_id": "fixture-expected-0004",
+      "record_count": 2,
+      "input": [
+        [
+          5,
+          10,
+          3,
+          16,
+          32,
+          1
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      ],
+      "input_digest": "sha256:259dfbe37531b90bae954aab270a8b9a19ea122bdf2dd93eb9a194d1a0cea88e",
+      "rows": [
+        {
+          "canonical_scores": [
+            9.75275426120175e-30,
+            1.0
+          ],
+          "predicted_label": 1,
+          "decision": "alert",
+          "out_of_distribution": false,
+          "abstain": false,
+          "quality": "valid",
+          "output_digest": "sha256:39fd4be7aa31a9c573e552e281a614e7c584f3a9191fb956103f795690a6adc6",
+          "raw_scores": [
+            -33.400001525878906,
+            33.400001525878906
+          ]
+        },
+        {
+          "canonical_scores": [
+            0.5498340129852295,
+            0.4501660168170929
+          ],
+          "predicted_label": 0,
+          "decision": "benign",
+          "out_of_distribution": false,
+          "abstain": false,
+          "quality": "valid",
+          "output_digest": "sha256:1903448c143c39c0e3207c4fd7cb8a59402013e6538b047e84d1e683d316e742",
+          "raw_scores": [
+            0.10000000149011612,
+            -0.10000000149011612
+          ]
+        }
+      ]
+    }
+  ]
+}

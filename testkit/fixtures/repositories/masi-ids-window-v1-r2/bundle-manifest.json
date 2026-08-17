@@ -1,0 +1,77 @@
+{
+  "bundle_digest": "sha256:df0b0d1c9f4c53d817458810d0f3f9d9e52323bd49422ab008e0b224dc7ca7bb",
+  "contract_digests": {
+    "feature_contract_digest": "sha256:a7695ca4a65d9dc557d77689a3cc9f9d4cacf9b638da17efe9de74b2c9f11810",
+    "label_contract_digest": "sha256:be5b8e1d9d8fd06ad37f005b51330b5a8756f1cb222d395b74eaa805f44a2180",
+    "output_adapter_digest": "sha256:e409a035d4be8b031fd6d2532350ba71b98a29e8d86f154280a143e77829ae2f"
+  },
+  "feature_schema": {
+    "dtype": "uint64-le",
+    "field_order": [
+      "packets",
+      "bytes",
+      "nonzero_cells",
+      "max_cell_packets",
+      "max_cell_bytes",
+      "snapshots"
+    ],
+    "shape": [
+      1,
+      6
+    ],
+    "units": "mixed"
+  },
+  "label_taxonomy": {
+    "calibration": {
+      "config_digest": "sha256:140bedbf9c3f6d56a9846d2ba7088798683f4da0c248231336e6a05679e4fdfe",
+      "kind": "none"
+    },
+    "class_order_policy": "stable-explicit-in-manifest",
+    "id_reuse_policy": "never-reuse",
+    "label_ids": [
+      0,
+      1
+    ],
+    "mode": "single-label",
+    "score_domain": "logit",
+    "threshold": {
+      "kind": "fixed",
+      "value": 0.0
+    },
+    "unknown_label_policy": "old-reader-preserves-unknown-without-triggering-old-effect-policy"
+  },
+  "model_digest": "sha256:df0b0d1c9f4c53d817458810d0f3f9d9e52323bd49422ab008e0b224dc7ca7bb",
+  "model_id": "masi-ids-window-v1",
+  "output_adapter": {
+    "adapter_digest": "sha256:e409a035d4be8b031fd6d2532350ba71b98a29e8d86f154280a143e77829ae2f",
+    "adapter_id": "masi-window-adapter-v1",
+    "axis": 1,
+    "calibration": "sha256:140bedbf9c3f6d56a9846d2ba7088798683f4da0c248231336e6a05679e4fdfe",
+    "class_order": [
+      0,
+      1
+    ],
+    "executable_policy": "no-executable-code-injected-from-bundle",
+    "mapping_kind": "deterministic-implementation",
+    "threshold": 0.5,
+    "top_k": 1,
+    "version": "v1"
+  },
+  "revision": "0000000000000000000000000000000000000002",
+  "schema_version": "masi-model-bundle-manifest/v1",
+  "triton": {
+    "instance_group": {
+      "count": 1,
+      "kind": "KIND_CPU"
+    },
+    "max_batch_size": 256,
+    "max_queue_delay_microseconds": 200,
+    "max_queue_size": 1024,
+    "preferred_batch_size": [
+      32,
+      64,
+      128,
+      256
+    ]
+  }
+}

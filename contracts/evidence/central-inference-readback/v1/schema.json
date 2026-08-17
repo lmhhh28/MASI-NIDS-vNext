@@ -64,7 +64,8 @@
       "minItems": 29,
       "maxItems": 29,
       "uniqueItems": true,
-      "items": {"type": "string", "pattern": "^[a-z][a-z0-9_]{0,63}$"}
+      "comment": "The frozen dimension set in contracts/inference/v1/profile.json includes source_input_result_WAL_sequence, so the pattern admits an uppercase acronym while still forbidding free-form text.",
+      "items": {"type": "string", "pattern": "^[a-z][A-Za-z0-9_]{0,63}$"}
     },
     "wrong_generation_fenced": {"type": "boolean"},
     "late_result_fenced": {"type": "boolean"},

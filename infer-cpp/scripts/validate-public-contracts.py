@@ -197,10 +197,12 @@ def main() -> int:
 
     # ---- Golden inference vectors ----
     catalog = load(repo / "contracts" / "golden" / "inference" / "catalog.json")
-    if catalog.get("schema_version") != "inference-golden-catalog/v1":
+    if catalog.get("schema_version") != "inference-golden-catalog/v2":
         raise ValueError("golden catalog schema_version drifted")
-    if len(catalog["vectors"]) != 10:
-        raise ValueError("golden catalog must list 10 vectors")
+    if len(catalog["vectors"]) != 11:
+        raise ValueError("golden catalog must list 11 vectors")
+    if catalog.get("digest_policy", {}).get("algorithm") != "sha256":
+        raise ValueError("golden catalog must declare the sha256 digest policy")
     for v in catalog["vectors"]:
         path = repo / "contracts" / "golden" / "inference" / v["path"]
         if not path.is_file():
@@ -210,13 +212,53 @@ def main() -> int:
             raise ValueError(f"golden vector schema_version wrong: {path}")
         if golden.get("vector_id") != v["id"]:
             raise ValueError(f"golden vector_id mismatch: {path}")
+        # Frozen goldens are digest-pinned in the catalog: an edited vector
+        # without a catalog revision is drift, not a silent pass.
+        observed = sha256(path)
+        if v.get("digest") != observed:
+            raise ValueError(
+                f"golden vector digest drift: {v['path']} catalog={v.get('digest')} observed={observed}"
+            )
         checked.append(
             {
                 "name": f"golden:{v['id']}",
-                "digest": sha256(path),
+                "digest": observed,
                 "category": v["category"],
             }
         )
+
+    # ---- Valid golden vectors must pin canonical adapter output ----
+    for vector_id in ("inference-valid-batch-0001",
+                      "inference-valid-multi-record-batch-0001"):
+        entry = next(v for v in catalog["vectors"] if v["id"] == vector_id)
+        golden = load(repo / "contracts" / "golden" / "inference" / entry["path"])
+        adapter = golden.get("adapter", {})
+        if adapter.get("adapter_id") != "masi-window-adapter-v1":
+            raise ValueError(f"{vector_id}: adapter identity not pinned")
+        if adapter.get("score_domain") not in ("logit", "probability"):
+            raise ValueError(f"{vector_id}: adapter score_domain not pinned")
+        expected = golden["expected"]
+        rows = expected.get("rows") or [expected]
+        for row in rows:
+            if "scores" not in row or "decision" not in row:
+                raise ValueError(f"{vector_id}: canonical scores/decision not pinned")
+            if row["decision"] not in ("benign", "alert", "abstain"):
+                raise ValueError(
+                    f"{vector_id}: decision must use the contracts/model/v1 lowercase enum"
+                )
+            if not str(row.get("output_digest", "")).startswith("sha256:"):
+                raise ValueError(f"{vector_id}: canonical output_digest not pinned")
+        for rec in golden["input"]["records"]:
+            tensor = bytes.fromhex(rec["feature_tensor_hex"])
+            if len(tensor) != 48:
+                raise ValueError(f"{vector_id}: record tensor is not 48 bytes")
+            if "input_digest" in rec:
+                digest = "sha256:" + hashlib.sha256(tensor).hexdigest()
+                if rec["input_digest"] != digest:
+                    raise ValueError(
+                        f"{vector_id}: record input_digest does not match the tensor bytes"
+                    )
+        negative_vectors += 0
 
     # ---- Negative golden vectors: unknown major ----
     unknown_major = load(repo / "contracts" / "golden" / "inference" / "unknown-major-v1.json")
@@ -379,22 +421,24 @@ def main() -> int:
     )
 
     # ---- Readback evidence schema ----
-    # NOTE: The readback golden has a known schema/golden pattern mismatch
-    # (source_input_result_WAL_sequence contains uppercase WAL which does not
-    # match the lowercase pattern). We validate the schema exists and the
-    # golden file exists, but skip strict validation until the contract is
-    # reconciled.
+    # The readback golden is validated strictly. The historical pattern
+    # mismatch on source_input_result_WAL_sequence was a schema defect, not a
+    # reason to skip validation, and the schema now admits the frozen
+    # dimension name.
     readback_schema_path = repo / "contracts" / "evidence" / "central-inference-readback" / "v1" / "schema.json"
     readback_golden_path = repo / "contracts" / "golden" / "evidence" / "central-inference-readback-v1.json"
-    if readback_schema_path.is_file() and readback_golden_path.is_file():
-        checked.append(
-            {
-                "name": "readback-evidence",
-                "schema_digest": sha256(readback_schema_path),
-                "golden_digest": sha256(readback_golden_path),
-                "note": "schema/golden pattern mismatch on WAL field; strict validation deferred",
-            }
-        )
+    if not readback_schema_path.is_file() or not readback_golden_path.is_file():
+        raise ValueError("readback evidence schema or golden missing")
+    readback_schema = load(readback_schema_path)
+    readback_golden = load(readback_golden_path)
+    validate_permissive(readback_schema, readback_golden, "readback-evidence")
+    checked.append(
+        {
+            "name": "readback-evidence",
+            "schema_digest": sha256(readback_schema_path),
+            "golden_digest": sha256(readback_golden_path),
+        }
+    )
 
     # ---- Startup evidence schema ----
     startup_schema = load(repo / "contracts" / "evidence" / "central-inference-startup" / "v1" / "schema.json")
@@ -417,29 +461,17 @@ def main() -> int:
     supply_golden = load(repo / "contracts" / "golden" / "evidence" / "central-inference-supply-verification-v1.json")
     validate_permissive(supply_schema, supply_golden, "supply-evidence")
 
-    # ---- Traceability evidence (permissive: skip conditional_applicability) ----
-    # The traceability schema's conditional_applicability oneOf is hardcoded
-    # to edge profiles. The inference golden uses inference-specific profiles.
+    # ---- Traceability evidence (strict) ----
+    # The shared schema now defines conditional_applicability structurally and
+    # pins the exact per-module profile set with an if/then branch on module_id,
+    # so the inference golden is validated strictly instead of being waived.
     traceability_schema = load(repo / "contracts" / "evidence" / "traceability" / "v1" / "schema.json")
     traceability_golden = load(repo / "contracts" / "golden" / "evidence" / "central-inference-traceability-v1.json")
-    # Validate required fields and schema_version.
-    sv = traceability_golden["schema_version"]
-    allowed_sv = traceability_schema["properties"]["schema_version"]["enum"]
-    if sv not in allowed_sv:
-        raise ValueError(f"traceability golden schema_version {sv} not in allowed enum")
-    for req in traceability_schema.get("required", []):
-        if req not in traceability_golden:
-            raise ValueError(f"traceability golden missing required field: {req}")
-    # Verify it has 4 conditional_applicability entries.
+    validate_permissive(traceability_schema, traceability_golden, "traceability-evidence")
+    if traceability_golden.get("module_id") != "MOD-INF-001":
+        raise ValueError("inference traceability golden module_id drifted")
     if len(traceability_golden.get("conditional_applicability", [])) != 4:
         raise ValueError("traceability golden must have 4 conditional_applicability entries")
-    # Verify each conditional entry has the required fields.
-    for entry in traceability_golden["conditional_applicability"]:
-        for field in ("profile", "applicability", "result", "stable_reason"):
-            if field not in entry:
-                raise ValueError(f"traceability conditional entry missing {field}")
-        if entry["applicability"] != "NOT_APPLICABLE" or entry["result"] != "NOT_RUN":
-            raise ValueError(f"traceability conditional entry {entry['profile']} must be NOT_APPLICABLE/NOT_RUN")
     checked.append(
         {
             "name": "traceability-evidence",
@@ -449,9 +481,20 @@ def main() -> int:
             "golden_digest": sha256(
                 repo / "contracts" / "golden" / "evidence" / "central-inference-traceability-v1.json"
             ),
-            "note": "conditional_applicability checked for required fields; schema oneOf is edge-specific",
         }
     )
+
+    # ---- Negative: a conditional entry with an unstable reason is rejected ----
+    bad_traceability = copy.deepcopy(traceability_golden)
+    bad_traceability["conditional_applicability"][0]["stable_reason"] = "because we skipped it"
+    reject(traceability_schema, bad_traceability, "traceability-unstable-reason")
+    negative_vectors += 1
+
+    # ---- Negative: a conditional entry claiming PASS is rejected ----
+    bad_traceability2 = copy.deepcopy(traceability_golden)
+    bad_traceability2["conditional_applicability"][1]["result"] = "PASS"
+    reject(traceability_schema, bad_traceability2, "traceability-conditional-pass")
+    negative_vectors += 1
 
     # ---- Module summary evidence: HOLD is valid; PASS must be complete ----
     # The inference-module-schema is the generic gate-summary schema. The

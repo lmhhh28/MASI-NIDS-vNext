@@ -1,0 +1,85 @@
+{
+  "schema_version": "inference-golden/v1",
+  "vector_id": "inference-valid-multi-record-batch-0001",
+  "category": "valid",
+  "description": "Valid two-record batch. Each record carries its own [1,6] uint64 tensor and verified input_digest; the Gateway must submit one Triton ModelInfer of shape [2,6] and split the [2,2] output row by row. Row 0 alerts, row 1 stays benign, proving rows are not collapsed or reused.",
+  "input": {
+    "schema_version": "inference-central-grpc-batch/v1",
+    "request_id": "request-golden-multi-0001",
+    "route": {
+      "shard_id": "shard-golden-0001",
+      "model_control_incarnation_id": "incarnation-golden-0001",
+      "logical_pool_id": "pool-cpu-golden",
+      "pool_generation": 1,
+      "binding_generation": 1,
+      "route_epoch": 1,
+      "runtime_profile": "model-runtime-central-cpu/v1",
+      "wire_profile": "inference-central-grpc-batch/v1"
+    },
+    "records": [
+      {
+        "input_id": "input-golden-multi-0001",
+        "event_idempotency_key": "event-golden-multi-0001",
+        "window_id": "window-golden-multi-0001",
+        "feature_tensor_hex": "05000000000000000a000000000000000300000000000000100000000000000020000000000000000100000000000000",
+        "input_digest": "sha256:43624d38ce5d18c25d5dfe9297c1f229e2a0fc03e6924ebe09bc782e583e973e",
+        "shape": [1, 6],
+        "dtype": "uint64-le",
+        "final_window": true,
+        "quality": "valid"
+      },
+      {
+        "input_id": "input-golden-multi-0002",
+        "event_idempotency_key": "event-golden-multi-0002",
+        "window_id": "window-golden-multi-0002",
+        "feature_tensor_hex": "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+        "input_digest": "sha256:17b0761f87b081d5cf10757ccc89f12be355c70e2e29df288b65b30710dcbcd1",
+        "shape": [1, 6],
+        "dtype": "uint64-le",
+        "final_window": true,
+        "quality": "valid"
+      }
+    ],
+    "deadline_unix_ms": 9999999999999,
+    "batch_digest": "sha256:computed-from-canonicalization"
+  },
+  "adapter": {
+    "adapter_id": "masi-window-adapter-v1",
+    "score_domain": "logit",
+    "class_order": [0, 1],
+    "alert_threshold": 0.5,
+    "abstain_below": 0.0
+  },
+  "expected": {
+    "status": "accepted",
+    "admission_result": "ACCEPTED",
+    "record_count": 2,
+    "triton_request_shape": [2, 6],
+    "triton_output_shape": [2, 2],
+    "batch_input_digest": "sha256:78fb1507051242ede5acdd73e7ca460b9515b35b2546627035dd39662c3cf061",
+    "rows": [
+      {
+        "record_status": "OK",
+        "raw_scores": [-33.400001525878906, 33.400001525878906],
+        "scores": [9.75275426120175e-30, 1.0],
+        "predicted_label": 1,
+        "decision": "alert",
+        "quality": "valid",
+        "output_digest": "sha256:39fd4be7aa31a9c573e552e281a614e7c584f3a9191fb956103f795690a6adc6"
+      },
+      {
+        "record_status": "OK",
+        "raw_scores": [0.10000000149011612, -0.10000000149011612],
+        "scores": [0.5498340129852295, 0.4501660168170929],
+        "predicted_label": 0,
+        "decision": "benign",
+        "quality": "valid",
+        "output_digest": "sha256:1903448c143c39c0e3207c4fd7cb8a59402013e6538b047e84d1e683d316e742"
+      }
+    ],
+    "canonical_event_writable": true,
+    "fenced": false
+  },
+  "class_order": [0, 1],
+  "tolerance": {"absolute": 1e-6, "relative": 1e-5, "ulp": 4}
+}

@@ -39,8 +39,14 @@ std::string compute_envelope_body_digest(const StartupEnvelope& env) {
       << env.availability_profile_id << '\n'
       << env.deployment_tier << '\n'
       << env.model_revision_digest << '\n'
+      << env.feature_contract_digest << '\n'
+      << env.label_contract_digest << '\n'
+      << env.output_adapter_digest << '\n'
       << env.inference_wire_profile_digest << '\n'
       << env.runtime_profile_id << '\n'
+      << env.runtime_profile_digest << '\n'
+      << env.optimization_profile_digest << '\n'
+      << env.triton_server_version << '\n'
       << env.repository_snapshot.identity << '\n'
       << env.repository_snapshot.closure_digest << '\n'
       << env.instance_group.kind << '\n'
@@ -91,8 +97,43 @@ StartupEnvelope parse_startup_envelope(const std::string& path, int64_t now_unix
   env.availability_profile_id = field<std::string>(j, "availability_profile_id");
   env.deployment_tier = field<std::string>(j, "deployment_tier");
   env.model_revision_digest = field<std::string>(j, "model_revision_digest");
+  env.feature_contract_digest = field<std::string>(j, "feature_contract_digest");
+  env.label_contract_digest = field<std::string>(j, "label_contract_digest");
+  env.output_adapter_digest = field<std::string>(j, "output_adapter_digest");
+  for (const auto* pair : {&env.feature_contract_digest, &env.label_contract_digest,
+                           &env.output_adapter_digest}) {
+    if (pair->rfind("sha256:", 0) != 0)
+      throw error::Exception(error::Code::kInvalidManifest,
+                             "envelope contract digest not sha256-prefixed: " + *pair);
+  }
   env.inference_wire_profile_digest = field<std::string>(j, "inference_wire_profile_digest");
   env.runtime_profile_id = field<std::string>(j, "runtime_profile_id");
+  env.runtime_profile_digest = field<std::string>(j, "runtime_profile_digest");
+  env.optimization_profile_digest = field<std::string>(j, "optimization_profile_digest");
+#ifdef MASI_INF_WIRE_PROFILE_DIGEST
+  // This binary implements exactly one frozen wire profile revision. An
+  // envelope that declares a different revision must not be served.
+  if (env.inference_wire_profile_digest != MASI_INF_WIRE_PROFILE_DIGEST)
+    throw error::Exception(error::Code::kInvalidManifest,
+                           "envelope inference_wire_profile_digest does not match the "
+                           "wire profile this binary implements: " +
+                               env.inference_wire_profile_digest);
+#endif
+  // Every digest-typed identity field is required and must be a real digest.
+  // An empty or unprefixed value is a missing identity, not a permissive
+  // default: accepting it would let a replica start without a verifiable
+  // binding to the frozen wire/runtime/optimization profiles.
+  for (const auto* required : {&env.model_revision_digest,
+                               &env.inference_wire_profile_digest,
+                               &env.runtime_profile_digest,
+                               &env.optimization_profile_digest}) {
+    if (required->rfind("sha256:", 0) != 0)
+      throw error::Exception(error::Code::kInvalidManifest,
+                             "envelope profile digest not sha256-prefixed: " + *required);
+  }
+  env.triton_server_version = field<std::string>(j, "triton_server_version");
+  if (env.triton_server_version.empty())
+    throw error::Exception(error::Code::kInvalidManifest, "triton_server_version empty");
 
   require_field(j, "repository_snapshot");
   const auto& rs = j.at("repository_snapshot");
@@ -100,6 +141,10 @@ StartupEnvelope parse_startup_envelope(const std::string& path, int64_t now_unix
     throw error::Exception(error::Code::kInvalidManifest, "repository_snapshot not object");
   env.repository_snapshot.identity = field<std::string>(rs, "identity");
   env.repository_snapshot.closure_digest = field<std::string>(rs, "closure_digest");
+  if (env.repository_snapshot.closure_digest.rfind("sha256:", 0) != 0)
+    throw error::Exception(error::Code::kInvalidManifest,
+                           "repository_snapshot closure_digest not sha256-prefixed: " +
+                               env.repository_snapshot.closure_digest);
 
   require_field(j, "instance_group");
   const auto& ig = j.at("instance_group");

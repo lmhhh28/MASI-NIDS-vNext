@@ -15,6 +15,7 @@
 #include <openssl/sha.h>
 
 #include <algorithm>
+#include <cmath>
 #include <cstdint>
 #include <cstring>
 #include <fstream>
@@ -25,6 +26,9 @@
 #include <vector>
 
 #include "support/mod.h"
+
+#include "digest.h"
+#include "numeric.h"
 
 #include "edge/v1/edge.pb.h"
 #include "inference/v1/inference.pb.h"
@@ -86,6 +90,10 @@ void test_inference_record_frozen_bytes() {
   std::string digest = sha256_hex(serialized);
   std::cout << "InferenceRecord digest: " << digest << "\n";
 
+  // Frozen cross-language bytes: the digest is pinned, not merely checked for
+  // a prefix, so any wire or golden drift fails this gate.
+  CHECK(digest == "sha256:75c57f866ac5ee134ea956d6c3454be166442a06feaeeb685616ca8aa6d37004",
+        "InferenceRecord frozen bytes drifted: " + digest);
   // The record must be non-empty and the digest must start with sha256:.
   CHECK(!serialized.empty(), "InferenceRecord serialized to empty bytes");
   CHECK(digest.rfind("sha256:", 0) == 0, "InferenceRecord digest prefix wrong");
@@ -108,6 +116,8 @@ void test_inference_input_batch_frozen_bytes() {
 
   CHECK(!serialized.empty(), "InferenceInputBatch serialized to empty bytes");
   CHECK(digest.rfind("sha256:", 0) == 0, "InferenceInputBatch digest prefix wrong");
+  CHECK(digest == "sha256:ede0e84ae6c3abc0a1e4d19ad45db1a5f826c610e2612ad370922728c1d0399a",
+        "InferenceInputBatch frozen bytes drifted: " + digest);
   CHECK(digest.size() == 7 + 64, "InferenceInputBatch digest length wrong");
 
   // Determinism.
@@ -242,10 +252,10 @@ void test_golden_evidence_schema_versions() {
 // ---------------------------------------------------------------------------
 void test_golden_catalog() {
   auto cat = load_golden_inference("catalog.json");
-  CHECK(cat["schema_version"].get<std::string>() == "inference-golden-catalog/v1",
+  CHECK(cat["schema_version"].get<std::string>() == "inference-golden-catalog/v2",
         "catalog schema_version wrong");
   const auto& vectors = cat["vectors"];
-  CHECK(vectors.size() == 10, "catalog must list 10 golden vectors");
+  CHECK(vectors.size() == 11, "catalog must list 11 golden vectors");
   // Verify every vector file exists.
   for (const auto& v : vectors) {
     std::string path = masi::inf::test::contract_path(
@@ -361,6 +371,83 @@ void test_result_record_carries_fence_fields() {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Test: the valid golden vectors' pinned canonical output equals what the
+// qualified adapter implementation produces from the pinned raw scores. This
+// keeps the golden expectations and the shipped decision rule from drifting
+// apart without needing a running Triton.
+// ---------------------------------------------------------------------------
+void test_golden_adapter_cross_check() {
+  const auto bundle = masi::inf::test::load_json(
+      masi::inf::test::repo_root() +
+      "/testkit/fixtures/repositories/masi-ids-window-v1-r2/bundle-manifest.json");
+
+  masi::inf::NumericProfile p;
+  p.adapter_id = bundle["output_adapter"]["adapter_id"].get<std::string>();
+  p.adapter_digest = bundle["output_adapter"]["adapter_digest"].get<std::string>();
+  p.score_domain = bundle["label_taxonomy"]["score_domain"].get<std::string>();
+  for (const auto& c : bundle["output_adapter"]["class_order"])
+    p.class_order.push_back(c.get<uint32_t>());
+  p.alert_threshold = bundle["output_adapter"]["threshold"].get<double>();
+  p.abstain_below = bundle["label_taxonomy"]["threshold"]["value"].get<double>();
+
+  const std::vector<std::string> vectors = {"valid-batch-v1.json",
+                                            "valid-multi-record-batch-v1.json"};
+  for (const auto& name : vectors) {
+    const auto golden = masi::inf::test::load_golden_inference(name);
+    // The golden must pin the adapter identity it was computed with.
+    CHECK(golden["adapter"]["adapter_id"].get<std::string>() == p.adapter_id,
+          name + ": adapter identity differs from the pinned bundle manifest");
+    CHECK(golden["adapter"]["score_domain"].get<std::string>() == p.score_domain,
+          name + ": score_domain differs from the pinned bundle manifest");
+
+    const auto& expected = golden["expected"];
+    std::vector<nlohmann::json> rows;
+    if (expected.contains("rows")) {
+      for (const auto& r : expected["rows"]) rows.push_back(r);
+    } else {
+      rows.push_back(expected);
+    }
+    for (size_t i = 0; i < rows.size(); ++i) {
+      std::vector<float> raw;
+      for (const auto& v : rows[i]["raw_scores"]) raw.push_back(v.get<float>());
+      const auto adapted = masi::inf::apply_output_adapter(raw, p);
+      CHECK(adapted.decision == rows[i]["decision"].get<std::string>(),
+            name + " row " + std::to_string(i) + ": adapter decision '" +
+                adapted.decision + "' != golden");
+      CHECK(adapted.predicted_label == rows[i]["predicted_label"].get<uint32_t>(),
+            name + " row " + std::to_string(i) + ": adapter predicted_label != golden");
+      CHECK(adapted.quality == rows[i]["quality"].get<std::string>(),
+            name + " row " + std::to_string(i) + ": adapter quality != golden");
+      CHECK(adapted.scores.size() == rows[i]["scores"].size(),
+            name + " row " + std::to_string(i) + ": score count != golden");
+      for (size_t k = 0; k < adapted.scores.size(); ++k) {
+        const double want = rows[i]["scores"][k].get<double>();
+        const double got = adapted.scores[k];
+        CHECK(std::fabs(got - want) <= 1e-6 + 1e-5 * std::fabs(want),
+              name + " row " + std::to_string(i) + ": score " + std::to_string(k) +
+                  " != golden");
+      }
+      // Canonical float32 little-endian digest over the class-ordered scores.
+      std::string canonical;
+      canonical.resize(adapted.scores.size() * 4);
+      for (size_t k = 0; k < adapted.scores.size(); ++k) {
+        uint32_t bits;
+        std::memcpy(&bits, &adapted.scores[k], sizeof(bits));
+        canonical[k * 4 + 0] = static_cast<char>(bits & 0xff);
+        canonical[k * 4 + 1] = static_cast<char>((bits >> 8) & 0xff);
+        canonical[k * 4 + 2] = static_cast<char>((bits >> 16) & 0xff);
+        canonical[k * 4 + 3] = static_cast<char>((bits >> 24) & 0xff);
+      }
+      const std::string digest =
+          masi::inf::sha256_hex(canonical.data(), canonical.size());
+      CHECK(digest == rows[i]["output_digest"].get<std::string>(),
+            name + " row " + std::to_string(i) + ": canonical output digest != golden");
+    }
+  }
+  std::cout << "Golden adapter cross-check OK (" << vectors.size() << " vectors).\n";
+}
+
 }  // namespace
 
 int main() {
@@ -374,6 +461,7 @@ int main() {
   test_negative_golden_vectors();
   test_protobuf_wire_determinism();
   test_result_record_carries_fence_fields();
+  test_golden_adapter_cross_check();
   std::cout << "All contract golden tests passed.\n";
   return 0;
 }

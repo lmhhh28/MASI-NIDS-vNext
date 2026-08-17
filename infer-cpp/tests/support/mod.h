@@ -183,8 +183,10 @@ struct MtlsBundle {
   std::string server_key;     // server leaf key (PEM, 0600)
   std::string client_cert;    // client leaf cert (PEM)
   std::string client_key;     // client leaf key (PEM, 0600)
-  std::string wrong_cert;     // wrong-identity client cert (PEM)
-  std::string wrong_key;      // wrong-identity client key (PEM, 0600)
+  std::string wrong_cert;     // CA-signed client cert with a non-allowlisted SAN
+  std::string wrong_key;      // matching key (PEM, 0600)
+  std::string no_san_cert;    // CA-signed client cert with no SAN extension
+  std::string no_san_key;     // matching key (PEM, 0600)
 };
 
 inline void run_openssl(const std::vector<std::string>& argv,
@@ -240,13 +242,14 @@ inline MtlsBundle generate_mtls_bundle(const std::string& dir) {
                                std::filesystem::perm_options::replace);
   std::filesystem::remove(server_csr);
 
-  // Edge client leaf (clientAuth).
+  // Edge client leaf (clientAuth) with the exact SAN the Gateway allowlists.
   b.client_cert = dir + "/edge-client.pem";
   b.client_key = dir + "/edge-client.key";
   std::string client_csr = dir + "/edge-client.csr";
   run_openssl({"req", "-new", "-newkey", "rsa:3072", "-nodes", "-sha256",
                "-subj", "/CN=edge-client",
                "-addext", "extendedKeyUsage=clientAuth",
+               "-addext", "subjectAltName=DNS:masi-edge.test",
                "-keyout", b.client_key, "-out", client_csr},
               "generate client CSR");
   run_openssl({"x509", "-req", "-sha256", "-days", "2", "-set_serial", "202",
@@ -259,15 +262,16 @@ inline MtlsBundle generate_mtls_bundle(const std::string& dir) {
                                std::filesystem::perm_options::replace);
   std::filesystem::remove(client_csr);
 
-  // Wrong-identity client leaf (different CN, still signed by same CA so the
-  // TLS handshake completes but the Gateway must reject it at the
-  // application/identity layer if identity binding is enforced).
+  // Wrong-identity client leaf: signed by the same CA and carrying a valid SAN
+  // that is NOT in the deployment allowlist. The TLS handshake completes, so
+  // the Gateway must reject it at the identity layer.
   b.wrong_cert = dir + "/wrong-client.pem";
   b.wrong_key = dir + "/wrong-client.key";
   std::string wrong_csr = dir + "/wrong-client.csr";
   run_openssl({"req", "-new", "-newkey", "rsa:3072", "-nodes", "-sha256",
                "-subj", "/CN=wrong-identity",
                "-addext", "extendedKeyUsage=clientAuth",
+               "-addext", "subjectAltName=DNS:not-allowlisted.test",
                "-keyout", b.wrong_key, "-out", wrong_csr},
               "generate wrong CSR");
   run_openssl({"x509", "-req", "-sha256", "-days", "2", "-set_serial", "203",
@@ -279,6 +283,26 @@ inline MtlsBundle generate_mtls_bundle(const std::string& dir) {
                                    std::filesystem::perms::owner_write,
                                std::filesystem::perm_options::replace);
   std::filesystem::remove(wrong_csr);
+
+  // CA-signed client leaf with NO subjectAltName at all. A valid CA signature
+  // is not an identity, so this must also be rejected.
+  b.no_san_cert = dir + "/no-san-client.pem";
+  b.no_san_key = dir + "/no-san-client.key";
+  std::string no_san_csr = dir + "/no-san-client.csr";
+  run_openssl({"req", "-new", "-newkey", "rsa:3072", "-nodes", "-sha256",
+               "-subj", "/CN=no-san-client",
+               "-addext", "extendedKeyUsage=clientAuth",
+               "-keyout", b.no_san_key, "-out", no_san_csr},
+              "generate no-SAN CSR");
+  run_openssl({"x509", "-req", "-sha256", "-days", "2", "-set_serial", "204",
+               "-in", no_san_csr, "-CA", b.ca_path, "-CAkey", ca_key,
+               "-copy_extensions", "copyall", "-out", b.no_san_cert},
+              "sign no-SAN cert");
+  std::filesystem::permissions(b.no_san_key,
+                               std::filesystem::perms::owner_read |
+                                   std::filesystem::perms::owner_write,
+                               std::filesystem::perm_options::replace);
+  std::filesystem::remove(no_san_csr);
 
   std::filesystem::remove(ca_key);
   return b;
@@ -377,6 +401,8 @@ inline void fill_record_from_golden(masi::edge::v1::InferenceRecord* rec,
   if (j.contains("shape")) {
     for (const auto& s : j["shape"]) rec->add_shape(s.get<uint32_t>());
   }
+  if (j.contains("input_digest"))
+    rec->set_input_digest(j["input_digest"].get<std::string>());
   if (j.contains("feature_contract_digest"))
     rec->set_feature_contract_digest(j["feature_contract_digest"].get<std::string>());
   if (j.contains("label_contract_digest"))
@@ -398,9 +424,10 @@ inline void fill_route_from_golden(masi::edge::v1::InferenceRoute* route,
   route->set_wire_profile(j.value("wire_profile", "inference-central-grpc-batch/v1"));
 }
 
-// Build a valid InferenceInputBatch from valid-batch-v1.json.
-inline masi::edge::v1::InferenceInputBatch build_valid_batch_from_golden() {
-  auto j = load_golden_inference("valid-batch-v1.json");
+// Build a valid InferenceInputBatch from a golden vector file.
+inline masi::edge::v1::InferenceInputBatch build_batch_from_golden(
+    const std::string& golden_name) {
+  auto j = load_golden_inference(golden_name);
   masi::edge::v1::InferenceInputBatch batch;
   batch.set_schema_version(j["input"].value("schema_version", "inference-central-grpc-batch/v1"));
   batch.set_request_id(j["input"].value("request_id", ""));
@@ -414,6 +441,10 @@ inline masi::edge::v1::InferenceInputBatch build_valid_batch_from_golden() {
     fill_record_from_golden(rec, rj);
   }
   return batch;
+}
+
+inline masi::edge::v1::InferenceInputBatch build_valid_batch_from_golden() {
+  return build_batch_from_golden("valid-batch-v1.json");
 }
 
 }  // namespace masi::inf::test

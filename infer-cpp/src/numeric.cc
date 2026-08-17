@@ -67,22 +67,21 @@ void assert_output_finite(const std::vector<float>& scores) {
 }
 
 void assert_class_order(const std::vector<float>& scores, const NumericProfile& p) {
+  if (p.class_order.empty())
+    throw error::Exception(error::Code::kIncompatibleContract, "adapter class_order empty");
   if (scores.size() != p.class_order.size())
     throw error::Exception(error::Code::kIncompatibleContract, "output class count mismatch");
-  // Class order is fixed in the profile and the model output; we additionally
-  // verify here that every label has a unique output_index and is a dense
-  // 0..N-1 index into the canonical score vector.
+  // The raw model output index equals the label id, so every label in the
+  // canonical order must be a unique, in-range index into the raw scores.
   std::vector<uint32_t> seen;
   seen.reserve(p.class_order.size());
-  for (const auto& c : p.class_order) {
-    if (c.label >= p.class_order.size())
+  for (uint32_t label : p.class_order) {
+    if (label >= scores.size())
       throw error::Exception(error::Code::kIncompatibleContract, "class label out of range");
-    if (c.output_index >= scores.size())
-      throw error::Exception(error::Code::kIncompatibleContract, "class output_index out of range");
     for (uint32_t s : seen)
-      if (s == c.output_index)
-        throw error::Exception(error::Code::kIncompatibleContract, "duplicate class output_index");
-    seen.push_back(c.output_index);
+      if (s == label)
+        throw error::Exception(error::Code::kIncompatibleContract, "duplicate class label in class_order");
+    seen.push_back(label);
   }
 }
 
@@ -91,65 +90,57 @@ NumericResult apply_output_adapter(const std::vector<float>& raw_scores,
   assert_output_finite(raw_scores);
   assert_class_order(raw_scores, p);
 
-  // Reorder raw_scores into canonical class order.
-  std::vector<float> scores(p.class_order.size());
-  for (const auto& c : p.class_order) scores[c.label] = raw_scores[c.output_index];
-
-  // If the profile declares a softmax output, the model's raw logits are
-  // converted to probabilities (stable softmax) before the deterministic
-  // OOD/abstain/decision thresholds are applied. The thresholds in the
-  // profile are probability-scale when softmax_output is set.
-  if (p.softmax_output) {
-    const float maxv = *std::max_element(scores.begin(), scores.end());
+  // Normalization is selected by the declared score domain, never guessed.
+  std::vector<float> normalized(raw_scores.size());
+  if (p.score_domain == "logit") {
+    const float maxv = *std::max_element(raw_scores.begin(), raw_scores.end());
     double sum = 0.0;
-    for (float s : scores) sum += std::exp(static_cast<double>(s) - maxv);
+    for (float s : raw_scores) sum += std::exp(static_cast<double>(s) - maxv);
     if (!(sum > 0.0) || !std::isfinite(sum))
       throw error::Exception(error::Code::kBufferOverflow, "softmax sum not finite");
-    for (float& s : scores)
-      s = static_cast<float>(std::exp(static_cast<double>(s) - maxv) / sum);
-    assert_output_finite(scores);
+    for (size_t i = 0; i < raw_scores.size(); ++i)
+      normalized[i] = static_cast<float>(std::exp(static_cast<double>(raw_scores[i]) - maxv) / sum);
+  } else if (p.score_domain == "probability") {
+    normalized = raw_scores;
+  } else {
+    throw error::Exception(error::Code::kIncompatibleContract,
+                           "score_domain not supported by adapter: " + p.score_domain);
   }
+  assert_output_finite(normalized);
 
   NumericResult r;
-  r.scores = scores;
+  // Canonical order: position i holds the score of label class_order[i].
+  r.scores.resize(p.class_order.size());
+  for (size_t i = 0; i < p.class_order.size(); ++i)
+    r.scores[i] = normalized[p.class_order[i]];
 
-  // argmax over canonical scores.
-  uint32_t argmax = 0;
-  float best = r.scores[0];
-  for (uint32_t i = 1; i < r.scores.size(); ++i) {
-    if (r.scores[i] > best) {
-      best = r.scores[i];
-      argmax = i;
+  // top-1 over canonical scores (top_k is contract-fixed to 1).
+  size_t top_index = 0;
+  float top_score = r.scores[0];
+  for (size_t i = 1; i < r.scores.size(); ++i) {
+    if (r.scores[i] > top_score) {
+      top_score = r.scores[i];
+      top_index = i;
     }
   }
-  r.predicted_label = argmax;
+  r.predicted_label = p.class_order[top_index];
+  const uint32_t baseline_label = p.class_order[0];
 
-  // Deterministic OOD: any single class score exceeds the explicit threshold.
+  // This adapter does not compute OOD; the frozen profile declares
+  // ood_rule = not-computed-by-this-adapter-always-false.
   r.out_of_distribution = false;
-  for (float s : r.scores) {
-    if (s > p.ood_threshold) { r.out_of_distribution = true; break; }
-  }
 
-  // Deterministic abstain: max score below the abstain threshold.
-  r.abstain = (best < p.abstain_threshold);
-
-  // Decision follows the canonical class order: the argmax class's name,
-  // gated by the explicit thresholds. ALERT is only emitted when the "alert"
-  // class wins AND its score reaches the alert threshold; otherwise the
-  // decision falls back to BENIGN (no false alerts below threshold).
-  const std::string argmax_name = p.class_order[argmax].name;
+  r.abstain = (static_cast<double>(top_score) < p.abstain_below);
   if (r.abstain) {
-    r.decision = "ABSTAIN";
-  } else if (r.out_of_distribution) {
-    r.decision = "ABSTAIN";
-    r.abstain = true;
-  } else if (argmax_name == "alert" && best >= p.alert_threshold) {
-    r.decision = "ALERT";
+    r.decision = "abstain";
+  } else if (r.predicted_label != baseline_label &&
+             static_cast<double>(top_score) >= p.alert_threshold) {
+    r.decision = "alert";
   } else {
-    r.decision = "BENIGN";
+    r.decision = "benign";
   }
 
-  r.quality = r.out_of_distribution ? "INVALID" : "VALID";
+  r.quality = "valid";
   return r;
 }
 

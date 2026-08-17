@@ -36,8 +36,19 @@ struct StartupEnvelope {
   std::string availability_profile_id;
   std::string deployment_tier;
   std::string model_revision_digest;
+  // Contract digests the envelope binds for this exact binding. The Gateway
+  // cross-checks them against the repository closure bundle-manifest and
+  // fails closed on any mismatch.
+  std::string feature_contract_digest;
+  std::string label_contract_digest;
+  std::string output_adapter_digest;
   std::string inference_wire_profile_digest;
   std::string runtime_profile_id;
+  std::string runtime_profile_digest;
+  std::string optimization_profile_digest;
+  // Declared Triton server version for this pool generation. Verified against
+  // the live ServerMetadata before readiness.
+  std::string triton_server_version;
   RepositorySnapshotRef repository_snapshot;
   InstanceGroupRef instance_group;
   uint64_t proposed_binding_generation = 0;

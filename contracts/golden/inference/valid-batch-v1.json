@@ -2,7 +2,7 @@
   "schema_version": "inference-golden/v1",
   "vector_id": "inference-valid-batch-0001",
   "category": "valid",
-  "description": "Valid single-record inference input batch with exact [1,6] uint64 tensor, final window, valid quality, exact route/binding identity. Expected: accepted, deterministic scores/predictions/decision, canonical event writable.",
+  "description": "Valid single-record inference input batch with exact [1,6] uint64 tensor, final window, valid quality, exact route/binding identity and a verified per-record input_digest. Expected: accepted, canonical class-ordered float32 scores, deterministic decision, canonical event writable.",
   "input": {
     "schema_version": "inference-central-grpc-batch/v1",
     "request_id": "request-golden-0001",
@@ -22,25 +22,40 @@
         "event_idempotency_key": "event-golden-0001",
         "window_id": "window-golden-0001",
         "feature_tensor_hex": "05000000000000000a000000000000000300000000000000100000000000000020000000000000000100000000000000",
+        "input_digest": "sha256:43624d38ce5d18c25d5dfe9297c1f229e2a0fc03e6924ebe09bc782e583e973e",
         "shape": [1, 6],
         "dtype": "uint64-le",
         "final_window": true,
         "quality": "valid",
-        "feature_contract_digest": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
-        "label_contract_digest": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
-        "output_adapter_digest": "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+        "feature_contract_digest": "sha256:a7695ca4a65d9dc557d77689a3cc9f9d4cacf9b638da17efe9de74b2c9f11810",
+        "label_contract_digest": "sha256:be5b8e1d9d8fd06ad37f005b51330b5a8756f1cb222d395b74eaa805f44a2180",
+        "output_adapter_digest": "sha256:e409a035d4be8b031fd6d2532350ba71b98a29e8d86f154280a143e77829ae2f"
       }
     ],
     "deadline_unix_ms": 9999999999999,
     "batch_digest": "sha256:computed-from-canonicalization"
   },
+  "adapter": {
+    "adapter_id": "masi-window-adapter-v1",
+    "score_domain": "logit",
+    "class_order": [0, 1],
+    "alert_threshold": 0.5,
+    "abstain_below": 0.0
+  },
   "expected": {
     "status": "accepted",
     "admission_result": "ACCEPTED",
     "record_status": "OK",
+    "raw_scores": [-33.400001525878906, 33.400001525878906],
+    "scores": [9.75275426120175e-30, 1.0],
+    "predicted_label": 1,
     "scores_stable": true,
     "predicted_label_stable": true,
     "decision": "alert",
+    "quality": "valid",
+    "out_of_distribution": false,
+    "abstain": false,
+    "output_digest": "sha256:39fd4be7aa31a9c573e552e281a614e7c584f3a9191fb956103f795690a6adc6",
     "canonical_event_writable": true,
     "fenced": false
   },

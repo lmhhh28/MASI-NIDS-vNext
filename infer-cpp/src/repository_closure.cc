@@ -76,32 +76,215 @@ std::vector<ClosureMember> load_closure_manifest(const std::string& repository_r
       throw error::Exception(error::Code::kRepositoryClosureViolation, "closure member path invalid: " + cm.rel_path);
     if (cm.member_digest.rfind("sha256:", 0) != 0)
       throw error::Exception(error::Code::kRepositoryClosureViolation, "closure member digest not sha256: " + cm.rel_path);
-    if (cm.role != "model" && cm.role != "config" && cm.role != "version" && cm.role != "backend")
+    if (cm.role != "model" && cm.role != "config" && cm.role != "version" &&
+        cm.role != "backend" && cm.role != "bundle-manifest")
       throw error::Exception(error::Code::kRepositoryClosureViolation, "closure member role unsupported: " + cm.role);
     out.push_back(std::move(cm));
   }
   return out;
 }
 
+// Internal: rel_path of the unique member with the requested role.
+// Throws kRepositoryClosureViolation unless exactly one is declared.
+static std::string unique_member_rel_path(const std::string& repository_root,
+                                          const std::string& role) {
+  std::string found;
+  for (const auto& m : load_closure_manifest(repository_root)) {
+    if (m.role != role) continue;
+    if (!found.empty())
+      throw error::Exception(error::Code::kRepositoryClosureViolation,
+                             "closure declares multiple " + role + " members");
+    found = m.rel_path;
+  }
+  if (found.empty())
+    throw error::Exception(error::Code::kRepositoryClosureViolation,
+                           "closure declares no " + role + " member");
+  return found;
+}
+
 // Internal: rel_path of the unique `role == "model"` closure member.
 // Throws kRepositoryClosureViolation unless exactly one is declared.
 std::string model_member_rel_path(const std::string& repository_root) {
-  std::string model_rel;
-  for (const auto& m : load_closure_manifest(repository_root)) {
-    if (m.role != "model") continue;
-    if (!model_rel.empty())
-      throw error::Exception(error::Code::kRepositoryClosureViolation,
-                             "closure declares multiple model members");
-    model_rel = m.rel_path;
-  }
-  if (model_rel.empty())
-    throw error::Exception(error::Code::kRepositoryClosureViolation,
-                           "closure declares no model member");
-  return model_rel;
+  return unique_member_rel_path(repository_root, "model");
 }
 
 std::string resolve_model_path(const std::string& repository_root) {
   return (fs::path(repository_root) / model_member_rel_path(repository_root)).string();
+}
+
+std::string read_closure_config_text(const std::string& repository_root) {
+  const fs::path p = fs::path(repository_root) /
+                     unique_member_rel_path(repository_root, "config");
+  std::error_code ec;
+  if (!fs::is_regular_file(p, ec) || is_symlink_path(p))
+    throw error::Exception(error::Code::kRepositoryClosureViolation,
+                           "closure config member missing or symlink");
+  if (fs::file_size(p, ec) > 1048576)
+    throw error::Exception(error::Code::kRepositoryClosureViolation,
+                           "closure config member exceeds 1MiB");
+  return read_file_string(p);
+}
+
+namespace {
+
+std::vector<uint32_t> u32_array(const nlohmann::json& j, const std::string& what) {
+  if (!j.is_array() || j.empty())
+    throw error::Exception(error::Code::kIncompatibleContract,
+                           "bundle-manifest " + what + " not a non-empty array");
+  std::vector<uint32_t> out;
+  for (const auto& v : j) {
+    if (!v.is_number_unsigned())
+      throw error::Exception(error::Code::kIncompatibleContract,
+                             "bundle-manifest " + what + " element not an unsigned integer");
+    out.push_back(v.get<uint32_t>());
+  }
+  return out;
+}
+
+// Canonical digest of a JSON sub-object: sorted keys, no whitespace.
+// nlohmann::json keeps object keys sorted, so dump() is already canonical and
+// byte-identical to the Python generator's canonical_json().
+std::string canonical_digest(const nlohmann::json& j) {
+  const std::string s = j.dump();
+  return sha256_hex(s.data(), s.size());
+}
+
+}  // namespace
+
+BundleManifest load_bundle_manifest(const std::string& repository_root) {
+  const fs::path p = fs::path(repository_root) /
+                     unique_member_rel_path(repository_root, "bundle-manifest");
+  std::error_code ec;
+  if (!fs::is_regular_file(p, ec) || is_symlink_path(p))
+    throw error::Exception(error::Code::kRepositoryClosureViolation,
+                           "bundle-manifest member missing or symlink");
+  if (fs::file_size(p, ec) > 1048576)
+    throw error::Exception(error::Code::kRepositoryClosureViolation,
+                           "bundle-manifest exceeds 1MiB");
+
+  nlohmann::json j;
+  try {
+    j = nlohmann::json::parse(read_file_string(p));
+  } catch (const std::exception& e) {
+    throw error::Exception(error::Code::kInvalidManifest,
+                           std::string("bundle-manifest json: ") + e.what());
+  }
+  if (!j.is_object())
+    throw error::Exception(error::Code::kInvalidManifest, "bundle-manifest not object");
+
+  BundleManifest b;
+  b.schema_version = j.value("schema_version", "");
+  if (b.schema_version != "masi-model-bundle-manifest/v1")
+    throw error::Exception(error::Code::kIncompatibleContract,
+                           "bundle-manifest schema_version unsupported: " + b.schema_version);
+  for (const char* required : {"model_id", "revision", "model_digest", "feature_schema",
+                               "label_taxonomy", "output_adapter", "contract_digests",
+                               "triton"}) {
+    if (!j.contains(required))
+      throw error::Exception(error::Code::kInvalidManifest,
+                             std::string("bundle-manifest missing field: ") + required);
+  }
+  b.model_id = j.at("model_id").get<std::string>();
+  b.revision = j.at("revision").get<std::string>();
+  b.model_digest = j.at("model_digest").get<std::string>();
+
+  const auto& tax = j.at("label_taxonomy");
+  const auto& ad = j.at("output_adapter");
+  const auto& cd = j.at("contract_digests");
+  const auto& tr = j.at("triton");
+  if (!tax.is_object() || !ad.is_object() || !cd.is_object() || !tr.is_object())
+    throw error::Exception(error::Code::kInvalidManifest,
+                           "bundle-manifest label_taxonomy/output_adapter/contract_digests/triton not object");
+
+  b.label_ids = u32_array(tax.at("label_ids"), "label_ids");
+  b.mode = tax.value("mode", "");
+  b.score_domain = tax.value("score_domain", "");
+  b.threshold_kind = tax.at("threshold").value("kind", "");
+  b.abstain_below = tax.at("threshold").at("value").get<double>();
+  b.calibration_kind = tax.at("calibration").value("kind", "");
+
+  b.adapter_id = ad.value("adapter_id", "");
+  b.adapter_version = ad.value("version", "");
+  b.adapter_digest = ad.value("adapter_digest", "");
+  b.mapping_kind = ad.value("mapping_kind", "");
+  b.class_order = u32_array(ad.at("class_order"), "output_adapter.class_order");
+  b.axis = ad.at("axis").get<uint32_t>();
+  b.top_k = ad.at("top_k").get<uint32_t>();
+  b.alert_threshold = ad.at("threshold").get<double>();
+  b.executable_policy = ad.value("executable_policy", "");
+
+  b.feature_contract_digest = cd.value("feature_contract_digest", "");
+  b.label_contract_digest = cd.value("label_contract_digest", "");
+  b.output_adapter_digest = cd.value("output_adapter_digest", "");
+
+  b.triton_max_batch_size = tr.value("max_batch_size", 0);
+  for (const auto& v : tr.value("preferred_batch_size", nlohmann::json::array()))
+    b.triton_preferred_batch_size.push_back(v.get<int32_t>());
+  b.triton_max_queue_delay_microseconds = tr.value("max_queue_delay_microseconds", 0);
+  b.triton_max_queue_size = tr.value("max_queue_size", 0);
+  if (tr.contains("instance_group")) {
+    b.triton_instance_group_kind = tr.at("instance_group").value("kind", "");
+    b.triton_instance_group_count = tr.at("instance_group").value("count", 0);
+  }
+
+  // Executable-content and mapping policy: data configuration only.
+  if (b.mapping_kind != "deterministic-implementation")
+    throw error::Exception(error::Code::kIncompatibleContract,
+                           "bundle-manifest mapping_kind unsupported: " + b.mapping_kind);
+  if (b.executable_policy != "no-executable-code-injected-from-bundle")
+    throw error::Exception(error::Code::kIncompatibleContract,
+                           "bundle-manifest executable_policy rejected: " + b.executable_policy);
+  if (b.score_domain != "logit" && b.score_domain != "probability")
+    throw error::Exception(error::Code::kIncompatibleContract,
+                           "bundle-manifest score_domain unsupported: " + b.score_domain);
+  if (b.mode != "single-label")
+    throw error::Exception(error::Code::kIncompatibleContract,
+                           "bundle-manifest label mode unsupported: " + b.mode);
+  if (b.threshold_kind != "fixed")
+    throw error::Exception(error::Code::kIncompatibleContract,
+                           "bundle-manifest threshold kind unsupported: " + b.threshold_kind);
+  if (b.calibration_kind != "none")
+    throw error::Exception(error::Code::kIncompatibleContract,
+                           "bundle-manifest calibration kind not qualified: " + b.calibration_kind);
+  if (b.top_k != 1)
+    throw error::Exception(error::Code::kIncompatibleContract,
+                           "bundle-manifest top_k != 1 is not qualified");
+  if (b.axis != 1)
+    throw error::Exception(error::Code::kIncompatibleContract,
+                           "bundle-manifest axis != 1 is not qualified");
+
+  // class_order must be a permutation of label_ids.
+  {
+    std::vector<uint32_t> a = b.class_order, c = b.label_ids;
+    std::sort(a.begin(), a.end());
+    std::sort(c.begin(), c.end());
+    if (a != c)
+      throw error::Exception(error::Code::kIncompatibleContract,
+                             "bundle-manifest class_order is not a permutation of label_ids");
+  }
+
+  // Self-verify the declared contract digests against recomputed canonical
+  // digests, so a tampered data block cannot keep a stale digest.
+  const std::string feature_recomputed = canonical_digest(j.at("feature_schema"));
+  const std::string label_recomputed = canonical_digest(tax);
+  nlohmann::json adapter_body = ad;
+  adapter_body.erase("adapter_digest");
+  const std::string adapter_recomputed = canonical_digest(adapter_body);
+
+  if (!digest_match(feature_recomputed, b.feature_contract_digest))
+    throw error::Exception(error::Code::kIncompatibleContract,
+                           "feature_contract_digest mismatch: observed " + feature_recomputed);
+  if (!digest_match(label_recomputed, b.label_contract_digest))
+    throw error::Exception(error::Code::kIncompatibleContract,
+                           "label_contract_digest mismatch: observed " + label_recomputed);
+  if (!digest_match(adapter_recomputed, b.adapter_digest))
+    throw error::Exception(error::Code::kIncompatibleContract,
+                           "adapter_digest mismatch: observed " + adapter_recomputed);
+  if (!digest_match(b.output_adapter_digest, b.adapter_digest))
+    throw error::Exception(error::Code::kIncompatibleContract,
+                           "output_adapter_digest must equal adapter_digest");
+
+  return b;
 }
 
 std::string resolve_triton_model_name(const std::string& repository_root) {
@@ -167,7 +350,7 @@ ClosureVerification verify_repository_closure(const std::string& repository_root
   actual_rel.erase("closure-manifest.json");
 
   // 4. per-member digest check + presence.
-  std::vector<std::string> member_digests;
+  std::vector<std::string> preimage_lines;
   for (const auto& m : expected) {
     fs::path p = root / m.rel_path;
     if (!fs::is_regular_file(p, ec)) {
@@ -177,7 +360,9 @@ ClosureVerification verify_repository_closure(const std::string& repository_root
     if (is_symlink_path(p) || !is_readonly(p))
       throw error::Exception(error::Code::kRepositoryClosureViolation, "member not readonly/symlink: " + m.rel_path);
     const std::string d = sha256_file(p.string());
-    member_digests.push_back(d);
+    // Preimage binds role and path, not only content, so relocating or
+    // re-roling a member changes the closure digest.
+    preimage_lines.push_back(m.role + "\t" + m.rel_path + "\t" + d);
     if (!digest_match(d, m.member_digest))
       v.digest_mismatches.push_back(m.rel_path);
     actual_rel.erase(m.rel_path);
@@ -185,10 +370,10 @@ ClosureVerification verify_repository_closure(const std::string& repository_root
   // 5. anything left in actual_rel is an extra model/version/config/backend.
   for (const auto& e : actual_rel) v.extra.push_back(e);
 
-  // 6. observed closure digest over sorted member digests must match.
-  std::sort(member_digests.begin(), member_digests.end());
+  // 6. observed closure digest over the sorted role/path/digest preimage.
+  std::sort(preimage_lines.begin(), preimage_lines.end());
   std::ostringstream oss;
-  for (const auto& d : member_digests) oss << d << '\n';
+  for (const auto& line : preimage_lines) oss << line << '\n';
   v.observed_closure_digest = sha256_hex(oss.str().data(), oss.str().size());
 
   v.ok = v.missing.empty() && v.extra.empty() && v.digest_mismatches.empty() &&

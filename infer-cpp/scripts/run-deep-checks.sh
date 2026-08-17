@@ -48,13 +48,40 @@ MASI_INF_BUILD_TESTS=ON cmake --build build/cpu-asan \
 MASI_INF_E2E=0 ./build/cpu-asan/contract_golden 2>&1 | tee "${evidence_dir}/asan-contract.log"
 MASI_INF_E2E=0 ./build/cpu-asan/property_invariants 2>&1 | tee "${evidence_dir}/asan-property.log"
 
-# ThreadSanitizer on the library scope.
+# ThreadSanitizer on the library scope. On kernels with 32-bit mmap randomness
+# TSan aborts with "unexpected memory mapping", so the sanitizer runs with ASLR
+# disabled for the child process only (no host sysctl change). If it still
+# cannot start, that is a missing-environment HOLD, never a PASS and never a
+# code FAIL.
 cmake --preset cpu-tsan >/dev/null 2>&1
 MASI_INF_BUILD_TESTS=ON cmake --build build/cpu-tsan \
   --target masi_inf_gateway_lib contract_golden property_invariants \
   2>&1 | tee "${evidence_dir}/tsan-build.log"
-MASI_INF_E2E=0 ./build/cpu-tsan/contract_golden 2>&1 | tee "${evidence_dir}/tsan-contract.log"
-MASI_INF_E2E=0 ./build/cpu-tsan/property_invariants 2>&1 | tee "${evidence_dir}/tsan-property.log"
+
+tsan_runner=()
+if command -v setarch >/dev/null 2>&1; then
+  tsan_runner=(setarch "$(uname -m)" -R)
+fi
+tsan_status=0
+set +e
+MASI_INF_E2E=0 "${tsan_runner[@]}" ./build/cpu-tsan/contract_golden \
+  2>&1 | tee "${evidence_dir}/tsan-contract.log"
+tsan_status=$(( tsan_status | ${PIPESTATUS[0]} ))
+MASI_INF_E2E=0 "${tsan_runner[@]}" ./build/cpu-tsan/property_invariants \
+  2>&1 | tee "${evidence_dir}/tsan-property.log"
+tsan_status=$(( tsan_status | ${PIPESTATUS[0]} ))
+set -e
+tsan_environment_blocked=false
+if [[ "${tsan_status}" -ne 0 ]] && \
+   grep -q "unexpected memory mapping" "${evidence_dir}/tsan-contract.log" \
+     "${evidence_dir}/tsan-property.log" 2>/dev/null; then
+  tsan_environment_blocked=true
+  echo "ThreadSanitizer could not start: kernel mmap randomness incompatible" \
+    >>"${evidence_dir}/tsan-property.log"
+elif [[ "${tsan_status}" -ne 0 ]]; then
+  echo "ThreadSanitizer reported failures (see logs)" >&2
+  exit 1
+fi
 
 generated_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 asan_log_digest="sha256:$(sha256sum "${evidence_dir}/asan-property.log" | awk '{print $1}')"
@@ -62,6 +89,11 @@ tsan_log_digest="sha256:$(sha256sum "${evidence_dir}/tsan-property.log" | awk '{
 evidence_result="PASS"
 evidence_qualification="QUALIFIED"
 qualification_reason="CLEAN_SOURCE_SNAPSHOT"
+if [[ "${tsan_environment_blocked}" == true ]]; then
+  evidence_result="HOLD"
+  evidence_qualification="NOT_QUALIFIED"
+  qualification_reason="TSAN_KERNEL_MMAP_RANDOMNESS_INCOMPATIBLE"
+fi
 if [[ "${working_tree_dirty}" == true ]]; then
   evidence_result="HOLD"
   evidence_qualification="NOT_QUALIFIED"

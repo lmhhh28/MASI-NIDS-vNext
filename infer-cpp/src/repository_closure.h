@@ -15,6 +15,52 @@ struct ClosureMember {
   std::string rel_path;       // path relative to repository root, no '..'
   std::string member_digest;  // "sha256:" over file bytes
   std::string role;           // "model" | "config" | "version" | "backend"
+                              // | "bundle-manifest"
+};
+
+// Output adapter / label taxonomy data configuration carried by the closure
+// member with `role == "bundle-manifest"`. Data only: the deterministic
+// mapping implementation lives in qualified Gateway code and is selected by
+// `adapter_id`, never injected by the bundle.
+// See contracts/inference/v1/profile.json#output_adapter_binding.
+struct BundleManifest {
+  std::string schema_version;
+  std::string model_id;
+  std::string revision;
+  std::string model_digest;
+
+  // label_taxonomy
+  std::vector<uint32_t> label_ids;
+  std::string mode;                 // "single-label"
+  std::string score_domain;         // "logit" | "probability"
+  std::string threshold_kind;       // label_taxonomy.threshold.kind
+  double abstain_below = 0.0;       // label_taxonomy.threshold.value
+  std::string calibration_kind;     // "none" | ...
+
+  // output_adapter
+  std::string adapter_id;
+  std::string adapter_version;
+  std::string adapter_digest;
+  std::string mapping_kind;
+  std::vector<uint32_t> class_order;
+  uint32_t axis = 1;
+  uint32_t top_k = 1;
+  double alert_threshold = 0.0;     // output_adapter.threshold
+  std::string executable_policy;
+
+  // derived contract digests declared by the bundle
+  std::string feature_contract_digest;
+  std::string label_contract_digest;
+  std::string output_adapter_digest;
+
+  // Triton expectations declared by the bundle (compared with the frozen
+  // wire profile and the live Triton ModelConfig at startup).
+  int32_t triton_max_batch_size = 0;
+  std::vector<int32_t> triton_preferred_batch_size;
+  int32_t triton_max_queue_delay_microseconds = 0;
+  int32_t triton_max_queue_size = 0;
+  std::string triton_instance_group_kind;
+  int32_t triton_instance_group_count = 0;
 };
 
 // Result of a closure verification pass.
@@ -46,6 +92,24 @@ std::string resolve_model_path(const std::string& repository_root);
 // unless exactly one model member with a `<name>/<version>/...` path is
 // declared.
 std::string resolve_triton_model_name(const std::string& repository_root);
+
+// Load and self-verify the adapter/taxonomy data configuration from the
+// unique `role == "bundle-manifest"` closure member. Rejects:
+//   - missing/duplicate bundle-manifest member
+//   - unsupported schema_version
+//   - recomputed feature/label/adapter digests that do not match the declared
+//     contract_digests
+//   - mapping_kind != "deterministic-implementation"
+//   - executable_policy != "no-executable-code-injected-from-bundle"
+//   - score_domain outside {logit, probability}
+//   - class_order that is not a permutation of label_ids
+//   - top_k != 1 (only top-1 is qualified in the first release)
+BundleManifest load_bundle_manifest(const std::string& repository_root);
+
+// Read the raw bytes of the unique `role == "config"` closure member (the
+// Triton `config.pbtxt`). Used to compare the pinned on-disk configuration
+// with the configuration Triton actually loaded.
+std::string read_closure_config_text(const std::string& repository_root);
 
 // Verify the on-disk repository directory:
 //   - directory is read-only (no write bit for owner/group/other on entries)
