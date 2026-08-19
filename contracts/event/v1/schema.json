@@ -1,0 +1,206 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://masi-nids.example/contracts/event/v1/schema.json",
+  "title": "Canonical Event, Ingest Batch, and Canonical ACK V1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "event_id",
+    "event_idempotency_key",
+    "input_digest",
+    "output_digest",
+    "canonical_event_id",
+    "model_control_incarnation_id",
+    "shard_id",
+    "route_epoch",
+    "logical_pool_id",
+    "pool_generation",
+    "binding_generation",
+    "result_identity_digest",
+    "scores",
+    "predicted_label",
+    "decision",
+    "out_of_distribution",
+    "abstain",
+    "execution_status",
+    "execution_error_code",
+    "worker_id",
+    "worker_digest",
+    "worker_attempt_id",
+    "inference_started_at_unix_ms",
+    "inference_completed_at_unix_ms",
+    "source_window_identity",
+    "quality",
+    "commit_status",
+    "event_time",
+    "ingest_batch_digest",
+    "trace_id",
+    "reason_code"
+  ],
+  "properties": {
+    "schema_version": {"const": "masi-event/v1"},
+    "event_id": {"$ref": "#/$defs/identity"},
+    "event_idempotency_key": {"$ref": "#/$defs/identity"},
+    "input_digest": {"$ref": "#/$defs/digest"},
+    "output_digest": {"$ref": "#/$defs/digest"},
+    "canonical_event_id": {
+      "oneOf": [
+        {"type": "null"},
+        {"$ref": "#/$defs/identity"}
+      ]
+    },
+    "model_control_incarnation_id": {"$ref": "#/$defs/identity"},
+    "shard_id": {"$ref": "#/$defs/identity"},
+    "route_epoch": {"type": "integer", "minimum": 1},
+    "logical_pool_id": {"$ref": "#/$defs/identity"},
+    "pool_generation": {"type": "integer", "minimum": 1},
+    "binding_generation": {"type": "integer", "minimum": 1},
+    "result_identity_digest": {"$ref": "#/$defs/digest"},
+    "scores": {"type": "array", "maxItems": 4096, "items": {"type": "number"}},
+    "predicted_label": {"type": "integer", "minimum": 0, "maximum": 4294967295},
+    "decision": {"enum": ["benign", "alert", "abstain"]},
+    "out_of_distribution": {"type": "boolean"},
+    "abstain": {"type": "boolean"},
+    "execution_status": {"enum": ["ok", "hold", "error"]},
+    "execution_error_code": {"type": "string", "maxLength": 64},
+    "worker_id": {"$ref": "#/$defs/identity"},
+    "worker_digest": {"$ref": "#/$defs/digest"},
+    "worker_attempt_id": {"$ref": "#/$defs/identity"},
+    "inference_started_at_unix_ms": {"type": "integer", "minimum": 1},
+    "inference_completed_at_unix_ms": {"type": "integer", "minimum": 1},
+    "source_window_identity": {"$ref": "#/$defs/source_window_identity"},
+    "quality": {"$ref": "#/$defs/quality"},
+    "commit_status": {"enum": ["committed", "idempotent", "conflict", "rejected"]},
+    "event_time": {"type": "string", "format": "date-time"},
+    "committed_at_unix_ms": {
+      "oneOf": [
+        {"type": "null"},
+        {"type": "integer", "minimum": 1}
+      ]
+    },
+    "ingest_batch_digest": {"$ref": "#/$defs/digest"},
+    "actor_ref": {
+      "oneOf": [
+        {"type": "null"},
+        {"$ref": "#/$defs/identity"}
+      ]
+    },
+    "trace_id": {"$ref": "#/$defs/identity"},
+    "reason_code": {"$ref": "#/$defs/reason_code"}
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {"commit_status": {"enum": ["committed", "idempotent"]}},
+        "required": ["commit_status"]
+      },
+      "then": {
+        "properties": {
+          "canonical_event_id": {"$ref": "#/$defs/identity"},
+          "committed_at_unix_ms": {"type": "integer", "minimum": 1}
+        },
+        "required": ["committed_at_unix_ms"]
+      }
+    },
+    {
+      "if": {
+        "properties": {"commit_status": {"enum": ["conflict", "rejected"]}},
+        "required": ["commit_status"]
+      },
+      "then": {
+        "properties": {
+          "canonical_event_id": {"type": "null"},
+          "committed_at_unix_ms": {"type": "null"}
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "commit_status": {"const": "idempotent"},
+          "quality": {"const": "valid"}
+        },
+        "required": ["commit_status", "quality"]
+      },
+      "then": {
+        "properties": {
+          "event_id": {"$ref": "#/$defs/identity"}
+        }
+      }
+    },
+    {
+      "if": {"properties": {"decision": {"const": "abstain"}}, "required": ["decision"]},
+      "then": {"properties": {"abstain": {"const": true}}},
+      "else": {"properties": {"abstain": {"const": false}}}
+    },
+    {
+      "if": {"properties": {"out_of_distribution": {"const": true}}, "required": ["out_of_distribution"]},
+      "then": {"properties": {"abstain": {"const": true}}}
+    },
+    {
+      "if": {"properties": {"execution_status": {"const": "ok"}}, "required": ["execution_status"]},
+      "then": {
+        "properties": {"execution_error_code": {"const": ""}, "scores": {"minItems": 1}}
+      },
+      "else": {
+        "properties": {
+          "decision": {"const": "abstain"},
+          "abstain": {"const": true},
+          "execution_error_code": {"type": "string", "minLength": 1, "maxLength": 64}
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "identity": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+    },
+    "digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "reason_code": {"type": "string", "pattern": "^[A-Z][A-Z0-9_]{0,63}$"},
+    "quality": {
+      "enum": [
+        "valid",
+        "partial",
+        "gap",
+        "stale",
+        "invalid",
+        "reset",
+        "not-covered",
+        "not-measurable"
+      ]
+    },
+    "source_window_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_id",
+        "window_id",
+        "window_start_unix_ms",
+        "window_end_unix_ms",
+        "finalized_at_unix_ms",
+        "watermark_unix_ms",
+        "event_time_unix_ms"
+      ],
+      "properties": {
+        "source_id": {"$ref": "#/$defs/identity"},
+        "window_id": {"$ref": "#/$defs/identity"},
+        "window_start_unix_ms": {"type": "integer", "minimum": 1},
+        "window_end_unix_ms": {"type": "integer", "minimum": 1},
+        "finalized_at_unix_ms": {"type": "integer", "minimum": 1},
+        "watermark_unix_ms": {"type": "integer", "minimum": 1},
+        "event_time_unix_ms": {"type": "integer", "minimum": 1}
+      }
+    }
+  },
+  "x-masi-semantic-constraints": [
+    {"constraint_id": "EVENT-COMMIT-BEFORE-ACK", "fields": ["/commit_status", "/canonical_event_id", "/committed_at_unix_ms"], "operator": "commit-before-ack"},
+    {"constraint_id": "EVENT-IDEMPOTENCY-DIGEST", "scope": ["/event_idempotency_key"], "operator": "same-key-same-digest-idempotent", "fields": ["/input_digest", "/output_digest", "/commit_status"]},
+    {"constraint_id": "EVENT-GENERATION-CONSISTENCY", "operator": "all-positive", "fields": ["/route_epoch", "/pool_generation", "/binding_generation"]},
+    {"constraint_id": "EVENT-QUALITY-NOT-NORMALIZED", "fields": ["/quality", "/commit_status"], "operator": "low-quality-not-committed-normal"},
+    {"constraint_id": "EVENT-CANONICAL-IDENTITY-STABLE", "scope": ["/event_idempotency_key", "/input_digest", "/output_digest"], "operator": "append-only-unique", "field": "/event_id"}
+  ]
+}

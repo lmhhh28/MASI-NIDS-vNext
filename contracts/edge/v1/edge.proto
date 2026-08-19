@@ -4,6 +4,8 @@ syntax = "proto3";
 
 package masi.edge.v1;
 
+option go_package = "masi-nids/control-go/internal/grpc/edgev1";
+
 enum AdmissionResult {
   ADMISSION_RESULT_UNSPECIFIED = 0;
   ADMISSION_RESULT_ACCEPTED = 1;
@@ -918,6 +920,8 @@ message RuleObservation {
   InstallationReadbackStatus installation_status = 20;
   DataQuality quality_code = 21;
   int64 expires_at_unix_ms = 22;
+  string entity_id = 23;
+  uint32 sampling_coverage_ppm = 24;
 }
 
 message RuleObservationBatch {
@@ -979,12 +983,22 @@ message TargetStatus {
   string reason_code = 17;
   uint64 expired_overlay_observations = 18;
   FreshnessStatus freshness_code = 19;
+  string p4info_digest = 20;
+  string capacity_digest = 21;
+  bool capacity_available = 22;
+  int64 observed_at_unix_ms = 23;
+  int64 expires_at_unix_ms = 24;
+  string profile_digest = 25;
+  string observation_id = 26;
+  string observation_digest = 27;
 }
 
 message TargetStatusBatch {
   string schema_version = 1;
   repeated TargetStatus targets = 2;
   string trace_id = 3;
+  string batch_id = 4;
+  string batch_digest = 5;
 }
 
 message GetStatusRequest {

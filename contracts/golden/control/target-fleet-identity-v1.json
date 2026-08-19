@@ -1,0 +1,48 @@
+{
+  "schema_version": "control-golden/v1",
+  "vector_id": "control-target-fleet-identity-0001",
+  "category": "target-fleet-identity",
+  "description": "Stable target identity + assignment fence + fleet parent/child/wave aggregate projection. A target_id is never reused; assignment binds incarnation/generation/election floor-range; fleet parent is never claimable; aggregate status is projected from the full child vector (any child unknown -> parent reconciling). No cross-target atomic commit. Cross-language runners (Go, Rust, TypeScript) must derive the identical fence, claimability, and aggregate status.",
+  "contract": "contracts/fleet-operation/v1/schema.json",
+  "language_runners": ["go", "rust", "typescript"],
+  "input": {
+    "target": {
+      "target_id": "tgt-golden-0001",
+      "device_id": 1,
+      "role": "primary",
+      "endpoint": "https://10.0.0.1:50051"
+    },
+    "assignment": {
+      "target_control_incarnation_id": "incarnation-golden-0001",
+      "target_assignment_generation": 2,
+      "application_generation": 1,
+      "election_floor": 100,
+      "election_ceiling": 200
+    },
+    "fleet_operation": {
+      "target_set_digest": "sha256:fleet-golden-0001",
+      "waves": [
+        {"wave_index": 0, "target_ids": ["tgt-golden-0001", "tgt-golden-0002"], "parallel_limit": 2, "failure_policy": "fail-fast", "gate_state": "open"},
+        {"wave_index": 1, "target_ids": ["tgt-golden-0003"], "parallel_limit": 1, "failure_policy": "continue-isolated", "gate_state": "closed"}
+      ]
+    },
+    "child_results": [
+      {"target_id": "tgt-golden-0001", "status": "applied"},
+      {"target_id": "tgt-golden-0002", "status": "unknown"}
+    ]
+  },
+  "expected": {
+    "target_id_never_reused": true,
+    "rename_address_change_no_id_reuse": true,
+    "retired_id_never_reassigned": true,
+    "parent_claimable": false,
+    "child_intent_claimable": true,
+    "future_wave_child_claimable_before_gate": false,
+    "aggregate_status_with_unknown_child": "reconciling",
+    "aggregate_status_all_applied": "applied",
+    "no_cross_target_atomic": true,
+    "no_majority_success_applied": true,
+    "handoff_election_floor_strictly_above_prior_max": true,
+    "pitr_rotates_incarnation_before_writer": true
+  }
+}

@@ -1,0 +1,49 @@
+{
+  "schema_version": "control-golden/v1",
+  "vector_id": "control-plugin-statistics-definition-0001",
+  "category": "plugin-statistics-definition",
+  "description": "Plugin statistics definition immutability + frozen input + artifact quality + run idempotency. The definition body lives in the immutable manifest revision; schedule/run store only the exact definition identity/digest. Same idempotency key + same result digest -> idempotent; same key + different digest -> stable conflict. Old-binding-generation late result is audit-only, cannot overwrite current. Missing/no-data/gap/reset/not-measurable NOT encoded as 0; NaN/Inf rejected. Cross-language runners (Go, Rust, Python, TypeScript, Wasm) must derive the identical validation verdict and current CAS result.",
+  "contract": "contracts/plugin/statistics/v1/schema.json",
+  "language_runners": ["go", "rust", "python", "typescript", "wasm"],
+  "input": {
+    "definition": {
+      "definition_id": "stat-def-golden-0001",
+      "definition_digest": "sha256:stat-def-golden-0001",
+      "plugin_id": "plugin-golden-0001",
+      "plugin_revision": "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2",
+      "binding_generation": 1,
+      "host_projection_refs": ["projection.rule-effectiveness-current"],
+      "metric_kind": "gauge",
+      "temporality": "delta",
+      "monotonicity": false,
+      "dimension_labels": ["target_id", "rule_id"],
+      "series_cardinality_limit": 64,
+      "deadline_ms": 5000,
+      "display_hint": "metric-card"
+    },
+    "run": {
+      "idempotency_key": "stat-run-golden-0001",
+      "frozen_input_digest": "sha256:frozen-input-golden-0001"
+    },
+    "artifact": {
+      "quality": "valid",
+      "metric": {"metric_id": "alert-rate", "metric_kind": "gauge", "temporality": "delta", "value": 0.125, "unit": "ratio"}
+    }
+  },
+  "expected": {
+    "definition_immutable": true,
+    "definition_endpoint_credential_rejected": true,
+    "definition_sql_promql_jsonpath_url_expression_rejected": true,
+    "runtime_registration_rejected": true,
+    "run_not_in_effect_queue": true,
+    "same_key_same_digest_idempotent": true,
+    "same_key_diff_digest_conflict": true,
+    "old_binding_late_result_audit_only": true,
+    "nan_inf_rejected": true,
+    "missing_no_data_not_zero": true,
+    "display_closed_union": true,
+    "display_no_url_html_svg_js": true,
+    "current_cas_authoritative": true,
+    "plugin_disabled_does_not_change_core_rule_effectiveness": true
+  }
+}

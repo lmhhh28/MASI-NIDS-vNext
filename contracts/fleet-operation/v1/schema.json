@@ -1,0 +1,148 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://masi-nids.example/contracts/fleet-operation/v1/schema.json",
+  "title": "Fleet Operation, Frozen Target Set, Waves, and Parent/Child Projection V1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "fleet_operation_id",
+    "target_set_digest",
+    "wave_count",
+    "waves",
+    "parent_intent_id",
+    "child_intents",
+    "aggregate_status",
+    "actor_ref",
+    "scope",
+    "reason_code",
+    "trace_id",
+    "created_at_unix_ms"
+  ],
+  "properties": {
+    "schema_version": {"const": "masi-fleet-operation/v1"},
+    "fleet_operation_id": {"$ref": "#/$defs/identity"},
+    "target_set_digest": {"$ref": "#/$defs/digest"},
+    "wave_count": {"type": "integer", "minimum": 1, "maximum": 64},
+    "waves": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 64,
+      "items": {"$ref": "#/$defs/wave"}
+    },
+    "parent_intent_id": {"$ref": "#/$defs/identity"},
+    "child_intents": {
+      "type": "array",
+      "maxItems": 1024,
+      "items": {"$ref": "#/$defs/child_intent_ref"}
+    },
+    "aggregate_status": {
+      "enum": ["planned", "running", "partial", "reconciling", "applied", "failed", "aborted"]
+    },
+    "actor_ref": {"$ref": "#/$defs/identity"},
+    "scope": {"type": "string", "minLength": 1, "maxLength": 256},
+    "reason_code": {"$ref": "#/$defs/reason_code"},
+    "trace_id": {"$ref": "#/$defs/identity"},
+    "created_at_unix_ms": {"type": "integer", "minimum": 1}
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {"aggregate_status": {"const": "applied"}},
+        "required": ["aggregate_status"]
+      },
+      "then": {
+        "properties": {
+          "child_intents": {
+            "items": {
+              "properties": {
+                "status": {"not": {"enum": ["unknown", "reconciling", "pending", "claimed", "executing", "hold"]}}
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {"aggregate_status": {"const": "applied"}},
+        "required": ["aggregate_status"]
+      },
+      "then": {
+        "properties": {
+          "waves": {
+            "items": {
+              "properties": {
+                "gate_state": {"const": "open"}
+              }
+            }
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "identity": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+    },
+    "digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "reason_code": {"type": "string", "pattern": "^[A-Z][A-Z0-9_]{0,63}$"},
+    "child_status": {
+      "enum": ["pending", "claimed", "executing", "applied", "hold", "unknown", "reconciling", "failed", "skipped"]
+    },
+    "failure_policy": {
+      "enum": ["fail-fast", "continue-isolated", "manual-gate"]
+    },
+    "wave": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "wave_index",
+        "target_ids",
+        "parallel_limit",
+        "failure_policy",
+        "gate_state"
+      ],
+      "properties": {
+        "wave_index": {"type": "integer", "minimum": 0, "maximum": 63},
+        "target_ids": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 4096,
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/identity"}
+        },
+        "parallel_limit": {"type": "integer", "minimum": 1, "maximum": 1024},
+        "failure_policy": {"$ref": "#/$defs/failure_policy"},
+        "gate_state": {"enum": ["closed", "open"]}
+      }
+    },
+    "child_intent_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "target_id",
+        "intent_id",
+        "wave_index",
+        "status"
+      ],
+      "properties": {
+        "target_id": {"$ref": "#/$defs/identity"},
+        "intent_id": {"$ref": "#/$defs/identity"},
+        "wave_index": {"type": "integer", "minimum": 0, "maximum": 63},
+        "status": {"$ref": "#/$defs/child_status"}
+      }
+    }
+  },
+  "x-masi-semantic-constraints": [
+    {"constraint_id": "FLEET-PARENT-NONCLAIMABLE", "field": "/parent_intent_id", "operator": "parent-nonclaimable"},
+    {"constraint_id": "FLEET-TARGET-SET-FROZEN", "field": "/target_set_digest", "operator": "immutable-digest-bound"},
+    {"constraint_id": "FLEET-PARTIAL-NOT-APPLIED", "fields": ["/aggregate_status", "/child_intents"], "operator": "partial-not-applied"},
+    {"constraint_id": "FLEET-CHILD-GATE", "fields": ["/waves", "/child_intents"], "operator": "future-wave-gate-closed"},
+    {"constraint_id": "FLEET-NO-CROSS-TARGET-ATOMIC", "operator": "no-cross-target-2pc"},
+    {"constraint_id": "FLEET-WAVE-COUNT-MATCH", "fields": ["/wave_count", "/waves"], "operator": "wave-count-equals-length"}
+  ]
+}

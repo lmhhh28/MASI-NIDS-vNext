@@ -1,0 +1,133 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://masi-nids.example/contracts/analysis/v1/schema.json",
+  "title": "Analysis A2A Task, Artifact, and Restricted MCP Projection V1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "a2a_version",
+    "agent_card_url",
+    "task_identity",
+    "artifact_identity",
+    "mcp_endpoint",
+    "mcp_protocol_version",
+    "tool_allowlist",
+    "resource_allowlist",
+    "provenance",
+    "binding_generation",
+    "revocation_state",
+    "actor_ref",
+    "reason_code",
+    "trace_id"
+  ],
+  "properties": {
+    "schema_version": {"const": "masi-analysis/v1"},
+    "a2a_version": {"const": "1.0"},
+    "agent_card_url": {"type": "string", "format": "uri", "minLength": 1, "maxLength": 512},
+    "task_identity": {"$ref": "#/$defs/task_identity"},
+    "artifact_identity": {"$ref": "#/$defs/artifact_identity"},
+    "mcp_endpoint": {"const": "masi-mcp-readonly/v1"},
+    "mcp_protocol_version": {"const": "2025-11-25"},
+    "tool_allowlist": {
+      "type": "array",
+      "maxItems": 128,
+      "uniqueItems": true,
+      "items": {"$ref": "#/$defs/identity"}
+    },
+    "resource_allowlist": {
+      "type": "array",
+      "maxItems": 128,
+      "uniqueItems": true,
+      "items": {"$ref": "#/$defs/identity"}
+    },
+    "provenance": {"$ref": "#/$defs/provenance"},
+    "binding_generation": {"type": "integer", "minimum": 1},
+    "revocation_state": {"enum": ["active", "revoked", "expired"]},
+    "actor_ref": {"$ref": "#/$defs/identity"},
+    "reason_code": {"$ref": "#/$defs/reason_code"},
+    "trace_id": {"$ref": "#/$defs/identity"}
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {"revocation_state": {"enum": ["revoked", "expired"]}},
+        "required": ["revocation_state"]
+      },
+      "then": {
+        "properties": {
+          "task_identity": {
+            "properties": {
+              "status": {"not": {"const": "succeeded"}}
+            }
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "identity": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+    },
+    "digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "reason_code": {"type": "string", "pattern": "^[A-Z][A-Z0-9_]{0,63}$"},
+    "task_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "task_id",
+        "idempotency_key",
+        "deadline_unix_ms",
+        "status"
+      ],
+      "properties": {
+        "task_id": {"$ref": "#/$defs/identity"},
+        "idempotency_key": {"$ref": "#/$defs/identity"},
+        "deadline_unix_ms": {"type": "integer", "minimum": 1},
+        "status": {
+          "enum": ["pending", "running", "succeeded", "failed", "insufficient", "timeout", "cancelled"]
+        }
+      }
+    },
+    "artifact_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "artifact_id",
+        "artifact_digest",
+        "non_executable",
+        "media_type"
+      ],
+      "properties": {
+        "artifact_id": {"$ref": "#/$defs/identity"},
+        "artifact_digest": {"$ref": "#/$defs/digest"},
+        "non_executable": {"const": true},
+        "media_type": {"enum": ["application/json", "text/markdown"]}
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "analysis_plugin_id",
+        "plugin_revision",
+        "scope"
+      ],
+      "properties": {
+        "analysis_plugin_id": {"$ref": "#/$defs/identity"},
+        "plugin_revision": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+        "scope": {"type": "string", "minLength": 1, "maxLength": 256}
+      }
+    }
+  },
+  "x-masi-semantic-constraints": [
+    {"constraint_id": "A2A-NO-PUSH-NO-STREAMING", "operator": "a2a-polling-only"},
+    {"constraint_id": "MCP-READONLY-ALLOWLIST", "fields": ["/tool_allowlist", "/resource_allowlist"], "operator": "mcp-readonly-allowlist-only"},
+    {"constraint_id": "ARTIFACT-NON-EXECUTABLE", "field": "/artifact_identity/non_executable", "operator": "const-true"},
+    {"constraint_id": "ANALYSIS-WRITES-NO-CORE", "operator": "analysis-no-core-write"},
+    {"constraint_id": "A2A-VERSION-REJECT-OLD", "field": "/a2a_version", "operator": "a2a-reject-pre-1.0"}
+  ]
+}

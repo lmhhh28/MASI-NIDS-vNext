@@ -1,0 +1,49 @@
+{
+  "schema_version": "control-golden/v1",
+  "vector_id": "control-firewall-canonicalization-0001",
+  "category": "canonicalization",
+  "description": "Normalized firewall policy -> canonical compiled form. Rules are canonicalized to a stable digest, ordered by priority, assigned to the inactive bank, and the compiled plan digest is deterministic. Equal-priority conflicts and unsupported IPv6 effects are rejected. Cross-language runners (Go, Rust, TypeScript, Python, Wasm) must produce byte-identical canonical_rule_digest and plan_digest.",
+  "contract": "contracts/p4/firewall-policy/v1/schema.json",
+  "language_runners": ["go", "rust", "typescript", "python", "wasm"],
+  "input": {
+    "active_bank": 0,
+    "bank": 1,
+    "default_action": "drop",
+    "rules": [
+      {
+        "rule_id": "rule-golden-0001",
+        "priority": 10,
+        "src_ipv4": {"address": "10.0.0.0", "prefix_length": 8},
+        "dst_ipv4": {"address": "192.168.1.0", "prefix_length": 24},
+        "protocol": 6,
+        "l4_present": true,
+        "src_port": "wildcard",
+        "dst_port": 443,
+        "fragment_class": "unfragmented",
+        "action": "permit-and-continue"
+      },
+      {
+        "rule_id": "rule-golden-0002",
+        "priority": 5,
+        "src_ipv4": {"address": "0.0.0.0", "prefix_length": 0},
+        "dst_ipv4": {"address": "0.0.0.0", "prefix_length": 0},
+        "protocol": "wildcard",
+        "l4_present": "wildcard",
+        "src_port": "wildcard",
+        "dst_port": "wildcard",
+        "fragment_class": "wildcard",
+        "action": "drop"
+      }
+    ]
+  },
+  "expected": {
+    "canonical_order": ["rule-golden-0002", "rule-golden-0001"],
+    "canonical_rule_digest_stable": true,
+    "plan_digest_deterministic": true,
+    "bank_assignment": "all entities on inactive bank (bank=1)",
+    "equal_priority_conflict_rejected": true,
+    "ipv6_effect_rejected": true,
+    "selector_one_per_target": true,
+    "activation_phase_order": ["inactive_writing", "inactive_verified", "selector_switching", "selector_verified", "current_committed", "previous_retained"]
+  }
+}

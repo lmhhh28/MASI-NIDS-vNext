@@ -23,13 +23,15 @@
     "schema_version": {
       "enum": [
         "rust-edge-agent-traceability-evidence/v1",
-        "central-inference-traceability-evidence/v1"
+        "central-inference-traceability-evidence/v1",
+        "control-core-requirement-traceability/v1"
       ]
     },
     "module_id": {
       "enum": [
         "MOD-EDGE-001",
-        "MOD-INF-001"
+        "MOD-INF-001",
+        "MOD-CTRL-001"
       ]
     },
     "manifest": {
@@ -234,6 +236,56 @@
                   "applicability": "NOT_APPLICABLE",
                   "result": "NOT_RUN",
                   "stable_reason": "REJECTED_NOT_FIRST_RELEASE_BACKEND"
+                }
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "module_id": {
+            "const": "MOD-CTRL-001"
+          }
+        },
+        "required": [
+          "module_id"
+        ]
+      },
+      "then": {
+        "properties": {
+          "conditional_applicability": {
+            "type": "array",
+            "minItems": 4,
+            "maxItems": 4,
+            "uniqueItems": true,
+            "items": {
+              "enum": [
+                {
+                  "profile": "availability-ha/v1",
+                  "applicability": "NOT_APPLICABLE",
+                  "result": "NOT_RUN",
+                  "stable_reason": "SINGLE_FAILURE_DOMAIN_HOST"
+                },
+                {
+                  "profile": "model-runtime-central-cuda/v1",
+                  "applicability": "NOT_APPLICABLE",
+                  "result": "NOT_RUN",
+                  "stable_reason": "CPU_PROFILE_FIRST_RELEASE_ONLY"
+                },
+                {
+                  "profile": "target-gnmi-readonly/v1",
+                  "applicability": "NOT_APPLICABLE",
+                  "result": "NOT_RUN",
+                  "stable_reason": "NOT_TRIGGERED_BY_FIRST_RELEASE_BMV2_ASSIGNMENT"
+                },
+                {
+                  "profile": "p4-hardware/v1",
+                  "applicability": "NOT_APPLICABLE",
+                  "result": "NOT_RUN",
+                  "stable_reason": "BMV2_SOFTWARE_ONLY_FIRST_RELEASE"
                 }
               ]
             }

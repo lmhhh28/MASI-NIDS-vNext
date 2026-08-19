@@ -1,0 +1,43 @@
+{
+  "schema_version": "control-golden/v1",
+  "vector_id": "control-model-binding-handshake-0001",
+  "category": "model-binding-handshake",
+  "description": "Committed-binding handshake + per-shard current/previous CAS. Rollout order: durable operation -> pool envelope/deployment action -> Central startup/readback/capacity -> Edge per-shard route-withdraw/drain/WAL -> short PG CAS current/previous -> committed-binding handshake/resume. Loaded/Ready != current; same-generation replica does not change route; rollback is a new operation to exact previous. PITR rotates model-control incarnation before opening writer. Cross-language runners (Go, Rust, C++) must derive the identical CAS verdict and handshake result.",
+  "contract": "contracts/model/v1/schema.json",
+  "language_runners": ["go", "rust", "cpp"],
+  "input": {
+    "model_revision": {
+      "model_revision_digest": "sha256:model-golden-0001",
+      "model_bundle_digest": "sha256:bundle-golden-0001"
+    },
+    "pool": {
+      "logical_pool_id": "pool-cpu-golden",
+      "pool_generation": 2,
+      "startup_envelope_digest": "sha256:envelope-golden-0002"
+    },
+    "shard": {
+      "shard_id": "shard-golden-0001",
+      "expected_binding_generation": 2,
+      "proposed_binding_generation": 2,
+      "current_binding_generation": 1
+    },
+    "handshake": {
+      "model_control_incarnation_id": "incarnation-golden-0001",
+      "operation_id": "op-rollout-golden-0001",
+      "deadline_unix_ms": 1700000010000
+    }
+  },
+  "expected": {
+    "cas_verdict": "committed",
+    "new_current_generation": 2,
+    "previous_generation": 1,
+    "loaded_equals_current": false,
+    "ready_equals_current": false,
+    "same_generation_replica_changes_route": false,
+    "rollback_is_new_operation_to_exact_previous": true,
+    "handshake_failure_keeps_new_current": "resume_pending/unavailable, reconcile along original identity, no silent rollback",
+    "pitr_rotates_incarnation_before_writer": true,
+    "external_wait_outside_transaction": true,
+    "cpu_cuda_change_uses_new_generation": true
+  }
+}

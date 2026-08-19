@@ -1,0 +1,109 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://masi-nids.example/contracts/plugin/v1/schema.json",
+  "title": "Plugin Catalog, Qualification, and Binding V1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "plugin_id",
+    "revision",
+    "manifest_digest",
+    "kind",
+    "publisher",
+    "provenance",
+    "config_digest",
+    "capability_digest",
+    "resource_profile_digest",
+    "binding_generation",
+    "activation_state",
+    "qualification_status",
+    "qualification_digest",
+    "actor_ref",
+    "reason_code",
+    "trace_id",
+    "created_at_unix_ms"
+  ],
+  "properties": {
+    "schema_version": {"const": "masi-plugin/v1"},
+    "plugin_id": {"$ref": "#/$defs/identity"},
+    "revision": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "manifest_digest": {"$ref": "#/$defs/digest"},
+    "kind": {"enum": ["analysis-agent", "read-only-tool", "pure-transform"]},
+    "publisher": {"$ref": "#/$defs/identity"},
+    "provenance": {"$ref": "#/$defs/provenance"},
+    "config_digest": {"$ref": "#/$defs/digest"},
+    "capability_digest": {"$ref": "#/$defs/digest"},
+    "resource_profile_digest": {"$ref": "#/$defs/digest"},
+    "binding_generation": {"type": "integer", "minimum": 1},
+    "activation_state": {
+      "enum": ["active", "drain", "revoked", "stale", "unqualified"]
+    },
+    "qualification_status": {"enum": ["qualified", "unqualified", "hold"]},
+    "qualification_digest": {"$ref": "#/$defs/digest"},
+    "actor_ref": {"$ref": "#/$defs/identity"},
+    "reason_code": {"$ref": "#/$defs/reason_code"},
+    "trace_id": {"$ref": "#/$defs/identity"},
+    "created_at_unix_ms": {"type": "integer", "minimum": 1}
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {"activation_state": {"const": "active"}},
+        "required": ["activation_state"]
+      },
+      "then": {
+        "properties": {
+          "qualification_status": {"const": "qualified"}
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {"activation_state": {"const": "revoked"}},
+        "required": ["activation_state"]
+      },
+      "then": {
+        "properties": {
+          "qualification_status": {
+            "enum": ["unqualified", "hold"]
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "identity": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+    },
+    "digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "reason_code": {"type": "string", "pattern": "^[A-Z][A-Z0-9_]{0,63}$"},
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_id",
+        "source_revision",
+        "retrieved_at_unix_ms",
+        "signature_status"
+      ],
+      "properties": {
+        "source_id": {"$ref": "#/$defs/identity"},
+        "source_revision": {"type": "string", "minLength": 1, "maxLength": 256},
+        "retrieved_at_unix_ms": {"type": "integer", "minimum": 1},
+        "signature_status": {"enum": ["signed", "unsigned", "rejected"]}
+      }
+    }
+  },
+  "x-masi-semantic-constraints": [
+    {"constraint_id": "PLUGIN-KIND-CLOSED", "fields": ["/kind"], "operator": "kind-closed-enum"},
+    {"constraint_id": "PLUGIN-NO-CORE-WRITE", "operator": "plugin-no-core-schema-write"},
+    {"constraint_id": "PLUGIN-NO-DECISION-INTENT", "operator": "plugin-no-effect-source"},
+    {"constraint_id": "PLUGIN-NO-EDGE-P4", "operator": "plugin-no-edge-p4-call"},
+    {"constraint_id": "PLUGIN-REVOCATION-IRREVERSIBLE", "scope": ["/plugin_id", "/revision"], "operator": "revocation-append-only"},
+    {"constraint_id": "PLUGIN-CAPABILITY-NO-EXPANSION", "fields": ["/capability_digest", "/binding_generation"], "operator": "capability-no-runtime-expansion"}
+  ]
+}

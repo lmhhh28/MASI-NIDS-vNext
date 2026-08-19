@@ -1,0 +1,106 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://masi-nids.example/contracts/plugin/wit/v1/schema.json",
+  "title": "WASI 0.2 Component Model WIT World V1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "world_name",
+    "wit_digest",
+    "imports",
+    "exports",
+    "resource_limits",
+    "actor_ref",
+    "reason_code",
+    "trace_id"
+  ],
+  "properties": {
+    "schema_version": {"const": "masi-plugin-wit/v1"},
+    "world_name": {"$ref": "#/$defs/identity"},
+    "wit_digest": {"$ref": "#/$defs/digest"},
+    "imports": {
+      "type": "array",
+      "maxItems": 64,
+      "items": {"$ref": "#/$defs/import"}
+    },
+    "exports": {
+      "type": "array",
+      "maxItems": 64,
+      "items": {"$ref": "#/$defs/export"}
+    },
+    "resource_limits": {"$ref": "#/$defs/resource_limits"},
+    "actor_ref": {"$ref": "#/$defs/identity"},
+    "reason_code": {"$ref": "#/$defs/reason_code"},
+    "trace_id": {"$ref": "#/$defs/identity"}
+  },
+  "$defs": {
+    "identity": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+    },
+    "digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "reason_code": {"type": "string", "pattern": "^[A-Z][A-Z0-9_]{0,63}$"},
+    "import": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["capability_id", "interface_name", "allowed"],
+      "properties": {
+        "capability_id": {"$ref": "#/$defs/identity"},
+        "interface_name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256,
+          "pattern": "^[a-z][a-z0-9-./]*$"
+        },
+        "allowed": {"type": "boolean"}
+      }
+    },
+    "export": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["function_name", "interface_name", "return_kind"],
+      "properties": {
+        "function_name": {"$ref": "#/$defs/identity"},
+        "interface_name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256,
+          "pattern": "^[a-z][a-z0-9-./]*$"
+        },
+        "return_kind": {"enum": ["none", "single", "artifact-ref"]}
+      }
+    },
+    "resource_limits": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "cpu_milli",
+        "memory_bytes",
+        "pid_count",
+        "fd_count",
+        "disk_bytes",
+        "deadline_ms",
+        "output_bytes",
+        "queue_depth"
+      ],
+      "properties": {
+        "cpu_milli": {"type": "integer", "minimum": 0, "maximum": 65536},
+        "memory_bytes": {"type": "integer", "minimum": 0, "maximum": 17179869184},
+        "pid_count": {"type": "integer", "minimum": 0, "maximum": 4096},
+        "fd_count": {"type": "integer", "minimum": 0, "maximum": 65536},
+        "disk_bytes": {"type": "integer", "minimum": 0, "maximum": 1073741824},
+        "deadline_ms": {"type": "integer", "minimum": 1, "maximum": 60000},
+        "output_bytes": {"type": "integer", "minimum": 1, "maximum": 1048576},
+        "queue_depth": {"type": "integer", "minimum": 1, "maximum": 100000}
+      }
+    }
+  },
+  "x-masi-semantic-constraints": [
+    {"constraint_id": "WIT-IMPORTS-ALLOWLIST-ONLY", "fields": ["/imports"], "operator": "imports-allowlist-only"},
+    {"constraint_id": "WIT-EXPORTS-NO-RUNTIME-REGISTER", "fields": ["/exports"], "operator": "exports-no-runtime-registration"},
+    {"constraint_id": "WIT-RESOURCE-BOUNDED", "fields": ["/resource_limits"], "operator": "resource-limits-frozen"}
+  ]
+}

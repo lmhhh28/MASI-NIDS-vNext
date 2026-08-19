@@ -1,0 +1,125 @@
+{
+  "schema_version": "control-golden-catalog/v1",
+  "contract_sources": [
+    "contracts/event/v1/schema.json",
+    "contracts/effect/v1/schema.json",
+    "contracts/fleet-operation/v1/schema.json",
+    "contracts/db/effect-cas/v1/schema.json",
+    "contracts/plugin/v1/schema.json",
+    "contracts/plugin/manifest/v1/schema.json",
+    "contracts/plugin/wit/v1/schema.json",
+    "contracts/plugin/statistics/v1/schema.json",
+    "contracts/analysis/v1/schema.json",
+    "contracts/web/v1/schema.json",
+    "contracts/openapi/v1/openapi.yaml",
+    "contracts/p4/firewall-policy/v1/schema.json",
+    "contracts/p4/rule-observation/v1/schema.json",
+    "contracts/target/v1/schema.json",
+    "contracts/model/v1/schema.json"
+  ],
+  "digest_policy": {
+    "algorithm": "sha256",
+    "preimage": "exact file bytes",
+    "enforcement": "control-go/scripts/validate-public-contracts.py recomputes every vector digest and fails when it differs from this catalog, so a frozen golden cannot be edited without an explicit catalog revision",
+    "on_intentional_change": "record a module finding (CTRL-), update the digest here in the same commit"
+  },
+  "vectors": [
+    {
+      "id": "control-event-identity-0001",
+      "path": "event-identity-v1.json",
+      "category": "valid",
+      "test_id": "TEST-CTRL-GOLDEN-001",
+      "digest": "sha256:5c648720fd156a539224ed270bcb00b3bcd4befc0df664e205bd56378686a4e9",
+      "language_runners": [
+        "go",
+        "rust",
+        "cpp"
+      ]
+    },
+    {
+      "id": "control-effect-proposal-decision-0001",
+      "path": "effect-proposal-decision-v1.json",
+      "category": "governance-r2-maker-checker",
+      "test_id": "TEST-CTRL-GOLDEN-002",
+      "digest": "sha256:44c49ca3fb5eaa4f1adffb5e00caebcd7ece8c3d522b06a50bae03b1f2abe8e4",
+      "language_runners": [
+        "go",
+        "typescript"
+      ]
+    },
+    {
+      "id": "control-firewall-canonicalization-0001",
+      "path": "firewall-canonicalization-v1.json",
+      "category": "canonicalization",
+      "test_id": "TEST-CTRL-GOLDEN-003",
+      "digest": "sha256:d3244fae0a7b1805120d00c405bce469997e84be41b78a4386ac1dd054b9c0a3",
+      "language_runners": [
+        "go",
+        "rust",
+        "typescript",
+        "python",
+        "wasm"
+      ]
+    },
+    {
+      "id": "control-rule-formula-status-0001",
+      "path": "rule-formula-status-v1.json",
+      "category": "rule-observation-formula",
+      "test_id": "TEST-CTRL-GOLDEN-004",
+      "digest": "sha256:1d1b894036acd20fb7f349c8b2809def7b67850be0df17981fa3b6cbb478053a",
+      "language_runners": [
+        "go",
+        "rust",
+        "typescript",
+        "python"
+      ]
+    },
+    {
+      "id": "control-target-fleet-identity-0001",
+      "path": "target-fleet-identity-v1.json",
+      "category": "target-fleet-identity",
+      "test_id": "TEST-CTRL-GOLDEN-005",
+      "digest": "sha256:d8f5b1fe2c319ef7158dda7b5ec8b187826610026ea0dccf4e917a77263212cd",
+      "language_runners": [
+        "go",
+        "rust",
+        "typescript"
+      ]
+    },
+    {
+      "id": "control-model-binding-handshake-0001",
+      "path": "model-binding-handshake-v1.json",
+      "category": "model-binding-handshake",
+      "test_id": "TEST-CTRL-GOLDEN-006",
+      "digest": "sha256:60585d4315669904731ebb1eded54077533c07af23f0f5667104f56d09a48c0e",
+      "language_runners": [
+        "go",
+        "rust",
+        "cpp"
+      ]
+    },
+    {
+      "id": "control-plugin-statistics-definition-0001",
+      "path": "plugin-statistics-definition-v1.json",
+      "category": "plugin-statistics-definition",
+      "test_id": "TEST-CTRL-GOLDEN-007",
+      "digest": "sha256:0a1c64af4af5635a62a1e97cfa003b239c4b7072082ecec587520ff4af14de2a",
+      "language_runners": [
+        "go",
+        "rust",
+        "python",
+        "typescript",
+        "wasm"
+      ]
+    }
+  ],
+  "language_runners": [
+    "go",
+    "rust",
+    "typescript",
+    "python",
+    "wasm",
+    "cpp"
+  ],
+  "result_digest_written_into_evidence_envelope": true
+}

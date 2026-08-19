@@ -1,0 +1,41 @@
+{
+  "schema_version": "control-golden/v1",
+  "vector_id": "control-event-identity-0001",
+  "category": "valid",
+  "description": "InferenceResult -> canonical Event identity. Same event_idempotency_key + same input/output digest yields the same canonical_event_id (idempotent). A second record with the same key but a different output_digest is a stable conflict (no canonical Event). A late/wrong binding_generation is rejected. Cross-language runners (Go, Rust, C++) must derive the identical canonical_event_id and commit_status from the fence dimensions.",
+  "contract": "contracts/event/v1/schema.json",
+  "language_runners": ["go", "rust", "cpp"],
+  "input": {
+    "records": [
+      {
+        "event_idempotency_key": "event-golden-0001",
+        "input_digest": "sha256:43624d38ce5d18c25d5dfe9297c1f229e2a0fc03e6924ebe09bc782e583e973e",
+        "output_digest": "sha256:3fdaaa5605f835ec748c0795734317d2f9c4e22c2f1bc23461ee1b892c5ca0d9",
+        "model_control_incarnation_id": "incarnation-golden-0001",
+        "shard_id": "shard-golden-0001",
+        "route_epoch": 1,
+        "logical_pool_id": "pool-cpu-golden",
+        "pool_generation": 1,
+        "binding_generation": 1,
+        "source_window_identity": {
+          "source_id": "src-golden-0001",
+          "window_id": "window-golden-0001",
+          "window_start_unix_ms": 1700000000000,
+          "window_end_unix_ms": 1700000005000,
+          "finalized_at_unix_ms": 1700000006000,
+          "watermark_unix_ms": 1700000005000,
+          "event_time_unix_ms": 1700000004000
+        },
+        "quality": "valid"
+      }
+    ]
+  },
+  "expected": {
+    "canonical_event_id": "evt-golden-0001",
+    "commit_status": "committed",
+    "idempotency_rule": "same key + same input_digest + same output_digest -> return original canonical_event_id with commit_status=idempotent",
+    "conflict_rule": "same key + different output_digest -> commit_status=conflict, no canonical_event_id, reason_code=DIGEST_CONFLICT",
+    "late_generation_rule": "binding_generation lower than current durable -> commit_status=rejected, reason_code=LATE_GENERATION",
+    "quality_projection_rule": "quality=not-measurable|gap|invalid -> not projected as normal committed event; explicit status namespace"
+  }
+}

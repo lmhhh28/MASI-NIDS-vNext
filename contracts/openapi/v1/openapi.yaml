@@ -1,0 +1,871 @@
+openapi: 3.1.2
+x-masi-openapi-profile: openapi-rest/v1
+x-masi-contract-version: masi-openapi/v1
+info:
+  title: MASI-NIDS Go Control Core REST API
+  version: 1.1.0
+  description: |
+    Same-origin HTTPS REST API for MOD-CTRL-001. Every list is scope-filtered and
+    bounded to 200 records, with an authenticated server cursor. Every business
+    mutation requires the OIDC session and CSRF scheme together, an exact
+    idempotency_key, Origin/Sec-Fetch-Site validation, and server-side scope
+    authorization. A 202 response means a durable operation was accepted or
+    prepared; it never means an external side effect succeeded.
+  license: {name: Apache-2.0, identifier: Apache-2.0}
+servers:
+  - {url: https://control-core.local, description: Same-origin production endpoint}
+security:
+  - oidc: []
+
+paths:
+  /api/session:
+    get:
+      operationId: getSession
+      responses:
+        '200': {description: session bootstrap, content: {application/json: {schema: {$ref: '#/components/schemas/Session'}}}}
+        '401': {$ref: '#/components/responses/Error401'}
+  /api/events:
+    get:
+      operationId: listEvents
+      parameters: [{$ref: '#/components/parameters/Cursor'}, {$ref: '#/components/parameters/PageSize'}]
+      responses:
+        '200': {$ref: '#/components/responses/Projection200'}
+        '400': {$ref: '#/components/responses/Error400'}
+  /api/events/{id}:
+    get:
+      operationId: getEvent
+      parameters:
+        - {$ref: '#/components/parameters/EventID'}
+      responses:
+        '200': {$ref: '#/components/responses/Projection200'}
+        '404': {$ref: '#/components/responses/Error404'}
+  /api/incidents:
+    get:
+      operationId: listIncidents
+      parameters: [{$ref: '#/components/parameters/Cursor'}, {$ref: '#/components/parameters/PageSize'}]
+      responses: {'200': {$ref: '#/components/responses/Projection200'}}
+  /api/evidence:
+    get:
+      operationId: listEvidence
+      parameters: [{$ref: '#/components/parameters/Cursor'}, {$ref: '#/components/parameters/PageSize'}]
+      responses: {'200': {$ref: '#/components/responses/Projection200'}}
+  /api/effects/proposals:
+    get:
+      operationId: listProposals
+      parameters: [{$ref: '#/components/parameters/Cursor'}, {$ref: '#/components/parameters/PageSize'}]
+      responses: {'200': {$ref: '#/components/responses/Projection200'}}
+    post:
+      operationId: createProposal
+      security: [{oidc: [], csrf: []}]
+      requestBody: {$ref: '#/components/requestBodies/CreateProposal'}
+      responses:
+        '201': {description: immutable proposal created, content: {application/json: {schema: {$ref: '#/components/schemas/Proposal'}}}}
+        '400': {$ref: '#/components/responses/Error400'}
+        '403': {$ref: '#/components/responses/Error403'}
+        '409': {$ref: '#/components/responses/Error409'}
+  /api/effects/decisions:
+    get:
+      operationId: listDecisions
+      parameters: [{$ref: '#/components/parameters/Cursor'}, {$ref: '#/components/parameters/PageSize'}]
+      responses: {'200': {$ref: '#/components/responses/Projection200'}}
+    post:
+      operationId: recordDecision
+      security: [{oidc: [], csrf: []}]
+      requestBody: {$ref: '#/components/requestBodies/RecordDecision'}
+      responses:
+        '201': {description: terminal authorization decision recorded, content: {application/json: {schema: {$ref: '#/components/schemas/Decision'}}}}
+        '403': {$ref: '#/components/responses/Error403'}
+        '409': {$ref: '#/components/responses/Error409'}
+  /api/effects/intents:
+    get:
+      operationId: listEffectIntents
+      parameters: [{$ref: '#/components/parameters/Cursor'}, {$ref: '#/components/parameters/PageSize'}]
+      responses: {'200': {$ref: '#/components/responses/Projection200'}}
+  /api/targets:
+    get:
+      operationId: listTargets
+      parameters: [{$ref: '#/components/parameters/Cursor'}, {$ref: '#/components/parameters/PageSize'}]
+      responses: {'200': {$ref: '#/components/responses/Projection200'}}
+    post:
+      operationId: registerTarget
+      security: [{oidc: [], csrf: []}]
+      requestBody: {$ref: '#/components/requestBodies/RegisterTarget'}
+      responses:
+        '201': {description: stable candidate target created, content: {application/json: {schema: {$ref: '#/components/schemas/Target'}}}}
+        '403': {$ref: '#/components/responses/Error403'}
+        '409': {$ref: '#/components/responses/Error409'}
+  /api/targets/{targetID}/activate:
+    post:
+      operationId: activateTarget
+      security: [{oidc: [], csrf: []}]
+      parameters: [{$ref: '#/components/parameters/TargetID'}]
+      requestBody: {$ref: '#/components/requestBodies/AdminLifecycle'}
+      responses: {'200': {$ref: '#/components/responses/Mutation200'}, '409': {$ref: '#/components/responses/Error409'}}
+  /api/targets/{targetID}/retire:
+    post:
+      operationId: retireTarget
+      security: [{oidc: [], csrf: []}]
+      parameters: [{$ref: '#/components/parameters/TargetID'}]
+      requestBody: {$ref: '#/components/requestBodies/AdminLifecycle'}
+      responses: {'200': {$ref: '#/components/responses/Mutation200'}, '409': {$ref: '#/components/responses/Error409'}}
+  /api/fleet/operations:
+    get:
+      operationId: listFleetOperations
+      parameters: [{$ref: '#/components/parameters/Cursor'}, {$ref: '#/components/parameters/PageSize'}]
+      responses: {'200': {$ref: '#/components/responses/Projection200'}}
+  /api/firewall/revisions:
+    get:
+      operationId: listFirewallRevisions
+      parameters: [{$ref: '#/components/parameters/Cursor'}, {$ref: '#/components/parameters/PageSize'}]
+      responses: {'200': {$ref: '#/components/responses/Projection200'}}
+    post:
+      operationId: createFirewallRevision
+      security: [{oidc: [], csrf: []}]
+      requestBody: {$ref: '#/components/requestBodies/CreateFirewallRevision'}
+      responses:
+        '201': {description: immutable normalized revision created, content: {application/json: {schema: {$ref: '#/components/schemas/FirewallRevision'}}}}
+        '403': {$ref: '#/components/responses/Error403'}
+  /api/firewall/activations:
+    post:
+      operationId: prepareFirewallActivation
+      security: [{oidc: [], csrf: []}]
+      requestBody: {$ref: '#/components/requestBodies/PrepareFirewallActivation'}
+      responses:
+        '202': {description: durable effect activation projection prepared; no P4 success implied, content: {application/json: {schema: {$ref: '#/components/schemas/OperationOutcome'}}}}
+        '409': {$ref: '#/components/responses/Error409'}
+  /api/firewall/overlays:
+    post:
+      operationId: createFirewallOverlay
+      security: [{oidc: [], csrf: []}]
+      requestBody: {$ref: '#/components/requestBodies/CreateFirewallOverlay'}
+      responses:
+        '201': {description: overlay fact plus upsert/delete intents atomically created, content: {application/json: {schema: {$ref: '#/components/schemas/MutationResult'}}}}
+        '403': {$ref: '#/components/responses/Error403'}
+        '409': {$ref: '#/components/responses/Error409'}
+  /api/rule-effectiveness:
+    get:
+      operationId: listRuleEffectiveness
+      parameters: [{$ref: '#/components/parameters/Cursor'}, {$ref: '#/components/parameters/PageSize'}]
+      responses: {'200': {$ref: '#/components/responses/Projection200'}}
+  /api/models/revisions:
+    get:
+      operationId: listModelRevisions
+      parameters: [{$ref: '#/components/parameters/Cursor'}, {$ref: '#/components/parameters/PageSize'}]
+      responses: {'200': {$ref: '#/components/responses/Projection200'}}
+    post:
+      operationId: registerModelRevision
+      security: [{oidc: [], csrf: []}]
+      requestBody: {$ref: '#/components/requestBodies/RegisterModelRevision'}
+      responses:
+        '201': {description: immutable model revision registered, content: {application/json: {schema: {$ref: '#/components/schemas/ModelRevision'}}}}
+        '409': {$ref: '#/components/responses/Error409'}
+  /api/models/revisions/{revisionID}/revoke:
+    post:
+      operationId: revokeModelRevision
+      security: [{oidc: [], csrf: []}]
+      parameters: [{$ref: '#/components/parameters/RevisionID'}]
+      requestBody: {$ref: '#/components/requestBodies/AdminLifecycle'}
+      responses: {'200': {$ref: '#/components/responses/Mutation200'}, '409': {$ref: '#/components/responses/Error409'}}
+  /api/models/bindings:
+    get:
+      operationId: listModelBindings
+      parameters: [{$ref: '#/components/parameters/Cursor'}, {$ref: '#/components/parameters/PageSize'}]
+      responses: {'200': {$ref: '#/components/responses/Projection200'}}
+  /api/models/rollout-groups:
+    get:
+      operationId: listModelRolloutGroups
+      parameters: [{$ref: '#/components/parameters/Cursor'}, {$ref: '#/components/parameters/PageSize'}]
+      responses: {'200': {$ref: '#/components/responses/Projection200'}}
+    post:
+      operationId: createModelRolloutGroup
+      security: [{oidc: [], csrf: []}]
+      requestBody: {$ref: '#/components/requestBodies/CreateModelRolloutGroup'}
+      responses:
+        '201': {description: ordered shard vector durably frozen, content: {application/json: {schema: {$ref: '#/components/schemas/RolloutGroup'}}}}
+        '409': {$ref: '#/components/responses/Error409'}
+  /api/models/rollout-groups/{groupID}/advance:
+    post:
+      operationId: advanceModelRolloutGroup
+      security: [{oidc: [], csrf: []}]
+      parameters: [{$ref: '#/components/parameters/GroupID'}]
+      requestBody: {$ref: '#/components/requestBodies/AdvanceRolloutGroup'}
+      responses:
+        '202': {description: ordered rollout advanced; per-shard status remains authoritative, content: {application/json: {schema: {$ref: '#/components/schemas/RolloutGroup'}}}}
+        '409': {$ref: '#/components/responses/Error409'}
+  /api/plugins:
+    get:
+      operationId: listPlugins
+      parameters: [{$ref: '#/components/parameters/Cursor'}, {$ref: '#/components/parameters/PageSize'}]
+      responses: {'200': {$ref: '#/components/responses/Projection200'}}
+    post:
+      operationId: registerPluginManifest
+      security: [{oidc: [], csrf: []}]
+      requestBody: {$ref: '#/components/requestBodies/RegisterPluginManifest'}
+      responses:
+        '201': {description: immutable signed manifest registered, content: {application/json: {schema: {$ref: '#/components/schemas/PluginManifest'}}}}
+        '409': {$ref: '#/components/responses/Error409'}
+  /api/plugins/{pluginID}/qualifications:
+    post:
+      operationId: qualifyPluginManifest
+      security: [{oidc: [], csrf: []}]
+      parameters: [{$ref: '#/components/parameters/PluginID'}]
+      requestBody: {$ref: '#/components/requestBodies/QualifyPlugin'}
+      responses: {'201': {$ref: '#/components/responses/Mutation201'}, '409': {$ref: '#/components/responses/Error409'}}
+  /api/plugins/{pluginID}/bindings:
+    post:
+      operationId: activatePluginBinding
+      security: [{oidc: [], csrf: []}]
+      parameters: [{$ref: '#/components/parameters/PluginID'}]
+      requestBody: {$ref: '#/components/requestBodies/ActivatePluginBinding'}
+      responses: {'201': {$ref: '#/components/responses/Mutation201'}, '409': {$ref: '#/components/responses/Error409'}}
+  /api/plugins/{pluginID}/drain:
+    post:
+      operationId: drainPluginBinding
+      security: [{oidc: [], csrf: []}]
+      parameters: [{$ref: '#/components/parameters/PluginID'}]
+      requestBody: {$ref: '#/components/requestBodies/PluginLifecycle'}
+      responses: {'200': {$ref: '#/components/responses/Mutation200'}}
+  /api/plugins/{pluginID}/revoke:
+    post:
+      operationId: revokePluginBinding
+      security: [{oidc: [], csrf: []}]
+      parameters: [{$ref: '#/components/parameters/PluginID'}]
+      requestBody: {$ref: '#/components/requestBodies/PluginLifecycle'}
+      responses: {'200': {$ref: '#/components/responses/Mutation200'}}
+  /api/plugins/{pluginID}/rollback:
+    post:
+      operationId: rollbackPluginBinding
+      security: [{oidc: [], csrf: []}]
+      parameters: [{$ref: '#/components/parameters/PluginID'}]
+      requestBody: {$ref: '#/components/requestBodies/PluginLifecycle'}
+      responses: {'200': {$ref: '#/components/responses/Mutation200'}}
+  /api/plugins/statistics/definitions:
+    get:
+      operationId: listStatisticsDefinitions
+      parameters: [{$ref: '#/components/parameters/Cursor'}, {$ref: '#/components/parameters/PageSize'}]
+      responses: {'200': {$ref: '#/components/responses/Projection200'}}
+    post:
+      operationId: registerStatisticsDefinition
+      security: [{oidc: [], csrf: []}]
+      requestBody: {$ref: '#/components/requestBodies/RegisterStatisticsDefinition'}
+      responses: {'201': {$ref: '#/components/responses/Mutation201'}, '409': {$ref: '#/components/responses/Error409'}}
+  /api/plugins/statistics/runs:
+    get:
+      operationId: listStatisticsRuns
+      parameters: [{$ref: '#/components/parameters/Cursor'}, {$ref: '#/components/parameters/PageSize'}]
+      responses: {'200': {$ref: '#/components/responses/Projection200'}}
+    post:
+      operationId: requestStatisticsRun
+      security: [{oidc: [], csrf: []}]
+      requestBody: {$ref: '#/components/requestBodies/RequestStatisticsRun'}
+      responses: {'201': {$ref: '#/components/responses/Mutation201'}, '409': {$ref: '#/components/responses/Error409'}}
+  /api/plugins/statistics/current:
+    get:
+      operationId: listStatisticsCurrent
+      parameters: [{$ref: '#/components/parameters/Cursor'}, {$ref: '#/components/parameters/PageSize'}]
+      responses: {'200': {$ref: '#/components/responses/Projection200'}}
+  /api/plugins/statistics/schedules:
+    get:
+      operationId: listStatisticsSchedules
+      parameters: [{$ref: '#/components/parameters/Cursor'}, {$ref: '#/components/parameters/PageSize'}]
+      responses: {'200': {$ref: '#/components/responses/Projection200'}}
+    post:
+      operationId: createStatisticsScheduleRevision
+      security: [{oidc: [], csrf: []}]
+      requestBody: {$ref: '#/components/requestBodies/CreateStatisticsSchedule'}
+      responses: {'201': {$ref: '#/components/responses/Mutation201'}, '409': {$ref: '#/components/responses/Error409'}}
+  /api/plugins/statistics/artifacts/{artifactID}:
+    get:
+      operationId: getStatisticsArtifact
+      parameters: [{$ref: '#/components/parameters/ArtifactID'}]
+      responses:
+        '200': {description: exact validated artifact, content: {application/json: {schema: {$ref: '../../plugin/statistics/v1/schema.json#/$defs/artifact_record'}}}}
+        '404': {$ref: '#/components/responses/Error404'}
+  /events:
+    get:
+      operationId: streamSseEvents
+      responses:
+        '200': {description: scope-filtered invalidation stream with 15s heartbeat and <=64KiB events, content: {text/event-stream: {schema: {type: string}}}}
+  /healthz:
+    get: {operationId: healthz, security: [], responses: {'200': {$ref: '#/components/responses/Health200'}}}
+  /readyz:
+    get: {operationId: readyz, security: [], responses: {'200': {$ref: '#/components/responses/Health200'}, '503': {$ref: '#/components/responses/Error503'}}}
+  /livez:
+    get: {operationId: livez, security: [], responses: {'200': {$ref: '#/components/responses/Health200'}, '503': {$ref: '#/components/responses/Error503'}}}
+  /oidc/login:
+    get: {operationId: oidcLogin, security: [], responses: {'303': {description: redirect to exact configured issuer}}}
+  /oidc/callback:
+    get:
+      operationId: oidcCallback
+      security: []
+      parameters:
+        - {name: code, in: query, required: true, schema: {type: string, minLength: 1, maxLength: 4096}}
+        - {name: state, in: query, required: true, schema: {type: string, minLength: 32, maxLength: 512}}
+      responses: {'302': {description: server-side session created and HttpOnly cookie set}, '401': {$ref: '#/components/responses/Error401'}}
+  /oidc/logout:
+    post:
+      operationId: oidcLogout
+      security: [{oidc: [], csrf: []}]
+      responses: {'200': {$ref: '#/components/responses/Mutation200'}}
+
+components:
+  securitySchemes:
+    oidc:
+      type: oauth2
+      flows:
+        authorizationCode:
+          authorizationUrl: https://idp.local/authorize
+          tokenUrl: https://idp.local/token
+          scopes:
+            openid: OpenID Connect identity
+            masi:operator: scoped operator
+            masi:platform-admin: scoped platform administrator
+            masi:analyst: scoped analyst
+            masi:auditor: scoped auditor
+            plugin.statistics.run: on-demand statistics execution
+    csrf: {type: apiKey, in: header, name: X-CSRF-Token}
+  parameters:
+    Cursor: {name: cursor, in: query, required: false, schema: {type: string, maxLength: 512, pattern: '^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$'}}
+    PageSize: {name: page_size, in: query, required: false, schema: {type: integer, minimum: 1, maximum: 200, default: 50}}
+    EventID: {name: id, in: path, required: true, schema: {$ref: '#/components/schemas/Identity'}}
+    TargetID: {name: targetID, in: path, required: true, schema: {$ref: '#/components/schemas/Identity'}}
+    RevisionID: {name: revisionID, in: path, required: true, schema: {$ref: '#/components/schemas/Identity'}}
+    GroupID: {name: groupID, in: path, required: true, schema: {$ref: '#/components/schemas/Identity'}}
+    PluginID: {name: pluginID, in: path, required: true, schema: {$ref: '#/components/schemas/Identity'}}
+    ArtifactID: {name: artifactID, in: path, required: true, schema: {$ref: '#/components/schemas/Identity'}}
+  requestBodies:
+    CreateProposal:
+      required: true
+      content: {application/json: {schema: {$ref: '#/components/schemas/CreateProposalRequest'}}}
+    RecordDecision:
+      required: true
+      content: {application/json: {schema: {$ref: '#/components/schemas/RecordDecisionRequest'}}}
+    RegisterTarget:
+      required: true
+      content: {application/json: {schema: {$ref: '#/components/schemas/RegisterTargetRequest'}}}
+    AdminLifecycle:
+      required: true
+      content: {application/json: {schema: {$ref: '#/components/schemas/AdminLifecycleRequest'}}}
+    CreateFirewallRevision:
+      required: true
+      content: {application/json: {schema: {$ref: '#/components/schemas/CreateFirewallRevisionRequest'}}}
+    PrepareFirewallActivation:
+      required: true
+      content: {application/json: {schema: {$ref: '#/components/schemas/PrepareFirewallActivationRequest'}}}
+    CreateFirewallOverlay:
+      required: true
+      content: {application/json: {schema: {$ref: '#/components/schemas/CreateFirewallOverlayRequest'}}}
+    RegisterModelRevision:
+      required: true
+      content: {application/json: {schema: {$ref: '#/components/schemas/RegisterModelRevisionRequest'}}}
+    CreateModelRolloutGroup:
+      required: true
+      content: {application/json: {schema: {$ref: '#/components/schemas/CreateModelRolloutGroupRequest'}}}
+    AdvanceRolloutGroup:
+      required: true
+      content: {application/json: {schema: {$ref: '#/components/schemas/AdvanceRolloutGroupRequest'}}}
+    RegisterPluginManifest:
+      required: true
+      content: {application/json: {schema: {$ref: '#/components/schemas/RegisterPluginManifestRequest'}}}
+    QualifyPlugin:
+      required: true
+      content: {application/json: {schema: {$ref: '#/components/schemas/QualifyPluginRequest'}}}
+    ActivatePluginBinding:
+      required: true
+      content: {application/json: {schema: {$ref: '#/components/schemas/ActivatePluginBindingRequest'}}}
+    PluginLifecycle:
+      required: true
+      content: {application/json: {schema: {$ref: '#/components/schemas/PluginLifecycleRequest'}}}
+    RegisterStatisticsDefinition:
+      required: true
+      content: {application/json: {schema: {$ref: '#/components/schemas/RegisterStatisticsDefinitionRequest'}}}
+    RequestStatisticsRun:
+      required: true
+      content: {application/json: {schema: {$ref: '#/components/schemas/RequestStatisticsRunRequest'}}}
+    CreateStatisticsSchedule:
+      required: true
+      content: {application/json: {schema: {$ref: '#/components/schemas/CreateStatisticsScheduleRequest'}}}
+  responses:
+    Projection200: {description: bounded scope-filtered projection, content: {application/json: {schema: {$ref: '#/components/schemas/Projection'}}}}
+    Mutation200: {description: mutation converged, content: {application/json: {schema: {$ref: '#/components/schemas/MutationResult'}}}}
+    Mutation201: {description: immutable/durable resource created, content: {application/json: {schema: {$ref: '#/components/schemas/MutationResult'}}}}
+    Health200: {description: process health state, content: {application/json: {schema: {$ref: '#/components/schemas/Health'}}}}
+    Error400: {description: malformed request, content: {application/json: {schema: {$ref: '#/components/schemas/Error'}}}}
+    Error401: {description: unauthenticated, content: {application/json: {schema: {$ref: '#/components/schemas/Error'}}}}
+    Error403: {description: authorization denied, content: {application/json: {schema: {$ref: '#/components/schemas/Error'}}}}
+    Error404: {description: resource not found in authorized scope, content: {application/json: {schema: {$ref: '#/components/schemas/Error'}}}}
+    Error409: {description: CAS, idempotency, immutable identity, or stale fence conflict, content: {application/json: {schema: {$ref: '#/components/schemas/Error'}}}}
+    Error503: {description: dependency unavailable or process not accepting mutations, content: {application/json: {schema: {$ref: '#/components/schemas/Error'}}}}
+  schemas:
+    Identity: {type: string, minLength: 1, maxLength: 128, pattern: '^[A-Za-z0-9][A-Za-z0-9._:-]*$'}
+    Digest: {type: string, pattern: '^sha256:[0-9a-f]{64}$'}
+    ReasonCode: {type: string, pattern: '^[A-Z][A-Z0-9_]{0,63}$'}
+    IdempotencyKey: {type: string, minLength: 1, maxLength: 128, pattern: '^[A-Za-z0-9][A-Za-z0-9._:-]*$'}
+    Error:
+      type: object
+      additionalProperties: false
+      required: [error]
+      properties: {error: {$ref: '#/components/schemas/ReasonCode'}}
+    Session:
+      type: object
+      additionalProperties: false
+      required: [schema_version, actor_ref, csrf_token, expires_at, step_up]
+      properties:
+        schema_version: {const: masi-web-projection/v1}
+        actor_ref: {$ref: '#/components/schemas/Identity'}
+        csrf_token: {type: string, minLength: 32, maxLength: 256}
+        expires_at: {type: integer, minimum: 1}
+        step_up: {enum: [none, webauthn-fido2, passkey, hardware-key]}
+    Projection:
+      type: object
+      additionalProperties: false
+      required: [schema_version, projection_type, resource_kind, cursor, page_size, total_count, items, generation, session_scope, authorized_scope, sse_event, actor_ref, reason_code, trace_id]
+      properties:
+        schema_version: {const: masi-web-projection/v1}
+        projection_type: {enum: [current, desired, observed, stale, hold, unknown, reconciling]}
+        resource_kind: {$ref: '#/components/schemas/Identity'}
+        resource_id: {$ref: '#/components/schemas/Identity'}
+        cursor: {type: string, maxLength: 512}
+        page_size: {type: integer, minimum: 1, maximum: 200}
+        total_count: {type: integer, minimum: 0}
+        items:
+          type: array
+          maxItems: 200
+          items: {type: object, maxProperties: 64}
+        generation: {type: integer, minimum: 1}
+        session_scope: {type: string, minLength: 1, maxLength: 4096}
+        authorized_scope: {type: string, minLength: 1, maxLength: 4096}
+        sse_event: {type: [object, 'null']}
+        actor_ref: {$ref: '#/components/schemas/Identity'}
+        reason_code: {$ref: '#/components/schemas/ReasonCode'}
+        trace_id: {type: string, maxLength: 128}
+    MutationResult:
+      type: object
+      minProperties: 1
+      maxProperties: 16
+      propertyNames: {pattern: '^[a-z][a-z0-9_]{0,63}$'}
+    Health:
+      type: object
+      minProperties: 1
+      maxProperties: 32
+      properties:
+        state: {enum: [starting, ready, draining, stopped, quarantined]}
+        status: {type: string, maxLength: 64}
+        domains: {type: array, maxItems: 32, items: {type: object, maxProperties: 8}}
+    TLSIdentity:
+      type: object
+      additionalProperties: false
+      required: [server_name, identity_ref]
+      properties:
+        server_name: {type: string, minLength: 1, maxLength: 253}
+        identity_ref: {$ref: '#/components/schemas/Identity'}
+    CreateProposalRequest:
+      type: object
+      additionalProperties: false
+      required: [effect_kind, target_ids, scope, policy_digest, risk_level, evidence_refs, note, idempotency_key, trace_id, expires_at_unix_ms]
+      properties:
+        effect_kind: {$ref: '#/components/schemas/Identity'}
+        target_ids: {type: array, minItems: 1, maxItems: 128, uniqueItems: true, items: {$ref: '#/components/schemas/Identity'}}
+        scope: {type: string, minLength: 1, maxLength: 256}
+        policy_digest: {$ref: '#/components/schemas/Digest'}
+        risk_level: {enum: [R1, R2, R3]}
+        evidence_refs: {type: array, maxItems: 128, uniqueItems: true, items: {type: string, minLength: 1, maxLength: 256}}
+        note: {type: string, maxLength: 2048}
+        idempotency_key: {$ref: '#/components/schemas/IdempotencyKey'}
+        trace_id: {$ref: '#/components/schemas/Identity'}
+        expires_at_unix_ms: {type: integer, minimum: 1}
+    RecordDecisionRequest:
+      type: object
+      additionalProperties: false
+      required: [proposal_id, decision, reason_code, idempotency_key]
+      properties:
+        proposal_id: {$ref: '#/components/schemas/Identity'}
+        decision: {enum: [approve, reject]}
+        reason_code: {$ref: '#/components/schemas/ReasonCode'}
+        idempotency_key: {$ref: '#/components/schemas/IdempotencyKey'}
+    RegisterTargetRequest:
+      type: object
+      additionalProperties: false
+      required: [display_name, p4runtime_endpoint, device_id, role, desired_profile_digest, credential_ref, scope, p4runtime_tls, target_set_digest, idempotency_key, trace_id]
+      properties:
+        display_name: {type: string, minLength: 1, maxLength: 256}
+        p4runtime_endpoint: {type: string, pattern: '^https://[^/?#]+:[0-9]{1,5}$'}
+        device_id: {type: integer, minimum: 1}
+        role: {type: string, minLength: 1, maxLength: 64}
+        desired_profile_digest: {$ref: '#/components/schemas/Digest'}
+        credential_ref: {$ref: '#/components/schemas/Identity'}
+        scope: {type: string, minLength: 1, maxLength: 256}
+        p4runtime_tls: {$ref: '#/components/schemas/TLSIdentity'}
+        target_set_digest: {$ref: '#/components/schemas/Digest'}
+        idempotency_key: {$ref: '#/components/schemas/IdempotencyKey'}
+        trace_id: {$ref: '#/components/schemas/Identity'}
+    AdminLifecycleRequest:
+      type: object
+      additionalProperties: false
+      required: [scope, target_set_digest, reason_code, trace_id, idempotency_key]
+      properties:
+        scope: {type: string, minLength: 1, maxLength: 256}
+        target_set_digest: {$ref: '#/components/schemas/Digest'}
+        reason_code: {$ref: '#/components/schemas/ReasonCode'}
+        trace_id: {$ref: '#/components/schemas/Identity'}
+        idempotency_key: {$ref: '#/components/schemas/IdempotencyKey'}
+    FirewallRevision:
+      type: object
+      additionalProperties: false
+      required: [revision_id, revision_digest, target_id, default_action, rules, scope, actor_ref]
+      properties:
+        revision_id: {$ref: '#/components/schemas/Identity'}
+        revision_digest: {$ref: '#/components/schemas/Digest'}
+        target_id: {$ref: '#/components/schemas/Identity'}
+        default_action: {enum: [permit-and-continue, drop]}
+        rules: {type: array, maxItems: 4096, items: {$ref: '../../p4/firewall-policy/v1/schema.json#/$defs/baseline_rule'}}
+        scope: {type: string, minLength: 1, maxLength: 256}
+        actor_ref: {$ref: '#/components/schemas/Identity'}
+    CreateFirewallRevisionRequest:
+      type: object
+      additionalProperties: false
+      required: [revision, target_set_digest, trace_id, idempotency_key]
+      properties:
+        revision: {$ref: '#/components/schemas/FirewallRevisionInput'}
+        target_set_digest: {$ref: '#/components/schemas/Digest'}
+        trace_id: {$ref: '#/components/schemas/Identity'}
+        idempotency_key: {$ref: '#/components/schemas/IdempotencyKey'}
+    PrepareFirewallActivationRequest:
+      type: object
+      additionalProperties: false
+      required: [target_id, revision_id, operation_id, scope, target_set_digest, idempotency_key]
+      properties:
+        target_id: {$ref: '#/components/schemas/Identity'}
+        revision_id: {$ref: '#/components/schemas/Identity'}
+        operation_id: {$ref: '#/components/schemas/Identity'}
+        scope: {type: string, minLength: 1, maxLength: 256}
+        target_set_digest: {$ref: '#/components/schemas/Digest'}
+        idempotency_key: {$ref: '#/components/schemas/IdempotencyKey'}
+    FirewallRevisionInput:
+      type: object
+      additionalProperties: false
+      required: [revision_id, target_id, default_action, rules, scope]
+      properties:
+        revision_id: {$ref: '#/components/schemas/Identity'}
+        revision_digest: {type: string, maxLength: 71}
+        target_id: {$ref: '#/components/schemas/Identity'}
+        default_action: {enum: [permit-and-continue, drop]}
+        rules: {type: array, maxItems: 4096, items: {$ref: '../../p4/firewall-policy/v1/schema.json#/$defs/baseline_rule'}}
+        scope: {type: string, minLength: 1, maxLength: 256}
+        actor_ref: {type: string, maxLength: 128}
+    OverlayIntentInput:
+      type: object
+      additionalProperties: false
+      required: [effect_intent_id, operation_id, proposal_id, decision_id, fence, authorization_digest, effect_kind, risk_level, required_write_atomicity, deadline_unix_ms, trace_id]
+      properties:
+        effect_intent_id: {$ref: '#/components/schemas/Identity'}
+        operation_id: {$ref: '#/components/schemas/Identity'}
+        proposal_id: {$ref: '#/components/schemas/Identity'}
+        decision_id: {$ref: '#/components/schemas/Identity'}
+        target_id: {type: string, maxLength: 128}
+        fleet_operation_id: {type: string, maxLength: 128}
+        is_fleet_parent: {const: false}
+        fence: {$ref: '../../effect/v1/schema.json#/$defs/fence'}
+        effect_digest: {type: string, maxLength: 71}
+        effect_payload: {type: object, maxProperties: 6}
+        authorization_digest: {$ref: '#/components/schemas/Digest'}
+        effect_kind: {const: firewall-overlay}
+        risk_level: {enum: [R1, R2]}
+        required_write_atomicity: {enum: [CONTINUE_ON_ERROR, DATAPLANE_ATOMIC]}
+        deadline_unix_ms: {type: integer, minimum: 1}
+        claim_state: {type: string, maxLength: 32}
+        claim_lease_id: {type: string, maxLength: 128}
+        claim_expires_at_unix_ms: {type: integer, minimum: 0}
+        actor_ref: {type: object, maxProperties: 2}
+        trace_id: {$ref: '#/components/schemas/Identity'}
+    FirewallOverlayInput:
+      type: object
+      additionalProperties: false
+      required: [overlay_rule_id, target_id, rule, expires_at_unix_ms, operation_id, scope, trace_id, upsert_intent, delete_intent]
+      properties:
+        overlay_rule_id: {$ref: '#/components/schemas/Identity'}
+        target_id: {$ref: '#/components/schemas/Identity'}
+        rule: {$ref: '../../p4/firewall-policy/v1/schema.json#/$defs/overlay_rule'}
+        expires_at_unix_ms: {type: integer, minimum: 1}
+        deleted: {type: boolean}
+        delete_intent_id: {type: string, maxLength: 128}
+        operation_id: {$ref: '#/components/schemas/Identity'}
+        scope: {type: string, minLength: 1, maxLength: 256}
+        actor_ref: {type: object, maxProperties: 2}
+        trace_id: {$ref: '#/components/schemas/Identity'}
+        upsert_intent: {$ref: '#/components/schemas/OverlayIntentInput'}
+        delete_intent: {$ref: '#/components/schemas/OverlayIntentInput'}
+    CreateFirewallOverlayRequest:
+      type: object
+      additionalProperties: false
+      required: [overlay, target_set_digest, idempotency_key]
+      properties:
+        overlay: {$ref: '#/components/schemas/FirewallOverlayInput'}
+        target_set_digest: {$ref: '#/components/schemas/Digest'}
+        idempotency_key: {$ref: '#/components/schemas/IdempotencyKey'}
+    ModelRevision:
+      type: object
+      additionalProperties: false
+      required: [model_revision_id, model_revision_digest, model_bundle_digest, feature_contract_digest, label_contract_digest, output_adapter_digest, qualification_status, reader_runtime_profile, scope, actor_ref, trace_id]
+      properties:
+        model_revision_id: {$ref: '#/components/schemas/Identity'}
+        model_revision_digest: {$ref: '#/components/schemas/Digest'}
+        model_bundle_digest: {$ref: '#/components/schemas/Digest'}
+        feature_contract_digest: {$ref: '#/components/schemas/Digest'}
+        label_contract_digest: {$ref: '#/components/schemas/Digest'}
+        output_adapter_digest: {$ref: '#/components/schemas/Digest'}
+        qualification_status: {enum: [qualified, unqualified, hold, revoked]}
+        qualified_at_unix_ms: {type: integer, minimum: 1}
+        reader_runtime_profile: {$ref: '#/components/schemas/Identity'}
+        scope: {type: string, minLength: 1, maxLength: 128}
+        actor_ref: {type: object, additionalProperties: false, properties: {issuer: {type: string}, subject: {type: string}}}
+        trace_id: {$ref: '#/components/schemas/Identity'}
+    RegisterModelRevisionRequest:
+      type: object
+      additionalProperties: false
+      required: [revision, target_set_digest, idempotency_key]
+      properties:
+        revision: {$ref: '#/components/schemas/ModelRevisionInput'}
+        target_set_digest: {$ref: '#/components/schemas/Digest'}
+        idempotency_key: {$ref: '#/components/schemas/IdempotencyKey'}
+    ModelRevisionInput:
+      type: object
+      additionalProperties: false
+      required: [model_revision_id, model_revision_digest, model_bundle_digest, feature_contract_digest, label_contract_digest, output_adapter_digest, qualification_status, reader_runtime_profile, scope, trace_id]
+      properties:
+        model_revision_id: {$ref: '#/components/schemas/Identity'}
+        model_revision_digest: {$ref: '#/components/schemas/Digest'}
+        model_bundle_digest: {$ref: '#/components/schemas/Digest'}
+        feature_contract_digest: {$ref: '#/components/schemas/Digest'}
+        label_contract_digest: {$ref: '#/components/schemas/Digest'}
+        output_adapter_digest: {$ref: '#/components/schemas/Digest'}
+        qualification_status: {enum: [qualified, unqualified, hold, revoked]}
+        qualified_at_unix_ms: {type: integer, minimum: 1}
+        reader_runtime_profile: {$ref: '#/components/schemas/Identity'}
+        scope: {type: string, minLength: 1, maxLength: 128}
+        actor_ref: {type: object, maxProperties: 2}
+        trace_id: {$ref: '#/components/schemas/Identity'}
+    CreateModelRolloutGroupRequest:
+      type: object
+      additionalProperties: false
+      required: [group_id, ordered_shards, logical_pool_id, target_generation, target_revision_id, scope, target_set_digest, reason_code, trace_id, idempotency_key, wire_profile, wire_profile_digest, runtime_profile_digest, optimization_profile_digest, availability_profile, min_ready_replicas, model_control_incarnation_id]
+      properties:
+        group_id: {$ref: '#/components/schemas/Identity'}
+        ordered_shards: {type: array, minItems: 1, maxItems: 256, uniqueItems: true, items: {$ref: '#/components/schemas/Identity'}}
+        logical_pool_id: {$ref: '#/components/schemas/Identity'}
+        target_generation: {type: integer, minimum: 1}
+        target_revision_id: {$ref: '#/components/schemas/Identity'}
+        scope: {type: string, minLength: 1, maxLength: 128}
+        target_set_digest: {$ref: '#/components/schemas/Digest'}
+        reason_code: {$ref: '#/components/schemas/ReasonCode'}
+        trace_id: {$ref: '#/components/schemas/Identity'}
+        idempotency_key: {$ref: '#/components/schemas/IdempotencyKey'}
+        wire_profile: {const: inference-central-grpc-batch/v1}
+        wire_profile_digest: {$ref: '#/components/schemas/Digest'}
+        runtime_profile_digest: {$ref: '#/components/schemas/Digest'}
+        optimization_profile_digest: {$ref: '#/components/schemas/Digest'}
+        availability_profile: {enum: [availability-single/v1, availability-ha/v1]}
+        min_ready_replicas: {type: integer, minimum: 1, maximum: 1024}
+        model_control_incarnation_id: {$ref: '#/components/schemas/Identity'}
+    AdvanceRolloutGroupRequest:
+      type: object
+      additionalProperties: false
+      required: [scope, target_set_digest, idempotency_key]
+      properties:
+        scope: {type: string, minLength: 1, maxLength: 128}
+        target_set_digest: {$ref: '#/components/schemas/Digest'}
+        idempotency_key: {$ref: '#/components/schemas/IdempotencyKey'}
+    RolloutGroup:
+      type: object
+      additionalProperties: false
+      required: [group_id, status, next_index, shards]
+      properties:
+        group_id: {$ref: '#/components/schemas/Identity'}
+        status: {enum: [planned, rolling, rolling_mixed, completed, failed, failed_mixed]}
+        next_index: {type: integer, minimum: 0}
+        shards: {type: array, maxItems: 256, items: {type: object, maxProperties: 8}}
+    PluginManifest:
+      type: object
+      additionalProperties: false
+      required: [manifest_id, manifest_revision, manifest_digest, plugin_id, kind, publisher, version, capabilities, resource_limits, runtime_profile, sbom_digest, provenance_digest, signature_status, scope]
+      properties:
+        manifest_id: {$ref: '#/components/schemas/Identity'}
+        manifest_revision: {type: integer, minimum: 1}
+        manifest_digest: {$ref: '#/components/schemas/Digest'}
+        plugin_id: {$ref: '#/components/schemas/Identity'}
+        kind: {enum: [analysis-agent, read-only-tool, pure-transform]}
+        publisher: {$ref: '#/components/schemas/Identity'}
+        version: {type: string, minLength: 1, maxLength: 128}
+        capabilities: {type: array, maxItems: 128, items: {type: object, additionalProperties: false, required: [capability_id, capability_kind, declared], properties: {capability_id: {$ref: '#/components/schemas/Identity'}, capability_kind: {$ref: '#/components/schemas/Identity'}, declared: {const: true}}}}
+        resource_limits: {type: object, maxProperties: 8}
+        runtime_profile: {enum: [wasm-component/v1, grpc-service/v1]}
+        wit_digest: {$ref: '#/components/schemas/Digest'}
+        service_proto_digest: {$ref: '#/components/schemas/Digest'}
+        sbom_digest: {$ref: '#/components/schemas/Digest'}
+        provenance_digest: {$ref: '#/components/schemas/Digest'}
+        signature_status: {const: signed}
+        scope: {type: string, minLength: 1, maxLength: 256}
+    RegisterPluginManifestRequest:
+      type: object
+      additionalProperties: false
+      required: [manifest, target_set_digest, trace_id, idempotency_key]
+      properties:
+        manifest: {$ref: '#/components/schemas/PluginManifestInput'}
+        target_set_digest: {$ref: '#/components/schemas/Digest'}
+        trace_id: {$ref: '#/components/schemas/Identity'}
+        idempotency_key: {$ref: '#/components/schemas/IdempotencyKey'}
+    PluginManifestInput:
+      type: object
+      additionalProperties: false
+      required: [manifest_id, manifest_revision, plugin_id, kind, publisher, version, capabilities, resource_limits, runtime_profile, sbom_digest, provenance_digest, signature_status, scope]
+      properties:
+        manifest_id: {$ref: '#/components/schemas/Identity'}
+        manifest_revision: {type: integer, minimum: 1}
+        manifest_digest: {type: string, maxLength: 71}
+        plugin_id: {$ref: '#/components/schemas/Identity'}
+        kind: {enum: [analysis-agent, read-only-tool, pure-transform]}
+        publisher: {$ref: '#/components/schemas/Identity'}
+        version: {type: string, minLength: 1, maxLength: 128}
+        capabilities: {type: array, maxItems: 128, items: {type: object, additionalProperties: false, required: [capability_id, capability_kind, declared], properties: {capability_id: {$ref: '#/components/schemas/Identity'}, capability_kind: {$ref: '#/components/schemas/Identity'}, declared: {const: true}}}}
+        resource_limits:
+          type: object
+          additionalProperties: false
+          required: [cpu_milli, memory_bytes, pid_count, fd_count, disk_bytes, deadline_ms, output_bytes, queue_depth]
+          properties:
+            cpu_milli: {type: integer, minimum: 1}
+            memory_bytes: {type: integer, minimum: 1}
+            pid_count: {type: integer, minimum: 1}
+            fd_count: {type: integer, minimum: 1}
+            disk_bytes: {type: integer, minimum: 0}
+            deadline_ms: {type: integer, minimum: 1, maximum: 600000}
+            output_bytes: {type: integer, minimum: 1, maximum: 4194304}
+            queue_depth: {type: integer, minimum: 1, maximum: 1024}
+        runtime_profile: {enum: [wasm-component/v1, grpc-service/v1]}
+        wit_digest: {type: string, maxLength: 71}
+        service_proto_digest: {type: string, maxLength: 71}
+        sbom_digest: {$ref: '#/components/schemas/Digest'}
+        provenance_digest: {$ref: '#/components/schemas/Digest'}
+        signature_status: {const: signed}
+        scope: {type: string, minLength: 1, maxLength: 256}
+    QualifyPluginRequest:
+      type: object
+      additionalProperties: false
+      required: [manifest_id, manifest_revision, qualification_status, scope, target_set_digest, trace_id, idempotency_key]
+      properties:
+        manifest_id: {$ref: '#/components/schemas/Identity'}
+        manifest_revision: {type: integer, minimum: 1}
+        qualification_status: {enum: [qualified, unqualified, hold]}
+        scope: {type: string, minLength: 1, maxLength: 256}
+        target_set_digest: {$ref: '#/components/schemas/Digest'}
+        trace_id: {$ref: '#/components/schemas/Identity'}
+        idempotency_key: {$ref: '#/components/schemas/IdempotencyKey'}
+    ActivatePluginBindingRequest:
+      type: object
+      additionalProperties: false
+      required: [binding, target_set_digest, trace_id, idempotency_key]
+      properties:
+        binding: {$ref: '#/components/schemas/PluginBindingInput'}
+        target_set_digest: {$ref: '#/components/schemas/Digest'}
+        trace_id: {$ref: '#/components/schemas/Identity'}
+        idempotency_key: {$ref: '#/components/schemas/IdempotencyKey'}
+    PluginBindingInput:
+      type: object
+      additionalProperties: false
+      required: [plugin_id, binding_generation, manifest_id, manifest_revision, manifest_digest, config_digest, capability_digest, resource_profile_digest, activation_state, qualification_status, scope]
+      properties:
+        plugin_id: {$ref: '#/components/schemas/Identity'}
+        binding_generation: {type: integer, minimum: 1}
+        manifest_id: {$ref: '#/components/schemas/Identity'}
+        manifest_revision: {type: integer, minimum: 1}
+        manifest_digest: {$ref: '#/components/schemas/Digest'}
+        config_digest: {$ref: '#/components/schemas/Digest'}
+        capability_digest: {$ref: '#/components/schemas/Digest'}
+        resource_profile_digest: {$ref: '#/components/schemas/Digest'}
+        activation_state: {enum: [active, drain, revoked, stale, unqualified]}
+        qualification_status: {enum: [qualified, unqualified, hold]}
+        scope: {type: string, minLength: 1, maxLength: 256}
+    PluginLifecycleRequest:
+      type: object
+      additionalProperties: false
+      required: [scope, target_set_digest, trace_id, idempotency_key]
+      properties:
+        scope: {type: string, minLength: 1, maxLength: 256}
+        target_set_digest: {$ref: '#/components/schemas/Digest'}
+        trace_id: {$ref: '#/components/schemas/Identity'}
+        idempotency_key: {$ref: '#/components/schemas/IdempotencyKey'}
+        previous_binding_generation: {type: integer, minimum: 1}
+    RegisterStatisticsDefinitionRequest:
+      type: object
+      additionalProperties: false
+      required: [definition, manifest_id, manifest_revision, scope, data_class, target_set_digest, idempotency_key]
+      properties:
+        definition: {$ref: '#/components/schemas/StatisticsDefinitionInput'}
+        manifest_id: {$ref: '#/components/schemas/Identity'}
+        manifest_revision: {type: integer, minimum: 1}
+        scope: {type: string, minLength: 1, maxLength: 256}
+        data_class: {$ref: '#/components/schemas/Identity'}
+        target_set_digest: {$ref: '#/components/schemas/Digest'}
+        idempotency_key: {$ref: '#/components/schemas/IdempotencyKey'}
+    StatisticsDefinitionInput:
+      type: object
+      additionalProperties: false
+      required: [definition_id, definition_digest, plugin_id, plugin_revision, plugin_kind, binding_generation, host_projection_refs, external_source_capability_refs, metric_kind, temporality, monotonicity, dimension_labels, series_cardinality_limit, deadline_ms, display_hint]
+      properties:
+        definition_id: {$ref: '#/components/schemas/Identity'}
+        definition_digest: {$ref: '#/components/schemas/Digest'}
+        plugin_id: {$ref: '#/components/schemas/Identity'}
+        plugin_revision: {$ref: '#/components/schemas/Identity'}
+        plugin_kind: {enum: [analysis-agent, read-only-tool, pure-transform]}
+        binding_generation: {type: integer, minimum: 1}
+        host_projection_refs: {type: array, minItems: 1, maxItems: 64, uniqueItems: true, items: {$ref: '#/components/schemas/Identity'}}
+        external_source_capability_refs: {type: array, maxItems: 1, uniqueItems: true, items: {$ref: '#/components/schemas/Identity'}}
+        metric_kind: {enum: [gauge, sum, histogram]}
+        temporality: {enum: [delta, cumulative]}
+        monotonicity: {type: boolean}
+        dimension_labels: {type: array, maxItems: 32, uniqueItems: true, items: {type: string, minLength: 1, maxLength: 128}}
+        series_cardinality_limit: {type: integer, minimum: 1, maximum: 10000}
+        deadline_ms: {type: integer, minimum: 1, maximum: 10000}
+        display_hint: {enum: [metric-card, status, timeseries, bar, heatmap, table, text, evidence-list]}
+    RequestStatisticsRunRequest:
+      type: object
+      additionalProperties: false
+      required: [definition_id, definition_digest, idempotency_key, scope, data_class, target_set_digest, window_start_unix_ms, window_end_unix_ms, trace_id]
+      properties:
+        definition_id: {$ref: '#/components/schemas/Identity'}
+        definition_digest: {$ref: '#/components/schemas/Digest'}
+        idempotency_key: {$ref: '#/components/schemas/IdempotencyKey'}
+        scope: {type: string, minLength: 1, maxLength: 256}
+        data_class: {$ref: '#/components/schemas/Identity'}
+        target_set_digest: {$ref: '#/components/schemas/Digest'}
+        window_start_unix_ms: {type: integer, minimum: 1}
+        window_end_unix_ms: {type: integer, minimum: 2}
+        trace_id: {$ref: '#/components/schemas/Identity'}
+    CreateStatisticsScheduleRequest:
+      type: object
+      additionalProperties: false
+      required: [schedule_id, definition_id, definition_digest, interval_seconds, disabled, scope, data_class, target_set_digest, trace_id, idempotency_key]
+      properties:
+        schedule_id: {$ref: '#/components/schemas/Identity'}
+        definition_id: {$ref: '#/components/schemas/Identity'}
+        definition_digest: {$ref: '#/components/schemas/Digest'}
+        interval_seconds: {type: integer, minimum: 60, maximum: 86400}
+        disabled: {type: boolean}
+        scope: {type: string, minLength: 1, maxLength: 256}
+        data_class: {$ref: '#/components/schemas/Identity'}
+        target_set_digest: {$ref: '#/components/schemas/Digest'}
+        trace_id: {$ref: '#/components/schemas/Identity'}
+        idempotency_key: {$ref: '#/components/schemas/IdempotencyKey'}
+    Proposal: {type: object, minProperties: 12, maxProperties: 24}
+    Decision: {type: object, minProperties: 10, maxProperties: 20}
+    Target: {type: object, minProperties: 10, maxProperties: 20}
+    OperationOutcome:
+      type: object
+      additionalProperties: false
+      required: [operation_id, target_id, current_stage, result, reason_code]
+      properties:
+        operation_id: {$ref: '#/components/schemas/Identity'}
+        target_id: {$ref: '#/components/schemas/Identity'}
+        current_stage: {$ref: '#/components/schemas/Identity'}
+        result: {enum: [prepared, applied, reconciling, hold]}
+        readback_digest: {$ref: '#/components/schemas/Digest'}
+        reason_code: {$ref: '#/components/schemas/ReasonCode'}

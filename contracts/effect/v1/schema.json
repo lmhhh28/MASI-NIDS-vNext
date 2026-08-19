@@ -1,0 +1,431 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://masi-nids.example/contracts/effect/v1/schema.json",
+  "title": "Effect Proposal, Authorization Decision, Effect Intent, and Attempt V1",
+  "type": "object",
+  "oneOf": [
+    {"$ref": "#/$defs/proposal_record"},
+    {"$ref": "#/$defs/decision_record"},
+    {"$ref": "#/$defs/intent_record"},
+    {"$ref": "#/$defs/attempt_record"}
+  ],
+  "$defs": {
+    "identity": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+    },
+    "digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "reason_code": {"type": "string", "pattern": "^[A-Z][A-Z0-9_]{0,63}$"},
+    "risk_level": {"enum": ["R0", "R1", "R2", "R3"]},
+    "effect_kind": {
+      "enum": [
+        "firewall-baseline-activate",
+        "firewall-overlay",
+        "firewall-rollback",
+        "target-assignment",
+        "fleet-operation",
+        "model-rollout",
+        "model-rollback",
+        "model-recovery",
+        "plugin-activate",
+        "plugin-drain",
+        "plugin-revoke",
+        "plugin-statistics-run",
+        "rule-observation-epoch"
+      ]
+    },
+    "claim_state": {
+      "enum": ["unclaimed", "claimed", "fenced", "executing", "unknown", "hold", "blocked", "finalized"]
+    },
+    "attempt_status": {"enum": ["applied", "hold", "unknown", "reconciling"]},
+    "scope": {"type": "string", "minLength": 1, "maxLength": 256},
+    "note": {"type": "string", "maxLength": 2048},
+    "authz_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "step_up_type",
+        "step_up_age_ms",
+        "phishing_resistant",
+        "role_mapping_version",
+        "authz_context_level"
+      ],
+      "properties": {
+        "step_up_type": {
+          "enum": ["none", "webauthn-fido2", "passkey", "hardware-key"]
+        },
+        "step_up_age_ms": {"type": "integer", "minimum": 0, "maximum": 900000},
+        "phishing_resistant": {"type": "boolean"},
+        "role_mapping_version": {"$ref": "#/$defs/digest"},
+        "authz_context_level": {
+          "enum": ["operator", "scoped-operator", "platform-admin", "analyst", "auditor"]
+        }
+      }
+    },
+    "fence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "target_control_incarnation_id",
+        "target_assignment_generation",
+        "edge_workload_ref",
+        "actor_runtime_epoch",
+        "application_generation",
+        "election_id_high",
+        "election_id_low",
+        "p4info_digest",
+        "pipeline_digest",
+        "capacity_digest"
+      ],
+      "properties": {
+        "target_control_incarnation_id": {"$ref": "#/$defs/identity"},
+        "target_assignment_generation": {"type": "integer", "minimum": 1},
+        "edge_workload_ref": {"$ref": "#/$defs/identity"},
+        "actor_runtime_epoch": {"$ref": "#/$defs/identity"},
+        "application_generation": {"type": "integer", "minimum": 1},
+        "election_id_high": {"type": "integer", "minimum": 0},
+        "election_id_low": {"type": "integer", "minimum": 1},
+        "p4info_digest": {"$ref": "#/$defs/digest"},
+        "pipeline_digest": {"$ref": "#/$defs/digest"},
+        "capacity_digest": {"$ref": "#/$defs/digest"}
+      }
+    },
+    "proposal_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "record_type",
+        "record_id",
+        "proposal_digest",
+        "actor_ref",
+        "scope",
+        "risk_level",
+        "effect_kind",
+        "target_set_digest",
+        "policy_digest",
+        "evidence_refs",
+        "expires_at_unix_ms",
+        "created_at_unix_ms",
+        "note",
+        "reason_code",
+        "trace_id"
+      ],
+      "properties": {
+        "schema_version": {"const": "masi-effect/v1"},
+        "record_type": {"const": "proposal"},
+        "record_id": {"$ref": "#/$defs/identity"},
+        "proposal_digest": {"$ref": "#/$defs/digest"},
+        "actor_ref": {"$ref": "#/$defs/identity"},
+        "scope": {"$ref": "#/$defs/scope"},
+        "risk_level": {"$ref": "#/$defs/risk_level"},
+        "effect_kind": {"$ref": "#/$defs/effect_kind"},
+        "target_set_digest": {"$ref": "#/$defs/digest"},
+        "policy_digest": {"$ref": "#/$defs/digest"},
+        "evidence_refs": {
+          "type": "array",
+          "maxItems": 128,
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/digest"}
+        },
+        "expires_at_unix_ms": {"type": "integer", "minimum": 1},
+        "created_at_unix_ms": {"type": "integer", "minimum": 1},
+        "note": {"$ref": "#/$defs/note"},
+        "reason_code": {"$ref": "#/$defs/reason_code"},
+        "trace_id": {"$ref": "#/$defs/identity"}
+      }
+    },
+    "decision_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "record_type",
+        "record_id",
+        "proposal_id",
+        "proposal_digest",
+        "actor_ref",
+        "risk_level",
+        "decision",
+        "authz_context",
+        "decision_digest",
+        "expires_at_unix_ms",
+        "created_at_unix_ms",
+        "reason_code",
+        "trace_id"
+      ],
+      "properties": {
+        "schema_version": {"const": "masi-effect/v1"},
+        "record_type": {"const": "decision"},
+        "record_id": {"$ref": "#/$defs/identity"},
+        "proposal_id": {"$ref": "#/$defs/identity"},
+        "proposal_digest": {"$ref": "#/$defs/digest"},
+        "actor_ref": {"$ref": "#/$defs/identity"},
+        "risk_level": {"$ref": "#/$defs/risk_level"},
+        "decision": {"enum": ["approve", "reject"]},
+        "authz_context": {"$ref": "#/$defs/authz_context"},
+        "decision_digest": {"$ref": "#/$defs/digest"},
+        "expires_at_unix_ms": {"type": "integer", "minimum": 1},
+        "created_at_unix_ms": {"type": "integer", "minimum": 1},
+        "reason_code": {"$ref": "#/$defs/reason_code"},
+        "trace_id": {"$ref": "#/$defs/identity"}
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "decision": {"const": "approve"},
+              "risk_level": {"const": "R2"}
+            },
+            "required": ["decision", "risk_level"]
+          },
+          "then": {
+            "properties": {
+              "authz_context": {
+                "properties": {
+                  "step_up_type": {"enum": ["webauthn-fido2", "passkey", "hardware-key"]},
+                  "step_up_age_ms": {"maximum": 300000},
+                  "phishing_resistant": {"const": true}
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "decision": {"const": "approve"},
+              "risk_level": {"const": "R3"}
+            },
+            "required": ["decision", "risk_level"]
+          },
+          "then": {
+            "properties": {
+              "authz_context": {
+                "properties": {
+                  "authz_context_level": {"const": "platform-admin"},
+                  "step_up_type": {"enum": ["webauthn-fido2", "passkey", "hardware-key"]},
+                  "phishing_resistant": {"const": true}
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "decision": {"const": "approve"},
+              "risk_level": {"const": "R1"}
+            },
+            "required": ["decision", "risk_level"]
+          },
+          "then": {
+            "properties": {
+              "authz_context": {
+                "properties": {
+                  "authz_context_level": {"enum": ["operator", "scoped-operator"]}
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "intent_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "record_type",
+        "record_id",
+        "operation_id",
+        "proposal_id",
+        "decision_id",
+        "target_id",
+        "fence",
+        "effect_digest",
+        "effect_payload",
+        "authorization_digest",
+        "effect_kind",
+        "risk_level",
+        "deadline_unix_ms",
+        "claim_state",
+        "actor_ref",
+        "reason_code",
+        "trace_id"
+      ],
+      "properties": {
+        "schema_version": {"const": "masi-effect/v1"},
+        "record_type": {"const": "intent"},
+        "record_id": {"$ref": "#/$defs/identity"},
+        "operation_id": {"$ref": "#/$defs/identity"},
+        "proposal_id": {"$ref": "#/$defs/identity"},
+        "decision_id": {"$ref": "#/$defs/identity"},
+        "target_id": {"$ref": "#/$defs/identity"},
+        "fleet_operation_id": {
+          "oneOf": [
+            {"type": "null"},
+            {"$ref": "#/$defs/identity"}
+          ]
+        },
+        "fence": {"$ref": "#/$defs/fence"},
+        "effect_digest": {"$ref": "#/$defs/digest"},
+        "effect_payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["schema_version", "operation", "policy_revision_digest", "default_action", "baseline_rules", "overlay_rules"],
+          "properties": {
+            "schema_version": {"const": "p4-effect-payload/v1"},
+            "operation": {"enum": ["baseline-activate", "overlay-upsert", "overlay-delete"]},
+            "policy_revision_digest": {"$ref": "#/$defs/digest"},
+            "default_action": {"enum": ["", "permit-and-continue", "drop"]},
+            "baseline_rules": {"type": "array", "maxItems": 4096, "items": {"type": "object"}},
+            "overlay_rules": {"type": "array", "maxItems": 1024, "items": {"type": "object"}}
+          }
+        },
+        "authorization_digest": {"$ref": "#/$defs/digest"},
+        "effect_kind": {"$ref": "#/$defs/effect_kind"},
+        "risk_level": {"$ref": "#/$defs/risk_level"},
+        "required_write_atomicity": {"enum": ["CONTINUE_ON_ERROR", "DATAPLANE_ATOMIC"]},
+        "deadline_unix_ms": {"type": "integer", "minimum": 1},
+        "claim_state": {"$ref": "#/$defs/claim_state"},
+        "claim_lease_id": {
+          "oneOf": [
+            {"type": "null"},
+            {"$ref": "#/$defs/identity"}
+          ]
+        },
+        "claim_expires_at_unix_ms": {
+          "oneOf": [
+            {"type": "null"},
+            {"type": "integer", "minimum": 1}
+          ]
+        },
+        "actor_ref": {"$ref": "#/$defs/identity"},
+        "reason_code": {"$ref": "#/$defs/reason_code"},
+        "trace_id": {"$ref": "#/$defs/identity"}
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {"claim_state": {"enum": ["claimed", "fenced", "executing"]}},
+            "required": ["claim_state"]
+          },
+          "then": {
+            "required": ["claim_lease_id", "claim_expires_at_unix_ms"],
+            "properties": {
+              "claim_lease_id": {"$ref": "#/$defs/identity"},
+              "claim_expires_at_unix_ms": {"type": "integer", "minimum": 1}
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {"claim_state": {"const": "unclaimed"}},
+            "required": ["claim_state"]
+          },
+          "then": {
+            "properties": {
+              "claim_lease_id": {"type": "null"},
+              "claim_expires_at_unix_ms": {"type": "null"}
+            }
+          }
+        }
+      ]
+    },
+    "attempt_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "record_type",
+        "record_id",
+        "intent_id",
+        "operation_id",
+        "attempt_number",
+        "status",
+        "plan_digest",
+        "readback_digest",
+        "expected_entries",
+        "observed_entries",
+        "mismatched_entries",
+        "started_at_unix_ms",
+        "finished_at_unix_ms",
+        "reason_code",
+        "trace_id"
+      ],
+      "properties": {
+        "schema_version": {"const": "masi-effect/v1"},
+        "record_type": {"const": "attempt"},
+        "record_id": {"$ref": "#/$defs/identity"},
+        "intent_id": {"$ref": "#/$defs/identity"},
+        "operation_id": {"$ref": "#/$defs/identity"},
+        "attempt_number": {"type": "integer", "minimum": 1, "maximum": 64},
+        "status": {"$ref": "#/$defs/attempt_status"},
+        "plan_digest": {"$ref": "#/$defs/digest"},
+        "readback_digest": {
+          "oneOf": [
+            {"type": "null"},
+            {"$ref": "#/$defs/digest"}
+          ]
+        },
+        "expected_entries": {"type": "integer", "minimum": 0, "maximum": 4096},
+        "observed_entries": {"type": "integer", "minimum": 0, "maximum": 4096},
+        "mismatched_entries": {"type": "integer", "minimum": 0, "maximum": 4096},
+        "active_bank": {
+          "oneOf": [
+            {"type": "null"},
+            {"type": "integer", "minimum": 0, "maximum": 1}
+          ]
+        },
+        "started_at_unix_ms": {"type": "integer", "minimum": 1},
+        "finished_at_unix_ms": {
+          "oneOf": [
+            {"type": "null"},
+            {"type": "integer", "minimum": 1}
+          ]
+        },
+        "reason_code": {"$ref": "#/$defs/reason_code"},
+        "trace_id": {"$ref": "#/$defs/identity"}
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {"status": {"const": "applied"}},
+            "required": ["status"]
+          },
+          "then": {
+            "properties": {
+              "readback_digest": {"$ref": "#/$defs/digest"},
+              "mismatched_entries": {"const": 0},
+              "finished_at_unix_ms": {"type": "integer", "minimum": 1}
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {"status": {"const": "unknown"}},
+            "required": ["status"]
+          },
+          "then": {
+            "properties": {
+              "finished_at_unix_ms": {"type": "null"}
+            }
+          }
+        }
+      ]
+    }
+  },
+  "x-masi-semantic-constraints": [
+    {"constraint_id": "EFFECT-PROPOSAL-IMMUTABLE", "fields": ["/proposal_digest"], "operator": "immutable-digest-bound"},
+    {"constraint_id": "EFFECT-DECISION-BINDS-PROPOSAL", "scope": ["/proposal_id"], "operator": "decision-binds-proposal-digest", "fields": ["/proposal_digest", "/decision_digest"]},
+    {"constraint_id": "EFFECT-R2-MAKER-CHECKER", "scope": ["/proposal_id"], "operator": "r2-different-actor", "fields": ["/risk_level", "/actor_ref"]},
+    {"constraint_id": "EFFECT-R1-SAME-OPERATOR", "scope": ["/proposal_id"], "operator": "r1-same-operator", "fields": ["/risk_level", "/actor_ref"]},
+    {"constraint_id": "EFFECT-INTENT-CLAIMABLE", "fields": ["/record_type", "/claim_state"], "operator": "only-intent-claimable"},
+    {"constraint_id": "EFFECT-INTENT-REFERENCES-DECISION", "scope": ["/decision_id"], "operator": "intent-references-approved-decision", "fields": ["/proposal_id", "/authorization_digest"]},
+    {"constraint_id": "EFFECT-NO-SECOND-DISPATCHER", "scope": ["/record_type"], "operator": "no-second-queue", "fields": ["/effect_kind"]},
+    {"constraint_id": "EFFECT-ATTEMPT-READBACK-CONSISTENCY", "fields": ["/status", "/readback_digest", "/mismatched_entries", "/observed_entries"], "operator": "applied-implies-exact-readback"}
+  ]
+}

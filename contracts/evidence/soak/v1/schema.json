@@ -233,6 +233,17 @@
       "then": {"properties": {"lease_renewals": {"maxItems": 0}}}
     },
     {
+      "if": {
+        "properties": {
+          "module": {"const": "control-core"},
+          "level": {"const": "MODULE"},
+          "result": {"enum": ["PASS", "HOLD"]}
+        },
+        "required": ["module", "level", "result"]
+      },
+      "then": {"properties": {"lease_renewals": {"maxItems": 0}}}
+    },
+    {
       "if": {"properties": {"level": {"const": "REHEARSAL"}}, "required": ["level"]},
       "then": {"properties": {"qualification": {"const": "NOT_QUALIFIED"}}}
     }
@@ -365,7 +376,8 @@
       "oneOf": [
         {"$ref": "#/$defs/edgeClaimScope"},
         {"$ref": "#/$defs/p4ClaimScope"},
-        {"$ref": "#/$defs/inferenceClaimScope"}
+        {"$ref": "#/$defs/inferenceClaimScope"},
+        {"$ref": "#/$defs/controlClaimScope"}
       ]
     },
     "edgeClaimScope": {
@@ -435,6 +447,48 @@
         "gateway_in_flight": {"type": "integer", "minimum": 1, "maximum": 256},
         "triton_queue_records": {"type": "integer", "minimum": 1, "maximum": 4096},
         "max_batch_size": {"const": 256},
+        "rss_bytes": {"type": "null"},
+        "fd_count": {"type": "null"},
+        "thread_count": {"type": "null"},
+        "process_threshold_status": {"const": "OBSERVED_ONLY_OWNER_NOT_FROZEN_DEC_001"}
+      }
+    },
+    "controlClaimScope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["module", "scope", "rule_counts", "target_counts", "concurrency", "threshold_status", "resource_limits"],
+      "properties": {
+        "module": {"const": "control-core"},
+        "scope": {"const": "independent-module-soak"},
+        "rule_counts": {
+          "type": "array",
+          "prefixItems": [{"const": 0}, {"const": 128}, {"const": 1024}, {"const": 4096}],
+          "items": false
+        },
+        "target_counts": {
+          "type": "array",
+          "prefixItems": [{"const": 0}, {"const": 1}, {"const": 2}, {"const": "N"}],
+          "items": false
+        },
+        "concurrency": {
+          "type": "array",
+          "prefixItems": [{"const": 2}, {"const": 8}, {"const": 32}, {"const": 128}],
+          "items": false
+        },
+        "threshold_status": {"type": "string", "minLength": 1, "maxLength": 128},
+        "resource_limits": {"$ref": "#/$defs/controlResourceLimits"}
+      }
+    },
+    "controlResourceLimits": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["pg_connections", "pool_size", "queue_depth", "transaction_bytes", "wal_bytes", "rss_bytes", "fd_count", "thread_count", "process_threshold_status"],
+      "properties": {
+        "pg_connections": {"type": "integer", "minimum": 1, "maximum": 1024},
+        "pool_size": {"type": "integer", "minimum": 1, "maximum": 256},
+        "queue_depth": {"type": "integer", "minimum": 1, "maximum": 100000},
+        "transaction_bytes": {"type": "integer", "minimum": 1, "maximum": 4194304},
+        "wal_bytes": {"type": "integer", "minimum": 1, "maximum": 2147483648},
         "rss_bytes": {"type": "null"},
         "fd_count": {"type": "null"},
         "thread_count": {"type": "null"},

@@ -1,0 +1,131 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://masi-nids.example/contracts/web/v1/schema.json",
+  "title": "Web Projection and SSE Event Envelope V1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "projection_type",
+    "resource_kind",
+    "resource_id",
+    "cursor",
+    "page_size",
+    "total_count",
+    "items",
+    "generation",
+    "session_scope",
+    "authorized_scope",
+    "sse_event",
+    "actor_ref",
+    "reason_code",
+    "trace_id"
+  ],
+  "properties": {
+    "schema_version": {"const": "masi-web-projection/v1"},
+    "projection_type": {
+      "enum": ["current", "desired", "observed", "stale", "hold", "unknown", "reconciling"]
+    },
+    "resource_kind": {
+      "enum": [
+        "event",
+        "incident",
+        "evidence",
+        "proposal",
+        "decision",
+        "intent",
+        "firewall-revision",
+        "target",
+        "fleet-operation",
+        "rule-effectiveness",
+        "model-revision",
+        "model-binding",
+        "plugin-binding",
+        "plugin-statistics-run",
+        "plugin-statistics-current",
+        "system-health"
+      ]
+    },
+    "resource_id": {"$ref": "#/$defs/identity"},
+    "cursor": {
+      "oneOf": [
+        {"type": "null"},
+        {"type": "string", "maxLength": 512}
+      ]
+    },
+    "page_size": {"type": "integer", "minimum": 1, "maximum": 200},
+    "total_count": {"type": "integer", "minimum": 0, "maximum": 1000000000},
+    "items": {
+      "type": "array",
+      "maxItems": 200,
+      "items": {"type": "object"}
+    },
+    "generation": {"type": "integer", "minimum": 1},
+    "session_scope": {"$ref": "#/$defs/identity"},
+    "authorized_scope": {"$ref": "#/$defs/identity"},
+    "sse_event": {
+      "oneOf": [
+        {"type": "null"},
+        {"$ref": "#/$defs/sse_event"}
+      ]
+    },
+    "actor_ref": {"$ref": "#/$defs/identity"},
+    "reason_code": {"$ref": "#/$defs/reason_code"},
+    "trace_id": {"$ref": "#/$defs/identity"}
+  },
+  "$defs": {
+    "identity": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+    },
+    "reason_code": {"type": "string", "pattern": "^[A-Z][A-Z0-9_]{0,63}$"},
+    "sse_event": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["event_type", "resource_kind", "resource_id", "cursor", "sequence", "generation", "produced_at_unix_ms", "data_time_unix_ms", "payload_digest", "bytes", "emitted_at_unix_ms"],
+      "properties": {
+        "event_type": {"enum": ["invalidate", "heartbeat", "snapshot-refetch-required"]},
+        "resource_kind": {
+          "enum": [
+            "event",
+            "incident",
+            "evidence",
+            "proposal",
+            "decision",
+            "intent",
+            "firewall-revision",
+            "target",
+            "fleet-operation",
+            "rule-effectiveness",
+            "model-revision",
+            "model-binding",
+            "plugin-binding",
+            "plugin-statistics-run",
+            "plugin-statistics-current",
+            "system-health"
+          ]
+        },
+        "resource_id": {"$ref": "#/$defs/identity"},
+        "cursor": {"type": "string", "minLength": 1, "maxLength": 128, "pattern": "^sse:[1-9][0-9]*:[1-9][0-9]*$"},
+        "sequence": {"type": "integer", "minimum": 1},
+        "generation": {"type": "integer", "minimum": 1},
+        "produced_at_unix_ms": {"type": "integer", "minimum": 1},
+        "data_time_unix_ms": {"type": "integer", "minimum": 1},
+        "payload_digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+        "bytes": {"type": "integer", "minimum": 1, "maximum": 65536},
+        "emitted_at_unix_ms": {"type": "integer", "minimum": 1}
+      }
+    }
+  },
+  "x-masi-semantic-constraints": [
+    {"constraint_id": "SSE-INVALIDATION-ONLY", "field": "/sse_event/event_type", "operator": "sse-invalidation-only-no-full-payload"},
+    {"constraint_id": "SSE-EVENT-64KIB-MAX", "field": "/sse_event/bytes", "operator": "sse-bytes-bounded-65536"},
+    {"constraint_id": "SSE-HEARTBEAT-15S", "operator": "sse-heartbeat-15s"},
+    {"constraint_id": "SSE-CURSOR-SEQUENCE-GENERATION", "operator": "sse-cursor-sequence-generation-gap-detection", "fields": ["/sse_event/cursor", "/sse_event/sequence", "/sse_event/generation"]},
+    {"constraint_id": "WEB-NO-CREDENTIAL-IN-CURSOR-PAYLOAD", "operator": "web-no-credential-leak", "fields": ["/cursor", "/items", "/sse_event"]},
+    {"constraint_id": "WEB-ROUTE-VISIBILITY-NOT-AUTHZ", "operator": "web-route-visibility-not-authorization", "fields": ["/authorized_scope", "/session_scope"]},
+    {"constraint_id": "WEB-CURSOR-GAP-REFETCH", "field": "/sse_event/event_type", "operator": "cursor-gap-snapshot-refetch"}
+  ]
+}

@@ -1,0 +1,366 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://masi-nids.example/contracts/plugin/statistics/v1/schema.json",
+  "title": "Plugin Statistics Definition, Input Bundle, Artifact, and Run V1",
+  "type": "object",
+  "oneOf": [
+    {"$ref": "#/$defs/definition_record"},
+    {"$ref": "#/$defs/input_bundle_record"},
+    {"$ref": "#/$defs/artifact_record"},
+    {"$ref": "#/$defs/run_record"}
+  ],
+  "$defs": {
+    "identity": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+    },
+    "digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "reason_code": {"type": "string", "pattern": "^[A-Z][A-Z0-9_]{0,63}$"},
+    "plugin_revision": {"$ref": "#/$defs/identity"},
+    "scope": {"type": "string", "minLength": 1, "maxLength": 256},
+    "metric_kind": {"enum": ["gauge", "sum", "histogram"]},
+    "temporality": {"enum": ["delta", "cumulative"]},
+    "quality": {
+      "enum": ["valid", "partial", "gap", "stale", "no_data", "not_measurable", "invalid"]
+    },
+    "run_status": {
+      "enum": ["pending", "running", "succeeded", "failed", "cancelled", "expired", "fenced"]
+    },
+    "display_hint": {
+      "enum": ["metric-card", "status", "timeseries", "bar", "heatmap", "table", "text", "evidence-list"]
+    },
+    "metric": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["metric_id", "metric_kind", "temporality", "value", "unit"],
+      "properties": {
+        "metric_id": {"$ref": "#/$defs/identity"},
+        "metric_kind": {"$ref": "#/$defs/metric_kind"},
+        "temporality": {"$ref": "#/$defs/temporality"},
+        "value": {"type": "number"},
+        "unit": {"type": "string", "maxLength": 64}
+      }
+    },
+    "series": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["series_id", "labels", "point_count", "points"],
+      "properties": {
+        "series_id": {"$ref": "#/$defs/identity"},
+        "labels": {
+          "type": "object",
+          "maxProperties": 32,
+          "additionalProperties": {"type": "string"}
+        },
+        "point_count": {"type": "integer", "minimum": 0, "maximum": 10000},
+        "points": {
+          "type": "array",
+          "maxItems": 10000,
+          "items": {"$ref": "#/$defs/point"}
+        }
+      }
+    },
+    "table": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["table_id", "columns", "row_count", "rows"],
+      "properties": {
+        "table_id": {"$ref": "#/$defs/identity"},
+        "columns": {
+          "type": "array",
+          "maxItems": 32,
+          "items": {"type": "string"}
+        },
+        "row_count": {"type": "integer", "minimum": 0, "maximum": 2000},
+        "rows": {
+          "type": "array",
+          "maxItems": 2000,
+          "items": {
+            "type": "array",
+            "maxItems": 32,
+            "items": {"type": ["string", "integer", "number", "boolean", "null"]}
+          }
+        }
+      }
+    },
+    "point": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["timestamp_unix_ms", "value"],
+      "properties": {
+        "timestamp_unix_ms": {"type": "integer", "minimum": 1},
+        "value": {"type": "number"}
+      }
+    },
+    "truncation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["truncated_rows", "truncated_series", "reason_code"],
+      "properties": {
+        "truncated_rows": {"type": "integer", "minimum": 0, "maximum": 10000},
+        "truncated_series": {"type": "integer", "minimum": 0, "maximum": 64},
+        "reason_code": {"$ref": "#/$defs/reason_code"}
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["plugin_id", "plugin_revision", "computed_at_unix_ms", "definition_id", "definition_digest", "run_id", "binding_generation"],
+      "properties": {
+        "plugin_id": {"$ref": "#/$defs/identity"},
+        "plugin_revision": {"$ref": "#/$defs/plugin_revision"},
+        "computed_at_unix_ms": {"type": "integer", "minimum": 1},
+        "definition_id": {"$ref": "#/$defs/identity"},
+        "definition_digest": {"$ref": "#/$defs/digest"},
+        "run_id": {"$ref": "#/$defs/identity"},
+        "binding_generation": {"type": "integer", "minimum": 1}
+      }
+    },
+    "definition_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "record_type",
+        "record_id",
+        "definition_digest",
+        "plugin_id",
+        "plugin_revision",
+        "binding_generation",
+        "host_projection_refs",
+        "external_source_capability_refs",
+        "metric_kind",
+        "temporality",
+        "monotonicity",
+        "dimension_labels",
+        "series_cardinality_limit",
+        "deadline_ms",
+        "display_hint",
+        "actor_ref",
+        "reason_code",
+        "trace_id",
+        "created_at_unix_ms"
+      ],
+      "properties": {
+        "schema_version": {"const": "masi-plugin-statistics/v1"},
+        "record_type": {"const": "definition"},
+        "record_id": {"$ref": "#/$defs/identity"},
+        "definition_digest": {"$ref": "#/$defs/digest"},
+        "plugin_id": {"$ref": "#/$defs/identity"},
+        "plugin_revision": {"$ref": "#/$defs/plugin_revision"},
+        "binding_generation": {"type": "integer", "minimum": 1},
+        "host_projection_refs": {
+          "type": "array",
+          "maxItems": 64,
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/identity"}
+        },
+        "external_source_capability_refs": {
+          "type": "array",
+          "maxItems": 1,
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/identity"}
+        },
+        "metric_kind": {"$ref": "#/$defs/metric_kind"},
+        "temporality": {"$ref": "#/$defs/temporality"},
+        "monotonicity": {"type": "boolean"},
+        "dimension_labels": {
+          "type": "array",
+          "maxItems": 32,
+          "items": {"type": "string", "maxLength": 128}
+        },
+        "series_cardinality_limit": {"type": "integer", "minimum": 1, "maximum": 10000},
+        "deadline_ms": {"type": "integer", "minimum": 1, "maximum": 10000},
+        "display_hint": {"$ref": "#/$defs/display_hint"},
+        "actor_ref": {"$ref": "#/$defs/identity"},
+        "reason_code": {"$ref": "#/$defs/reason_code"},
+        "trace_id": {"$ref": "#/$defs/identity"},
+        "created_at_unix_ms": {"type": "integer", "minimum": 1}
+      }
+    },
+    "input_bundle_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "record_type",
+        "record_id",
+        "bundle_digest",
+        "definition_id",
+        "definition_digest",
+        "source_revision",
+        "frozen_input_digest",
+        "scope",
+        "window_start_unix_ms",
+        "window_end_unix_ms",
+        "rows",
+        "bytes_limit",
+        "cardinality_limit",
+        "actor_ref",
+        "reason_code",
+        "trace_id"
+      ],
+      "properties": {
+        "schema_version": {"const": "masi-plugin-statistics/v1"},
+        "record_type": {"const": "input-bundle"},
+        "record_id": {"$ref": "#/$defs/identity"},
+        "bundle_digest": {"$ref": "#/$defs/digest"},
+        "definition_id": {"$ref": "#/$defs/identity"},
+        "definition_digest": {"$ref": "#/$defs/digest"},
+        "source_revision": {"type": "string", "minLength": 1, "maxLength": 256},
+        "frozen_input_digest": {"$ref": "#/$defs/digest"},
+        "scope": {"$ref": "#/$defs/scope"},
+        "window_start_unix_ms": {"type": "integer", "minimum": 1},
+        "window_end_unix_ms": {"type": "integer", "minimum": 1},
+        "rows": {
+          "type": "array",
+          "maxItems": 10000,
+          "items": {
+            "type": "object",
+            "maxProperties": 64,
+            "additionalProperties": {
+              "type": ["string", "integer", "number", "boolean"]
+            }
+          }
+        },
+        "bytes_limit": {"type": "integer", "minimum": 1, "maximum": 2097152},
+        "cardinality_limit": {"type": "integer", "minimum": 1, "maximum": 10000},
+        "actor_ref": {"$ref": "#/$defs/identity"},
+        "reason_code": {"$ref": "#/$defs/reason_code"},
+        "trace_id": {"$ref": "#/$defs/identity"}
+      }
+    },
+    "artifact_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "record_type",
+        "record_id",
+        "artifact_digest",
+        "run_id",
+        "definition_id",
+        "definition_digest",
+        "status",
+        "quality",
+        "metrics",
+        "series",
+        "tables",
+        "truncation",
+        "provenance",
+        "bytes",
+        "actor_ref",
+        "reason_code",
+        "trace_id"
+      ],
+      "properties": {
+        "schema_version": {"const": "masi-plugin-statistics/v1"},
+        "record_type": {"const": "artifact"},
+        "record_id": {"$ref": "#/$defs/identity"},
+        "artifact_digest": {"$ref": "#/$defs/digest"},
+        "run_id": {"$ref": "#/$defs/identity"},
+        "definition_id": {"$ref": "#/$defs/identity"},
+        "definition_digest": {"$ref": "#/$defs/digest"},
+        "status": {"$ref": "#/$defs/run_status"},
+        "quality": {"$ref": "#/$defs/quality"},
+        "metrics": {
+          "type": "array",
+          "maxItems": 32,
+          "items": {"$ref": "#/$defs/metric"}
+        },
+        "series": {
+          "type": "array",
+          "maxItems": 64,
+          "items": {"$ref": "#/$defs/series"}
+        },
+        "tables": {
+          "type": "array",
+          "maxItems": 8,
+          "items": {"$ref": "#/$defs/table"}
+        },
+        "truncation": {"$ref": "#/$defs/truncation"},
+        "provenance": {"$ref": "#/$defs/provenance"},
+        "bytes": {"type": "integer", "minimum": 1, "maximum": 1048576},
+        "actor_ref": {"$ref": "#/$defs/identity"},
+        "reason_code": {"$ref": "#/$defs/reason_code"},
+        "trace_id": {"$ref": "#/$defs/identity"}
+      }
+    },
+    "run_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "record_type",
+        "record_id",
+        "run_digest",
+        "definition_id",
+        "schedule_id",
+        "idempotency_key",
+        "status",
+        "started_at_unix_ms",
+        "finished_at_unix_ms",
+        "artifact_ref",
+        "actor_ref",
+        "reason_code",
+        "trace_id"
+      ],
+      "properties": {
+        "schema_version": {"const": "masi-plugin-statistics/v1"},
+        "record_type": {"const": "run"},
+        "record_id": {"$ref": "#/$defs/identity"},
+        "run_digest": {"$ref": "#/$defs/digest"},
+        "definition_id": {"$ref": "#/$defs/identity"},
+        "schedule_id": {
+          "oneOf": [
+            {"type": "null"},
+            {"$ref": "#/$defs/identity"}
+          ]
+        },
+        "idempotency_key": {"$ref": "#/$defs/identity"},
+        "status": {"$ref": "#/$defs/run_status"},
+        "started_at_unix_ms": {"type": "integer", "minimum": 1},
+        "finished_at_unix_ms": {
+          "oneOf": [
+            {"type": "null"},
+            {"type": "integer", "minimum": 1}
+          ]
+        },
+        "artifact_ref": {
+          "oneOf": [
+            {"type": "null"},
+            {"$ref": "#/$defs/identity"}
+          ]
+        },
+        "actor_ref": {"$ref": "#/$defs/identity"},
+        "reason_code": {"$ref": "#/$defs/reason_code"},
+        "trace_id": {"$ref": "#/$defs/identity"}
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {"status": {"const": "succeeded"}},
+            "required": ["status"]
+          },
+          "then": {
+            "properties": {
+              "artifact_ref": {"$ref": "#/$defs/identity"},
+              "finished_at_unix_ms": {"type": "integer", "minimum": 1}
+            }
+          }
+        }
+      ]
+    }
+  },
+  "x-masi-semantic-constraints": [
+    {"constraint_id": "STATISTICS-RUN-NOT-EFFECT-CLAIMABLE", "operator": "run-not-in-effect-queue", "fields": ["/record_type", "/status"]},
+    {"constraint_id": "STATISTICS-DEFINITION-NO-ENDPOINT-CREDENTIAL", "scope": "definition", "operator": "definition-no-endpoint-credential-sql-promql", "fields": ["/record_type"]},
+    {"constraint_id": "STATISTICS-IDEMPOTENCY-SAME-KEY", "scope": ["/idempotency_key"], "operator": "same-key-same-digest-idempotent", "fields": ["/run_digest", "/status"]},
+    {"constraint_id": "STATISTICS-OLD-GEN-LATE-NO-OVERWRITE", "operator": "old-binding-late-result-audit-only", "fields": ["/binding_generation", "/status"]},
+    {"constraint_id": "STATISTICS-NAN-INF-REJECT", "operator": "nan-inf-reject", "fields": ["/metrics", "/points"]},
+    {"constraint_id": "STATISTICS-DISPLAY-CLOSED-UNION", "field": "/display_hint", "operator": "display-no-url-html-svg-js"},
+    {"constraint_id": "STATISTICS-DEFINITION-DIGEST-BINDS", "fields": ["/definition_id", "/definition_digest"], "operator": "digest-binds-revision"}
+  ]
+}

@@ -1,0 +1,133 @@
+syntax = "proto3";
+
+package masi.control.adapter.v1;
+
+option go_package = "masi-nids/control-go/internal/grpc/adapterv1;adapterv1";
+
+service DeploymentAdapter {
+  rpc StagePool(PoolGenerationRequest) returns (DeploymentActionReply);
+  rpc StartReplicas(PoolGenerationRequest) returns (PoolReadback);
+  rpc WarmupAndCapacity(PoolGenerationRequest) returns (CapacityReadback);
+}
+
+service PluginStatisticsExecutor {
+  rpc ExecuteStatistics(StatisticsExecutionRequest) returns (StatisticsExecutionReply);
+}
+
+message PoolGenerationRequest {
+  string schema_version = 1;
+  string logical_pool_id = 2;
+  uint64 pool_generation = 3;
+  string model_control_incarnation_id = 4;
+  string operation_id = 5;
+  string scope = 6;
+  uint64 binding_generation = 7;
+  string model_revision_id = 8;
+  string startup_envelope_digest = 9;
+  string pool_observation_digest = 10;
+  string binding_digest = 11;
+  uint32 min_ready_replicas = 12;
+  string model_revision_digest = 13;
+  string model_bundle_digest = 14;
+  string feature_contract_digest = 15;
+  string label_contract_digest = 16;
+  string output_adapter_digest = 17;
+  string wire_profile_digest = 18;
+  string runtime_profile_digest = 19;
+  string optimization_profile_digest = 20;
+  string wire_profile = 21;
+  string runtime_profile = 22;
+  string availability_profile = 23;
+}
+
+message DeploymentActionReply {
+  string schema_version = 1;
+  string logical_pool_id = 2;
+  uint64 pool_generation = 3;
+  string operation_id = 4;
+  string action = 5;
+  string action_digest = 6;
+  string status = 7;
+  string reason_code = 8;
+  string trace_id = 9;
+}
+
+message WorkerIdentity {
+  string worker_id = 1;
+  string worker_digest = 2;
+}
+
+message PoolReadback {
+  string schema_version = 1;
+  string logical_pool_id = 2;
+  uint64 pool_generation = 3;
+  uint64 binding_generation = 4;
+  string model_control_incarnation_id = 5;
+  string operation_id = 6;
+  string model_revision_digest = 7;
+  string model_bundle_digest = 8;
+  string feature_contract_digest = 9;
+  string label_contract_digest = 10;
+  string output_adapter_digest = 11;
+  string wire_profile_digest = 12;
+  string runtime_profile_digest = 13;
+  string optimization_profile_digest = 14;
+  string wire_profile = 15;
+  string runtime_profile = 16;
+  string availability_profile = 17;
+  uint32 ready_replicas = 18;
+  string readback_attempt_id = 19;
+  int64 observed_at_unix_ms = 20;
+  string startup_envelope_digest = 21;
+  string pool_observation_digest = 22;
+  string binding_digest = 23;
+  string endpoint = 24;
+  string tls_server_name = 25;
+  string tls_identity_ref = 26;
+  repeated WorkerIdentity eligible_workers = 27;
+  bool loaded = 28;
+  string readback_digest = 29;
+  string reason_code = 30;
+  string trace_id = 31;
+}
+
+message CapacityReadback {
+  string schema_version = 1;
+  string logical_pool_id = 2;
+  uint64 pool_generation = 3;
+  bool qualified = 4;
+  bool min_ready_met = 5;
+  string failure_domain = 6;
+  string reason_code = 7;
+  string capacity_digest = 8;
+  int64 observed_at_unix_ms = 9;
+  string trace_id = 10;
+}
+
+message StatisticsExecutionRequest {
+  string schema_version = 1;
+  string run_id = 2;
+  string lease_id = 3;
+  uint64 claim_generation = 4;
+  string result_fence = 5;
+  uint64 binding_generation = 6;
+  string definition_id = 7;
+  string definition_digest = 8;
+  string scope = 9;
+  int64 expires_at_unix_ms = 10;
+  uint32 deadline_ms = 11;
+  bytes input_bundle_json = 12;
+  string frozen_input_digest = 13;
+  string trace_id = 14;
+}
+
+message StatisticsExecutionReply {
+  string schema_version = 1;
+  string run_id = 2;
+  string result_fence = 3;
+  bytes artifact_json = 4;
+  string artifact_digest = 5;
+  string status = 6;
+  string reason_code = 7;
+  string trace_id = 8;
+}

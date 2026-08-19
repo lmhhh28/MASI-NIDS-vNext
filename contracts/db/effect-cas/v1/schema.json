@@ -1,0 +1,132 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://masi-nids.example/contracts/db/effect-cas/v1/schema.json",
+  "title": "Effect CAS, Claim, Lease, Idempotency, and Incarnation Primitives V1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "operation_kind",
+    "claim_key",
+    "expected_claim_state",
+    "new_claim_state",
+    "cas_digest",
+    "cas_result",
+    "idempotency_key",
+    "idempotency_result",
+    "incarnation_id",
+    "isolation_level",
+    "lock_timeout_ms",
+    "statement_timeout_ms",
+    "claim_lease",
+    "reason_code",
+    "trace_id"
+  ],
+  "properties": {
+    "schema_version": {"const": "masi-effect-cas/v1"},
+    "operation_kind": {
+      "enum": ["claim-intent", "finalize-intent", "idempotency-check", "incarnation-rotate", "fleet-gate-open"]
+    },
+    "claim_key": {"$ref": "#/$defs/identity"},
+    "expected_claim_state": {"$ref": "#/$defs/claim_state"},
+    "new_claim_state": {"$ref": "#/$defs/claim_state"},
+    "cas_digest": {"$ref": "#/$defs/digest"},
+    "cas_result": {
+      "enum": ["claimed", "conflict", "expired", "fenced", "released"]
+    },
+    "idempotency_key": {"$ref": "#/$defs/identity"},
+    "idempotency_result": {"enum": ["original", "conflict"]},
+    "incarnation_id": {"$ref": "#/$defs/identity"},
+    "isolation_level": {"enum": ["serializable", "read-committed"]},
+    "lock_timeout_ms": {"type": "integer", "minimum": 1, "maximum": 60000},
+    "statement_timeout_ms": {"type": "integer", "minimum": 1, "maximum": 60000},
+    "claim_lease": {
+      "oneOf": [
+        {"type": "null"},
+        {"$ref": "#/$defs/claim_lease"}
+      ]
+    },
+    "reason_code": {"$ref": "#/$defs/reason_code"},
+    "trace_id": {"$ref": "#/$defs/identity"}
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {"cas_result": {"const": "claimed"}},
+        "required": ["cas_result"]
+      },
+      "then": {
+        "properties": {
+          "claim_lease": {"$ref": "#/$defs/claim_lease"}
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {"cas_result": {"enum": ["conflict", "expired", "fenced"]}},
+        "required": ["cas_result"]
+      },
+      "then": {
+        "properties": {
+          "claim_lease": {"type": "null"}
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "claim_lease": {
+            "type": "object"
+          }
+        },
+        "required": ["claim_lease"]
+      },
+      "then": {
+        "properties": {
+          "claim_lease": {
+            "properties": {
+              "expires_at_unix_ms": {"type": "integer", "minimum": 1},
+              "issued_at_unix_ms": {"type": "integer", "minimum": 1}
+            }
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "identity": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+    },
+    "digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "reason_code": {"type": "string", "pattern": "^[A-Z][A-Z0-9_]{0,63}$"},
+    "claim_state": {
+      "enum": ["unclaimed", "claimed", "fenced", "executing", "unknown", "finalized"]
+    },
+    "claim_lease": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "owner_identity",
+        "issued_at_unix_ms",
+        "expires_at_unix_ms",
+        "fence"
+      ],
+      "properties": {
+        "owner_identity": {"$ref": "#/$defs/identity"},
+        "issued_at_unix_ms": {"type": "integer", "minimum": 1},
+        "expires_at_unix_ms": {"type": "integer", "minimum": 1},
+        "fence": {"$ref": "#/$defs/identity"}
+      }
+    }
+  },
+  "x-masi-semantic-constraints": [
+    {"constraint_id": "CAS-EXPECTED-MATCH", "fields": ["/cas_digest", "/cas_result"], "operator": "cas-expected-digest-match"},
+    {"constraint_id": "LEASE-MONOTONIC-EXPIRY", "left": "/claim_lease/expires_at_unix_ms", "operator": "gt", "right": "/claim_lease/issued_at_unix_ms"},
+    {"constraint_id": "INCARNATION-NONREUSE", "field": "/incarnation_id", "operator": "incarnation-nonreuse-on-pitr"},
+    {"constraint_id": "IDEMPOTENCY-SAME-KEY-SAME-DIGEST", "scope": ["/idempotency_key"], "operator": "same-key-same-digest-idempotent", "fields": ["/cas_digest", "/idempotency_result"]},
+    {"constraint_id": "FLEET-PARENT-NO-CLAIM-FIELD", "operator": "fleet-parent-has-no-claim"}
+  ]
+}

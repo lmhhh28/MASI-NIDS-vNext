@@ -1,0 +1,151 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://masi-nids.example/contracts/plugin/manifest/v1/schema.json",
+  "title": "Plugin Manifest Revision V1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "manifest_id",
+    "manifest_revision",
+    "manifest_digest",
+    "plugin_id",
+    "kind",
+    "publisher",
+    "version",
+    "capabilities",
+    "resource_limits",
+    "runtime_profile",
+    "wit_digest",
+    "service_proto_digest",
+    "sbom_digest",
+    "provenance_digest",
+    "signature_status",
+    "actor_ref",
+    "reason_code",
+    "trace_id",
+    "created_at_unix_ms"
+  ],
+  "properties": {
+    "schema_version": {"const": "masi-plugin-manifest/v1"},
+    "manifest_id": {"$ref": "#/$defs/identity"},
+    "manifest_revision": {"type": "integer", "minimum": 1},
+    "manifest_digest": {"$ref": "#/$defs/digest"},
+    "plugin_id": {"$ref": "#/$defs/identity"},
+    "kind": {"enum": ["analysis-agent", "read-only-tool", "pure-transform"]},
+    "publisher": {"$ref": "#/$defs/identity"},
+    "version": {"type": "string", "minLength": 1, "maxLength": 128},
+    "capabilities": {
+      "type": "array",
+      "maxItems": 128,
+      "uniqueItems": true,
+      "items": {"$ref": "#/$defs/capability"}
+    },
+    "resource_limits": {"$ref": "#/$defs/resource_limits"},
+    "runtime_profile": {"enum": ["wasm-component/v1", "grpc-service/v1"]},
+    "wit_digest": {
+      "oneOf": [
+        {"type": "null"},
+        {"$ref": "#/$defs/digest"}
+      ]
+    },
+    "service_proto_digest": {
+      "oneOf": [
+        {"type": "null"},
+        {"$ref": "#/$defs/digest"}
+      ]
+    },
+    "sbom_digest": {"$ref": "#/$defs/digest"},
+    "provenance_digest": {"$ref": "#/$defs/digest"},
+    "signature_status": {"enum": ["signed", "unsigned", "rejected"]},
+    "actor_ref": {"$ref": "#/$defs/identity"},
+    "reason_code": {"$ref": "#/$defs/reason_code"},
+    "trace_id": {"$ref": "#/$defs/identity"},
+    "created_at_unix_ms": {"type": "integer", "minimum": 1}
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {"runtime_profile": {"const": "wasm-component/v1"}},
+        "required": ["runtime_profile"]
+      },
+      "then": {
+        "properties": {"wit_digest": {"$ref": "#/$defs/digest"}}
+      }
+    },
+    {
+      "if": {
+        "properties": {"runtime_profile": {"const": "grpc-service/v1"}},
+        "required": ["runtime_profile"]
+      },
+      "then": {
+        "properties": {"service_proto_digest": {"$ref": "#/$defs/digest"}}
+      }
+    },
+    {
+      "if": {
+        "properties": {"kind": {"const": "read-only-tool"}},
+        "required": ["kind"]
+      },
+      "then": {}
+    }
+  ],
+  "$defs": {
+    "identity": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+    },
+    "digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "reason_code": {"type": "string", "pattern": "^[A-Z][A-Z0-9_]{0,63}$"},
+    "capability": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["capability_id", "capability_kind", "declared"],
+      "properties": {
+        "capability_id": {"$ref": "#/$defs/identity"},
+        "capability_kind": {
+          "enum": [
+            "read-source",
+            "host-projection",
+            "read-only-tool",
+            "pure-transform",
+            "external-source-readonly"
+          ]
+        },
+        "declared": {"type": "boolean"}
+      }
+    },
+    "resource_limits": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "cpu_milli",
+        "memory_bytes",
+        "pid_count",
+        "fd_count",
+        "disk_bytes",
+        "deadline_ms",
+        "output_bytes",
+        "queue_depth"
+      ],
+      "properties": {
+        "cpu_milli": {"type": "integer", "minimum": 0, "maximum": 65536},
+        "memory_bytes": {"type": "integer", "minimum": 0, "maximum": 17179869184},
+        "pid_count": {"type": "integer", "minimum": 0, "maximum": 4096},
+        "fd_count": {"type": "integer", "minimum": 0, "maximum": 65536},
+        "disk_bytes": {"type": "integer", "minimum": 0, "maximum": 1073741824},
+        "deadline_ms": {"type": "integer", "minimum": 1, "maximum": 60000},
+        "output_bytes": {"type": "integer", "minimum": 1, "maximum": 1048576},
+        "queue_depth": {"type": "integer", "minimum": 1, "maximum": 100000}
+      }
+    }
+  },
+  "x-masi-semantic-constraints": [
+    {"constraint_id": "MANIFEST-IMMUTABLE-REVISION", "scope": ["/manifest_id"], "operator": "append-only-revision", "field": "/manifest_revision"},
+    {"constraint_id": "MANIFEST-DIGEST-BINDS-REVISION", "fields": ["/manifest_revision", "/manifest_digest"], "operator": "digest-binds-revision"},
+    {"constraint_id": "MANIFEST-CAPABILITY-DECLARED-ONLY", "fields": ["/capabilities"], "operator": "no-undeclared-capability"},
+    {"constraint_id": "MANIFEST-EXTERNAL-SOURCE-READONLY-TOOL-ONLY", "fields": ["/capabilities", "/kind"], "operator": "external-source-requires-readonly-tool"}
+  ]
+}

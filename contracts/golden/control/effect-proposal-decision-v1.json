@@ -1,0 +1,44 @@
+{
+  "schema_version": "control-golden/v1",
+  "vector_id": "control-effect-proposal-decision-0001",
+  "category": "governance-r2-maker-checker",
+  "description": "Effect Proposal -> Authorization Decision -> Effect Intent digest binding. An R2 proposal by actor A must be approved by a different stable actor B with phishing-resistant step-up age <= 300s; the decision binds the exact proposal_digest; only the resulting effect_intent is claimable. A self-approval (same actor) for R2 is rejected. Cross-language runners (Go, TypeScript) must derive the identical decision_digest and claimability verdict.",
+  "contract": "contracts/effect/v1/schema.json",
+  "language_runners": ["go", "typescript"],
+  "input": {
+    "proposal": {
+      "proposal_id": "prop-golden-0001",
+      "actor_ref": "iss-golden:sub-proposer",
+      "risk_level": "R2",
+      "effect_kind": "firewall-baseline-activate",
+      "target_set_digest": "sha256:11" ,
+      "policy_digest": "sha256:22",
+      "scope": "fleet-golden-0001"
+    },
+    "decision": {
+      "proposal_id": "prop-golden-0001",
+      "actor_ref": "iss-golden:sub-checker",
+      "risk_level": "R2",
+      "decision": "approve",
+      "authz_context": {
+        "step_up_type": "webauthn-fido2",
+        "step_up_age_ms": 120000,
+        "phishing_resistant": true,
+        "authz_context_level": "scoped-operator"
+      }
+    }
+  },
+  "expected": {
+    "decision_binds_proposal_digest": true,
+    "r2_maker_checker_ok": true,
+    "r2_proposer_ne_approver": true,
+    "r2_step_up_fresh": true,
+    "intent_claimable": true,
+    "proposal_claimable": false,
+    "decision_claimable": false,
+    "fleet_parent_claimable": false,
+    "self_approval_rejected": true,
+    "stale_step_up_rejected": "step_up_age_ms > 300000 -> HOLD, zero Edge RPC",
+    "wrong_scope_rejected": "decision.scope != proposal.scope -> HOLD, zero Edge RPC"
+  }
+}
