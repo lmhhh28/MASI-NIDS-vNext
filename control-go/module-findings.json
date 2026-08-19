@@ -1,0 +1,79 @@
+{
+  "schema_version": "module-findings/v1",
+  "module_id": "MOD-CTRL-001",
+  "decision_id": "DEC-044",
+  "reviewed_at": "2026-08-19T00:00:00Z",
+  "review_scope": "MOD-CTRL-001 control-core real PostgreSQL 18 startup, gRPC ControlSink commit-before-ACK boundary, governance/firewall/model/plugin/target sub-domain integration, staticcheck cleanup and module-gate qualification evidence",
+  "findings": [
+    {
+      "finding_id": "CTRL-E2E-0001",
+      "severity": "P1",
+      "status": "CLOSED",
+      "title": "migration_reader compared the schema_version column as TEXT against an integer digest pin",
+      "requirement_ids": ["MOD-CTRL-001", "DB-GOV-001"],
+      "evidence_refs": [
+        "control-go/internal/db/migration_reader.go",
+        "control-go/cmd/control-core/main.go"
+      ],
+      "opened_at": "2026-08-19T00:00:00Z",
+      "closed_at": "2026-08-19T00:00:00Z",
+      "resolution": "The schema_version readback is compared as the stored integer migration version against the pinned digest, and startup fails closed on an unknown or mismatched schema. Verified by the real-process PostgreSQL startup and ControlSink.CommitResults E2E."
+    },
+    {
+      "finding_id": "CTRL-E2E-0002",
+      "severity": "P1",
+      "status": "CLOSED",
+      "title": "Migrations 0002/0005 embedded a subquery inside a CHECK constraint, rejected by PostgreSQL 18",
+      "requirement_ids": ["MOD-CTRL-001", "DB-FW-001", "DB-GOV-001"],
+      "evidence_refs": [
+        "control-go/internal/db/migration_reader.go",
+        "control-go/cmd/migrate-test/main.go"
+      ],
+      "opened_at": "2026-08-19T00:00:00Z",
+      "closed_at": "2026-08-19T00:00:00Z",
+      "resolution": "The CHECK constraints were rewritten to not contain subqueries; the full 0001-0024 migration chain applies cleanly against a real PostgreSQL 18 instance and migrate-test reports the pinned schema version."
+    },
+    {
+      "finding_id": "CTRL-E2E-0003",
+      "severity": "P1",
+      "status": "CLOSED",
+      "title": "ControlSink mapped the wrong SourceWindow field for EventTimeUnixMS, misbinding inference result windows",
+      "requirement_ids": ["MOD-CTRL-001", "FUNC-GOV-001"],
+      "evidence_refs": [
+        "control-go/internal/grpc/controlsink.go"
+      ],
+      "opened_at": "2026-08-19T00:00:00Z",
+      "closed_at": "2026-08-19T00:00:00Z",
+      "resolution": "The result-record window fields are bound from the frozen inference wire contract; CommitResults commits the event before ACK and the real-process E2E verifies committed/idempotent/conflict ACKs against PostgreSQL."
+    },
+    {
+      "finding_id": "CTRL-E2E-0004",
+      "severity": "P1",
+      "status": "CLOSED",
+      "title": "A nil currentBindingGeneration dereferenced during route-fence validation crashed the sink",
+      "requirement_ids": ["MOD-CTRL-001", "FUNC-INF-MODEL-001", "DB-MODEL-001"],
+      "evidence_refs": [
+        "control-go/internal/grpc/controlsink.go",
+        "control-go/internal/model/revision.go"
+      ],
+      "opened_at": "2026-08-19T00:00:00Z",
+      "closed_at": "2026-08-19T00:00:00Z",
+      "resolution": "Route-fence validation treats a missing current binding generation as a fail-closed rejection rather than a nil dereference; the model rollout postgres E2E exercises stage/start/capacity/prepare/commit/resume and recovery without crashing."
+    },
+    {
+      "finding_id": "CTRL-STATIC-0001",
+      "severity": "P3",
+      "status": "CLOSED",
+      "title": "staticcheck flagged deprecated gRPC dial options, a regexp compiled in a loop and dead target-routing code",
+      "requirement_ids": ["MOD-CTRL-001", "TEST-GATE-001"],
+      "evidence_refs": [
+        "control-go/cmd/control-core/outbound_clients.go",
+        "control-go/internal/config/config.go",
+        "control-go/internal/grpc/routed_edge_adapter.go"
+      ],
+      "opened_at": "2026-08-19T00:00:00Z",
+      "closed_at": "2026-08-19T00:00:00Z",
+      "resolution": "outbound_clients migrated grpc.DialContext+WithBlock to grpc.NewClient (the existing health check gates readiness); the workload_ref regexp is precompiled; the unused clientForTarget method was removed. staticcheck ./... is clean."
+    }
+  ]
+}
