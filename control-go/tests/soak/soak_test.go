@@ -194,18 +194,6 @@ func TestFormalSoak(t *testing.T) {
 		s.fdCount = fds
 		s.threadCount = threads
 		s.queueDepth = atomic.LoadInt64(&inFlight)
-		// Oracle: a committed event is written to PostgreSQL before its ACK is returned,
-		// so the DB count can never be below the number of committed ACKs observed. A DB
-		// count below the committed-ACK count would mean a phantom ACK (a real bug).
-		octx, ocancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer ocancel()
-		var dbCount int64
-		if err := oracleConn.QueryRow(octx, `SELECT count(*) FROM events WHERE event_idempotency_key LIKE 'soak-%'`).Scan(&dbCount); err != nil {
-			s.oracleErrors = 1
-		} else if dbCount < atomic.LoadInt64(&committedCount) {
-			s.oracleErrors = 1
-			atomic.AddInt64(&oracleMismatches, 1)
-		}
 		samplesMu.Lock()
 		samples = append(samples, s)
 		samplesMu.Unlock()
@@ -213,8 +201,8 @@ func TestFormalSoak(t *testing.T) {
 
 	// drivePhase paces soakRatePerSec total CommitResults across `concurrency` workers
 	// for `dur`; each request has a unique idempotency key. Returns elapsed + error count.
-	drivePhase := func(ctx context.Context, phaseIdx int, dur time.Duration) (int64, int64) {
-		concurrency := phaseConcurrency[phaseIdx]
+	drivePhase := func(ctx context.Context, concurrencyIdx int, keyTag string, dur time.Duration) (int64, int64) {
+		concurrency := phaseConcurrency[concurrencyIdx]
 		phaseStart := time.Now()
 		perWorkerInterval := time.Duration(concurrency) * time.Second / time.Duration(soakRatePerSec)
 		deadline := phaseStart.Add(dur)
@@ -239,7 +227,7 @@ func TestFormalSoak(t *testing.T) {
 						}
 					}
 					seq++
-					key := fmt.Sprintf("soak-p%d-w%d-%d", phaseIdx, worker, seq)
+					key := fmt.Sprintf("soak-%s-w%d-%d", keyTag, worker, seq)
 					batch := soakBatch(key, worker, seq)
 					atomic.AddInt64(&inFlight, 1)
 					rctx, rcancel := context.WithTimeout(ctx, 30*time.Second)
@@ -314,7 +302,7 @@ func TestFormalSoak(t *testing.T) {
 
 	currentPhase = "warmup"
 	warmupStart := time.Now()
-	drivePhase(runCtx, 0, warmup)
+	drivePhase(runCtx, 0, "warmup", warmup)
 	warmupElapsedMs := time.Since(warmupStart).Milliseconds()
 
 	var recs [4]phaseRec
@@ -322,7 +310,7 @@ func TestFormalSoak(t *testing.T) {
 	for i := 0; i < 4; i++ {
 		currentPhase = phaseNames[i]
 		startOffset := time.Since(runStart).Milliseconds()
-		elapsed, errs := drivePhase(runCtx, i, phaseDur[i])
+		elapsed, errs := drivePhase(runCtx, i, phaseNames[i], phaseDur[i])
 		endOffset := time.Since(runStart).Milliseconds()
 		recs[i] = phaseRec{name: phaseNames[i], startOffset: startOffset, endOffset: endOffset, elapsedMs: elapsed, errs: errs}
 		if errs > 0 {
@@ -333,6 +321,22 @@ func TestFormalSoak(t *testing.T) {
 	monotonicEnd := time.Now()
 	close(sampleStop)
 	samplerWg.Wait()
+
+	// Final outcome oracle: all workers are done and no RPC is in flight, so the
+	// committed-ACK counter is stable and every committed event has had its transaction
+	// committed before its ACK. A durable events-table count below the committed-ACK
+	// count at this point would be a real commit-before-ACK violation (phantom ACK).
+	finalCC := atomic.LoadInt64(&committedCount)
+	oracleCtx, oracleCancel := context.WithTimeout(context.Background(), 30*time.Second)
+	var dbCount int64
+	if err := oracleConn.QueryRow(oracleCtx, `SELECT count(*) FROM events WHERE event_idempotency_key LIKE 'soak-%'`).Scan(&dbCount); err != nil {
+		t.Logf("final oracle query failed: %v", err)
+		atomic.StoreInt64(&oracleMismatches, 1)
+	} else if dbCount < finalCC {
+		t.Logf("final oracle mismatch: events=%d committed=%d", dbCount, finalCC)
+		atomic.StoreInt64(&oracleMismatches, finalCC-dbCount)
+	}
+	oracleCancel()
 
 	// Graceful shutdown is part of the soak: SIGTERM, wait for exit 0 within the drain
 	// window, else SIGKILL (counts as a forced-kill / OOM event).
@@ -467,7 +471,7 @@ func TestFormalSoak(t *testing.T) {
 		"started_at":           runStart.UTC().Format("2006-01-02T15:04:05Z"),
 		"finished_at":          monotonicEnd.UTC().Format("2006-01-02T15:04:05Z"),
 		"monotonic_start_ns":   runStart.UnixNano(),
-		"monotonic_end_ns":     monotonicEnd.UnixNano(),
+		"monotonic_end_ns":     runStart.UnixNano() + monotonicEnd.Sub(runStart).Nanoseconds(),
 		"warmup_elapsed_ms":    warmupElapsedMs,
 		"duration_target_ms":   3600000,
 		"qualified_elapsed_ms": qualifiedElapsedMs,
@@ -558,6 +562,10 @@ func buildSamples(in []sample) []map[string]any {
 // target-e2e, all digests = d).
 func soakBatch(eventKey string, worker int, seq int64) *edgev1.InferenceResultBatch {
 	d := "sha256:" + strings.Repeat("a", 64)
+	// Use the current wall time for the result window/finalization so the event lands
+	// in a current time-partition and stays inside the bounded retention window
+	// (a fixed 2023 timestamp would be swept as expired by the retention loop).
+	now := time.Now().UnixMilli()
 	route := &edgev1.InferenceRoute{
 		SchemaVersion: "inference-central-grpc-batch/v1", ShardId: "shard-e2e",
 		ModelControlIncarnationId: "inc-e2e", LogicalPoolId: "pool-e2e", PoolGeneration: 1,
@@ -573,14 +581,14 @@ func soakBatch(eventKey string, worker int, seq int64) *edgev1.InferenceResultBa
 		FeatureContractDigest: d, LabelContractDigest: d, OutputAdapterDigest: d,
 		WireProfileDigest: d, RuntimeProfileDigest: d, OptimizationProfileDigest: d,
 		StartupEnvelopeDigest: d, PoolObservationDigest: d, BindingDigest: d, Scope: "scope-e2e",
-		TargetId: "target-e2e", WindowId: "window-soak", WindowStartUnixMs: 1700000000000,
-		WindowEndUnixMs: 1700000001000, FinalizedAtUnixMs: 1700000001000, Quality: "valid",
+		TargetId: "target-e2e", WindowId: "window-soak", WindowStartUnixMs: now - 1000,
+		WindowEndUnixMs: now, FinalizedAtUnixMs: now, Quality: "valid",
 		QualityCode: edgev1.DataQuality_DATA_QUALITY_VALID, TraceId: "trace-soak",
 		WorkerId: fmt.Sprintf("soak-worker-%d", worker), WorkerDigest: d,
 		WorkerAttemptId: fmt.Sprintf("soak-attempt-%d", seq), Scores: []float32{0.1, 0.9},
 		PredictedLabel: 1, Decision: "alert", DecisionCode: edgev1.InferenceDecision_INFERENCE_DECISION_ALERT,
 		Status: "ok", ExecutionStatus: edgev1.InferenceExecutionStatus_INFERENCE_EXECUTION_STATUS_OK,
-		InferenceStartedAtUnixMs: 1700000000900, InferenceCompletedAtUnixMs: 1700000000950,
+		InferenceStartedAtUnixMs: now - 100, InferenceCompletedAtUnixMs: now - 10,
 	}
 	return &edgev1.InferenceResultBatch{
 		SchemaVersion: "inference-central-grpc-batch/v1", RequestId: "soak-req-" + eventKey,
@@ -604,7 +612,7 @@ func seedControlFixture(ctx context.Context, t *testing.T, conn *pgx.Conn) {
 		{`INSERT INTO pool_generations(logical_pool_id,pool_generation,model_revision_id,startup_envelope_digest,pool_observation_digest,binding_digest,status,min_ready_replicas,capacity_qualified,model_revision_digest,model_bundle_digest,feature_contract_digest,label_contract_digest,output_adapter_digest,wire_profile_digest,runtime_profile_digest,optimization_profile_digest) VALUES('pool-e2e',1,'rev-e2e',$1,$1,$1,'active',1,true,$1,$1,$1,$1,$1,$1,$1,$1) ON CONFLICT DO NOTHING`, []any{d}},
 		{`INSERT INTO shard_bindings(shard_id,logical_pool_id,model_control_incarnation_id,current_generation,current_binding_generation,current_revision_id,route_epoch,resume_state,loaded,ready,cas_digest,scope) VALUES('shard-e2e','pool-e2e','inc-e2e',1,1,'rev-e2e',1,'current',true,true,$1,'scope-e2e') ON CONFLICT(shard_id) DO UPDATE SET model_control_incarnation_id='inc-e2e',current_generation=1,current_binding_generation=1,current_revision_id='rev-e2e',route_epoch=1,resume_state='current',scope='scope-e2e'`, []any{d}},
 		{`INSERT INTO targets(target_id,display_name,p4runtime_endpoint,device_id,role,status,desired_profile_digest,credential_ref,scope,actor_ref,trace_id) VALUES('target-e2e','target e2e','https://127.0.0.1:9559',1,'masi','active',$1,'cred-e2e','scope-e2e','actor-e2e','trace-e2e') ON CONFLICT DO NOTHING`, []any{d}},
-		{`INSERT INTO target_assignments(target_id,assignment_generation,incarnation_id,edge_workload_ref,lease_id,issued_at_unix_ms,expires_at_unix_ms,election_floor,election_ceiling,actor_runtime_epoch,application_generation,actor_ref,trace_id,actor_issuer,actor_subject) VALUES('target-e2e',1,'target-inc-e2e','edge-e2e','lease-e2e',$1,$2,1,10,'actor-epoch-e2e',1,'actor-e2e','trace-e2e','https://issuer.example','admin-e2e') ON CONFLICT DO NOTHING`, []any{nowMS - 1000, nowMS + 7200000}},
+		{`INSERT INTO target_assignments(target_id,assignment_generation,incarnation_id,edge_workload_ref,lease_id,issued_at_unix_ms,expires_at_unix_ms,election_floor,election_ceiling,actor_runtime_epoch,application_generation,actor_ref,trace_id,actor_issuer,actor_subject) VALUES('target-e2e',1,'target-inc-e2e','edge-e2e','lease-e2e',$1,$2,1,10,'actor-epoch-e2e',1,'actor-e2e','trace-e2e','https://issuer.example','admin-e2e') ON CONFLICT DO NOTHING`, []any{nowMS - 1000, nowMS + 299000}},
 	}
 	for _, s := range seed {
 		if _, err := conn.Exec(ctx, s.sql, s.args...); err != nil {
