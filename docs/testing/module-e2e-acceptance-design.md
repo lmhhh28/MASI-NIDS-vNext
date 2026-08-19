@@ -406,4 +406,4 @@ Operational module aggregate 只有在以下全部成立时才能标记完成：
 
 ## 18. 当前状态
 
-截至 2026-08-14，Rust Edge 已建立实现、runner、真实 binary/OCI 与独立模块证据；其 operational completion 只以 `edge-rs/evidence/module-gates/latest.json` 指向且通过公开语义 validator 的 summary 为准。其余模块和全局 aggregate 仍分别依据自己的证据，不得从 Edge 继承完成或资格；本文本身不授予任何资格 PASS。
+截至 2026-08-20，P4/Switch、Rust Edge、Central Inference、Go Control 已建立实现、runner、真实 binary/OCI 与独立模块证据。P4/Switch 已 `PASS/QUALIFIED`；其余三者已 operational Module Complete（`overall_module_complete=true`、open P0=0），qualification 仍 `HOLD/NOT_QUALIFIED`（`DEC-001` 门槛与受保护发布基线未冻结）。各模块 operational completion 只以自身 `evidence/module-gates/latest.json` 指向且通过公开语义 validator 的 summary 为准，不得从其他模块继承完成或资格。PostgreSQL、Plugin Host、Python Analysis、Web、Offline ML 尚未开始实现。本文本身不授予任何资格 PASS。

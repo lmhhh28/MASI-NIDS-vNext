@@ -225,7 +225,7 @@ Model Pool 页面必须显示而不能推断：
 - evidence：CPU/CUDA独立 evidence ID，正交level/applicability/result/qualification、deployment/availability claim scope、服务清单/start-stop timeline、profile/hardware、raw artifacts和hash manifest完整；无硬件或无绝对门槛为`HOLD/NOT RUN`。
 - runner：`e2e-runner-compose/v1`的exact版本、health/deadline/resource/evidence/cleanup通过；缺runner/backend、healthy但业务失败、Playwright URL可达但链路错误均不能PASS，且不得自动换runner。
 
-当前仓库处于初始化阶段。本 ADR Accepted 只表示需求边界已确认；在上述实现和证据实际形成前，CPU、CUDA、E2E、HA 与 production claim均为`applicability=APPLICABLE, result=NOT_RUN, qualification=NOT_QUALIFIED`（若前置profile尚未冻结则result为`HOLD`）。
+当前 Central Inference 已建立实现并取得 operational Module Complete（CPU profile 已资格化、formal soak PASS）。本 ADR Accepted 表示需求边界已确认；在 CUDA profile、真实 GPU E2E、HA 与 production 证据实际形成前，CUDA / E2E(CUDA) / HA / production claim 为 `applicability=APPLICABLE, result=NOT_RUN, qualification=NOT_QUALIFIED`（若前置 profile 未冻结则 result 为 `HOLD`）；production 绝对门槛（`DEC-001`）与受保护发布基线未冻结前，整体 qualification 仍 `HOLD/NOT_QUALIFIED`。
 
 ## 参考
 

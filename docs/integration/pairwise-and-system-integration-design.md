@@ -379,4 +379,4 @@ Pairwise/System aggregate只包含release scope列明的required、`APPLICABLE`�
 
 ## 12. 当前状态
 
-九个模块尚未实现或取得Module Complete，因此所有正式pairwise、系统波次和Full E2E当前均不具备入口条件，状态保持`result=HOLD|NOT_RUN`、`qualification=NOT_QUALIFIED`。
+截至 2026-08-20，运行面四模块（P4/Switch、Rust Edge、Central Inference、Go Control）已实现并取得 operational Module Complete，P4/Switch 进一步取得 `QUALIFIED`。但九模块独立完成是正式 pairwise 的入口条件，目前仍有五模块（PostgreSQL、Plugin Host、Python Analysis、Web、Offline ML）未开始实现，因此所有正式 pairwise、系统波次和 Full E2E 当前仍不具备入口条件，状态保持 `result=HOLD|NOT_RUN`、`qualification=NOT_QUALIFIED`。已实现模块的 qualification-only HOLD（`DEC-001` 绝对门槛、受保护发布基线、dirty tree）不改写其 operational 完成结论，也不得被当作 pairwise/system PASS。
