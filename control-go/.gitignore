@@ -1,0 +1,8 @@
+# Module-gate evidence is generated locally by scripts/run-module-gates.sh
+# and intentionally kept out of the tree, matching edge-rs/ and infer-cpp/.
+/evidence/
+
+# Go build / test artifacts
+/control-core
+*.out
+*.test
