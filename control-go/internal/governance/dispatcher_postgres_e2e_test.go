@@ -86,13 +86,13 @@ func TestEffectDispatchFirewallProjectionAndAckOutboxPostgres(t *testing.T) {
 		'actor-effect','trace-effect-seed','https://issuer.example','admin-effect')`, targetID, nowMS-1000, nowMS+299_000); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := pool.Exec(ctx, `INSERT INTO target_capability_observations(target_id,
+	if _, err := pool.Exec(ctx, `INSERT INTO target_capability_observations(observation_id, target_id,
 		target_control_incarnation_id,assignment_generation,actor_runtime_epoch,application_generation,
 		p4info_digest,pipeline_digest,profile_digest,capacity_digest,capacity_available,lease_valid,
 		p4_connected,primary_actor,pipeline_exact,high_priority_queue_depth,telemetry_queue_depth,
 		observation_queue_depth,source_wal_bytes,input_wal_bytes,result_wal_bytes,freshness,reason_code,
 		observed_at_unix_ms,expires_at_unix_ms,trace_id)
-		VALUES($1,'target-inc-effect',1,'actor-epoch-effect',1,$2,$2,$2,$2,true,true,true,true,true,
+		VALUES('effect-observation-e2e',$1,'target-inc-effect',1,'actor-epoch-effect',1,$2,$2,$2,$2,true,true,true,true,true,
 		0,0,0,0,0,0,'fresh','READY',$3,$4,'trace-cap-effect')`, targetID, d, nowMS, nowMS+120_000); err != nil {
 		t.Fatal(err)
 	}
