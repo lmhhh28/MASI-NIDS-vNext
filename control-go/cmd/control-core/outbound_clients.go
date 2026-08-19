@@ -83,8 +83,8 @@ func dialMTLSClient(ctx context.Context, cfg config.MTLSClient) (*grpc.ClientCon
 		MinVersion: tls.VersionTLS13, RootCAs: roots, Certificates: []tls.Certificate{identity},
 		ServerName: cfg.ServerName,
 	}
-	conn, err := grpc.DialContext(ctx, cfg.Endpoint,
-		grpc.WithTransportCredentials(credentials.NewTLS(tlsConfig)), grpc.WithBlock(), grpc.WithDisableRetry(),
+	conn, err := grpc.NewClient(cfg.Endpoint,
+		grpc.WithTransportCredentials(credentials.NewTLS(tlsConfig)), grpc.WithDisableRetry(),
 		grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(cfg.MaxMessageBytes), grpc.MaxCallSendMsgSize(cfg.MaxMessageBytes)))
 	if err != nil {
 		return nil, err

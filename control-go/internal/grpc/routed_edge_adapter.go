@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"time"
 
 	"masi-nids/control-go/internal/db"
 	"masi-nids/control-go/internal/governance"
@@ -79,17 +78,6 @@ func (r *RoutedEdgeAdapter) ResumeRoute(ctx context.Context, hs model.CommittedB
 		return model.RouteReadback{}, err
 	}
 	return NewModelEdgeRouteAdapter(client).ResumeRoute(ctx, hs, traceID)
-}
-
-func (r *RoutedEdgeAdapter) clientForTarget(ctx context.Context, targetID string) (*EdgeControlClient, error) {
-	var workload string
-	err := r.pool.Pool.QueryRow(ctx, `SELECT edge_workload_ref FROM target_assignments
-		WHERE target_id=$1 AND revoked_at_unix_ms IS NULL AND expires_at_unix_ms>$2
-		ORDER BY assignment_generation DESC LIMIT 1`, targetID, time.Now().UnixMilli()).Scan(&workload)
-	if err != nil {
-		return nil, fmt.Errorf("grpcapi: resolve target Edge assignment: %w", err)
-	}
-	return r.clientForWorkload(workload)
 }
 
 func (r *RoutedEdgeAdapter) clientForWorkload(workload string) (*EdgeControlClient, error) {

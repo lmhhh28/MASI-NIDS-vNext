@@ -141,6 +141,7 @@ type Probe struct {
 }
 
 var digestRE = regexp.MustCompile(`^sha256:[0-9a-f]{64}$`)
+var workloadRefRE = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$`)
 
 // Load reads and validates configuration from the given JSON path (or, if path
 // is empty, from MASI_CTRL_CONFIG env). Validation is fail-closed: any missing
@@ -245,7 +246,7 @@ func (c *Config) validate() error {
 		}
 		seenWorkloads := make(map[string]struct{}, len(c.Outbound.Edges))
 		for _, edge := range c.Outbound.Edges {
-			if matched, _ := regexp.MatchString(`^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$`, edge.WorkloadRef); !matched {
+			if !workloadRefRE.MatchString(edge.WorkloadRef) {
 				return errors.New("production Edge workload_ref malformed")
 			}
 			if _, exists := seenWorkloads[edge.WorkloadRef]; exists {
