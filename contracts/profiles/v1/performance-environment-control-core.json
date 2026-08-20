@@ -1,0 +1,88 @@
+{
+  "schema_version": "performance-environment-control-core/v1",
+  "profile_id": "performance-environment-control-core/v1",
+  "module_id": "MOD-CTRL-001",
+  "runtime_profile": "control-core-process/v1",
+  "availability_profile": "availability-single/v1",
+  "deployment_tier": "acceptance",
+  "topology": "single-host-isolated-loopback",
+  "requirement_ids": ["DEC-001", "PERF-001", "PERF-002", "TEST-003", "TEST-GATE-001"],
+  "host": {
+    "architecture": "x86_64",
+    "cpu_model": "13th Gen Intel(R) Core(TM) i9-13980HX",
+    "logical_cpus": 8,
+    "physical_cores_exposed": 4,
+    "numa_nodes": 1,
+    "memory_bytes": 16565002240,
+    "hypervisor": "Microsoft WSL2",
+    "kernel": "6.18.33.2-microsoft-standard-WSL2",
+    "operating_system": "Ubuntu 22.04.5 LTS",
+    "microcode": "0xffffffff",
+    "cpufreq_governor": "unavailable"
+  },
+  "container_runtime": {
+    "docker_engine": "29.5.0",
+    "docker_api": "1.54",
+    "compose": "5.1.3",
+    "cgroup_version": 2,
+    "cgroup_driver": "systemd",
+    "storage_driver": "overlayfs"
+  },
+  "resource_partitions": {
+    "control-core": {"cpuset": "0-7", "memory_bytes": 2147483648, "pids": 512},
+    "postgres": {"cpuset": "0-7", "memory_bytes": 1073741824, "pids": 256}
+  },
+  "process_thresholds": {
+    "steady_events_per_second": "TBD-DEC-001-not-frozen",
+    "peak_events_per_second": "TBD-DEC-001-not-frozen",
+    "max_p99_ms": "TBD-DEC-001-not-frozen",
+    "proposal_decision_mutation_p95_ms": "TBD-DEC-001-not-frozen",
+    "pool_acquire_p95_ms": "TBD-DEC-001-not-frozen",
+    "rss_bytes": "TBD-DEC-001-not-frozen",
+    "fd_count": "TBD-DEC-001-not-frozen",
+    "thread_count": "TBD-DEC-001-not-frozen",
+    "queue_depth": "TBD-DEC-001-not-frozen",
+    "pg_connections": "TBD-DEC-001-not-frozen",
+    "pool_size": "TBD-DEC-001-not-frozen",
+    "transaction_bytes": "TBD-DEC-001-not-frozen",
+    "wal_bytes": "TBD-DEC-001-not-frozen"
+  },
+  "observed_baseline": {
+    "source": "control-go/evidence/module-gates/runs/ctrl-formal-3600-003/formal-soak/formal-soak-evidence.json",
+    "soak_seconds": 3660,
+    "sample_interval_ms": 10000,
+    "samples": 366,
+    "max_rss_bytes": 38408192,
+    "max_fd_count": 16,
+    "max_thread_count": 14,
+    "max_queue_depth": 37,
+    "resource_limits_observed": {
+      "pg_connections": 8,
+      "pool_size": 8,
+      "queue_depth": 256,
+      "transaction_bytes": 4194304,
+      "wal_bytes": 268435456,
+      "rss_bytes": null,
+      "fd_count": null,
+      "thread_count": null
+    },
+    "process_threshold_status": "OBSERVED_ONLY_OWNER_NOT_FROZEN_DEC_001",
+    "note": "Observed-only baseline of the current WSL2 reference host (DEC-001 step 1: establish current-system baseline). These are measurements, NOT Owner-frozen SLOs; they must not be promoted to frozen thresholds by reverse-engineering a just-passing value."
+  },
+  "soak": {
+    "profile": "qualification-soak-3600s/v1",
+    "warmup_ms": 60000,
+    "phases": ["steady", "peak", "saturation", "recovery-or-activation"],
+    "phase_duration_ms": 900000,
+    "sample_interval_ms": 10000,
+    "absolute_threshold_status": "DEC-001-NOT-FROZEN-OBSERVED-ONLY"
+  },
+  "qualification_limits": {
+    "single_failure_domain_host": true,
+    "not_production_ha": true,
+    "cpu_profile_first_release_only": true,
+    "wsl2_software_scope_only": true
+  },
+  "dec_001_status": "NOT_FROZEN",
+  "result_policy_when_unfrozen": "MODULE-HOLD-NOT_QUALIFIED"
+}
