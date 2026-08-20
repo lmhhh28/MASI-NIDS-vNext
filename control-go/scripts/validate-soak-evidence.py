@@ -245,6 +245,12 @@ def main() -> int:
 
     successful_formal = evidence.get("level") == "MODULE" and evidence.get("result") in {"PASS", "HOLD"}
     if successful_formal:
+        if metrics.get("firewall_rule_matrix") != "[0 128 1024 4096]" or metrics.get("firewall_rule_matrix_completed") is not True:
+            failures.append("formal control soak did not execute the 0/128/1024/4096 firewall matrix")
+        if metrics.get("target_count_matrix") != "[0 1 2 32]" or metrics.get("target_count_matrix_completed") is not True:
+            failures.append("formal control soak did not execute the 0/1/2/N target matrix")
+        if metrics.get("metrics_scrape_errors") != 0:
+            failures.append("formal control soak observed a /metrics scrape error")
         expected_warmup_ms = int(profile["warmup_seconds"]) * 1000
         expected_qualified_ms = int(profile["qualified_duration_seconds"]) * 1000
         expected_interval_ms = int(profile["sample_interval_seconds"]) * 1000
@@ -278,6 +284,17 @@ def main() -> int:
             phase_end = integer(phase_metrics.get("phase_end_offset_ms"))
             phase_elapsed = integer(phase.get("elapsed_ms"))
             phase_name = phase.get("name")
+            requests = integer(phase_metrics.get("requests"))
+            committed = integer(phase_metrics.get("committed"))
+            achieved = phase.get("achieved_rate_pps")
+            if requests is None or requests < 1 or committed != requests:
+                failures.append(f"formal phase {phase_name} request/commit counts are incomplete")
+            if phase_elapsed is not None and committed is not None and phase_elapsed > 0 and isinstance(achieved, (int, float)):
+                calculated_rate = committed / (phase_elapsed / 1000.0)
+                if abs(float(achieved) - calculated_rate) > 0.001:
+                    failures.append(f"formal phase {phase_name} achieved rate is not derived from committed requests")
+            else:
+                failures.append(f"formal phase {phase_name} achieved rate evidence is malformed")
             if (
                 not isinstance(phase_name, str)
                 or phase_start is None

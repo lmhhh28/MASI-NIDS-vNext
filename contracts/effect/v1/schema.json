@@ -33,7 +33,8 @@
         "plugin-drain",
         "plugin-revoke",
         "plugin-statistics-run",
-        "rule-observation-epoch"
+        "rule-observation-epoch",
+        "bounded-capture"
       ]
     },
     "claim_state": {
@@ -278,11 +279,39 @@
           "required": ["schema_version", "operation", "policy_revision_digest", "default_action", "baseline_rules", "overlay_rules"],
           "properties": {
             "schema_version": {"const": "p4-effect-payload/v1"},
-            "operation": {"enum": ["baseline-activate", "overlay-upsert", "overlay-delete"]},
+            "operation": {"enum": ["baseline-activate", "overlay-upsert", "overlay-delete", "capture-start"]},
             "policy_revision_digest": {"$ref": "#/$defs/digest"},
             "default_action": {"enum": ["", "permit-and-continue", "drop"]},
             "baseline_rules": {"type": "array", "maxItems": 4096, "items": {"type": "object"}},
-            "overlay_rules": {"type": "array", "maxItems": 1024, "items": {"type": "object"}}
+            "overlay_rules": {"type": "array", "maxItems": 1024, "items": {"type": "object"}},
+            "bounded_capture": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["schema_version", "capture_id", "capture_digest", "capture_adapter_id", "duration_ms", "sample_limit", "byte_limit", "expires_at_unix_ms", "max_concurrent_on_target", "payload_mode", "filter"],
+              "properties": {
+                "schema_version": {"const": "bounded-capture/v1"},
+                "capture_id": {"$ref": "#/$defs/identity"},
+                "capture_digest": {"$ref": "#/$defs/digest"},
+                "capture_adapter_id": {"const": "bounded-flow-evidence/v1"},
+                "duration_ms": {"type": "integer", "minimum": 1, "maximum": 300000},
+                "sample_limit": {"type": "integer", "minimum": 1, "maximum": 10000},
+                "byte_limit": {"type": "integer", "minimum": 1, "maximum": 16777216},
+                "expires_at_unix_ms": {"type": "integer", "minimum": 1},
+                "max_concurrent_on_target": {"type": "integer", "minimum": 1, "maximum": 4},
+                "payload_mode": {"const": "flow-metadata-only"},
+                "filter": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "source_ipv4": {"type": "string", "format": "ipv4-prefix"},
+                    "destination_ipv4": {"type": "string", "format": "ipv4-prefix"},
+                    "protocol": {"type": "integer", "minimum": 0, "maximum": 255},
+                    "source_port": {"type": "integer", "minimum": 0, "maximum": 65535},
+                    "destination_port": {"type": "integer", "minimum": 0, "maximum": 65535}
+                  }
+                }
+              }
+            }
           }
         },
         "authorization_digest": {"$ref": "#/$defs/digest"},

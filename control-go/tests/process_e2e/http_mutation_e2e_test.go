@@ -3,6 +3,7 @@ package process_e2e
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"testing"
 	"time"
@@ -34,6 +35,11 @@ func setup(t *testing.T) (*proc, context.Context) {
 	t.Cleanup(cancel)
 	p.resetE2E(ctx)
 	p.seedBaseline(ctx)
+	t.Cleanup(func() {
+		cleanCtx, cleanCancel := context.WithTimeout(context.Background(), 20*time.Second)
+		defer cleanCancel()
+		p.resetE2E(cleanCtx)
+	})
 	return p, ctx
 }
 
@@ -279,14 +285,17 @@ func TestRealControlEffectDispatchFailClosed(t *testing.T) {
 	// delete intent is deliberately not-before the 4min overlay expiry, so it must
 	// stay unclaimed until then — it is not asserted as dispatched here). The stub
 	// Edge returns errEdgeNotConfigured, so the upsert must converge fail-closed.
-	waitFor(t, 12*time.Second, "upsert intent dispatched past unclaimed", func() error {
-		var unclaimed int
-		err := p.queryRow(ctx, `SELECT count(*) FROM effect_intents WHERE effect_intent_id='ov-upsert-e2e' AND claim_state='unclaimed'`).Scan(&unclaimed)
+	waitFor(t, 12*time.Second, "upsert intent converged to unknown", func() error {
+		var state string
+		err := p.queryRow(ctx, `SELECT claim_state FROM effect_intents WHERE effect_intent_id='ov-upsert-e2e'`).Scan(&state)
 		if err != nil {
 			return err
 		}
-		if unclaimed > 0 {
-			return errNotReady("upsert still unclaimed")
+		if state == "unclaimed" || state == "claimed" {
+			return errNotReady("upsert still in progress")
+		}
+		if state != "unknown" {
+			return fmt.Errorf("upsert reached unexpected state %s", state)
 		}
 		return nil
 	})
@@ -315,8 +324,8 @@ func TestRealControlTargetLifecycle(t *testing.T) {
 	reg := map[string]any{
 		"display_name": "target-new", "p4runtime_endpoint": "https://127.0.0.1:9559",
 		"device_id": 42, "role": "masi", "desired_profile_digest": e2eDigest, "credential_ref": "cred-new",
-		"scope": "scope-e2e",
-		"p4runtime_tls": map[string]any{"identity_ref": "cred-new", "server_name": "target-new"},
+		"scope":             "scope-e2e",
+		"p4runtime_tls":     map[string]any{"identity_ref": "cred-new", "server_name": "target-new"},
 		"target_set_digest": targetSetDigestE2E, "idempotency_key": "reg-target", "trace_id": "reg-e2e",
 	}
 	status, resp := p.mutate(t, cookieA, csrfA, "/api/targets", reg)

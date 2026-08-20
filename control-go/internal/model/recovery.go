@@ -26,7 +26,8 @@ func (s *RolloutService) ReconcileOperation(ctx context.Context, operationID str
 		var generation, epoch int64
 		var resume string
 		if err := s.pool.Pool.QueryRow(ctx, `SELECT current_generation,route_epoch,resume_state
-			FROM shard_bindings WHERE shard_id=$1`, req.ShardID).Scan(&generation, &epoch, &resume); err != nil {
+				FROM shard_bindings WHERE shard_id=$1 AND model_control_incarnation_id=$2`,
+			req.ShardID, req.ModelControlIncarnationID).Scan(&generation, &epoch, &resume); err != nil {
 			return nil, err
 		}
 		return &RolloutOutcome{OperationID: operationID, ShardID: req.ShardID, Status: OpApplied,
@@ -147,25 +148,26 @@ func (s *RolloutService) loadRecoveryPool(ctx context.Context, req RolloutReques
 	var pool PoolGeneration
 	var status string
 	if err := s.pool.Pool.QueryRow(ctx, `SELECT pg.logical_pool_id,pg.pool_generation,pg.model_revision_id,
-		pg.startup_envelope_digest,pg.pool_observation_digest,pg.binding_digest,pg.status,
+			pg.model_control_incarnation_id,pg.startup_envelope_digest,pg.pool_observation_digest,pg.binding_digest,pg.status,
 		pg.min_ready_replicas,pg.capacity_qualified,pg.model_revision_digest,pg.model_bundle_digest,
 		pg.feature_contract_digest,pg.label_contract_digest,pg.output_adapter_digest,
 		pg.wire_profile_digest,pg.runtime_profile_digest,pg.optimization_profile_digest,
 		lp.availability_profile,lp.runtime_profile
 		FROM pool_generations pg JOIN logical_pools lp ON lp.logical_pool_id=pg.logical_pool_id
-		WHERE pg.logical_pool_id=$1 AND pg.pool_generation=$2 AND pg.model_revision_id=$3`,
-		req.LogicalPoolID, req.TargetGeneration, req.TargetRevisionID).Scan(&pool.LogicalPoolID,
-		&pool.PoolGeneration, &pool.ModelRevisionID, &pool.StartupEnvelopeDigest,
-		&pool.PoolObservationDigest, &pool.BindingDigest, &status, &pool.MinReadyReplicas,
-		&pool.CapacityQualified, &pool.ModelRevisionDigest, &pool.ModelBundleDigest,
-		&pool.FeatureContractDigest, &pool.LabelContractDigest, &pool.OutputAdapterDigest,
-		&pool.WireProfileDigest, &pool.RuntimeProfileDigest, &pool.OptimizationProfileDigest,
-		&pool.AvailabilityProfile, &pool.RuntimeProfile); err != nil {
+			WHERE pg.logical_pool_id=$1 AND pg.model_control_incarnation_id=$2
+			 AND pg.pool_generation=$3 AND pg.model_revision_id=$4`,
+		req.LogicalPoolID, req.ModelControlIncarnationID, req.TargetGeneration, req.TargetRevisionID).
+		Scan(&pool.LogicalPoolID, &pool.PoolGeneration, &pool.ModelRevisionID,
+			&pool.ModelControlIncarnationID, &pool.StartupEnvelopeDigest,
+			&pool.PoolObservationDigest, &pool.BindingDigest, &status, &pool.MinReadyReplicas,
+			&pool.CapacityQualified, &pool.ModelRevisionDigest, &pool.ModelBundleDigest,
+			&pool.FeatureContractDigest, &pool.LabelContractDigest, &pool.OutputAdapterDigest,
+			&pool.WireProfileDigest, &pool.RuntimeProfileDigest, &pool.OptimizationProfileDigest,
+			&pool.AvailabilityProfile, &pool.RuntimeProfile); err != nil {
 		return nil, Readback{}, "", err
 	}
 	pool.Status = PoolGenerationStatus(status)
 	pool.WireProfile = "inference-central-grpc-batch/v1"
-	pool.ModelControlIncarnationID = req.ModelControlIncarnationID
 	pool.OperationID, pool.Scope = req.OperationID, req.Scope
 	if !pool.CapacityQualified || (pool.Status != PoolWarming && pool.Status != PoolActive && pool.Status != PoolDraining) {
 		return nil, Readback{}, "", errors.New("model: recovery pool is not qualified/available")
@@ -174,8 +176,10 @@ func (s *RolloutService) loadRecoveryPool(ctx context.Context, req RolloutReques
 	var readbackJSON []byte
 	if err := s.pool.Pool.QueryRow(ctx, `SELECT c.observation_id,e.readback_body
 		FROM model_pool_observations_current c JOIN model_pool_observation_events e
-		ON e.observation_id=c.observation_id WHERE c.logical_pool_id=$1 AND c.pool_generation=$2
-		AND c.pool_observation_digest=$3 AND c.scope=$4`, req.LogicalPoolID, req.TargetGeneration,
+			ON e.observation_id=c.observation_id WHERE c.logical_pool_id=$1
+			AND c.model_control_incarnation_id=$2 AND c.pool_generation=$3
+			AND c.pool_observation_digest=$4 AND c.scope=$5`, req.LogicalPoolID,
+		req.ModelControlIncarnationID, req.TargetGeneration,
 		pool.PoolObservationDigest, req.Scope).Scan(&observationID, &readbackJSON); err != nil {
 		return nil, Readback{}, "", err
 	}

@@ -38,7 +38,7 @@ func TestProductionAcceptsCompleteOutboundMTLSProfile(t *testing.T) {
 	c.RuntimeProfile = "production"
 	c.ExternalClients = "production-mtls"
 	c.PublicOrigin = "https://ctrl.example"
-	c.PostgreSQLDSN = "postgres://control:secret@db.example/masi"
+	c.PostgreSQLDSN = "postgres://control:secret@db.example/masi?sslmode=verify-full"
 	c.PostgreSQLRole = "masi_control_app"
 	c.OIDCIssuer = "https://idp.example"
 	c.OIDCClientID = "control-client"
@@ -48,14 +48,44 @@ func TestProductionAcceptsCompleteOutboundMTLSProfile(t *testing.T) {
 	c.RoleMappingPath = "/etc/masi/roles.json"
 	c.RoleMappingDigest = c.SchemaMigrationDigest
 	c.SSEHMACKeyRef = "/run/secrets/cursor-hmac"
-	c.TLS = TLS{HTTPCertFile: "http.crt", HTTPKeyFile: "http.key", GRPCCertFile: "grpc.crt",
-		GRPCKeyFile: "grpc.key", GRPCClientCAFile: "clients.ca"}
+	c.TLS = TLS{HTTPCertFile: "http.crt", HTTPKeyFile: "http.key", HTTPClientCAFile: "clients.ca", GRPCCertFile: "grpc.crt",
+		GRPCKeyFile: "grpc.key", GRPCClientCAFile: "clients.ca", GRPCAllowedClientSANs: []string{"edge-a"}}
 	client := MTLSClient{Endpoint: "adapter.example:9443", ServerName: "adapter.example",
 		CAFile: "ca.pem", CertFile: "client.pem", KeyFile: "client.key", MaxMessageBytes: 4 << 20}
 	c.Outbound = OutboundClients{Edges: []EdgeMTLSClient{{WorkloadRef: "edge-a", MTLSClient: client}},
-		Deployment: client, PluginStatistics: client}
+		Deployment: client, PluginStatistics: client,
+		Analysis: []A2APeer{{PeerID: "analysis-a", PluginID: "masi.analysis.langgraph",
+			BaseURL: "https://analysis.example", ServerName: "analysis.example", CAFile: "ca.pem",
+			CertFile: "client.pem", KeyFile: "client.key", AllowedIPs: []string{"192.0.2.10"}, MaxResponseBytes: 128 << 10}}}
 	if err := c.validate(); err != nil {
 		t.Fatalf("complete production outbound mTLS profile rejected: %v", err)
+	}
+}
+
+func TestProductionRejectsPostgresWithoutVerifyFull(t *testing.T) {
+	c := testConfig()
+	c.RuntimeProfile = "production"
+	c.ExternalClients = "production-mtls"
+	c.PostgreSQLDSN = "postgres://u:p@db.example/masi?sslmode=disable"
+	if err := validateProductionPostgresDSN(c.PostgreSQLDSN); err == nil {
+		t.Fatal("sslmode=disable must fail")
+	}
+	c.PostgreSQLDSN = "postgres://u:p@db.example/masi?sslmode=verify-full"
+	if err := validateProductionPostgresDSN(c.PostgreSQLDSN); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestTestProfileRejectsNonLoopbackListeners(t *testing.T) {
+	c := testConfig()
+	c.HTTPListen = "0.0.0.0:18080"
+	if err := c.validate(); err == nil {
+		t.Fatal("non-loopback HTTP listener must fail")
+	}
+	c = testConfig()
+	c.GRPCListen = "[::]:19090"
+	if err := c.validate(); err == nil {
+		t.Fatal("non-loopback gRPC listener must fail")
 	}
 }
 func TestIsTestDBParsesDatabaseName(t *testing.T) {

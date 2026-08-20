@@ -195,11 +195,11 @@ func insertOverlayIntent(ctx context.Context, tx *db.Tx, intent governance.Inten
 		return err
 	}
 	tag, err := tx.Exec(ctx, `INSERT INTO effect_intents(
-	 effect_intent_id,operation_id,proposal_id,decision_id,target_id,is_fleet_parent,fence,effect_digest,
-	 authorization_digest,effect_kind,risk_level,required_write_atomicity,deadline_unix_ms,claim_state,
-	 actor_ref,trace_id,reason_code,actor_issuer,actor_subject,gate_open,not_before_unix_ms,effect_payload)
-	 VALUES($1,$2,$3,$4,$5,false,$6,$7,$8,$9,$10,$11,$12,'unclaimed',$13,$14,$15,$16,$17,true,$18,$19)
-	 ON CONFLICT DO NOTHING`, intent.EffectIntentID, intent.OperationID, intent.ProposalID, intent.DecisionID,
+		 effect_intent_id,operation_id,proposal_id,proposal_digest,decision_id,target_id,is_fleet_parent,fence,effect_digest,
+		 authorization_digest,effect_kind,risk_level,required_write_atomicity,deadline_unix_ms,claim_state,
+		 actor_ref,trace_id,reason_code,actor_issuer,actor_subject,gate_open,not_before_unix_ms,effect_payload)
+		 VALUES($1,$2,$3,(SELECT proposal_digest FROM effect_proposals WHERE proposal_id=$3),$4,$5,false,$6,$7,$8,$9,$10,$11,$12,'unclaimed',$13,$14,$15,$16,$17,true,$18,$19)
+		 ON CONFLICT DO NOTHING`, intent.EffectIntentID, intent.OperationID, intent.ProposalID, intent.DecisionID,
 		intent.TargetID, fenceJSON, intent.EffectDigest, intent.AuthorizationDigest, string(intent.EffectKind),
 		string(intent.RiskLevel), intent.RequiredWriteAtomicity, intent.DeadlineUnixMS, intent.Actor.String(),
 		intent.TraceID, reason, intent.Actor.Issuer, intent.Actor.Subject, notBefore, payloadJSON)

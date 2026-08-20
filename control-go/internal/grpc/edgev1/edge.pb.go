@@ -724,10 +724,11 @@ func (ActorState) EnumDescriptor() ([]byte, []int) {
 type EffectKind int32
 
 const (
-	EffectKind_EFFECT_KIND_UNSPECIFIED       EffectKind = 0
-	EffectKind_EFFECT_KIND_BASELINE_ACTIVATE EffectKind = 1
-	EffectKind_EFFECT_KIND_OVERLAY_UPSERT    EffectKind = 2
-	EffectKind_EFFECT_KIND_OVERLAY_DELETE    EffectKind = 3
+	EffectKind_EFFECT_KIND_UNSPECIFIED           EffectKind = 0
+	EffectKind_EFFECT_KIND_BASELINE_ACTIVATE     EffectKind = 1
+	EffectKind_EFFECT_KIND_OVERLAY_UPSERT        EffectKind = 2
+	EffectKind_EFFECT_KIND_OVERLAY_DELETE        EffectKind = 3
+	EffectKind_EFFECT_KIND_BOUNDED_CAPTURE_START EffectKind = 4
 )
 
 // Enum value maps for EffectKind.
@@ -737,12 +738,14 @@ var (
 		1: "EFFECT_KIND_BASELINE_ACTIVATE",
 		2: "EFFECT_KIND_OVERLAY_UPSERT",
 		3: "EFFECT_KIND_OVERLAY_DELETE",
+		4: "EFFECT_KIND_BOUNDED_CAPTURE_START",
 	}
 	EffectKind_value = map[string]int32{
-		"EFFECT_KIND_UNSPECIFIED":       0,
-		"EFFECT_KIND_BASELINE_ACTIVATE": 1,
-		"EFFECT_KIND_OVERLAY_UPSERT":    2,
-		"EFFECT_KIND_OVERLAY_DELETE":    3,
+		"EFFECT_KIND_UNSPECIFIED":           0,
+		"EFFECT_KIND_BASELINE_ACTIVATE":     1,
+		"EFFECT_KIND_OVERLAY_UPSERT":        2,
+		"EFFECT_KIND_OVERLAY_DELETE":        3,
+		"EFFECT_KIND_BOUNDED_CAPTURE_START": 4,
 	}
 )
 
@@ -1888,6 +1891,165 @@ func (x *TargetReply) GetTraceId() string {
 	return ""
 }
 
+// BoundedCaptureSpec is an R0, resource-bounded device mutation. It travels
+// through the same durable EffectIntent/journal/readback/CAS path as firewall
+// effects; it is not a second queue or a general packet-capture service.
+type BoundedCaptureSpec struct {
+	state                 protoimpl.MessageState `protogen:"open.v1"`
+	SchemaVersion         string                 `protobuf:"bytes,1,opt,name=schema_version,json=schemaVersion,proto3" json:"schema_version,omitempty"`
+	CaptureId             string                 `protobuf:"bytes,2,opt,name=capture_id,json=captureId,proto3" json:"capture_id,omitempty"`
+	CaptureDigest         string                 `protobuf:"bytes,3,opt,name=capture_digest,json=captureDigest,proto3" json:"capture_digest,omitempty"`
+	CaptureAdapterId      string                 `protobuf:"bytes,4,opt,name=capture_adapter_id,json=captureAdapterId,proto3" json:"capture_adapter_id,omitempty"`
+	DurationMs            uint32                 `protobuf:"varint,5,opt,name=duration_ms,json=durationMs,proto3" json:"duration_ms,omitempty"`
+	SampleLimit           uint32                 `protobuf:"varint,6,opt,name=sample_limit,json=sampleLimit,proto3" json:"sample_limit,omitempty"`
+	ByteLimit             uint64                 `protobuf:"varint,7,opt,name=byte_limit,json=byteLimit,proto3" json:"byte_limit,omitempty"`
+	ExpiresAtUnixMs       int64                  `protobuf:"varint,8,opt,name=expires_at_unix_ms,json=expiresAtUnixMs,proto3" json:"expires_at_unix_ms,omitempty"`
+	MaxConcurrentOnTarget uint32                 `protobuf:"varint,9,opt,name=max_concurrent_on_target,json=maxConcurrentOnTarget,proto3" json:"max_concurrent_on_target,omitempty"`
+	PayloadMode           string                 `protobuf:"bytes,10,opt,name=payload_mode,json=payloadMode,proto3" json:"payload_mode,omitempty"`
+	Source                *Ipv4Prefix            `protobuf:"bytes,11,opt,name=source,proto3" json:"source,omitempty"`
+	Destination           *Ipv4Prefix            `protobuf:"bytes,12,opt,name=destination,proto3" json:"destination,omitempty"`
+	Protocol              *OptionalUint32        `protobuf:"bytes,13,opt,name=protocol,proto3" json:"protocol,omitempty"`
+	SourcePort            *OptionalUint32        `protobuf:"bytes,14,opt,name=source_port,json=sourcePort,proto3" json:"source_port,omitempty"`
+	DestinationPort       *OptionalUint32        `protobuf:"bytes,15,opt,name=destination_port,json=destinationPort,proto3" json:"destination_port,omitempty"`
+	unknownFields         protoimpl.UnknownFields
+	sizeCache             protoimpl.SizeCache
+}
+
+func (x *BoundedCaptureSpec) Reset() {
+	*x = BoundedCaptureSpec{}
+	mi := &file_edge_v1_edge_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *BoundedCaptureSpec) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*BoundedCaptureSpec) ProtoMessage() {}
+
+func (x *BoundedCaptureSpec) ProtoReflect() protoreflect.Message {
+	mi := &file_edge_v1_edge_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use BoundedCaptureSpec.ProtoReflect.Descriptor instead.
+func (*BoundedCaptureSpec) Descriptor() ([]byte, []int) {
+	return file_edge_v1_edge_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *BoundedCaptureSpec) GetSchemaVersion() string {
+	if x != nil {
+		return x.SchemaVersion
+	}
+	return ""
+}
+
+func (x *BoundedCaptureSpec) GetCaptureId() string {
+	if x != nil {
+		return x.CaptureId
+	}
+	return ""
+}
+
+func (x *BoundedCaptureSpec) GetCaptureDigest() string {
+	if x != nil {
+		return x.CaptureDigest
+	}
+	return ""
+}
+
+func (x *BoundedCaptureSpec) GetCaptureAdapterId() string {
+	if x != nil {
+		return x.CaptureAdapterId
+	}
+	return ""
+}
+
+func (x *BoundedCaptureSpec) GetDurationMs() uint32 {
+	if x != nil {
+		return x.DurationMs
+	}
+	return 0
+}
+
+func (x *BoundedCaptureSpec) GetSampleLimit() uint32 {
+	if x != nil {
+		return x.SampleLimit
+	}
+	return 0
+}
+
+func (x *BoundedCaptureSpec) GetByteLimit() uint64 {
+	if x != nil {
+		return x.ByteLimit
+	}
+	return 0
+}
+
+func (x *BoundedCaptureSpec) GetExpiresAtUnixMs() int64 {
+	if x != nil {
+		return x.ExpiresAtUnixMs
+	}
+	return 0
+}
+
+func (x *BoundedCaptureSpec) GetMaxConcurrentOnTarget() uint32 {
+	if x != nil {
+		return x.MaxConcurrentOnTarget
+	}
+	return 0
+}
+
+func (x *BoundedCaptureSpec) GetPayloadMode() string {
+	if x != nil {
+		return x.PayloadMode
+	}
+	return ""
+}
+
+func (x *BoundedCaptureSpec) GetSource() *Ipv4Prefix {
+	if x != nil {
+		return x.Source
+	}
+	return nil
+}
+
+func (x *BoundedCaptureSpec) GetDestination() *Ipv4Prefix {
+	if x != nil {
+		return x.Destination
+	}
+	return nil
+}
+
+func (x *BoundedCaptureSpec) GetProtocol() *OptionalUint32 {
+	if x != nil {
+		return x.Protocol
+	}
+	return nil
+}
+
+func (x *BoundedCaptureSpec) GetSourcePort() *OptionalUint32 {
+	if x != nil {
+		return x.SourcePort
+	}
+	return nil
+}
+
+func (x *BoundedCaptureSpec) GetDestinationPort() *OptionalUint32 {
+	if x != nil {
+		return x.DestinationPort
+	}
+	return nil
+}
+
 type Ipv4Prefix struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Address       uint32                 `protobuf:"fixed32,1,opt,name=address,proto3" json:"address,omitempty"`
@@ -1898,7 +2060,7 @@ type Ipv4Prefix struct {
 
 func (x *Ipv4Prefix) Reset() {
 	*x = Ipv4Prefix{}
-	mi := &file_edge_v1_edge_proto_msgTypes[8]
+	mi := &file_edge_v1_edge_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1910,7 +2072,7 @@ func (x *Ipv4Prefix) String() string {
 func (*Ipv4Prefix) ProtoMessage() {}
 
 func (x *Ipv4Prefix) ProtoReflect() protoreflect.Message {
-	mi := &file_edge_v1_edge_proto_msgTypes[8]
+	mi := &file_edge_v1_edge_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1923,7 +2085,7 @@ func (x *Ipv4Prefix) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Ipv4Prefix.ProtoReflect.Descriptor instead.
 func (*Ipv4Prefix) Descriptor() ([]byte, []int) {
-	return file_edge_v1_edge_proto_rawDescGZIP(), []int{8}
+	return file_edge_v1_edge_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *Ipv4Prefix) GetAddress() uint32 {
@@ -1950,7 +2112,7 @@ type OptionalUint32 struct {
 
 func (x *OptionalUint32) Reset() {
 	*x = OptionalUint32{}
-	mi := &file_edge_v1_edge_proto_msgTypes[9]
+	mi := &file_edge_v1_edge_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1962,7 +2124,7 @@ func (x *OptionalUint32) String() string {
 func (*OptionalUint32) ProtoMessage() {}
 
 func (x *OptionalUint32) ProtoReflect() protoreflect.Message {
-	mi := &file_edge_v1_edge_proto_msgTypes[9]
+	mi := &file_edge_v1_edge_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1975,7 +2137,7 @@ func (x *OptionalUint32) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use OptionalUint32.ProtoReflect.Descriptor instead.
 func (*OptionalUint32) Descriptor() ([]byte, []int) {
-	return file_edge_v1_edge_proto_rawDescGZIP(), []int{9}
+	return file_edge_v1_edge_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *OptionalUint32) GetPresent() bool {
@@ -2013,7 +2175,7 @@ type BaselineRule struct {
 
 func (x *BaselineRule) Reset() {
 	*x = BaselineRule{}
-	mi := &file_edge_v1_edge_proto_msgTypes[10]
+	mi := &file_edge_v1_edge_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2025,7 +2187,7 @@ func (x *BaselineRule) String() string {
 func (*BaselineRule) ProtoMessage() {}
 
 func (x *BaselineRule) ProtoReflect() protoreflect.Message {
-	mi := &file_edge_v1_edge_proto_msgTypes[10]
+	mi := &file_edge_v1_edge_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2038,7 +2200,7 @@ func (x *BaselineRule) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BaselineRule.ProtoReflect.Descriptor instead.
 func (*BaselineRule) Descriptor() ([]byte, []int) {
-	return file_edge_v1_edge_proto_rawDescGZIP(), []int{10}
+	return file_edge_v1_edge_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *BaselineRule) GetRuleId() string {
@@ -2150,7 +2312,7 @@ type OverlayRule struct {
 
 func (x *OverlayRule) Reset() {
 	*x = OverlayRule{}
-	mi := &file_edge_v1_edge_proto_msgTypes[11]
+	mi := &file_edge_v1_edge_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2162,7 +2324,7 @@ func (x *OverlayRule) String() string {
 func (*OverlayRule) ProtoMessage() {}
 
 func (x *OverlayRule) ProtoReflect() protoreflect.Message {
-	mi := &file_edge_v1_edge_proto_msgTypes[11]
+	mi := &file_edge_v1_edge_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2175,7 +2337,7 @@ func (x *OverlayRule) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use OverlayRule.ProtoReflect.Descriptor instead.
 func (*OverlayRule) Descriptor() ([]byte, []int) {
-	return file_edge_v1_edge_proto_rawDescGZIP(), []int{11}
+	return file_edge_v1_edge_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *OverlayRule) GetRuleId() string {
@@ -2267,13 +2429,14 @@ type EffectIntent struct {
 	ReasonCode             string                 `protobuf:"bytes,15,opt,name=reason_code,json=reasonCode,proto3" json:"reason_code,omitempty"`
 	TraceId                string                 `protobuf:"bytes,16,opt,name=trace_id,json=traceId,proto3" json:"trace_id,omitempty"`
 	RequiredWriteAtomicity P4WriteAtomicity       `protobuf:"varint,17,opt,name=required_write_atomicity,json=requiredWriteAtomicity,proto3,enum=masi.edge.v1.P4WriteAtomicity" json:"required_write_atomicity,omitempty"`
+	BoundedCapture         *BoundedCaptureSpec    `protobuf:"bytes,18,opt,name=bounded_capture,json=boundedCapture,proto3" json:"bounded_capture,omitempty"`
 	unknownFields          protoimpl.UnknownFields
 	sizeCache              protoimpl.SizeCache
 }
 
 func (x *EffectIntent) Reset() {
 	*x = EffectIntent{}
-	mi := &file_edge_v1_edge_proto_msgTypes[12]
+	mi := &file_edge_v1_edge_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2285,7 +2448,7 @@ func (x *EffectIntent) String() string {
 func (*EffectIntent) ProtoMessage() {}
 
 func (x *EffectIntent) ProtoReflect() protoreflect.Message {
-	mi := &file_edge_v1_edge_proto_msgTypes[12]
+	mi := &file_edge_v1_edge_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2298,7 +2461,7 @@ func (x *EffectIntent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EffectIntent.ProtoReflect.Descriptor instead.
 func (*EffectIntent) Descriptor() ([]byte, []int) {
-	return file_edge_v1_edge_proto_rawDescGZIP(), []int{12}
+	return file_edge_v1_edge_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *EffectIntent) GetSchemaVersion() string {
@@ -2420,6 +2583,13 @@ func (x *EffectIntent) GetRequiredWriteAtomicity() P4WriteAtomicity {
 	return P4WriteAtomicity_P4_WRITE_ATOMICITY_UNSPECIFIED
 }
 
+func (x *EffectIntent) GetBoundedCapture() *BoundedCaptureSpec {
+	if x != nil {
+		return x.BoundedCapture
+	}
+	return nil
+}
+
 type PreflightEffectRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Intent        *EffectIntent          `protobuf:"bytes,1,opt,name=intent,proto3" json:"intent,omitempty"`
@@ -2429,7 +2599,7 @@ type PreflightEffectRequest struct {
 
 func (x *PreflightEffectRequest) Reset() {
 	*x = PreflightEffectRequest{}
-	mi := &file_edge_v1_edge_proto_msgTypes[13]
+	mi := &file_edge_v1_edge_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2441,7 +2611,7 @@ func (x *PreflightEffectRequest) String() string {
 func (*PreflightEffectRequest) ProtoMessage() {}
 
 func (x *PreflightEffectRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_edge_v1_edge_proto_msgTypes[13]
+	mi := &file_edge_v1_edge_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2454,7 +2624,7 @@ func (x *PreflightEffectRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PreflightEffectRequest.ProtoReflect.Descriptor instead.
 func (*PreflightEffectRequest) Descriptor() ([]byte, []int) {
-	return file_edge_v1_edge_proto_rawDescGZIP(), []int{13}
+	return file_edge_v1_edge_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *PreflightEffectRequest) GetIntent() *EffectIntent {
@@ -2482,7 +2652,7 @@ type PreflightEffectReply struct {
 
 func (x *PreflightEffectReply) Reset() {
 	*x = PreflightEffectReply{}
-	mi := &file_edge_v1_edge_proto_msgTypes[14]
+	mi := &file_edge_v1_edge_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2494,7 +2664,7 @@ func (x *PreflightEffectReply) String() string {
 func (*PreflightEffectReply) ProtoMessage() {}
 
 func (x *PreflightEffectReply) ProtoReflect() protoreflect.Message {
-	mi := &file_edge_v1_edge_proto_msgTypes[14]
+	mi := &file_edge_v1_edge_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2507,7 +2677,7 @@ func (x *PreflightEffectReply) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PreflightEffectReply.ProtoReflect.Descriptor instead.
 func (*PreflightEffectReply) Descriptor() ([]byte, []int) {
-	return file_edge_v1_edge_proto_rawDescGZIP(), []int{14}
+	return file_edge_v1_edge_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *PreflightEffectReply) GetTargetId() string {
@@ -2590,7 +2760,7 @@ type ExecuteEffectRequest struct {
 
 func (x *ExecuteEffectRequest) Reset() {
 	*x = ExecuteEffectRequest{}
-	mi := &file_edge_v1_edge_proto_msgTypes[15]
+	mi := &file_edge_v1_edge_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2602,7 +2772,7 @@ func (x *ExecuteEffectRequest) String() string {
 func (*ExecuteEffectRequest) ProtoMessage() {}
 
 func (x *ExecuteEffectRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_edge_v1_edge_proto_msgTypes[15]
+	mi := &file_edge_v1_edge_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2615,7 +2785,7 @@ func (x *ExecuteEffectRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ExecuteEffectRequest.ProtoReflect.Descriptor instead.
 func (*ExecuteEffectRequest) Descriptor() ([]byte, []int) {
-	return file_edge_v1_edge_proto_rawDescGZIP(), []int{15}
+	return file_edge_v1_edge_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *ExecuteEffectRequest) GetIntent() *EffectIntent {
@@ -2633,28 +2803,31 @@ func (x *ExecuteEffectRequest) GetPreflightToken() string {
 }
 
 type EffectResult struct {
-	state             protoimpl.MessageState `protogen:"open.v1"`
-	SchemaVersion     string                 `protobuf:"bytes,1,opt,name=schema_version,json=schemaVersion,proto3" json:"schema_version,omitempty"`
-	TargetId          string                 `protobuf:"bytes,2,opt,name=target_id,json=targetId,proto3" json:"target_id,omitempty"`
-	EffectIntentId    string                 `protobuf:"bytes,3,opt,name=effect_intent_id,json=effectIntentId,proto3" json:"effect_intent_id,omitempty"`
-	OperationId       string                 `protobuf:"bytes,4,opt,name=operation_id,json=operationId,proto3" json:"operation_id,omitempty"`
-	Fence             *Fence                 `protobuf:"bytes,5,opt,name=fence,proto3" json:"fence,omitempty"`
-	Status            EffectStatus           `protobuf:"varint,6,opt,name=status,proto3,enum=masi.edge.v1.EffectStatus" json:"status,omitempty"`
-	PlanDigest        string                 `protobuf:"bytes,7,opt,name=plan_digest,json=planDigest,proto3" json:"plan_digest,omitempty"`
-	ReadbackDigest    string                 `protobuf:"bytes,8,opt,name=readback_digest,json=readbackDigest,proto3" json:"readback_digest,omitempty"`
-	ExpectedEntries   uint32                 `protobuf:"varint,9,opt,name=expected_entries,json=expectedEntries,proto3" json:"expected_entries,omitempty"`
-	ObservedEntries   uint32                 `protobuf:"varint,10,opt,name=observed_entries,json=observedEntries,proto3" json:"observed_entries,omitempty"`
-	MismatchedEntries uint32                 `protobuf:"varint,11,opt,name=mismatched_entries,json=mismatchedEntries,proto3" json:"mismatched_entries,omitempty"`
-	ActiveBank        uint32                 `protobuf:"varint,12,opt,name=active_bank,json=activeBank,proto3" json:"active_bank,omitempty"`
-	ReasonCode        string                 `protobuf:"bytes,13,opt,name=reason_code,json=reasonCode,proto3" json:"reason_code,omitempty"`
-	TraceId           string                 `protobuf:"bytes,14,opt,name=trace_id,json=traceId,proto3" json:"trace_id,omitempty"`
-	unknownFields     protoimpl.UnknownFields
-	sizeCache         protoimpl.SizeCache
+	state                  protoimpl.MessageState  `protogen:"open.v1"`
+	SchemaVersion          string                  `protobuf:"bytes,1,opt,name=schema_version,json=schemaVersion,proto3" json:"schema_version,omitempty"`
+	TargetId               string                  `protobuf:"bytes,2,opt,name=target_id,json=targetId,proto3" json:"target_id,omitempty"`
+	EffectIntentId         string                  `protobuf:"bytes,3,opt,name=effect_intent_id,json=effectIntentId,proto3" json:"effect_intent_id,omitempty"`
+	OperationId            string                  `protobuf:"bytes,4,opt,name=operation_id,json=operationId,proto3" json:"operation_id,omitempty"`
+	Fence                  *Fence                  `protobuf:"bytes,5,opt,name=fence,proto3" json:"fence,omitempty"`
+	Status                 EffectStatus            `protobuf:"varint,6,opt,name=status,proto3,enum=masi.edge.v1.EffectStatus" json:"status,omitempty"`
+	PlanDigest             string                  `protobuf:"bytes,7,opt,name=plan_digest,json=planDigest,proto3" json:"plan_digest,omitempty"`
+	ReadbackDigest         string                  `protobuf:"bytes,8,opt,name=readback_digest,json=readbackDigest,proto3" json:"readback_digest,omitempty"`
+	ExpectedEntries        uint32                  `protobuf:"varint,9,opt,name=expected_entries,json=expectedEntries,proto3" json:"expected_entries,omitempty"`
+	ObservedEntries        uint32                  `protobuf:"varint,10,opt,name=observed_entries,json=observedEntries,proto3" json:"observed_entries,omitempty"`
+	MismatchedEntries      uint32                  `protobuf:"varint,11,opt,name=mismatched_entries,json=mismatchedEntries,proto3" json:"mismatched_entries,omitempty"`
+	ActiveBank             uint32                  `protobuf:"varint,12,opt,name=active_bank,json=activeBank,proto3" json:"active_bank,omitempty"`
+	ReasonCode             string                  `protobuf:"bytes,13,opt,name=reason_code,json=reasonCode,proto3" json:"reason_code,omitempty"`
+	TraceId                string                  `protobuf:"bytes,14,opt,name=trace_id,json=traceId,proto3" json:"trace_id,omitempty"`
+	AppliedEntries         []*AppliedRuleReadback  `protobuf:"bytes,15,rep,name=applied_entries,json=appliedEntries,proto3" json:"applied_entries,omitempty"`
+	ReadbackManifestDigest string                  `protobuf:"bytes,16,opt,name=readback_manifest_digest,json=readbackManifestDigest,proto3" json:"readback_manifest_digest,omitempty"`
+	BoundedCapture         *BoundedCaptureReadback `protobuf:"bytes,17,opt,name=bounded_capture,json=boundedCapture,proto3" json:"bounded_capture,omitempty"`
+	unknownFields          protoimpl.UnknownFields
+	sizeCache              protoimpl.SizeCache
 }
 
 func (x *EffectResult) Reset() {
 	*x = EffectResult{}
-	mi := &file_edge_v1_edge_proto_msgTypes[16]
+	mi := &file_edge_v1_edge_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2666,7 +2839,7 @@ func (x *EffectResult) String() string {
 func (*EffectResult) ProtoMessage() {}
 
 func (x *EffectResult) ProtoReflect() protoreflect.Message {
-	mi := &file_edge_v1_edge_proto_msgTypes[16]
+	mi := &file_edge_v1_edge_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2679,7 +2852,7 @@ func (x *EffectResult) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EffectResult.ProtoReflect.Descriptor instead.
 func (*EffectResult) Descriptor() ([]byte, []int) {
-	return file_edge_v1_edge_proto_rawDescGZIP(), []int{16}
+	return file_edge_v1_edge_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *EffectResult) GetSchemaVersion() string {
@@ -2780,6 +2953,261 @@ func (x *EffectResult) GetTraceId() string {
 	return ""
 }
 
+func (x *EffectResult) GetAppliedEntries() []*AppliedRuleReadback {
+	if x != nil {
+		return x.AppliedEntries
+	}
+	return nil
+}
+
+func (x *EffectResult) GetReadbackManifestDigest() string {
+	if x != nil {
+		return x.ReadbackManifestDigest
+	}
+	return ""
+}
+
+func (x *EffectResult) GetBoundedCapture() *BoundedCaptureReadback {
+	if x != nil {
+		return x.BoundedCapture
+	}
+	return nil
+}
+
+// BoundedCaptureReadback proves the exact bounded capture window and evidence
+// identity without returning packet payload on the control RPC.
+type BoundedCaptureReadback struct {
+	state               protoimpl.MessageState `protogen:"open.v1"`
+	SchemaVersion       string                 `protobuf:"bytes,1,opt,name=schema_version,json=schemaVersion,proto3" json:"schema_version,omitempty"`
+	CaptureId           string                 `protobuf:"bytes,2,opt,name=capture_id,json=captureId,proto3" json:"capture_id,omitempty"`
+	CaptureDigest       string                 `protobuf:"bytes,3,opt,name=capture_digest,json=captureDigest,proto3" json:"capture_digest,omitempty"`
+	CaptureSessionId    string                 `protobuf:"bytes,4,opt,name=capture_session_id,json=captureSessionId,proto3" json:"capture_session_id,omitempty"`
+	StartedAtUnixMs     int64                  `protobuf:"varint,5,opt,name=started_at_unix_ms,json=startedAtUnixMs,proto3" json:"started_at_unix_ms,omitempty"`
+	FinishedAtUnixMs    int64                  `protobuf:"varint,6,opt,name=finished_at_unix_ms,json=finishedAtUnixMs,proto3" json:"finished_at_unix_ms,omitempty"`
+	ObservedSamples     uint32                 `protobuf:"varint,7,opt,name=observed_samples,json=observedSamples,proto3" json:"observed_samples,omitempty"`
+	ObservedBytes       uint64                 `protobuf:"varint,8,opt,name=observed_bytes,json=observedBytes,proto3" json:"observed_bytes,omitempty"`
+	ContentDigest       string                 `protobuf:"bytes,9,opt,name=content_digest,json=contentDigest,proto3" json:"content_digest,omitempty"`
+	ObservedFlowDigest  string                 `protobuf:"bytes,10,opt,name=observed_flow_digest,json=observedFlowDigest,proto3" json:"observed_flow_digest,omitempty"`
+	CaptureWindowDigest string                 `protobuf:"bytes,11,opt,name=capture_window_digest,json=captureWindowDigest,proto3" json:"capture_window_digest,omitempty"`
+	Truncated           bool                   `protobuf:"varint,12,opt,name=truncated,proto3" json:"truncated,omitempty"`
+	Gap                 bool                   `protobuf:"varint,13,opt,name=gap,proto3" json:"gap,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
+}
+
+func (x *BoundedCaptureReadback) Reset() {
+	*x = BoundedCaptureReadback{}
+	mi := &file_edge_v1_edge_proto_msgTypes[18]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *BoundedCaptureReadback) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*BoundedCaptureReadback) ProtoMessage() {}
+
+func (x *BoundedCaptureReadback) ProtoReflect() protoreflect.Message {
+	mi := &file_edge_v1_edge_proto_msgTypes[18]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use BoundedCaptureReadback.ProtoReflect.Descriptor instead.
+func (*BoundedCaptureReadback) Descriptor() ([]byte, []int) {
+	return file_edge_v1_edge_proto_rawDescGZIP(), []int{18}
+}
+
+func (x *BoundedCaptureReadback) GetSchemaVersion() string {
+	if x != nil {
+		return x.SchemaVersion
+	}
+	return ""
+}
+
+func (x *BoundedCaptureReadback) GetCaptureId() string {
+	if x != nil {
+		return x.CaptureId
+	}
+	return ""
+}
+
+func (x *BoundedCaptureReadback) GetCaptureDigest() string {
+	if x != nil {
+		return x.CaptureDigest
+	}
+	return ""
+}
+
+func (x *BoundedCaptureReadback) GetCaptureSessionId() string {
+	if x != nil {
+		return x.CaptureSessionId
+	}
+	return ""
+}
+
+func (x *BoundedCaptureReadback) GetStartedAtUnixMs() int64 {
+	if x != nil {
+		return x.StartedAtUnixMs
+	}
+	return 0
+}
+
+func (x *BoundedCaptureReadback) GetFinishedAtUnixMs() int64 {
+	if x != nil {
+		return x.FinishedAtUnixMs
+	}
+	return 0
+}
+
+func (x *BoundedCaptureReadback) GetObservedSamples() uint32 {
+	if x != nil {
+		return x.ObservedSamples
+	}
+	return 0
+}
+
+func (x *BoundedCaptureReadback) GetObservedBytes() uint64 {
+	if x != nil {
+		return x.ObservedBytes
+	}
+	return 0
+}
+
+func (x *BoundedCaptureReadback) GetContentDigest() string {
+	if x != nil {
+		return x.ContentDigest
+	}
+	return ""
+}
+
+func (x *BoundedCaptureReadback) GetObservedFlowDigest() string {
+	if x != nil {
+		return x.ObservedFlowDigest
+	}
+	return ""
+}
+
+func (x *BoundedCaptureReadback) GetCaptureWindowDigest() string {
+	if x != nil {
+		return x.CaptureWindowDigest
+	}
+	return ""
+}
+
+func (x *BoundedCaptureReadback) GetTruncated() bool {
+	if x != nil {
+		return x.Truncated
+	}
+	return false
+}
+
+func (x *BoundedCaptureReadback) GetGap() bool {
+	if x != nil {
+		return x.Gap
+	}
+	return false
+}
+
+type AppliedRuleReadback struct {
+	state                     protoimpl.MessageState `protogen:"open.v1"`
+	EntityId                  string                 `protobuf:"bytes,1,opt,name=entity_id,json=entityId,proto3" json:"entity_id,omitempty"`
+	RuleId                    string                 `protobuf:"bytes,2,opt,name=rule_id,json=ruleId,proto3" json:"rule_id,omitempty"`
+	CanonicalEntryDigest      string                 `protobuf:"bytes,3,opt,name=canonical_entry_digest,json=canonicalEntryDigest,proto3" json:"canonical_entry_digest,omitempty"`
+	MatchPriorityActionDigest string                 `protobuf:"bytes,4,opt,name=match_priority_action_digest,json=matchPriorityActionDigest,proto3" json:"match_priority_action_digest,omitempty"`
+	TableId                   uint32                 `protobuf:"varint,5,opt,name=table_id,json=tableId,proto3" json:"table_id,omitempty"`
+	DirectCounterId           uint32                 `protobuf:"varint,6,opt,name=direct_counter_id,json=directCounterId,proto3" json:"direct_counter_id,omitempty"`
+	Bank                      uint32                 `protobuf:"varint,7,opt,name=bank,proto3" json:"bank,omitempty"`
+	unknownFields             protoimpl.UnknownFields
+	sizeCache                 protoimpl.SizeCache
+}
+
+func (x *AppliedRuleReadback) Reset() {
+	*x = AppliedRuleReadback{}
+	mi := &file_edge_v1_edge_proto_msgTypes[19]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AppliedRuleReadback) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AppliedRuleReadback) ProtoMessage() {}
+
+func (x *AppliedRuleReadback) ProtoReflect() protoreflect.Message {
+	mi := &file_edge_v1_edge_proto_msgTypes[19]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AppliedRuleReadback.ProtoReflect.Descriptor instead.
+func (*AppliedRuleReadback) Descriptor() ([]byte, []int) {
+	return file_edge_v1_edge_proto_rawDescGZIP(), []int{19}
+}
+
+func (x *AppliedRuleReadback) GetEntityId() string {
+	if x != nil {
+		return x.EntityId
+	}
+	return ""
+}
+
+func (x *AppliedRuleReadback) GetRuleId() string {
+	if x != nil {
+		return x.RuleId
+	}
+	return ""
+}
+
+func (x *AppliedRuleReadback) GetCanonicalEntryDigest() string {
+	if x != nil {
+		return x.CanonicalEntryDigest
+	}
+	return ""
+}
+
+func (x *AppliedRuleReadback) GetMatchPriorityActionDigest() string {
+	if x != nil {
+		return x.MatchPriorityActionDigest
+	}
+	return ""
+}
+
+func (x *AppliedRuleReadback) GetTableId() uint32 {
+	if x != nil {
+		return x.TableId
+	}
+	return 0
+}
+
+func (x *AppliedRuleReadback) GetDirectCounterId() uint32 {
+	if x != nil {
+		return x.DirectCounterId
+	}
+	return 0
+}
+
+func (x *AppliedRuleReadback) GetBank() uint32 {
+	if x != nil {
+		return x.Bank
+	}
+	return 0
+}
+
 type AcknowledgeEffectRequest struct {
 	state                    protoimpl.MessageState `protogen:"open.v1"`
 	SchemaVersion            string                 `protobuf:"bytes,1,opt,name=schema_version,json=schemaVersion,proto3" json:"schema_version,omitempty"`
@@ -2797,7 +3225,7 @@ type AcknowledgeEffectRequest struct {
 
 func (x *AcknowledgeEffectRequest) Reset() {
 	*x = AcknowledgeEffectRequest{}
-	mi := &file_edge_v1_edge_proto_msgTypes[17]
+	mi := &file_edge_v1_edge_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2809,7 +3237,7 @@ func (x *AcknowledgeEffectRequest) String() string {
 func (*AcknowledgeEffectRequest) ProtoMessage() {}
 
 func (x *AcknowledgeEffectRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_edge_v1_edge_proto_msgTypes[17]
+	mi := &file_edge_v1_edge_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2822,7 +3250,7 @@ func (x *AcknowledgeEffectRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AcknowledgeEffectRequest.ProtoReflect.Descriptor instead.
 func (*AcknowledgeEffectRequest) Descriptor() ([]byte, []int) {
-	return file_edge_v1_edge_proto_rawDescGZIP(), []int{17}
+	return file_edge_v1_edge_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *AcknowledgeEffectRequest) GetSchemaVersion() string {
@@ -2889,20 +3317,22 @@ func (x *AcknowledgeEffectRequest) GetTraceId() string {
 }
 
 type CanonicalP4Entry struct {
-	state                protoimpl.MessageState `protogen:"open.v1"`
-	LogicalRuleId        string                 `protobuf:"bytes,1,opt,name=logical_rule_id,json=logicalRuleId,proto3" json:"logical_rule_id,omitempty"`
-	TableId              uint32                 `protobuf:"varint,2,opt,name=table_id,json=tableId,proto3" json:"table_id,omitempty"`
-	DirectCounterId      uint32                 `protobuf:"varint,3,opt,name=direct_counter_id,json=directCounterId,proto3" json:"direct_counter_id,omitempty"`
-	Bank                 uint32                 `protobuf:"varint,4,opt,name=bank,proto3" json:"bank,omitempty"`
-	Entity               []byte                 `protobuf:"bytes,5,opt,name=entity,proto3" json:"entity,omitempty"`
-	CanonicalEntryDigest string                 `protobuf:"bytes,6,opt,name=canonical_entry_digest,json=canonicalEntryDigest,proto3" json:"canonical_entry_digest,omitempty"`
-	unknownFields        protoimpl.UnknownFields
-	sizeCache            protoimpl.SizeCache
+	state                     protoimpl.MessageState `protogen:"open.v1"`
+	LogicalRuleId             string                 `protobuf:"bytes,1,opt,name=logical_rule_id,json=logicalRuleId,proto3" json:"logical_rule_id,omitempty"`
+	TableId                   uint32                 `protobuf:"varint,2,opt,name=table_id,json=tableId,proto3" json:"table_id,omitempty"`
+	DirectCounterId           uint32                 `protobuf:"varint,3,opt,name=direct_counter_id,json=directCounterId,proto3" json:"direct_counter_id,omitempty"`
+	Bank                      uint32                 `protobuf:"varint,4,opt,name=bank,proto3" json:"bank,omitempty"`
+	Entity                    []byte                 `protobuf:"bytes,5,opt,name=entity,proto3" json:"entity,omitempty"`
+	CanonicalEntryDigest      string                 `protobuf:"bytes,6,opt,name=canonical_entry_digest,json=canonicalEntryDigest,proto3" json:"canonical_entry_digest,omitempty"`
+	EntityId                  string                 `protobuf:"bytes,7,opt,name=entity_id,json=entityId,proto3" json:"entity_id,omitempty"`
+	MatchPriorityActionDigest string                 `protobuf:"bytes,8,opt,name=match_priority_action_digest,json=matchPriorityActionDigest,proto3" json:"match_priority_action_digest,omitempty"`
+	unknownFields             protoimpl.UnknownFields
+	sizeCache                 protoimpl.SizeCache
 }
 
 func (x *CanonicalP4Entry) Reset() {
 	*x = CanonicalP4Entry{}
-	mi := &file_edge_v1_edge_proto_msgTypes[18]
+	mi := &file_edge_v1_edge_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2914,7 +3344,7 @@ func (x *CanonicalP4Entry) String() string {
 func (*CanonicalP4Entry) ProtoMessage() {}
 
 func (x *CanonicalP4Entry) ProtoReflect() protoreflect.Message {
-	mi := &file_edge_v1_edge_proto_msgTypes[18]
+	mi := &file_edge_v1_edge_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2927,7 +3357,7 @@ func (x *CanonicalP4Entry) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CanonicalP4Entry.ProtoReflect.Descriptor instead.
 func (*CanonicalP4Entry) Descriptor() ([]byte, []int) {
-	return file_edge_v1_edge_proto_rawDescGZIP(), []int{18}
+	return file_edge_v1_edge_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *CanonicalP4Entry) GetLogicalRuleId() string {
@@ -2972,6 +3402,20 @@ func (x *CanonicalP4Entry) GetCanonicalEntryDigest() string {
 	return ""
 }
 
+func (x *CanonicalP4Entry) GetEntityId() string {
+	if x != nil {
+		return x.EntityId
+	}
+	return ""
+}
+
+func (x *CanonicalP4Entry) GetMatchPriorityActionDigest() string {
+	if x != nil {
+		return x.MatchPriorityActionDigest
+	}
+	return ""
+}
+
 type CompiledEffectPlan struct {
 	state          protoimpl.MessageState `protogen:"open.v1"`
 	SchemaVersion  string                 `protobuf:"bytes,1,opt,name=schema_version,json=schemaVersion,proto3" json:"schema_version,omitempty"`
@@ -2990,7 +3434,7 @@ type CompiledEffectPlan struct {
 
 func (x *CompiledEffectPlan) Reset() {
 	*x = CompiledEffectPlan{}
-	mi := &file_edge_v1_edge_proto_msgTypes[19]
+	mi := &file_edge_v1_edge_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3002,7 +3446,7 @@ func (x *CompiledEffectPlan) String() string {
 func (*CompiledEffectPlan) ProtoMessage() {}
 
 func (x *CompiledEffectPlan) ProtoReflect() protoreflect.Message {
-	mi := &file_edge_v1_edge_proto_msgTypes[19]
+	mi := &file_edge_v1_edge_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3015,7 +3459,7 @@ func (x *CompiledEffectPlan) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CompiledEffectPlan.ProtoReflect.Descriptor instead.
 func (*CompiledEffectPlan) Descriptor() ([]byte, []int) {
-	return file_edge_v1_edge_proto_rawDescGZIP(), []int{19}
+	return file_edge_v1_edge_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *CompiledEffectPlan) GetSchemaVersion() string {
@@ -3103,7 +3547,7 @@ type EffectJournalRecord struct {
 
 func (x *EffectJournalRecord) Reset() {
 	*x = EffectJournalRecord{}
-	mi := &file_edge_v1_edge_proto_msgTypes[20]
+	mi := &file_edge_v1_edge_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3115,7 +3559,7 @@ func (x *EffectJournalRecord) String() string {
 func (*EffectJournalRecord) ProtoMessage() {}
 
 func (x *EffectJournalRecord) ProtoReflect() protoreflect.Message {
-	mi := &file_edge_v1_edge_proto_msgTypes[20]
+	mi := &file_edge_v1_edge_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3128,7 +3572,7 @@ func (x *EffectJournalRecord) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EffectJournalRecord.ProtoReflect.Descriptor instead.
 func (*EffectJournalRecord) Descriptor() ([]byte, []int) {
-	return file_edge_v1_edge_proto_rawDescGZIP(), []int{20}
+	return file_edge_v1_edge_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *EffectJournalRecord) GetSchemaVersion() string {
@@ -3196,7 +3640,7 @@ type SupplementalHint struct {
 
 func (x *SupplementalHint) Reset() {
 	*x = SupplementalHint{}
-	mi := &file_edge_v1_edge_proto_msgTypes[21]
+	mi := &file_edge_v1_edge_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3208,7 +3652,7 @@ func (x *SupplementalHint) String() string {
 func (*SupplementalHint) ProtoMessage() {}
 
 func (x *SupplementalHint) ProtoReflect() protoreflect.Message {
-	mi := &file_edge_v1_edge_proto_msgTypes[21]
+	mi := &file_edge_v1_edge_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3221,7 +3665,7 @@ func (x *SupplementalHint) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SupplementalHint.ProtoReflect.Descriptor instead.
 func (*SupplementalHint) Descriptor() ([]byte, []int) {
-	return file_edge_v1_edge_proto_rawDescGZIP(), []int{21}
+	return file_edge_v1_edge_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *SupplementalHint) GetTargetId() string {
@@ -3305,7 +3749,7 @@ type SourceWalRecord struct {
 
 func (x *SourceWalRecord) Reset() {
 	*x = SourceWalRecord{}
-	mi := &file_edge_v1_edge_proto_msgTypes[22]
+	mi := &file_edge_v1_edge_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3317,7 +3761,7 @@ func (x *SourceWalRecord) String() string {
 func (*SourceWalRecord) ProtoMessage() {}
 
 func (x *SourceWalRecord) ProtoReflect() protoreflect.Message {
-	mi := &file_edge_v1_edge_proto_msgTypes[22]
+	mi := &file_edge_v1_edge_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3330,7 +3774,7 @@ func (x *SourceWalRecord) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SourceWalRecord.ProtoReflect.Descriptor instead.
 func (*SourceWalRecord) Descriptor() ([]byte, []int) {
-	return file_edge_v1_edge_proto_rawDescGZIP(), []int{22}
+	return file_edge_v1_edge_proto_rawDescGZIP(), []int{25}
 }
 
 func (x *SourceWalRecord) GetSchemaVersion() string {
@@ -3487,7 +3931,7 @@ type InferenceRoute struct {
 
 func (x *InferenceRoute) Reset() {
 	*x = InferenceRoute{}
-	mi := &file_edge_v1_edge_proto_msgTypes[23]
+	mi := &file_edge_v1_edge_proto_msgTypes[26]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3499,7 +3943,7 @@ func (x *InferenceRoute) String() string {
 func (*InferenceRoute) ProtoMessage() {}
 
 func (x *InferenceRoute) ProtoReflect() protoreflect.Message {
-	mi := &file_edge_v1_edge_proto_msgTypes[23]
+	mi := &file_edge_v1_edge_proto_msgTypes[26]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3512,7 +3956,7 @@ func (x *InferenceRoute) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use InferenceRoute.ProtoReflect.Descriptor instead.
 func (*InferenceRoute) Descriptor() ([]byte, []int) {
-	return file_edge_v1_edge_proto_rawDescGZIP(), []int{23}
+	return file_edge_v1_edge_proto_rawDescGZIP(), []int{26}
 }
 
 func (x *InferenceRoute) GetSchemaVersion() string {
@@ -3718,7 +4162,7 @@ type PrepareRouteRequest struct {
 
 func (x *PrepareRouteRequest) Reset() {
 	*x = PrepareRouteRequest{}
-	mi := &file_edge_v1_edge_proto_msgTypes[24]
+	mi := &file_edge_v1_edge_proto_msgTypes[27]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3730,7 +4174,7 @@ func (x *PrepareRouteRequest) String() string {
 func (*PrepareRouteRequest) ProtoMessage() {}
 
 func (x *PrepareRouteRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_edge_v1_edge_proto_msgTypes[24]
+	mi := &file_edge_v1_edge_proto_msgTypes[27]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3743,7 +4187,7 @@ func (x *PrepareRouteRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PrepareRouteRequest.ProtoReflect.Descriptor instead.
 func (*PrepareRouteRequest) Descriptor() ([]byte, []int) {
-	return file_edge_v1_edge_proto_rawDescGZIP(), []int{24}
+	return file_edge_v1_edge_proto_rawDescGZIP(), []int{27}
 }
 
 func (x *PrepareRouteRequest) GetSchemaVersion() string {
@@ -3798,7 +4242,7 @@ type CommitRouteRequest struct {
 
 func (x *CommitRouteRequest) Reset() {
 	*x = CommitRouteRequest{}
-	mi := &file_edge_v1_edge_proto_msgTypes[25]
+	mi := &file_edge_v1_edge_proto_msgTypes[28]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3810,7 +4254,7 @@ func (x *CommitRouteRequest) String() string {
 func (*CommitRouteRequest) ProtoMessage() {}
 
 func (x *CommitRouteRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_edge_v1_edge_proto_msgTypes[25]
+	mi := &file_edge_v1_edge_proto_msgTypes[28]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3823,7 +4267,7 @@ func (x *CommitRouteRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CommitRouteRequest.ProtoReflect.Descriptor instead.
 func (*CommitRouteRequest) Descriptor() ([]byte, []int) {
-	return file_edge_v1_edge_proto_rawDescGZIP(), []int{25}
+	return file_edge_v1_edge_proto_rawDescGZIP(), []int{28}
 }
 
 func (x *CommitRouteRequest) GetRoute() *InferenceRoute {
@@ -3864,7 +4308,7 @@ type ResumeRouteRequest struct {
 
 func (x *ResumeRouteRequest) Reset() {
 	*x = ResumeRouteRequest{}
-	mi := &file_edge_v1_edge_proto_msgTypes[26]
+	mi := &file_edge_v1_edge_proto_msgTypes[29]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3876,7 +4320,7 @@ func (x *ResumeRouteRequest) String() string {
 func (*ResumeRouteRequest) ProtoMessage() {}
 
 func (x *ResumeRouteRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_edge_v1_edge_proto_msgTypes[26]
+	mi := &file_edge_v1_edge_proto_msgTypes[29]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3889,7 +4333,7 @@ func (x *ResumeRouteRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ResumeRouteRequest.ProtoReflect.Descriptor instead.
 func (*ResumeRouteRequest) Descriptor() ([]byte, []int) {
-	return file_edge_v1_edge_proto_rawDescGZIP(), []int{26}
+	return file_edge_v1_edge_proto_rawDescGZIP(), []int{29}
 }
 
 func (x *ResumeRouteRequest) GetSchemaVersion() string {
@@ -4021,7 +4465,7 @@ type RouteResumeWatermark struct {
 
 func (x *RouteResumeWatermark) Reset() {
 	*x = RouteResumeWatermark{}
-	mi := &file_edge_v1_edge_proto_msgTypes[27]
+	mi := &file_edge_v1_edge_proto_msgTypes[30]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4033,7 +4477,7 @@ func (x *RouteResumeWatermark) String() string {
 func (*RouteResumeWatermark) ProtoMessage() {}
 
 func (x *RouteResumeWatermark) ProtoReflect() protoreflect.Message {
-	mi := &file_edge_v1_edge_proto_msgTypes[27]
+	mi := &file_edge_v1_edge_proto_msgTypes[30]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4046,7 +4490,7 @@ func (x *RouteResumeWatermark) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RouteResumeWatermark.ProtoReflect.Descriptor instead.
 func (*RouteResumeWatermark) Descriptor() ([]byte, []int) {
-	return file_edge_v1_edge_proto_rawDescGZIP(), []int{27}
+	return file_edge_v1_edge_proto_rawDescGZIP(), []int{30}
 }
 
 func (x *RouteResumeWatermark) GetSchemaVersion() string {
@@ -4132,7 +4576,7 @@ type RouteReply struct {
 
 func (x *RouteReply) Reset() {
 	*x = RouteReply{}
-	mi := &file_edge_v1_edge_proto_msgTypes[28]
+	mi := &file_edge_v1_edge_proto_msgTypes[31]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4144,7 +4588,7 @@ func (x *RouteReply) String() string {
 func (*RouteReply) ProtoMessage() {}
 
 func (x *RouteReply) ProtoReflect() protoreflect.Message {
-	mi := &file_edge_v1_edge_proto_msgTypes[28]
+	mi := &file_edge_v1_edge_proto_msgTypes[31]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4157,7 +4601,7 @@ func (x *RouteReply) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RouteReply.ProtoReflect.Descriptor instead.
 func (*RouteReply) Descriptor() ([]byte, []int) {
-	return file_edge_v1_edge_proto_rawDescGZIP(), []int{28}
+	return file_edge_v1_edge_proto_rawDescGZIP(), []int{31}
 }
 
 func (x *RouteReply) GetShardId() string {
@@ -4272,7 +4716,7 @@ type GetBindingRequest struct {
 
 func (x *GetBindingRequest) Reset() {
 	*x = GetBindingRequest{}
-	mi := &file_edge_v1_edge_proto_msgTypes[29]
+	mi := &file_edge_v1_edge_proto_msgTypes[32]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4284,7 +4728,7 @@ func (x *GetBindingRequest) String() string {
 func (*GetBindingRequest) ProtoMessage() {}
 
 func (x *GetBindingRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_edge_v1_edge_proto_msgTypes[29]
+	mi := &file_edge_v1_edge_proto_msgTypes[32]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4297,7 +4741,7 @@ func (x *GetBindingRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetBindingRequest.ProtoReflect.Descriptor instead.
 func (*GetBindingRequest) Descriptor() ([]byte, []int) {
-	return file_edge_v1_edge_proto_rawDescGZIP(), []int{29}
+	return file_edge_v1_edge_proto_rawDescGZIP(), []int{32}
 }
 
 func (x *GetBindingRequest) GetLogicalPoolId() string {
@@ -4450,7 +4894,7 @@ type InferenceWorkerIdentity struct {
 
 func (x *InferenceWorkerIdentity) Reset() {
 	*x = InferenceWorkerIdentity{}
-	mi := &file_edge_v1_edge_proto_msgTypes[30]
+	mi := &file_edge_v1_edge_proto_msgTypes[33]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4462,7 +4906,7 @@ func (x *InferenceWorkerIdentity) String() string {
 func (*InferenceWorkerIdentity) ProtoMessage() {}
 
 func (x *InferenceWorkerIdentity) ProtoReflect() protoreflect.Message {
-	mi := &file_edge_v1_edge_proto_msgTypes[30]
+	mi := &file_edge_v1_edge_proto_msgTypes[33]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4475,7 +4919,7 @@ func (x *InferenceWorkerIdentity) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use InferenceWorkerIdentity.ProtoReflect.Descriptor instead.
 func (*InferenceWorkerIdentity) Descriptor() ([]byte, []int) {
-	return file_edge_v1_edge_proto_rawDescGZIP(), []int{30}
+	return file_edge_v1_edge_proto_rawDescGZIP(), []int{33}
 }
 
 func (x *InferenceWorkerIdentity) GetWorkerId() string {
@@ -4524,7 +4968,7 @@ type BindingReadback struct {
 
 func (x *BindingReadback) Reset() {
 	*x = BindingReadback{}
-	mi := &file_edge_v1_edge_proto_msgTypes[31]
+	mi := &file_edge_v1_edge_proto_msgTypes[34]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4536,7 +4980,7 @@ func (x *BindingReadback) String() string {
 func (*BindingReadback) ProtoMessage() {}
 
 func (x *BindingReadback) ProtoReflect() protoreflect.Message {
-	mi := &file_edge_v1_edge_proto_msgTypes[31]
+	mi := &file_edge_v1_edge_proto_msgTypes[34]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4549,7 +4993,7 @@ func (x *BindingReadback) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BindingReadback.ProtoReflect.Descriptor instead.
 func (*BindingReadback) Descriptor() ([]byte, []int) {
-	return file_edge_v1_edge_proto_rawDescGZIP(), []int{31}
+	return file_edge_v1_edge_proto_rawDescGZIP(), []int{34}
 }
 
 func (x *BindingReadback) GetLogicalPoolId() string {
@@ -4730,7 +5174,7 @@ type TelemetryEndpoint struct {
 
 func (x *TelemetryEndpoint) Reset() {
 	*x = TelemetryEndpoint{}
-	mi := &file_edge_v1_edge_proto_msgTypes[32]
+	mi := &file_edge_v1_edge_proto_msgTypes[35]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4742,7 +5186,7 @@ func (x *TelemetryEndpoint) String() string {
 func (*TelemetryEndpoint) ProtoMessage() {}
 
 func (x *TelemetryEndpoint) ProtoReflect() protoreflect.Message {
-	mi := &file_edge_v1_edge_proto_msgTypes[32]
+	mi := &file_edge_v1_edge_proto_msgTypes[35]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4755,7 +5199,7 @@ func (x *TelemetryEndpoint) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TelemetryEndpoint.ProtoReflect.Descriptor instead.
 func (*TelemetryEndpoint) Descriptor() ([]byte, []int) {
-	return file_edge_v1_edge_proto_rawDescGZIP(), []int{32}
+	return file_edge_v1_edge_proto_rawDescGZIP(), []int{35}
 }
 
 func (x *TelemetryEndpoint) GetAddress() []byte {
@@ -4789,7 +5233,7 @@ type TelemetryFlowIdentity struct {
 
 func (x *TelemetryFlowIdentity) Reset() {
 	*x = TelemetryFlowIdentity{}
-	mi := &file_edge_v1_edge_proto_msgTypes[33]
+	mi := &file_edge_v1_edge_proto_msgTypes[36]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4801,7 +5245,7 @@ func (x *TelemetryFlowIdentity) String() string {
 func (*TelemetryFlowIdentity) ProtoMessage() {}
 
 func (x *TelemetryFlowIdentity) ProtoReflect() protoreflect.Message {
-	mi := &file_edge_v1_edge_proto_msgTypes[33]
+	mi := &file_edge_v1_edge_proto_msgTypes[36]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4814,7 +5258,7 @@ func (x *TelemetryFlowIdentity) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TelemetryFlowIdentity.ProtoReflect.Descriptor instead.
 func (*TelemetryFlowIdentity) Descriptor() ([]byte, []int) {
-	return file_edge_v1_edge_proto_rawDescGZIP(), []int{33}
+	return file_edge_v1_edge_proto_rawDescGZIP(), []int{36}
 }
 
 func (x *TelemetryFlowIdentity) GetDirection() TelemetryFlowDirection {
@@ -4902,7 +5346,7 @@ type TelemetryFlowIdentityProfile struct {
 
 func (x *TelemetryFlowIdentityProfile) Reset() {
 	*x = TelemetryFlowIdentityProfile{}
-	mi := &file_edge_v1_edge_proto_msgTypes[34]
+	mi := &file_edge_v1_edge_proto_msgTypes[37]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4914,7 +5358,7 @@ func (x *TelemetryFlowIdentityProfile) String() string {
 func (*TelemetryFlowIdentityProfile) ProtoMessage() {}
 
 func (x *TelemetryFlowIdentityProfile) ProtoReflect() protoreflect.Message {
-	mi := &file_edge_v1_edge_proto_msgTypes[34]
+	mi := &file_edge_v1_edge_proto_msgTypes[37]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4927,7 +5371,7 @@ func (x *TelemetryFlowIdentityProfile) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TelemetryFlowIdentityProfile.ProtoReflect.Descriptor instead.
 func (*TelemetryFlowIdentityProfile) Descriptor() ([]byte, []int) {
-	return file_edge_v1_edge_proto_rawDescGZIP(), []int{34}
+	return file_edge_v1_edge_proto_rawDescGZIP(), []int{37}
 }
 
 func (x *TelemetryFlowIdentityProfile) GetSchemaVersion() string {
@@ -5040,7 +5484,7 @@ type TelemetryCell struct {
 
 func (x *TelemetryCell) Reset() {
 	*x = TelemetryCell{}
-	mi := &file_edge_v1_edge_proto_msgTypes[35]
+	mi := &file_edge_v1_edge_proto_msgTypes[38]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5052,7 +5496,7 @@ func (x *TelemetryCell) String() string {
 func (*TelemetryCell) ProtoMessage() {}
 
 func (x *TelemetryCell) ProtoReflect() protoreflect.Message {
-	mi := &file_edge_v1_edge_proto_msgTypes[35]
+	mi := &file_edge_v1_edge_proto_msgTypes[38]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5065,7 +5509,7 @@ func (x *TelemetryCell) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TelemetryCell.ProtoReflect.Descriptor instead.
 func (*TelemetryCell) Descriptor() ([]byte, []int) {
-	return file_edge_v1_edge_proto_rawDescGZIP(), []int{35}
+	return file_edge_v1_edge_proto_rawDescGZIP(), []int{38}
 }
 
 func (x *TelemetryCell) GetIndex() uint32 {
@@ -5168,7 +5612,7 @@ type TelemetrySnapshot struct {
 
 func (x *TelemetrySnapshot) Reset() {
 	*x = TelemetrySnapshot{}
-	mi := &file_edge_v1_edge_proto_msgTypes[36]
+	mi := &file_edge_v1_edge_proto_msgTypes[39]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5180,7 +5624,7 @@ func (x *TelemetrySnapshot) String() string {
 func (*TelemetrySnapshot) ProtoMessage() {}
 
 func (x *TelemetrySnapshot) ProtoReflect() protoreflect.Message {
-	mi := &file_edge_v1_edge_proto_msgTypes[36]
+	mi := &file_edge_v1_edge_proto_msgTypes[39]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5193,7 +5637,7 @@ func (x *TelemetrySnapshot) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TelemetrySnapshot.ProtoReflect.Descriptor instead.
 func (*TelemetrySnapshot) Descriptor() ([]byte, []int) {
-	return file_edge_v1_edge_proto_rawDescGZIP(), []int{36}
+	return file_edge_v1_edge_proto_rawDescGZIP(), []int{39}
 }
 
 func (x *TelemetrySnapshot) GetSchemaVersion() string {
@@ -5663,7 +6107,7 @@ type SamplingEvidence struct {
 
 func (x *SamplingEvidence) Reset() {
 	*x = SamplingEvidence{}
-	mi := &file_edge_v1_edge_proto_msgTypes[37]
+	mi := &file_edge_v1_edge_proto_msgTypes[40]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5675,7 +6119,7 @@ func (x *SamplingEvidence) String() string {
 func (*SamplingEvidence) ProtoMessage() {}
 
 func (x *SamplingEvidence) ProtoReflect() protoreflect.Message {
-	mi := &file_edge_v1_edge_proto_msgTypes[37]
+	mi := &file_edge_v1_edge_proto_msgTypes[40]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5688,7 +6132,7 @@ func (x *SamplingEvidence) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SamplingEvidence.ProtoReflect.Descriptor instead.
 func (*SamplingEvidence) Descriptor() ([]byte, []int) {
-	return file_edge_v1_edge_proto_rawDescGZIP(), []int{37}
+	return file_edge_v1_edge_proto_rawDescGZIP(), []int{40}
 }
 
 func (x *SamplingEvidence) GetAlgorithm() string {
@@ -5786,7 +6230,7 @@ type DropEvidence struct {
 
 func (x *DropEvidence) Reset() {
 	*x = DropEvidence{}
-	mi := &file_edge_v1_edge_proto_msgTypes[38]
+	mi := &file_edge_v1_edge_proto_msgTypes[41]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5798,7 +6242,7 @@ func (x *DropEvidence) String() string {
 func (*DropEvidence) ProtoMessage() {}
 
 func (x *DropEvidence) ProtoReflect() protoreflect.Message {
-	mi := &file_edge_v1_edge_proto_msgTypes[38]
+	mi := &file_edge_v1_edge_proto_msgTypes[41]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5811,7 +6255,7 @@ func (x *DropEvidence) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DropEvidence.ProtoReflect.Descriptor instead.
 func (*DropEvidence) Descriptor() ([]byte, []int) {
-	return file_edge_v1_edge_proto_rawDescGZIP(), []int{38}
+	return file_edge_v1_edge_proto_rawDescGZIP(), []int{41}
 }
 
 func (x *DropEvidence) GetP4SourceDrops() uint64 {
@@ -5895,7 +6339,7 @@ type SourceGap struct {
 
 func (x *SourceGap) Reset() {
 	*x = SourceGap{}
-	mi := &file_edge_v1_edge_proto_msgTypes[39]
+	mi := &file_edge_v1_edge_proto_msgTypes[42]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5907,7 +6351,7 @@ func (x *SourceGap) String() string {
 func (*SourceGap) ProtoMessage() {}
 
 func (x *SourceGap) ProtoReflect() protoreflect.Message {
-	mi := &file_edge_v1_edge_proto_msgTypes[39]
+	mi := &file_edge_v1_edge_proto_msgTypes[42]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5920,7 +6364,7 @@ func (x *SourceGap) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SourceGap.ProtoReflect.Descriptor instead.
 func (*SourceGap) Descriptor() ([]byte, []int) {
-	return file_edge_v1_edge_proto_rawDescGZIP(), []int{39}
+	return file_edge_v1_edge_proto_rawDescGZIP(), []int{42}
 }
 
 func (x *SourceGap) GetSourceSequenceStart() uint64 {
@@ -5999,7 +6443,7 @@ type InferenceRecord struct {
 
 func (x *InferenceRecord) Reset() {
 	*x = InferenceRecord{}
-	mi := &file_edge_v1_edge_proto_msgTypes[40]
+	mi := &file_edge_v1_edge_proto_msgTypes[43]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6011,7 +6455,7 @@ func (x *InferenceRecord) String() string {
 func (*InferenceRecord) ProtoMessage() {}
 
 func (x *InferenceRecord) ProtoReflect() protoreflect.Message {
-	mi := &file_edge_v1_edge_proto_msgTypes[40]
+	mi := &file_edge_v1_edge_proto_msgTypes[43]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6024,7 +6468,7 @@ func (x *InferenceRecord) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use InferenceRecord.ProtoReflect.Descriptor instead.
 func (*InferenceRecord) Descriptor() ([]byte, []int) {
-	return file_edge_v1_edge_proto_rawDescGZIP(), []int{40}
+	return file_edge_v1_edge_proto_rawDescGZIP(), []int{43}
 }
 
 func (x *InferenceRecord) GetInputId() string {
@@ -6372,7 +6816,7 @@ type InferenceInputBatch struct {
 
 func (x *InferenceInputBatch) Reset() {
 	*x = InferenceInputBatch{}
-	mi := &file_edge_v1_edge_proto_msgTypes[41]
+	mi := &file_edge_v1_edge_proto_msgTypes[44]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6384,7 +6828,7 @@ func (x *InferenceInputBatch) String() string {
 func (*InferenceInputBatch) ProtoMessage() {}
 
 func (x *InferenceInputBatch) ProtoReflect() protoreflect.Message {
-	mi := &file_edge_v1_edge_proto_msgTypes[41]
+	mi := &file_edge_v1_edge_proto_msgTypes[44]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6397,7 +6841,7 @@ func (x *InferenceInputBatch) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use InferenceInputBatch.ProtoReflect.Descriptor instead.
 func (*InferenceInputBatch) Descriptor() ([]byte, []int) {
-	return file_edge_v1_edge_proto_rawDescGZIP(), []int{41}
+	return file_edge_v1_edge_proto_rawDescGZIP(), []int{44}
 }
 
 func (x *InferenceInputBatch) GetSchemaVersion() string {
@@ -6520,7 +6964,7 @@ type InferenceResultRecord struct {
 
 func (x *InferenceResultRecord) Reset() {
 	*x = InferenceResultRecord{}
-	mi := &file_edge_v1_edge_proto_msgTypes[42]
+	mi := &file_edge_v1_edge_proto_msgTypes[45]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6532,7 +6976,7 @@ func (x *InferenceResultRecord) String() string {
 func (*InferenceResultRecord) ProtoMessage() {}
 
 func (x *InferenceResultRecord) ProtoReflect() protoreflect.Message {
-	mi := &file_edge_v1_edge_proto_msgTypes[42]
+	mi := &file_edge_v1_edge_proto_msgTypes[45]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6545,7 +6989,7 @@ func (x *InferenceResultRecord) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use InferenceResultRecord.ProtoReflect.Descriptor instead.
 func (*InferenceResultRecord) Descriptor() ([]byte, []int) {
-	return file_edge_v1_edge_proto_rawDescGZIP(), []int{42}
+	return file_edge_v1_edge_proto_rawDescGZIP(), []int{45}
 }
 
 func (x *InferenceResultRecord) GetInputId() string {
@@ -6954,7 +7398,7 @@ type InferenceResultBatch struct {
 
 func (x *InferenceResultBatch) Reset() {
 	*x = InferenceResultBatch{}
-	mi := &file_edge_v1_edge_proto_msgTypes[43]
+	mi := &file_edge_v1_edge_proto_msgTypes[46]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6966,7 +7410,7 @@ func (x *InferenceResultBatch) String() string {
 func (*InferenceResultBatch) ProtoMessage() {}
 
 func (x *InferenceResultBatch) ProtoReflect() protoreflect.Message {
-	mi := &file_edge_v1_edge_proto_msgTypes[43]
+	mi := &file_edge_v1_edge_proto_msgTypes[46]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6979,7 +7423,7 @@ func (x *InferenceResultBatch) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use InferenceResultBatch.ProtoReflect.Descriptor instead.
 func (*InferenceResultBatch) Descriptor() ([]byte, []int) {
-	return file_edge_v1_edge_proto_rawDescGZIP(), []int{43}
+	return file_edge_v1_edge_proto_rawDescGZIP(), []int{46}
 }
 
 func (x *InferenceResultBatch) GetSchemaVersion() string {
@@ -7039,7 +7483,7 @@ type ResultWalRecord struct {
 
 func (x *ResultWalRecord) Reset() {
 	*x = ResultWalRecord{}
-	mi := &file_edge_v1_edge_proto_msgTypes[44]
+	mi := &file_edge_v1_edge_proto_msgTypes[47]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7051,7 +7495,7 @@ func (x *ResultWalRecord) String() string {
 func (*ResultWalRecord) ProtoMessage() {}
 
 func (x *ResultWalRecord) ProtoReflect() protoreflect.Message {
-	mi := &file_edge_v1_edge_proto_msgTypes[44]
+	mi := &file_edge_v1_edge_proto_msgTypes[47]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7064,7 +7508,7 @@ func (x *ResultWalRecord) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ResultWalRecord.ProtoReflect.Descriptor instead.
 func (*ResultWalRecord) Descriptor() ([]byte, []int) {
-	return file_edge_v1_edge_proto_rawDescGZIP(), []int{44}
+	return file_edge_v1_edge_proto_rawDescGZIP(), []int{47}
 }
 
 func (x *ResultWalRecord) GetSchemaVersion() string {
@@ -7132,7 +7576,7 @@ type RouteWalRecord struct {
 
 func (x *RouteWalRecord) Reset() {
 	*x = RouteWalRecord{}
-	mi := &file_edge_v1_edge_proto_msgTypes[45]
+	mi := &file_edge_v1_edge_proto_msgTypes[48]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7144,7 +7588,7 @@ func (x *RouteWalRecord) String() string {
 func (*RouteWalRecord) ProtoMessage() {}
 
 func (x *RouteWalRecord) ProtoReflect() protoreflect.Message {
-	mi := &file_edge_v1_edge_proto_msgTypes[45]
+	mi := &file_edge_v1_edge_proto_msgTypes[48]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7157,7 +7601,7 @@ func (x *RouteWalRecord) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RouteWalRecord.ProtoReflect.Descriptor instead.
 func (*RouteWalRecord) Descriptor() ([]byte, []int) {
-	return file_edge_v1_edge_proto_rawDescGZIP(), []int{45}
+	return file_edge_v1_edge_proto_rawDescGZIP(), []int{48}
 }
 
 func (x *RouteWalRecord) GetSchemaVersion() string {
@@ -7232,7 +7676,7 @@ type CanonicalAck struct {
 
 func (x *CanonicalAck) Reset() {
 	*x = CanonicalAck{}
-	mi := &file_edge_v1_edge_proto_msgTypes[46]
+	mi := &file_edge_v1_edge_proto_msgTypes[49]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7244,7 +7688,7 @@ func (x *CanonicalAck) String() string {
 func (*CanonicalAck) ProtoMessage() {}
 
 func (x *CanonicalAck) ProtoReflect() protoreflect.Message {
-	mi := &file_edge_v1_edge_proto_msgTypes[46]
+	mi := &file_edge_v1_edge_proto_msgTypes[49]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7257,7 +7701,7 @@ func (x *CanonicalAck) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CanonicalAck.ProtoReflect.Descriptor instead.
 func (*CanonicalAck) Descriptor() ([]byte, []int) {
-	return file_edge_v1_edge_proto_rawDescGZIP(), []int{46}
+	return file_edge_v1_edge_proto_rawDescGZIP(), []int{49}
 }
 
 func (x *CanonicalAck) GetEventIdempotencyKey() string {
@@ -7329,7 +7773,7 @@ type CanonicalAckBatch struct {
 
 func (x *CanonicalAckBatch) Reset() {
 	*x = CanonicalAckBatch{}
-	mi := &file_edge_v1_edge_proto_msgTypes[47]
+	mi := &file_edge_v1_edge_proto_msgTypes[50]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7341,7 +7785,7 @@ func (x *CanonicalAckBatch) String() string {
 func (*CanonicalAckBatch) ProtoMessage() {}
 
 func (x *CanonicalAckBatch) ProtoReflect() protoreflect.Message {
-	mi := &file_edge_v1_edge_proto_msgTypes[47]
+	mi := &file_edge_v1_edge_proto_msgTypes[50]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7354,7 +7798,7 @@ func (x *CanonicalAckBatch) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CanonicalAckBatch.ProtoReflect.Descriptor instead.
 func (*CanonicalAckBatch) Descriptor() ([]byte, []int) {
-	return file_edge_v1_edge_proto_rawDescGZIP(), []int{47}
+	return file_edge_v1_edge_proto_rawDescGZIP(), []int{50}
 }
 
 func (x *CanonicalAckBatch) GetSchemaVersion() string {
@@ -7402,7 +7846,7 @@ type CounterValue struct {
 
 func (x *CounterValue) Reset() {
 	*x = CounterValue{}
-	mi := &file_edge_v1_edge_proto_msgTypes[48]
+	mi := &file_edge_v1_edge_proto_msgTypes[51]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7414,7 +7858,7 @@ func (x *CounterValue) String() string {
 func (*CounterValue) ProtoMessage() {}
 
 func (x *CounterValue) ProtoReflect() protoreflect.Message {
-	mi := &file_edge_v1_edge_proto_msgTypes[48]
+	mi := &file_edge_v1_edge_proto_msgTypes[51]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7427,7 +7871,7 @@ func (x *CounterValue) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CounterValue.ProtoReflect.Descriptor instead.
 func (*CounterValue) Descriptor() ([]byte, []int) {
-	return file_edge_v1_edge_proto_rawDescGZIP(), []int{48}
+	return file_edge_v1_edge_proto_rawDescGZIP(), []int{51}
 }
 
 func (x *CounterValue) GetPackets() uint64 {
@@ -7445,38 +7889,39 @@ func (x *CounterValue) GetBytes() uint64 {
 }
 
 type RuleObservation struct {
-	state                 protoimpl.MessageState     `protogen:"open.v1"`
-	TargetId              string                     `protobuf:"bytes,1,opt,name=target_id,json=targetId,proto3" json:"target_id,omitempty"`
-	Fence                 *Fence                     `protobuf:"bytes,2,opt,name=fence,proto3" json:"fence,omitempty"`
-	EffectIntentId        string                     `protobuf:"bytes,3,opt,name=effect_intent_id,json=effectIntentId,proto3" json:"effect_intent_id,omitempty"`
-	OperationId           string                     `protobuf:"bytes,4,opt,name=operation_id,json=operationId,proto3" json:"operation_id,omitempty"`
-	RuleId                string                     `protobuf:"bytes,5,opt,name=rule_id,json=ruleId,proto3" json:"rule_id,omitempty"`
-	CanonicalEntryDigest  string                     `protobuf:"bytes,6,opt,name=canonical_entry_digest,json=canonicalEntryDigest,proto3" json:"canonical_entry_digest,omitempty"`
-	TableId               uint32                     `protobuf:"varint,7,opt,name=table_id,json=tableId,proto3" json:"table_id,omitempty"`
-	DirectCounterId       uint32                     `protobuf:"varint,8,opt,name=direct_counter_id,json=directCounterId,proto3" json:"direct_counter_id,omitempty"`
-	ObservationEpoch      uint64                     `protobuf:"varint,9,opt,name=observation_epoch,json=observationEpoch,proto3" json:"observation_epoch,omitempty"`
-	ResetEpoch            uint64                     `protobuf:"varint,10,opt,name=reset_epoch,json=resetEpoch,proto3" json:"reset_epoch,omitempty"`
-	SampleSequence        uint64                     `protobuf:"varint,11,opt,name=sample_sequence,json=sampleSequence,proto3" json:"sample_sequence,omitempty"`
-	ReadStartedAtUnixMs   int64                      `protobuf:"varint,12,opt,name=read_started_at_unix_ms,json=readStartedAtUnixMs,proto3" json:"read_started_at_unix_ms,omitempty"`
-	ReadCompletedAtUnixMs int64                      `protobuf:"varint,13,opt,name=read_completed_at_unix_ms,json=readCompletedAtUnixMs,proto3" json:"read_completed_at_unix_ms,omitempty"`
-	Cumulative            *CounterValue              `protobuf:"bytes,14,opt,name=cumulative,proto3" json:"cumulative,omitempty"`
-	EligibleCumulative    *CounterValue              `protobuf:"bytes,15,opt,name=eligible_cumulative,json=eligibleCumulative,proto3" json:"eligible_cumulative,omitempty"`
-	InstallationReadback  string                     `protobuf:"bytes,16,opt,name=installation_readback,json=installationReadback,proto3" json:"installation_readback,omitempty"`
-	Quality               string                     `protobuf:"bytes,17,opt,name=quality,proto3" json:"quality,omitempty"`
-	QualityReasons        []string                   `protobuf:"bytes,18,rep,name=quality_reasons,json=qualityReasons,proto3" json:"quality_reasons,omitempty"`
-	TraceId               string                     `protobuf:"bytes,19,opt,name=trace_id,json=traceId,proto3" json:"trace_id,omitempty"`
-	InstallationStatus    InstallationReadbackStatus `protobuf:"varint,20,opt,name=installation_status,json=installationStatus,proto3,enum=masi.edge.v1.InstallationReadbackStatus" json:"installation_status,omitempty"`
-	QualityCode           DataQuality                `protobuf:"varint,21,opt,name=quality_code,json=qualityCode,proto3,enum=masi.edge.v1.DataQuality" json:"quality_code,omitempty"`
-	ExpiresAtUnixMs       int64                      `protobuf:"varint,22,opt,name=expires_at_unix_ms,json=expiresAtUnixMs,proto3" json:"expires_at_unix_ms,omitempty"`
-	EntityId              string                     `protobuf:"bytes,23,opt,name=entity_id,json=entityId,proto3" json:"entity_id,omitempty"`
-	SamplingCoveragePpm   uint32                     `protobuf:"varint,24,opt,name=sampling_coverage_ppm,json=samplingCoveragePpm,proto3" json:"sampling_coverage_ppm,omitempty"`
-	unknownFields         protoimpl.UnknownFields
-	sizeCache             protoimpl.SizeCache
+	state                     protoimpl.MessageState     `protogen:"open.v1"`
+	TargetId                  string                     `protobuf:"bytes,1,opt,name=target_id,json=targetId,proto3" json:"target_id,omitempty"`
+	Fence                     *Fence                     `protobuf:"bytes,2,opt,name=fence,proto3" json:"fence,omitempty"`
+	EffectIntentId            string                     `protobuf:"bytes,3,opt,name=effect_intent_id,json=effectIntentId,proto3" json:"effect_intent_id,omitempty"`
+	OperationId               string                     `protobuf:"bytes,4,opt,name=operation_id,json=operationId,proto3" json:"operation_id,omitempty"`
+	RuleId                    string                     `protobuf:"bytes,5,opt,name=rule_id,json=ruleId,proto3" json:"rule_id,omitempty"`
+	CanonicalEntryDigest      string                     `protobuf:"bytes,6,opt,name=canonical_entry_digest,json=canonicalEntryDigest,proto3" json:"canonical_entry_digest,omitempty"`
+	TableId                   uint32                     `protobuf:"varint,7,opt,name=table_id,json=tableId,proto3" json:"table_id,omitempty"`
+	DirectCounterId           uint32                     `protobuf:"varint,8,opt,name=direct_counter_id,json=directCounterId,proto3" json:"direct_counter_id,omitempty"`
+	ObservationEpoch          uint64                     `protobuf:"varint,9,opt,name=observation_epoch,json=observationEpoch,proto3" json:"observation_epoch,omitempty"`
+	ResetEpoch                uint64                     `protobuf:"varint,10,opt,name=reset_epoch,json=resetEpoch,proto3" json:"reset_epoch,omitempty"`
+	SampleSequence            uint64                     `protobuf:"varint,11,opt,name=sample_sequence,json=sampleSequence,proto3" json:"sample_sequence,omitempty"`
+	ReadStartedAtUnixMs       int64                      `protobuf:"varint,12,opt,name=read_started_at_unix_ms,json=readStartedAtUnixMs,proto3" json:"read_started_at_unix_ms,omitempty"`
+	ReadCompletedAtUnixMs     int64                      `protobuf:"varint,13,opt,name=read_completed_at_unix_ms,json=readCompletedAtUnixMs,proto3" json:"read_completed_at_unix_ms,omitempty"`
+	Cumulative                *CounterValue              `protobuf:"bytes,14,opt,name=cumulative,proto3" json:"cumulative,omitempty"`
+	EligibleCumulative        *CounterValue              `protobuf:"bytes,15,opt,name=eligible_cumulative,json=eligibleCumulative,proto3" json:"eligible_cumulative,omitempty"`
+	InstallationReadback      string                     `protobuf:"bytes,16,opt,name=installation_readback,json=installationReadback,proto3" json:"installation_readback,omitempty"`
+	Quality                   string                     `protobuf:"bytes,17,opt,name=quality,proto3" json:"quality,omitempty"`
+	QualityReasons            []string                   `protobuf:"bytes,18,rep,name=quality_reasons,json=qualityReasons,proto3" json:"quality_reasons,omitempty"`
+	TraceId                   string                     `protobuf:"bytes,19,opt,name=trace_id,json=traceId,proto3" json:"trace_id,omitempty"`
+	InstallationStatus        InstallationReadbackStatus `protobuf:"varint,20,opt,name=installation_status,json=installationStatus,proto3,enum=masi.edge.v1.InstallationReadbackStatus" json:"installation_status,omitempty"`
+	QualityCode               DataQuality                `protobuf:"varint,21,opt,name=quality_code,json=qualityCode,proto3,enum=masi.edge.v1.DataQuality" json:"quality_code,omitempty"`
+	ExpiresAtUnixMs           int64                      `protobuf:"varint,22,opt,name=expires_at_unix_ms,json=expiresAtUnixMs,proto3" json:"expires_at_unix_ms,omitempty"`
+	EntityId                  string                     `protobuf:"bytes,23,opt,name=entity_id,json=entityId,proto3" json:"entity_id,omitempty"`
+	SamplingCoveragePpm       uint32                     `protobuf:"varint,24,opt,name=sampling_coverage_ppm,json=samplingCoveragePpm,proto3" json:"sampling_coverage_ppm,omitempty"`
+	MatchPriorityActionDigest string                     `protobuf:"bytes,25,opt,name=match_priority_action_digest,json=matchPriorityActionDigest,proto3" json:"match_priority_action_digest,omitempty"`
+	unknownFields             protoimpl.UnknownFields
+	sizeCache                 protoimpl.SizeCache
 }
 
 func (x *RuleObservation) Reset() {
 	*x = RuleObservation{}
-	mi := &file_edge_v1_edge_proto_msgTypes[49]
+	mi := &file_edge_v1_edge_proto_msgTypes[52]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7488,7 +7933,7 @@ func (x *RuleObservation) String() string {
 func (*RuleObservation) ProtoMessage() {}
 
 func (x *RuleObservation) ProtoReflect() protoreflect.Message {
-	mi := &file_edge_v1_edge_proto_msgTypes[49]
+	mi := &file_edge_v1_edge_proto_msgTypes[52]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7501,7 +7946,7 @@ func (x *RuleObservation) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RuleObservation.ProtoReflect.Descriptor instead.
 func (*RuleObservation) Descriptor() ([]byte, []int) {
-	return file_edge_v1_edge_proto_rawDescGZIP(), []int{49}
+	return file_edge_v1_edge_proto_rawDescGZIP(), []int{52}
 }
 
 func (x *RuleObservation) GetTargetId() string {
@@ -7672,6 +8117,13 @@ func (x *RuleObservation) GetSamplingCoveragePpm() uint32 {
 	return 0
 }
 
+func (x *RuleObservation) GetMatchPriorityActionDigest() string {
+	if x != nil {
+		return x.MatchPriorityActionDigest
+	}
+	return ""
+}
+
 type RuleObservationBatch struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	SchemaVersion string                 `protobuf:"bytes,1,opt,name=schema_version,json=schemaVersion,proto3" json:"schema_version,omitempty"`
@@ -7684,7 +8136,7 @@ type RuleObservationBatch struct {
 
 func (x *RuleObservationBatch) Reset() {
 	*x = RuleObservationBatch{}
-	mi := &file_edge_v1_edge_proto_msgTypes[50]
+	mi := &file_edge_v1_edge_proto_msgTypes[53]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7696,7 +8148,7 @@ func (x *RuleObservationBatch) String() string {
 func (*RuleObservationBatch) ProtoMessage() {}
 
 func (x *RuleObservationBatch) ProtoReflect() protoreflect.Message {
-	mi := &file_edge_v1_edge_proto_msgTypes[50]
+	mi := &file_edge_v1_edge_proto_msgTypes[53]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7709,7 +8161,7 @@ func (x *RuleObservationBatch) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RuleObservationBatch.ProtoReflect.Descriptor instead.
 func (*RuleObservationBatch) Descriptor() ([]byte, []int) {
-	return file_edge_v1_edge_proto_rawDescGZIP(), []int{50}
+	return file_edge_v1_edge_proto_rawDescGZIP(), []int{53}
 }
 
 func (x *RuleObservationBatch) GetSchemaVersion() string {
@@ -7741,23 +8193,25 @@ func (x *RuleObservationBatch) GetBatchDigest() string {
 }
 
 type ObservableRule struct {
-	state                protoimpl.MessageState `protogen:"open.v1"`
-	EffectIntentId       string                 `protobuf:"bytes,1,opt,name=effect_intent_id,json=effectIntentId,proto3" json:"effect_intent_id,omitempty"`
-	OperationId          string                 `protobuf:"bytes,2,opt,name=operation_id,json=operationId,proto3" json:"operation_id,omitempty"`
-	RuleId               string                 `protobuf:"bytes,3,opt,name=rule_id,json=ruleId,proto3" json:"rule_id,omitempty"`
-	CanonicalEntity      []byte                 `protobuf:"bytes,4,opt,name=canonical_entity,json=canonicalEntity,proto3" json:"canonical_entity,omitempty"`
-	CanonicalEntryDigest string                 `protobuf:"bytes,5,opt,name=canonical_entry_digest,json=canonicalEntryDigest,proto3" json:"canonical_entry_digest,omitempty"`
-	TableId              uint32                 `protobuf:"varint,6,opt,name=table_id,json=tableId,proto3" json:"table_id,omitempty"`
-	DirectCounterId      uint32                 `protobuf:"varint,7,opt,name=direct_counter_id,json=directCounterId,proto3" json:"direct_counter_id,omitempty"`
-	Bank                 uint32                 `protobuf:"varint,8,opt,name=bank,proto3" json:"bank,omitempty"`
-	ExpiresAtUnixMs      int64                  `protobuf:"varint,9,opt,name=expires_at_unix_ms,json=expiresAtUnixMs,proto3" json:"expires_at_unix_ms,omitempty"`
-	unknownFields        protoimpl.UnknownFields
-	sizeCache            protoimpl.SizeCache
+	state                     protoimpl.MessageState `protogen:"open.v1"`
+	EffectIntentId            string                 `protobuf:"bytes,1,opt,name=effect_intent_id,json=effectIntentId,proto3" json:"effect_intent_id,omitempty"`
+	OperationId               string                 `protobuf:"bytes,2,opt,name=operation_id,json=operationId,proto3" json:"operation_id,omitempty"`
+	RuleId                    string                 `protobuf:"bytes,3,opt,name=rule_id,json=ruleId,proto3" json:"rule_id,omitempty"`
+	CanonicalEntity           []byte                 `protobuf:"bytes,4,opt,name=canonical_entity,json=canonicalEntity,proto3" json:"canonical_entity,omitempty"`
+	CanonicalEntryDigest      string                 `protobuf:"bytes,5,opt,name=canonical_entry_digest,json=canonicalEntryDigest,proto3" json:"canonical_entry_digest,omitempty"`
+	TableId                   uint32                 `protobuf:"varint,6,opt,name=table_id,json=tableId,proto3" json:"table_id,omitempty"`
+	DirectCounterId           uint32                 `protobuf:"varint,7,opt,name=direct_counter_id,json=directCounterId,proto3" json:"direct_counter_id,omitempty"`
+	Bank                      uint32                 `protobuf:"varint,8,opt,name=bank,proto3" json:"bank,omitempty"`
+	ExpiresAtUnixMs           int64                  `protobuf:"varint,9,opt,name=expires_at_unix_ms,json=expiresAtUnixMs,proto3" json:"expires_at_unix_ms,omitempty"`
+	MatchPriorityActionDigest string                 `protobuf:"bytes,10,opt,name=match_priority_action_digest,json=matchPriorityActionDigest,proto3" json:"match_priority_action_digest,omitempty"`
+	EntityId                  string                 `protobuf:"bytes,11,opt,name=entity_id,json=entityId,proto3" json:"entity_id,omitempty"`
+	unknownFields             protoimpl.UnknownFields
+	sizeCache                 protoimpl.SizeCache
 }
 
 func (x *ObservableRule) Reset() {
 	*x = ObservableRule{}
-	mi := &file_edge_v1_edge_proto_msgTypes[51]
+	mi := &file_edge_v1_edge_proto_msgTypes[54]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7769,7 +8223,7 @@ func (x *ObservableRule) String() string {
 func (*ObservableRule) ProtoMessage() {}
 
 func (x *ObservableRule) ProtoReflect() protoreflect.Message {
-	mi := &file_edge_v1_edge_proto_msgTypes[51]
+	mi := &file_edge_v1_edge_proto_msgTypes[54]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7782,7 +8236,7 @@ func (x *ObservableRule) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ObservableRule.ProtoReflect.Descriptor instead.
 func (*ObservableRule) Descriptor() ([]byte, []int) {
-	return file_edge_v1_edge_proto_rawDescGZIP(), []int{51}
+	return file_edge_v1_edge_proto_rawDescGZIP(), []int{54}
 }
 
 func (x *ObservableRule) GetEffectIntentId() string {
@@ -7848,6 +8302,20 @@ func (x *ObservableRule) GetExpiresAtUnixMs() int64 {
 	return 0
 }
 
+func (x *ObservableRule) GetMatchPriorityActionDigest() string {
+	if x != nil {
+		return x.MatchPriorityActionDigest
+	}
+	return ""
+}
+
+func (x *ObservableRule) GetEntityId() string {
+	if x != nil {
+		return x.EntityId
+	}
+	return ""
+}
+
 type ConfigureRuleObservationsRequest struct {
 	state               protoimpl.MessageState `protogen:"open.v1"`
 	SchemaVersion       string                 `protobuf:"bytes,1,opt,name=schema_version,json=schemaVersion,proto3" json:"schema_version,omitempty"`
@@ -7865,7 +8333,7 @@ type ConfigureRuleObservationsRequest struct {
 
 func (x *ConfigureRuleObservationsRequest) Reset() {
 	*x = ConfigureRuleObservationsRequest{}
-	mi := &file_edge_v1_edge_proto_msgTypes[52]
+	mi := &file_edge_v1_edge_proto_msgTypes[55]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7877,7 +8345,7 @@ func (x *ConfigureRuleObservationsRequest) String() string {
 func (*ConfigureRuleObservationsRequest) ProtoMessage() {}
 
 func (x *ConfigureRuleObservationsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_edge_v1_edge_proto_msgTypes[52]
+	mi := &file_edge_v1_edge_proto_msgTypes[55]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7890,7 +8358,7 @@ func (x *ConfigureRuleObservationsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ConfigureRuleObservationsRequest.ProtoReflect.Descriptor instead.
 func (*ConfigureRuleObservationsRequest) Descriptor() ([]byte, []int) {
-	return file_edge_v1_edge_proto_rawDescGZIP(), []int{52}
+	return file_edge_v1_edge_proto_rawDescGZIP(), []int{55}
 }
 
 func (x *ConfigureRuleObservationsRequest) GetSchemaVersion() string {
@@ -7969,7 +8437,7 @@ type PublishAck struct {
 
 func (x *PublishAck) Reset() {
 	*x = PublishAck{}
-	mi := &file_edge_v1_edge_proto_msgTypes[53]
+	mi := &file_edge_v1_edge_proto_msgTypes[56]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7981,7 +8449,7 @@ func (x *PublishAck) String() string {
 func (*PublishAck) ProtoMessage() {}
 
 func (x *PublishAck) ProtoReflect() protoreflect.Message {
-	mi := &file_edge_v1_edge_proto_msgTypes[53]
+	mi := &file_edge_v1_edge_proto_msgTypes[56]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7994,7 +8462,7 @@ func (x *PublishAck) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PublishAck.ProtoReflect.Descriptor instead.
 func (*PublishAck) Descriptor() ([]byte, []int) {
-	return file_edge_v1_edge_proto_rawDescGZIP(), []int{53}
+	return file_edge_v1_edge_proto_rawDescGZIP(), []int{56}
 }
 
 func (x *PublishAck) GetStatus() string {
@@ -8067,7 +8535,7 @@ type TargetStatus struct {
 
 func (x *TargetStatus) Reset() {
 	*x = TargetStatus{}
-	mi := &file_edge_v1_edge_proto_msgTypes[54]
+	mi := &file_edge_v1_edge_proto_msgTypes[57]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8079,7 +8547,7 @@ func (x *TargetStatus) String() string {
 func (*TargetStatus) ProtoMessage() {}
 
 func (x *TargetStatus) ProtoReflect() protoreflect.Message {
-	mi := &file_edge_v1_edge_proto_msgTypes[54]
+	mi := &file_edge_v1_edge_proto_msgTypes[57]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8092,7 +8560,7 @@ func (x *TargetStatus) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TargetStatus.ProtoReflect.Descriptor instead.
 func (*TargetStatus) Descriptor() ([]byte, []int) {
-	return file_edge_v1_edge_proto_rawDescGZIP(), []int{54}
+	return file_edge_v1_edge_proto_rawDescGZIP(), []int{57}
 }
 
 func (x *TargetStatus) GetTargetId() string {
@@ -8297,7 +8765,7 @@ type TargetStatusBatch struct {
 
 func (x *TargetStatusBatch) Reset() {
 	*x = TargetStatusBatch{}
-	mi := &file_edge_v1_edge_proto_msgTypes[55]
+	mi := &file_edge_v1_edge_proto_msgTypes[58]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8309,7 +8777,7 @@ func (x *TargetStatusBatch) String() string {
 func (*TargetStatusBatch) ProtoMessage() {}
 
 func (x *TargetStatusBatch) ProtoReflect() protoreflect.Message {
-	mi := &file_edge_v1_edge_proto_msgTypes[55]
+	mi := &file_edge_v1_edge_proto_msgTypes[58]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8322,7 +8790,7 @@ func (x *TargetStatusBatch) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TargetStatusBatch.ProtoReflect.Descriptor instead.
 func (*TargetStatusBatch) Descriptor() ([]byte, []int) {
-	return file_edge_v1_edge_proto_rawDescGZIP(), []int{55}
+	return file_edge_v1_edge_proto_rawDescGZIP(), []int{58}
 }
 
 func (x *TargetStatusBatch) GetSchemaVersion() string {
@@ -8370,7 +8838,7 @@ type GetStatusRequest struct {
 
 func (x *GetStatusRequest) Reset() {
 	*x = GetStatusRequest{}
-	mi := &file_edge_v1_edge_proto_msgTypes[56]
+	mi := &file_edge_v1_edge_proto_msgTypes[59]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8382,7 +8850,7 @@ func (x *GetStatusRequest) String() string {
 func (*GetStatusRequest) ProtoMessage() {}
 
 func (x *GetStatusRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_edge_v1_edge_proto_msgTypes[56]
+	mi := &file_edge_v1_edge_proto_msgTypes[59]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8395,7 +8863,7 @@ func (x *GetStatusRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetStatusRequest.ProtoReflect.Descriptor instead.
 func (*GetStatusRequest) Descriptor() ([]byte, []int) {
-	return file_edge_v1_edge_proto_rawDescGZIP(), []int{56}
+	return file_edge_v1_edge_proto_rawDescGZIP(), []int{59}
 }
 
 func (x *GetStatusRequest) GetTargetId() string {
@@ -8429,7 +8897,7 @@ type EdgeStatus struct {
 
 func (x *EdgeStatus) Reset() {
 	*x = EdgeStatus{}
-	mi := &file_edge_v1_edge_proto_msgTypes[57]
+	mi := &file_edge_v1_edge_proto_msgTypes[60]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8441,7 +8909,7 @@ func (x *EdgeStatus) String() string {
 func (*EdgeStatus) ProtoMessage() {}
 
 func (x *EdgeStatus) ProtoReflect() protoreflect.Message {
-	mi := &file_edge_v1_edge_proto_msgTypes[57]
+	mi := &file_edge_v1_edge_proto_msgTypes[60]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8454,7 +8922,7 @@ func (x *EdgeStatus) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EdgeStatus.ProtoReflect.Descriptor instead.
 func (*EdgeStatus) Descriptor() ([]byte, []int) {
-	return file_edge_v1_edge_proto_rawDescGZIP(), []int{57}
+	return file_edge_v1_edge_proto_rawDescGZIP(), []int{60}
 }
 
 func (x *EdgeStatus) GetSchemaVersion() string {
@@ -8587,7 +9055,28 @@ const file_edge_v1_edge_proto_rawDesc = "" +
 	"\x13actor_runtime_epoch\x18\x03 \x01(\tR\x11actorRuntimeEpoch\x12\x1f\n" +
 	"\vreason_code\x18\x04 \x01(\tR\n" +
 	"reasonCode\x12\x19\n" +
-	"\btrace_id\x18\x05 \x01(\tR\atraceId\"K\n" +
+	"\btrace_id\x18\x05 \x01(\tR\atraceId\"\xcb\x05\n" +
+	"\x12BoundedCaptureSpec\x12%\n" +
+	"\x0eschema_version\x18\x01 \x01(\tR\rschemaVersion\x12\x1d\n" +
+	"\n" +
+	"capture_id\x18\x02 \x01(\tR\tcaptureId\x12%\n" +
+	"\x0ecapture_digest\x18\x03 \x01(\tR\rcaptureDigest\x12,\n" +
+	"\x12capture_adapter_id\x18\x04 \x01(\tR\x10captureAdapterId\x12\x1f\n" +
+	"\vduration_ms\x18\x05 \x01(\rR\n" +
+	"durationMs\x12!\n" +
+	"\fsample_limit\x18\x06 \x01(\rR\vsampleLimit\x12\x1d\n" +
+	"\n" +
+	"byte_limit\x18\a \x01(\x04R\tbyteLimit\x12+\n" +
+	"\x12expires_at_unix_ms\x18\b \x01(\x03R\x0fexpiresAtUnixMs\x127\n" +
+	"\x18max_concurrent_on_target\x18\t \x01(\rR\x15maxConcurrentOnTarget\x12!\n" +
+	"\fpayload_mode\x18\n" +
+	" \x01(\tR\vpayloadMode\x120\n" +
+	"\x06source\x18\v \x01(\v2\x18.masi.edge.v1.Ipv4PrefixR\x06source\x12:\n" +
+	"\vdestination\x18\f \x01(\v2\x18.masi.edge.v1.Ipv4PrefixR\vdestination\x128\n" +
+	"\bprotocol\x18\r \x01(\v2\x1c.masi.edge.v1.OptionalUint32R\bprotocol\x12=\n" +
+	"\vsource_port\x18\x0e \x01(\v2\x1c.masi.edge.v1.OptionalUint32R\n" +
+	"sourcePort\x12G\n" +
+	"\x10destination_port\x18\x0f \x01(\v2\x1c.masi.edge.v1.OptionalUint32R\x0fdestinationPort\"K\n" +
 	"\n" +
 	"Ipv4Prefix\x12\x18\n" +
 	"\aaddress\x18\x01 \x01(\aR\aaddress\x12#\n" +
@@ -8625,7 +9114,7 @@ const file_edge_v1_edge_proto_rawDesc = "" +
 	"\x10destination_port\x18\b \x01(\rR\x0fdestinationPort\x124\n" +
 	"\x06action\x18\t \x01(\x0e2\x1c.masi.edge.v1.FirewallActionR\x06action\x12+\n" +
 	"\x12expires_at_unix_ms\x18\n" +
-	" \x01(\x03R\x0fexpiresAtUnixMs\"\xab\x06\n" +
+	" \x01(\x03R\x0fexpiresAtUnixMs\"\xf6\x06\n" +
 	"\fEffectIntent\x12%\n" +
 	"\x0eschema_version\x18\x01 \x01(\tR\rschemaVersion\x12(\n" +
 	"\x10effect_intent_id\x18\x02 \x01(\tR\x0eeffectIntentId\x12!\n" +
@@ -8645,7 +9134,8 @@ const file_edge_v1_edge_proto_rawDesc = "" +
 	"\vreason_code\x18\x0f \x01(\tR\n" +
 	"reasonCode\x12\x19\n" +
 	"\btrace_id\x18\x10 \x01(\tR\atraceId\x12X\n" +
-	"\x18required_write_atomicity\x18\x11 \x01(\x0e2\x1e.masi.edge.v1.P4WriteAtomicityR\x16requiredWriteAtomicity\"L\n" +
+	"\x18required_write_atomicity\x18\x11 \x01(\x0e2\x1e.masi.edge.v1.P4WriteAtomicityR\x16requiredWriteAtomicity\x12I\n" +
+	"\x0fbounded_capture\x18\x12 \x01(\v2 .masi.edge.v1.BoundedCaptureSpecR\x0eboundedCapture\"L\n" +
 	"\x16PreflightEffectRequest\x122\n" +
 	"\x06intent\x18\x01 \x01(\v2\x1a.masi.edge.v1.EffectIntentR\x06intent\"\x90\x03\n" +
 	"\x14PreflightEffectReply\x12\x1b\n" +
@@ -8664,7 +9154,7 @@ const file_edge_v1_edge_proto_rawDesc = "" +
 	" \x01(\x0e2\x1d.masi.edge.v1.AdmissionResultR\tadmission\"s\n" +
 	"\x14ExecuteEffectRequest\x122\n" +
 	"\x06intent\x18\x01 \x01(\v2\x1a.masi.edge.v1.EffectIntentR\x06intent\x12'\n" +
-	"\x0fpreflight_token\x18\x02 \x01(\tR\x0epreflightToken\"\xaa\x04\n" +
+	"\x0fpreflight_token\x18\x02 \x01(\tR\x0epreflightToken\"\xff\x05\n" +
 	"\fEffectResult\x12%\n" +
 	"\x0eschema_version\x18\x01 \x01(\tR\rschemaVersion\x12\x1b\n" +
 	"\ttarget_id\x18\x02 \x01(\tR\btargetId\x12(\n" +
@@ -8683,7 +9173,34 @@ const file_edge_v1_edge_proto_rawDesc = "" +
 	"activeBank\x12\x1f\n" +
 	"\vreason_code\x18\r \x01(\tR\n" +
 	"reasonCode\x12\x19\n" +
-	"\btrace_id\x18\x0e \x01(\tR\atraceId\"\x85\x03\n" +
+	"\btrace_id\x18\x0e \x01(\tR\atraceId\x12J\n" +
+	"\x0fapplied_entries\x18\x0f \x03(\v2!.masi.edge.v1.AppliedRuleReadbackR\x0eappliedEntries\x128\n" +
+	"\x18readback_manifest_digest\x18\x10 \x01(\tR\x16readbackManifestDigest\x12M\n" +
+	"\x0fbounded_capture\x18\x11 \x01(\v2$.masi.edge.v1.BoundedCaptureReadbackR\x0eboundedCapture\"\x9e\x04\n" +
+	"\x16BoundedCaptureReadback\x12%\n" +
+	"\x0eschema_version\x18\x01 \x01(\tR\rschemaVersion\x12\x1d\n" +
+	"\n" +
+	"capture_id\x18\x02 \x01(\tR\tcaptureId\x12%\n" +
+	"\x0ecapture_digest\x18\x03 \x01(\tR\rcaptureDigest\x12,\n" +
+	"\x12capture_session_id\x18\x04 \x01(\tR\x10captureSessionId\x12+\n" +
+	"\x12started_at_unix_ms\x18\x05 \x01(\x03R\x0fstartedAtUnixMs\x12-\n" +
+	"\x13finished_at_unix_ms\x18\x06 \x01(\x03R\x10finishedAtUnixMs\x12)\n" +
+	"\x10observed_samples\x18\a \x01(\rR\x0fobservedSamples\x12%\n" +
+	"\x0eobserved_bytes\x18\b \x01(\x04R\robservedBytes\x12%\n" +
+	"\x0econtent_digest\x18\t \x01(\tR\rcontentDigest\x120\n" +
+	"\x14observed_flow_digest\x18\n" +
+	" \x01(\tR\x12observedFlowDigest\x122\n" +
+	"\x15capture_window_digest\x18\v \x01(\tR\x13captureWindowDigest\x12\x1c\n" +
+	"\ttruncated\x18\f \x01(\bR\ttruncated\x12\x10\n" +
+	"\x03gap\x18\r \x01(\bR\x03gap\"\x9d\x02\n" +
+	"\x13AppliedRuleReadback\x12\x1b\n" +
+	"\tentity_id\x18\x01 \x01(\tR\bentityId\x12\x17\n" +
+	"\arule_id\x18\x02 \x01(\tR\x06ruleId\x124\n" +
+	"\x16canonical_entry_digest\x18\x03 \x01(\tR\x14canonicalEntryDigest\x12?\n" +
+	"\x1cmatch_priority_action_digest\x18\x04 \x01(\tR\x19matchPriorityActionDigest\x12\x19\n" +
+	"\btable_id\x18\x05 \x01(\rR\atableId\x12*\n" +
+	"\x11direct_counter_id\x18\x06 \x01(\rR\x0fdirectCounterId\x12\x12\n" +
+	"\x04bank\x18\a \x01(\rR\x04bank\"\x85\x03\n" +
 	"\x18AcknowledgeEffectRequest\x12%\n" +
 	"\x0eschema_version\x18\x01 \x01(\tR\rschemaVersion\x12\x1b\n" +
 	"\ttarget_id\x18\x02 \x01(\tR\btargetId\x12(\n" +
@@ -8693,14 +9210,16 @@ const file_edge_v1_edge_proto_rawDesc = "" +
 	"\rresult_digest\x18\x06 \x01(\tR\fresultDigest\x12<\n" +
 	"\x1acanonical_effect_reference\x18\a \x01(\tR\x18canonicalEffectReference\x12/\n" +
 	"\x14committed_at_unix_ms\x18\b \x01(\x03R\x11committedAtUnixMs\x12\x19\n" +
-	"\btrace_id\x18\t \x01(\tR\atraceId\"\xe3\x01\n" +
+	"\btrace_id\x18\t \x01(\tR\atraceId\"\xc1\x02\n" +
 	"\x10CanonicalP4Entry\x12&\n" +
 	"\x0flogical_rule_id\x18\x01 \x01(\tR\rlogicalRuleId\x12\x19\n" +
 	"\btable_id\x18\x02 \x01(\rR\atableId\x12*\n" +
 	"\x11direct_counter_id\x18\x03 \x01(\rR\x0fdirectCounterId\x12\x12\n" +
 	"\x04bank\x18\x04 \x01(\rR\x04bank\x12\x16\n" +
 	"\x06entity\x18\x05 \x01(\fR\x06entity\x124\n" +
-	"\x16canonical_entry_digest\x18\x06 \x01(\tR\x14canonicalEntryDigest\"\xa1\x03\n" +
+	"\x16canonical_entry_digest\x18\x06 \x01(\tR\x14canonicalEntryDigest\x12\x1b\n" +
+	"\tentity_id\x18\a \x01(\tR\bentityId\x12?\n" +
+	"\x1cmatch_priority_action_digest\x18\b \x01(\tR\x19matchPriorityActionDigest\"\xa1\x03\n" +
 	"\x12CompiledEffectPlan\x12%\n" +
 	"\x0eschema_version\x18\x01 \x01(\tR\rschemaVersion\x12\x1b\n" +
 	"\ttarget_id\x18\x02 \x01(\tR\btargetId\x12(\n" +
@@ -9192,7 +9711,7 @@ const file_edge_v1_edge_proto_rawDesc = "" +
 	"\x10ack_batch_digest\x18\x05 \x01(\tR\x0eackBatchDigest\">\n" +
 	"\fCounterValue\x12\x18\n" +
 	"\apackets\x18\x01 \x01(\x04R\apackets\x12\x14\n" +
-	"\x05bytes\x18\x02 \x01(\x04R\x05bytes\"\xd6\b\n" +
+	"\x05bytes\x18\x02 \x01(\x04R\x05bytes\"\x97\t\n" +
 	"\x0fRuleObservation\x12\x1b\n" +
 	"\ttarget_id\x18\x01 \x01(\tR\btargetId\x12)\n" +
 	"\x05fence\x18\x02 \x01(\v2\x13.masi.edge.v1.FenceR\x05fence\x12(\n" +
@@ -9221,12 +9740,13 @@ const file_edge_v1_edge_proto_rawDesc = "" +
 	"\fquality_code\x18\x15 \x01(\x0e2\x19.masi.edge.v1.DataQualityR\vqualityCode\x12+\n" +
 	"\x12expires_at_unix_ms\x18\x16 \x01(\x03R\x0fexpiresAtUnixMs\x12\x1b\n" +
 	"\tentity_id\x18\x17 \x01(\tR\bentityId\x122\n" +
-	"\x15sampling_coverage_ppm\x18\x18 \x01(\rR\x13samplingCoveragePpm\"\xbe\x01\n" +
+	"\x15sampling_coverage_ppm\x18\x18 \x01(\rR\x13samplingCoveragePpm\x12?\n" +
+	"\x1cmatch_priority_action_digest\x18\x19 \x01(\tR\x19matchPriorityActionDigest\"\xbe\x01\n" +
 	"\x14RuleObservationBatch\x12%\n" +
 	"\x0eschema_version\x18\x01 \x01(\tR\rschemaVersion\x12\x19\n" +
 	"\bbatch_id\x18\x02 \x01(\tR\abatchId\x12A\n" +
 	"\fobservations\x18\x03 \x03(\v2\x1d.masi.edge.v1.RuleObservationR\fobservations\x12!\n" +
-	"\fbatch_digest\x18\x04 \x01(\tR\vbatchDigest\"\xdf\x02\n" +
+	"\fbatch_digest\x18\x04 \x01(\tR\vbatchDigest\"\xbd\x03\n" +
 	"\x0eObservableRule\x12(\n" +
 	"\x10effect_intent_id\x18\x01 \x01(\tR\x0eeffectIntentId\x12!\n" +
 	"\foperation_id\x18\x02 \x01(\tR\voperationId\x12\x17\n" +
@@ -9236,7 +9756,10 @@ const file_edge_v1_edge_proto_rawDesc = "" +
 	"\btable_id\x18\x06 \x01(\rR\atableId\x12*\n" +
 	"\x11direct_counter_id\x18\a \x01(\rR\x0fdirectCounterId\x12\x12\n" +
 	"\x04bank\x18\b \x01(\rR\x04bank\x12+\n" +
-	"\x12expires_at_unix_ms\x18\t \x01(\x03R\x0fexpiresAtUnixMs\"\x82\x03\n" +
+	"\x12expires_at_unix_ms\x18\t \x01(\x03R\x0fexpiresAtUnixMs\x12?\n" +
+	"\x1cmatch_priority_action_digest\x18\n" +
+	" \x01(\tR\x19matchPriorityActionDigest\x12\x1b\n" +
+	"\tentity_id\x18\v \x01(\tR\bentityId\"\x82\x03\n" +
 	" ConfigureRuleObservationsRequest\x12%\n" +
 	"\x0eschema_version\x18\x01 \x01(\tR\rschemaVersion\x12\x1b\n" +
 	"\ttarget_id\x18\x02 \x01(\tR\btargetId\x12)\n" +
@@ -9382,13 +9905,14 @@ const file_edge_v1_edge_proto_rawDesc = "" +
 	"\x13ACTOR_STATE_PRIMARY\x10\x03\x12\x18\n" +
 	"\x14ACTOR_STATE_DRAINING\x10\x04\x12\x17\n" +
 	"\x13ACTOR_STATE_REVOKED\x10\x05\x12\x14\n" +
-	"\x10ACTOR_STATE_HOLD\x10\x06*\x8c\x01\n" +
+	"\x10ACTOR_STATE_HOLD\x10\x06*\xb3\x01\n" +
 	"\n" +
 	"EffectKind\x12\x1b\n" +
 	"\x17EFFECT_KIND_UNSPECIFIED\x10\x00\x12!\n" +
 	"\x1dEFFECT_KIND_BASELINE_ACTIVATE\x10\x01\x12\x1e\n" +
 	"\x1aEFFECT_KIND_OVERLAY_UPSERT\x10\x02\x12\x1e\n" +
-	"\x1aEFFECT_KIND_OVERLAY_DELETE\x10\x03*t\n" +
+	"\x1aEFFECT_KIND_OVERLAY_DELETE\x10\x03\x12%\n" +
+	"!EFFECT_KIND_BOUNDED_CAPTURE_START\x10\x04*t\n" +
 	"\x0eFirewallAction\x12\x1f\n" +
 	"\x1bFIREWALL_ACTION_UNSPECIFIED\x10\x00\x12'\n" +
 	"#FIREWALL_ACTION_PERMIT_AND_CONTINUE\x10\x01\x12\x18\n" +
@@ -9468,7 +9992,7 @@ func file_edge_v1_edge_proto_rawDescGZIP() []byte {
 }
 
 var file_edge_v1_edge_proto_enumTypes = make([]protoimpl.EnumInfo, 22)
-var file_edge_v1_edge_proto_msgTypes = make([]protoimpl.MessageInfo, 58)
+var file_edge_v1_edge_proto_msgTypes = make([]protoimpl.MessageInfo, 61)
 var file_edge_v1_edge_proto_goTypes = []any{
 	(AdmissionResult)(0),                     // 0: masi.edge.v1.AdmissionResult
 	(InferenceRouteLifecycle)(0),             // 1: masi.edge.v1.InferenceRouteLifecycle
@@ -9500,56 +10024,59 @@ var file_edge_v1_edge_proto_goTypes = []any{
 	(*RenewTargetRequest)(nil),               // 27: masi.edge.v1.RenewTargetRequest
 	(*RevokeTargetRequest)(nil),              // 28: masi.edge.v1.RevokeTargetRequest
 	(*TargetReply)(nil),                      // 29: masi.edge.v1.TargetReply
-	(*Ipv4Prefix)(nil),                       // 30: masi.edge.v1.Ipv4Prefix
-	(*OptionalUint32)(nil),                   // 31: masi.edge.v1.OptionalUint32
-	(*BaselineRule)(nil),                     // 32: masi.edge.v1.BaselineRule
-	(*OverlayRule)(nil),                      // 33: masi.edge.v1.OverlayRule
-	(*EffectIntent)(nil),                     // 34: masi.edge.v1.EffectIntent
-	(*PreflightEffectRequest)(nil),           // 35: masi.edge.v1.PreflightEffectRequest
-	(*PreflightEffectReply)(nil),             // 36: masi.edge.v1.PreflightEffectReply
-	(*ExecuteEffectRequest)(nil),             // 37: masi.edge.v1.ExecuteEffectRequest
-	(*EffectResult)(nil),                     // 38: masi.edge.v1.EffectResult
-	(*AcknowledgeEffectRequest)(nil),         // 39: masi.edge.v1.AcknowledgeEffectRequest
-	(*CanonicalP4Entry)(nil),                 // 40: masi.edge.v1.CanonicalP4Entry
-	(*CompiledEffectPlan)(nil),               // 41: masi.edge.v1.CompiledEffectPlan
-	(*EffectJournalRecord)(nil),              // 42: masi.edge.v1.EffectJournalRecord
-	(*SupplementalHint)(nil),                 // 43: masi.edge.v1.SupplementalHint
-	(*SourceWalRecord)(nil),                  // 44: masi.edge.v1.SourceWalRecord
-	(*InferenceRoute)(nil),                   // 45: masi.edge.v1.InferenceRoute
-	(*PrepareRouteRequest)(nil),              // 46: masi.edge.v1.PrepareRouteRequest
-	(*CommitRouteRequest)(nil),               // 47: masi.edge.v1.CommitRouteRequest
-	(*ResumeRouteRequest)(nil),               // 48: masi.edge.v1.ResumeRouteRequest
-	(*RouteResumeWatermark)(nil),             // 49: masi.edge.v1.RouteResumeWatermark
-	(*RouteReply)(nil),                       // 50: masi.edge.v1.RouteReply
-	(*GetBindingRequest)(nil),                // 51: masi.edge.v1.GetBindingRequest
-	(*InferenceWorkerIdentity)(nil),          // 52: masi.edge.v1.InferenceWorkerIdentity
-	(*BindingReadback)(nil),                  // 53: masi.edge.v1.BindingReadback
-	(*TelemetryEndpoint)(nil),                // 54: masi.edge.v1.TelemetryEndpoint
-	(*TelemetryFlowIdentity)(nil),            // 55: masi.edge.v1.TelemetryFlowIdentity
-	(*TelemetryFlowIdentityProfile)(nil),     // 56: masi.edge.v1.TelemetryFlowIdentityProfile
-	(*TelemetryCell)(nil),                    // 57: masi.edge.v1.TelemetryCell
-	(*TelemetrySnapshot)(nil),                // 58: masi.edge.v1.TelemetrySnapshot
-	(*SamplingEvidence)(nil),                 // 59: masi.edge.v1.SamplingEvidence
-	(*DropEvidence)(nil),                     // 60: masi.edge.v1.DropEvidence
-	(*SourceGap)(nil),                        // 61: masi.edge.v1.SourceGap
-	(*InferenceRecord)(nil),                  // 62: masi.edge.v1.InferenceRecord
-	(*InferenceInputBatch)(nil),              // 63: masi.edge.v1.InferenceInputBatch
-	(*InferenceResultRecord)(nil),            // 64: masi.edge.v1.InferenceResultRecord
-	(*InferenceResultBatch)(nil),             // 65: masi.edge.v1.InferenceResultBatch
-	(*ResultWalRecord)(nil),                  // 66: masi.edge.v1.ResultWalRecord
-	(*RouteWalRecord)(nil),                   // 67: masi.edge.v1.RouteWalRecord
-	(*CanonicalAck)(nil),                     // 68: masi.edge.v1.CanonicalAck
-	(*CanonicalAckBatch)(nil),                // 69: masi.edge.v1.CanonicalAckBatch
-	(*CounterValue)(nil),                     // 70: masi.edge.v1.CounterValue
-	(*RuleObservation)(nil),                  // 71: masi.edge.v1.RuleObservation
-	(*RuleObservationBatch)(nil),             // 72: masi.edge.v1.RuleObservationBatch
-	(*ObservableRule)(nil),                   // 73: masi.edge.v1.ObservableRule
-	(*ConfigureRuleObservationsRequest)(nil), // 74: masi.edge.v1.ConfigureRuleObservationsRequest
-	(*PublishAck)(nil),                       // 75: masi.edge.v1.PublishAck
-	(*TargetStatus)(nil),                     // 76: masi.edge.v1.TargetStatus
-	(*TargetStatusBatch)(nil),                // 77: masi.edge.v1.TargetStatusBatch
-	(*GetStatusRequest)(nil),                 // 78: masi.edge.v1.GetStatusRequest
-	(*EdgeStatus)(nil),                       // 79: masi.edge.v1.EdgeStatus
+	(*BoundedCaptureSpec)(nil),               // 30: masi.edge.v1.BoundedCaptureSpec
+	(*Ipv4Prefix)(nil),                       // 31: masi.edge.v1.Ipv4Prefix
+	(*OptionalUint32)(nil),                   // 32: masi.edge.v1.OptionalUint32
+	(*BaselineRule)(nil),                     // 33: masi.edge.v1.BaselineRule
+	(*OverlayRule)(nil),                      // 34: masi.edge.v1.OverlayRule
+	(*EffectIntent)(nil),                     // 35: masi.edge.v1.EffectIntent
+	(*PreflightEffectRequest)(nil),           // 36: masi.edge.v1.PreflightEffectRequest
+	(*PreflightEffectReply)(nil),             // 37: masi.edge.v1.PreflightEffectReply
+	(*ExecuteEffectRequest)(nil),             // 38: masi.edge.v1.ExecuteEffectRequest
+	(*EffectResult)(nil),                     // 39: masi.edge.v1.EffectResult
+	(*BoundedCaptureReadback)(nil),           // 40: masi.edge.v1.BoundedCaptureReadback
+	(*AppliedRuleReadback)(nil),              // 41: masi.edge.v1.AppliedRuleReadback
+	(*AcknowledgeEffectRequest)(nil),         // 42: masi.edge.v1.AcknowledgeEffectRequest
+	(*CanonicalP4Entry)(nil),                 // 43: masi.edge.v1.CanonicalP4Entry
+	(*CompiledEffectPlan)(nil),               // 44: masi.edge.v1.CompiledEffectPlan
+	(*EffectJournalRecord)(nil),              // 45: masi.edge.v1.EffectJournalRecord
+	(*SupplementalHint)(nil),                 // 46: masi.edge.v1.SupplementalHint
+	(*SourceWalRecord)(nil),                  // 47: masi.edge.v1.SourceWalRecord
+	(*InferenceRoute)(nil),                   // 48: masi.edge.v1.InferenceRoute
+	(*PrepareRouteRequest)(nil),              // 49: masi.edge.v1.PrepareRouteRequest
+	(*CommitRouteRequest)(nil),               // 50: masi.edge.v1.CommitRouteRequest
+	(*ResumeRouteRequest)(nil),               // 51: masi.edge.v1.ResumeRouteRequest
+	(*RouteResumeWatermark)(nil),             // 52: masi.edge.v1.RouteResumeWatermark
+	(*RouteReply)(nil),                       // 53: masi.edge.v1.RouteReply
+	(*GetBindingRequest)(nil),                // 54: masi.edge.v1.GetBindingRequest
+	(*InferenceWorkerIdentity)(nil),          // 55: masi.edge.v1.InferenceWorkerIdentity
+	(*BindingReadback)(nil),                  // 56: masi.edge.v1.BindingReadback
+	(*TelemetryEndpoint)(nil),                // 57: masi.edge.v1.TelemetryEndpoint
+	(*TelemetryFlowIdentity)(nil),            // 58: masi.edge.v1.TelemetryFlowIdentity
+	(*TelemetryFlowIdentityProfile)(nil),     // 59: masi.edge.v1.TelemetryFlowIdentityProfile
+	(*TelemetryCell)(nil),                    // 60: masi.edge.v1.TelemetryCell
+	(*TelemetrySnapshot)(nil),                // 61: masi.edge.v1.TelemetrySnapshot
+	(*SamplingEvidence)(nil),                 // 62: masi.edge.v1.SamplingEvidence
+	(*DropEvidence)(nil),                     // 63: masi.edge.v1.DropEvidence
+	(*SourceGap)(nil),                        // 64: masi.edge.v1.SourceGap
+	(*InferenceRecord)(nil),                  // 65: masi.edge.v1.InferenceRecord
+	(*InferenceInputBatch)(nil),              // 66: masi.edge.v1.InferenceInputBatch
+	(*InferenceResultRecord)(nil),            // 67: masi.edge.v1.InferenceResultRecord
+	(*InferenceResultBatch)(nil),             // 68: masi.edge.v1.InferenceResultBatch
+	(*ResultWalRecord)(nil),                  // 69: masi.edge.v1.ResultWalRecord
+	(*RouteWalRecord)(nil),                   // 70: masi.edge.v1.RouteWalRecord
+	(*CanonicalAck)(nil),                     // 71: masi.edge.v1.CanonicalAck
+	(*CanonicalAckBatch)(nil),                // 72: masi.edge.v1.CanonicalAckBatch
+	(*CounterValue)(nil),                     // 73: masi.edge.v1.CounterValue
+	(*RuleObservation)(nil),                  // 74: masi.edge.v1.RuleObservation
+	(*RuleObservationBatch)(nil),             // 75: masi.edge.v1.RuleObservationBatch
+	(*ObservableRule)(nil),                   // 76: masi.edge.v1.ObservableRule
+	(*ConfigureRuleObservationsRequest)(nil), // 77: masi.edge.v1.ConfigureRuleObservationsRequest
+	(*PublishAck)(nil),                       // 78: masi.edge.v1.PublishAck
+	(*TargetStatus)(nil),                     // 79: masi.edge.v1.TargetStatus
+	(*TargetStatusBatch)(nil),                // 80: masi.edge.v1.TargetStatusBatch
+	(*GetStatusRequest)(nil),                 // 81: masi.edge.v1.GetStatusRequest
+	(*EdgeStatus)(nil),                       // 82: masi.edge.v1.EdgeStatus
 }
 var file_edge_v1_edge_proto_depIdxs = []int32{
 	11,  // 0: masi.edge.v1.PipelineIdentity.supported_write_atomicity:type_name -> masi.edge.v1.P4WriteAtomicity
@@ -9560,123 +10087,131 @@ var file_edge_v1_edge_proto_depIdxs = []int32{
 	22,  // 5: masi.edge.v1.RenewTargetRequest.fence:type_name -> masi.edge.v1.Fence
 	22,  // 6: masi.edge.v1.RevokeTargetRequest.fence:type_name -> masi.edge.v1.Fence
 	12,  // 7: masi.edge.v1.TargetReply.state:type_name -> masi.edge.v1.ActorState
-	31,  // 8: masi.edge.v1.BaselineRule.ingress_port:type_name -> masi.edge.v1.OptionalUint32
-	30,  // 9: masi.edge.v1.BaselineRule.source:type_name -> masi.edge.v1.Ipv4Prefix
-	30,  // 10: masi.edge.v1.BaselineRule.destination:type_name -> masi.edge.v1.Ipv4Prefix
-	31,  // 11: masi.edge.v1.BaselineRule.protocol:type_name -> masi.edge.v1.OptionalUint32
-	31,  // 12: masi.edge.v1.BaselineRule.l4_present:type_name -> masi.edge.v1.OptionalUint32
-	31,  // 13: masi.edge.v1.BaselineRule.source_port:type_name -> masi.edge.v1.OptionalUint32
-	31,  // 14: masi.edge.v1.BaselineRule.destination_port:type_name -> masi.edge.v1.OptionalUint32
-	31,  // 15: masi.edge.v1.BaselineRule.fragment_class:type_name -> masi.edge.v1.OptionalUint32
-	14,  // 16: masi.edge.v1.BaselineRule.action:type_name -> masi.edge.v1.FirewallAction
-	14,  // 17: masi.edge.v1.OverlayRule.action:type_name -> masi.edge.v1.FirewallAction
-	22,  // 18: masi.edge.v1.EffectIntent.fence:type_name -> masi.edge.v1.Fence
-	13,  // 19: masi.edge.v1.EffectIntent.kind:type_name -> masi.edge.v1.EffectKind
-	14,  // 20: masi.edge.v1.EffectIntent.default_action:type_name -> masi.edge.v1.FirewallAction
-	32,  // 21: masi.edge.v1.EffectIntent.baseline_rules:type_name -> masi.edge.v1.BaselineRule
-	33,  // 22: masi.edge.v1.EffectIntent.overlay_rules:type_name -> masi.edge.v1.OverlayRule
-	11,  // 23: masi.edge.v1.EffectIntent.required_write_atomicity:type_name -> masi.edge.v1.P4WriteAtomicity
-	34,  // 24: masi.edge.v1.PreflightEffectRequest.intent:type_name -> masi.edge.v1.EffectIntent
-	0,   // 25: masi.edge.v1.PreflightEffectReply.admission:type_name -> masi.edge.v1.AdmissionResult
-	34,  // 26: masi.edge.v1.ExecuteEffectRequest.intent:type_name -> masi.edge.v1.EffectIntent
-	22,  // 27: masi.edge.v1.EffectResult.fence:type_name -> masi.edge.v1.Fence
-	15,  // 28: masi.edge.v1.EffectResult.status:type_name -> masi.edge.v1.EffectStatus
-	22,  // 29: masi.edge.v1.AcknowledgeEffectRequest.fence:type_name -> masi.edge.v1.Fence
-	13,  // 30: masi.edge.v1.CompiledEffectPlan.kind:type_name -> masi.edge.v1.EffectKind
-	40,  // 31: masi.edge.v1.CompiledEffectPlan.entries:type_name -> masi.edge.v1.CanonicalP4Entry
-	16,  // 32: masi.edge.v1.EffectJournalRecord.stage:type_name -> masi.edge.v1.JournalStage
-	34,  // 33: masi.edge.v1.EffectJournalRecord.intent:type_name -> masi.edge.v1.EffectIntent
-	41,  // 34: masi.edge.v1.EffectJournalRecord.plan:type_name -> masi.edge.v1.CompiledEffectPlan
-	38,  // 35: masi.edge.v1.EffectJournalRecord.result:type_name -> masi.edge.v1.EffectResult
-	17,  // 36: masi.edge.v1.SourceWalRecord.stage:type_name -> masi.edge.v1.SourceWalStage
-	58,  // 37: masi.edge.v1.SourceWalRecord.snapshot:type_name -> masi.edge.v1.TelemetrySnapshot
-	43,  // 38: masi.edge.v1.SourceWalRecord.hint:type_name -> masi.edge.v1.SupplementalHint
-	24,  // 39: masi.edge.v1.InferenceRoute.tls:type_name -> masi.edge.v1.TlsClientIdentity
-	45,  // 40: masi.edge.v1.CommitRouteRequest.route:type_name -> masi.edge.v1.InferenceRoute
-	1,   // 41: masi.edge.v1.RouteReply.lifecycle:type_name -> masi.edge.v1.InferenceRouteLifecycle
-	49,  // 42: masi.edge.v1.RouteReply.resume_watermark:type_name -> masi.edge.v1.RouteResumeWatermark
-	52,  // 43: masi.edge.v1.BindingReadback.eligible_workers:type_name -> masi.edge.v1.InferenceWorkerIdentity
-	31,  // 44: masi.edge.v1.TelemetryEndpoint.port:type_name -> masi.edge.v1.OptionalUint32
-	19,  // 45: masi.edge.v1.TelemetryFlowIdentity.direction:type_name -> masi.edge.v1.TelemetryFlowDirection
-	18,  // 46: masi.edge.v1.TelemetryFlowIdentity.ip_version:type_name -> masi.edge.v1.TelemetryIpVersion
-	54,  // 47: masi.edge.v1.TelemetryFlowIdentity.first_endpoint:type_name -> masi.edge.v1.TelemetryEndpoint
-	54,  // 48: masi.edge.v1.TelemetryFlowIdentity.second_endpoint:type_name -> masi.edge.v1.TelemetryEndpoint
-	31,  // 49: masi.edge.v1.TelemetryFlowIdentity.vlan_id:type_name -> masi.edge.v1.OptionalUint32
-	19,  // 50: masi.edge.v1.TelemetryFlowIdentityProfile.direction:type_name -> masi.edge.v1.TelemetryFlowDirection
-	18,  // 51: masi.edge.v1.TelemetryFlowIdentityProfile.supported_ip_versions:type_name -> masi.edge.v1.TelemetryIpVersion
-	22,  // 52: masi.edge.v1.TelemetrySnapshot.fence:type_name -> masi.edge.v1.Fence
-	23,  // 53: masi.edge.v1.TelemetrySnapshot.pipeline:type_name -> masi.edge.v1.PipelineIdentity
-	57,  // 54: masi.edge.v1.TelemetrySnapshot.cells:type_name -> masi.edge.v1.TelemetryCell
-	2,   // 55: masi.edge.v1.TelemetrySnapshot.quality_code:type_name -> masi.edge.v1.DataQuality
-	61,  // 56: masi.edge.v1.TelemetrySnapshot.gaps:type_name -> masi.edge.v1.SourceGap
-	59,  // 57: masi.edge.v1.TelemetrySnapshot.sampling:type_name -> masi.edge.v1.SamplingEvidence
-	60,  // 58: masi.edge.v1.TelemetrySnapshot.drops:type_name -> masi.edge.v1.DropEvidence
-	3,   // 59: masi.edge.v1.TelemetrySnapshot.snapshot_consistency:type_name -> masi.edge.v1.SnapshotConsistency
-	4,   // 60: masi.edge.v1.TelemetrySnapshot.clear_advance_condition:type_name -> masi.edge.v1.ClearAdvanceCondition
-	56,  // 61: masi.edge.v1.TelemetrySnapshot.flow_identity_profile:type_name -> masi.edge.v1.TelemetryFlowIdentityProfile
-	2,   // 62: masi.edge.v1.InferenceRecord.quality_code:type_name -> masi.edge.v1.DataQuality
-	45,  // 63: masi.edge.v1.InferenceInputBatch.route:type_name -> masi.edge.v1.InferenceRoute
-	62,  // 64: masi.edge.v1.InferenceInputBatch.records:type_name -> masi.edge.v1.InferenceRecord
-	5,   // 65: masi.edge.v1.InferenceResultRecord.decision_code:type_name -> masi.edge.v1.InferenceDecision
-	2,   // 66: masi.edge.v1.InferenceResultRecord.quality_code:type_name -> masi.edge.v1.DataQuality
-	6,   // 67: masi.edge.v1.InferenceResultRecord.execution_status:type_name -> masi.edge.v1.InferenceExecutionStatus
-	45,  // 68: masi.edge.v1.InferenceResultBatch.route:type_name -> masi.edge.v1.InferenceRoute
-	64,  // 69: masi.edge.v1.InferenceResultBatch.records:type_name -> masi.edge.v1.InferenceResultRecord
-	20,  // 70: masi.edge.v1.ResultWalRecord.stage:type_name -> masi.edge.v1.ResultWalStage
-	65,  // 71: masi.edge.v1.ResultWalRecord.result_batch:type_name -> masi.edge.v1.InferenceResultBatch
-	69,  // 72: masi.edge.v1.ResultWalRecord.canonical_ack:type_name -> masi.edge.v1.CanonicalAckBatch
-	21,  // 73: masi.edge.v1.RouteWalRecord.stage:type_name -> masi.edge.v1.RouteWalStage
-	45,  // 74: masi.edge.v1.RouteWalRecord.route:type_name -> masi.edge.v1.InferenceRoute
-	48,  // 75: masi.edge.v1.RouteWalRecord.committed_binding_handshake:type_name -> masi.edge.v1.ResumeRouteRequest
-	7,   // 76: masi.edge.v1.CanonicalAck.commit_status:type_name -> masi.edge.v1.CanonicalCommitStatus
-	68,  // 77: masi.edge.v1.CanonicalAckBatch.acknowledgements:type_name -> masi.edge.v1.CanonicalAck
-	22,  // 78: masi.edge.v1.RuleObservation.fence:type_name -> masi.edge.v1.Fence
-	70,  // 79: masi.edge.v1.RuleObservation.cumulative:type_name -> masi.edge.v1.CounterValue
-	70,  // 80: masi.edge.v1.RuleObservation.eligible_cumulative:type_name -> masi.edge.v1.CounterValue
-	8,   // 81: masi.edge.v1.RuleObservation.installation_status:type_name -> masi.edge.v1.InstallationReadbackStatus
-	2,   // 82: masi.edge.v1.RuleObservation.quality_code:type_name -> masi.edge.v1.DataQuality
-	71,  // 83: masi.edge.v1.RuleObservationBatch.observations:type_name -> masi.edge.v1.RuleObservation
-	22,  // 84: masi.edge.v1.ConfigureRuleObservationsRequest.fence:type_name -> masi.edge.v1.Fence
-	73,  // 85: masi.edge.v1.ConfigureRuleObservationsRequest.rules:type_name -> masi.edge.v1.ObservableRule
-	9,   // 86: masi.edge.v1.PublishAck.status_code:type_name -> masi.edge.v1.PublishStatus
-	12,  // 87: masi.edge.v1.TargetStatus.actor_state:type_name -> masi.edge.v1.ActorState
-	22,  // 88: masi.edge.v1.TargetStatus.fence:type_name -> masi.edge.v1.Fence
-	10,  // 89: masi.edge.v1.TargetStatus.freshness_code:type_name -> masi.edge.v1.FreshnessStatus
-	76,  // 90: masi.edge.v1.TargetStatusBatch.targets:type_name -> masi.edge.v1.TargetStatus
-	76,  // 91: masi.edge.v1.EdgeStatus.targets:type_name -> masi.edge.v1.TargetStatus
-	26,  // 92: masi.edge.v1.EdgeControl.AssignTarget:input_type -> masi.edge.v1.AssignTargetRequest
-	27,  // 93: masi.edge.v1.EdgeControl.RenewTarget:input_type -> masi.edge.v1.RenewTargetRequest
-	28,  // 94: masi.edge.v1.EdgeControl.RevokeTarget:input_type -> masi.edge.v1.RevokeTargetRequest
-	35,  // 95: masi.edge.v1.EdgeControl.PreflightEffect:input_type -> masi.edge.v1.PreflightEffectRequest
-	37,  // 96: masi.edge.v1.EdgeControl.ExecuteEffect:input_type -> masi.edge.v1.ExecuteEffectRequest
-	39,  // 97: masi.edge.v1.EdgeControl.AcknowledgeEffect:input_type -> masi.edge.v1.AcknowledgeEffectRequest
-	46,  // 98: masi.edge.v1.EdgeControl.PrepareRoute:input_type -> masi.edge.v1.PrepareRouteRequest
-	47,  // 99: masi.edge.v1.EdgeControl.CommitRoute:input_type -> masi.edge.v1.CommitRouteRequest
-	48,  // 100: masi.edge.v1.EdgeControl.ResumeRoute:input_type -> masi.edge.v1.ResumeRouteRequest
-	74,  // 101: masi.edge.v1.EdgeControl.ConfigureRuleObservations:input_type -> masi.edge.v1.ConfigureRuleObservationsRequest
-	78,  // 102: masi.edge.v1.EdgeControl.GetStatus:input_type -> masi.edge.v1.GetStatusRequest
-	65,  // 103: masi.edge.v1.ControlSink.CommitResults:input_type -> masi.edge.v1.InferenceResultBatch
-	72,  // 104: masi.edge.v1.ControlSink.PublishRuleObservations:input_type -> masi.edge.v1.RuleObservationBatch
-	77,  // 105: masi.edge.v1.ControlSink.PublishTargetStatus:input_type -> masi.edge.v1.TargetStatusBatch
-	29,  // 106: masi.edge.v1.EdgeControl.AssignTarget:output_type -> masi.edge.v1.TargetReply
-	29,  // 107: masi.edge.v1.EdgeControl.RenewTarget:output_type -> masi.edge.v1.TargetReply
-	29,  // 108: masi.edge.v1.EdgeControl.RevokeTarget:output_type -> masi.edge.v1.TargetReply
-	36,  // 109: masi.edge.v1.EdgeControl.PreflightEffect:output_type -> masi.edge.v1.PreflightEffectReply
-	38,  // 110: masi.edge.v1.EdgeControl.ExecuteEffect:output_type -> masi.edge.v1.EffectResult
-	75,  // 111: masi.edge.v1.EdgeControl.AcknowledgeEffect:output_type -> masi.edge.v1.PublishAck
-	50,  // 112: masi.edge.v1.EdgeControl.PrepareRoute:output_type -> masi.edge.v1.RouteReply
-	50,  // 113: masi.edge.v1.EdgeControl.CommitRoute:output_type -> masi.edge.v1.RouteReply
-	50,  // 114: masi.edge.v1.EdgeControl.ResumeRoute:output_type -> masi.edge.v1.RouteReply
-	75,  // 115: masi.edge.v1.EdgeControl.ConfigureRuleObservations:output_type -> masi.edge.v1.PublishAck
-	79,  // 116: masi.edge.v1.EdgeControl.GetStatus:output_type -> masi.edge.v1.EdgeStatus
-	69,  // 117: masi.edge.v1.ControlSink.CommitResults:output_type -> masi.edge.v1.CanonicalAckBatch
-	75,  // 118: masi.edge.v1.ControlSink.PublishRuleObservations:output_type -> masi.edge.v1.PublishAck
-	75,  // 119: masi.edge.v1.ControlSink.PublishTargetStatus:output_type -> masi.edge.v1.PublishAck
-	106, // [106:120] is the sub-list for method output_type
-	92,  // [92:106] is the sub-list for method input_type
-	92,  // [92:92] is the sub-list for extension type_name
-	92,  // [92:92] is the sub-list for extension extendee
-	0,   // [0:92] is the sub-list for field type_name
+	31,  // 8: masi.edge.v1.BoundedCaptureSpec.source:type_name -> masi.edge.v1.Ipv4Prefix
+	31,  // 9: masi.edge.v1.BoundedCaptureSpec.destination:type_name -> masi.edge.v1.Ipv4Prefix
+	32,  // 10: masi.edge.v1.BoundedCaptureSpec.protocol:type_name -> masi.edge.v1.OptionalUint32
+	32,  // 11: masi.edge.v1.BoundedCaptureSpec.source_port:type_name -> masi.edge.v1.OptionalUint32
+	32,  // 12: masi.edge.v1.BoundedCaptureSpec.destination_port:type_name -> masi.edge.v1.OptionalUint32
+	32,  // 13: masi.edge.v1.BaselineRule.ingress_port:type_name -> masi.edge.v1.OptionalUint32
+	31,  // 14: masi.edge.v1.BaselineRule.source:type_name -> masi.edge.v1.Ipv4Prefix
+	31,  // 15: masi.edge.v1.BaselineRule.destination:type_name -> masi.edge.v1.Ipv4Prefix
+	32,  // 16: masi.edge.v1.BaselineRule.protocol:type_name -> masi.edge.v1.OptionalUint32
+	32,  // 17: masi.edge.v1.BaselineRule.l4_present:type_name -> masi.edge.v1.OptionalUint32
+	32,  // 18: masi.edge.v1.BaselineRule.source_port:type_name -> masi.edge.v1.OptionalUint32
+	32,  // 19: masi.edge.v1.BaselineRule.destination_port:type_name -> masi.edge.v1.OptionalUint32
+	32,  // 20: masi.edge.v1.BaselineRule.fragment_class:type_name -> masi.edge.v1.OptionalUint32
+	14,  // 21: masi.edge.v1.BaselineRule.action:type_name -> masi.edge.v1.FirewallAction
+	14,  // 22: masi.edge.v1.OverlayRule.action:type_name -> masi.edge.v1.FirewallAction
+	22,  // 23: masi.edge.v1.EffectIntent.fence:type_name -> masi.edge.v1.Fence
+	13,  // 24: masi.edge.v1.EffectIntent.kind:type_name -> masi.edge.v1.EffectKind
+	14,  // 25: masi.edge.v1.EffectIntent.default_action:type_name -> masi.edge.v1.FirewallAction
+	33,  // 26: masi.edge.v1.EffectIntent.baseline_rules:type_name -> masi.edge.v1.BaselineRule
+	34,  // 27: masi.edge.v1.EffectIntent.overlay_rules:type_name -> masi.edge.v1.OverlayRule
+	11,  // 28: masi.edge.v1.EffectIntent.required_write_atomicity:type_name -> masi.edge.v1.P4WriteAtomicity
+	30,  // 29: masi.edge.v1.EffectIntent.bounded_capture:type_name -> masi.edge.v1.BoundedCaptureSpec
+	35,  // 30: masi.edge.v1.PreflightEffectRequest.intent:type_name -> masi.edge.v1.EffectIntent
+	0,   // 31: masi.edge.v1.PreflightEffectReply.admission:type_name -> masi.edge.v1.AdmissionResult
+	35,  // 32: masi.edge.v1.ExecuteEffectRequest.intent:type_name -> masi.edge.v1.EffectIntent
+	22,  // 33: masi.edge.v1.EffectResult.fence:type_name -> masi.edge.v1.Fence
+	15,  // 34: masi.edge.v1.EffectResult.status:type_name -> masi.edge.v1.EffectStatus
+	41,  // 35: masi.edge.v1.EffectResult.applied_entries:type_name -> masi.edge.v1.AppliedRuleReadback
+	40,  // 36: masi.edge.v1.EffectResult.bounded_capture:type_name -> masi.edge.v1.BoundedCaptureReadback
+	22,  // 37: masi.edge.v1.AcknowledgeEffectRequest.fence:type_name -> masi.edge.v1.Fence
+	13,  // 38: masi.edge.v1.CompiledEffectPlan.kind:type_name -> masi.edge.v1.EffectKind
+	43,  // 39: masi.edge.v1.CompiledEffectPlan.entries:type_name -> masi.edge.v1.CanonicalP4Entry
+	16,  // 40: masi.edge.v1.EffectJournalRecord.stage:type_name -> masi.edge.v1.JournalStage
+	35,  // 41: masi.edge.v1.EffectJournalRecord.intent:type_name -> masi.edge.v1.EffectIntent
+	44,  // 42: masi.edge.v1.EffectJournalRecord.plan:type_name -> masi.edge.v1.CompiledEffectPlan
+	39,  // 43: masi.edge.v1.EffectJournalRecord.result:type_name -> masi.edge.v1.EffectResult
+	17,  // 44: masi.edge.v1.SourceWalRecord.stage:type_name -> masi.edge.v1.SourceWalStage
+	61,  // 45: masi.edge.v1.SourceWalRecord.snapshot:type_name -> masi.edge.v1.TelemetrySnapshot
+	46,  // 46: masi.edge.v1.SourceWalRecord.hint:type_name -> masi.edge.v1.SupplementalHint
+	24,  // 47: masi.edge.v1.InferenceRoute.tls:type_name -> masi.edge.v1.TlsClientIdentity
+	48,  // 48: masi.edge.v1.CommitRouteRequest.route:type_name -> masi.edge.v1.InferenceRoute
+	1,   // 49: masi.edge.v1.RouteReply.lifecycle:type_name -> masi.edge.v1.InferenceRouteLifecycle
+	52,  // 50: masi.edge.v1.RouteReply.resume_watermark:type_name -> masi.edge.v1.RouteResumeWatermark
+	55,  // 51: masi.edge.v1.BindingReadback.eligible_workers:type_name -> masi.edge.v1.InferenceWorkerIdentity
+	32,  // 52: masi.edge.v1.TelemetryEndpoint.port:type_name -> masi.edge.v1.OptionalUint32
+	19,  // 53: masi.edge.v1.TelemetryFlowIdentity.direction:type_name -> masi.edge.v1.TelemetryFlowDirection
+	18,  // 54: masi.edge.v1.TelemetryFlowIdentity.ip_version:type_name -> masi.edge.v1.TelemetryIpVersion
+	57,  // 55: masi.edge.v1.TelemetryFlowIdentity.first_endpoint:type_name -> masi.edge.v1.TelemetryEndpoint
+	57,  // 56: masi.edge.v1.TelemetryFlowIdentity.second_endpoint:type_name -> masi.edge.v1.TelemetryEndpoint
+	32,  // 57: masi.edge.v1.TelemetryFlowIdentity.vlan_id:type_name -> masi.edge.v1.OptionalUint32
+	19,  // 58: masi.edge.v1.TelemetryFlowIdentityProfile.direction:type_name -> masi.edge.v1.TelemetryFlowDirection
+	18,  // 59: masi.edge.v1.TelemetryFlowIdentityProfile.supported_ip_versions:type_name -> masi.edge.v1.TelemetryIpVersion
+	22,  // 60: masi.edge.v1.TelemetrySnapshot.fence:type_name -> masi.edge.v1.Fence
+	23,  // 61: masi.edge.v1.TelemetrySnapshot.pipeline:type_name -> masi.edge.v1.PipelineIdentity
+	60,  // 62: masi.edge.v1.TelemetrySnapshot.cells:type_name -> masi.edge.v1.TelemetryCell
+	2,   // 63: masi.edge.v1.TelemetrySnapshot.quality_code:type_name -> masi.edge.v1.DataQuality
+	64,  // 64: masi.edge.v1.TelemetrySnapshot.gaps:type_name -> masi.edge.v1.SourceGap
+	62,  // 65: masi.edge.v1.TelemetrySnapshot.sampling:type_name -> masi.edge.v1.SamplingEvidence
+	63,  // 66: masi.edge.v1.TelemetrySnapshot.drops:type_name -> masi.edge.v1.DropEvidence
+	3,   // 67: masi.edge.v1.TelemetrySnapshot.snapshot_consistency:type_name -> masi.edge.v1.SnapshotConsistency
+	4,   // 68: masi.edge.v1.TelemetrySnapshot.clear_advance_condition:type_name -> masi.edge.v1.ClearAdvanceCondition
+	59,  // 69: masi.edge.v1.TelemetrySnapshot.flow_identity_profile:type_name -> masi.edge.v1.TelemetryFlowIdentityProfile
+	2,   // 70: masi.edge.v1.InferenceRecord.quality_code:type_name -> masi.edge.v1.DataQuality
+	48,  // 71: masi.edge.v1.InferenceInputBatch.route:type_name -> masi.edge.v1.InferenceRoute
+	65,  // 72: masi.edge.v1.InferenceInputBatch.records:type_name -> masi.edge.v1.InferenceRecord
+	5,   // 73: masi.edge.v1.InferenceResultRecord.decision_code:type_name -> masi.edge.v1.InferenceDecision
+	2,   // 74: masi.edge.v1.InferenceResultRecord.quality_code:type_name -> masi.edge.v1.DataQuality
+	6,   // 75: masi.edge.v1.InferenceResultRecord.execution_status:type_name -> masi.edge.v1.InferenceExecutionStatus
+	48,  // 76: masi.edge.v1.InferenceResultBatch.route:type_name -> masi.edge.v1.InferenceRoute
+	67,  // 77: masi.edge.v1.InferenceResultBatch.records:type_name -> masi.edge.v1.InferenceResultRecord
+	20,  // 78: masi.edge.v1.ResultWalRecord.stage:type_name -> masi.edge.v1.ResultWalStage
+	68,  // 79: masi.edge.v1.ResultWalRecord.result_batch:type_name -> masi.edge.v1.InferenceResultBatch
+	72,  // 80: masi.edge.v1.ResultWalRecord.canonical_ack:type_name -> masi.edge.v1.CanonicalAckBatch
+	21,  // 81: masi.edge.v1.RouteWalRecord.stage:type_name -> masi.edge.v1.RouteWalStage
+	48,  // 82: masi.edge.v1.RouteWalRecord.route:type_name -> masi.edge.v1.InferenceRoute
+	51,  // 83: masi.edge.v1.RouteWalRecord.committed_binding_handshake:type_name -> masi.edge.v1.ResumeRouteRequest
+	7,   // 84: masi.edge.v1.CanonicalAck.commit_status:type_name -> masi.edge.v1.CanonicalCommitStatus
+	71,  // 85: masi.edge.v1.CanonicalAckBatch.acknowledgements:type_name -> masi.edge.v1.CanonicalAck
+	22,  // 86: masi.edge.v1.RuleObservation.fence:type_name -> masi.edge.v1.Fence
+	73,  // 87: masi.edge.v1.RuleObservation.cumulative:type_name -> masi.edge.v1.CounterValue
+	73,  // 88: masi.edge.v1.RuleObservation.eligible_cumulative:type_name -> masi.edge.v1.CounterValue
+	8,   // 89: masi.edge.v1.RuleObservation.installation_status:type_name -> masi.edge.v1.InstallationReadbackStatus
+	2,   // 90: masi.edge.v1.RuleObservation.quality_code:type_name -> masi.edge.v1.DataQuality
+	74,  // 91: masi.edge.v1.RuleObservationBatch.observations:type_name -> masi.edge.v1.RuleObservation
+	22,  // 92: masi.edge.v1.ConfigureRuleObservationsRequest.fence:type_name -> masi.edge.v1.Fence
+	76,  // 93: masi.edge.v1.ConfigureRuleObservationsRequest.rules:type_name -> masi.edge.v1.ObservableRule
+	9,   // 94: masi.edge.v1.PublishAck.status_code:type_name -> masi.edge.v1.PublishStatus
+	12,  // 95: masi.edge.v1.TargetStatus.actor_state:type_name -> masi.edge.v1.ActorState
+	22,  // 96: masi.edge.v1.TargetStatus.fence:type_name -> masi.edge.v1.Fence
+	10,  // 97: masi.edge.v1.TargetStatus.freshness_code:type_name -> masi.edge.v1.FreshnessStatus
+	79,  // 98: masi.edge.v1.TargetStatusBatch.targets:type_name -> masi.edge.v1.TargetStatus
+	79,  // 99: masi.edge.v1.EdgeStatus.targets:type_name -> masi.edge.v1.TargetStatus
+	26,  // 100: masi.edge.v1.EdgeControl.AssignTarget:input_type -> masi.edge.v1.AssignTargetRequest
+	27,  // 101: masi.edge.v1.EdgeControl.RenewTarget:input_type -> masi.edge.v1.RenewTargetRequest
+	28,  // 102: masi.edge.v1.EdgeControl.RevokeTarget:input_type -> masi.edge.v1.RevokeTargetRequest
+	36,  // 103: masi.edge.v1.EdgeControl.PreflightEffect:input_type -> masi.edge.v1.PreflightEffectRequest
+	38,  // 104: masi.edge.v1.EdgeControl.ExecuteEffect:input_type -> masi.edge.v1.ExecuteEffectRequest
+	42,  // 105: masi.edge.v1.EdgeControl.AcknowledgeEffect:input_type -> masi.edge.v1.AcknowledgeEffectRequest
+	49,  // 106: masi.edge.v1.EdgeControl.PrepareRoute:input_type -> masi.edge.v1.PrepareRouteRequest
+	50,  // 107: masi.edge.v1.EdgeControl.CommitRoute:input_type -> masi.edge.v1.CommitRouteRequest
+	51,  // 108: masi.edge.v1.EdgeControl.ResumeRoute:input_type -> masi.edge.v1.ResumeRouteRequest
+	77,  // 109: masi.edge.v1.EdgeControl.ConfigureRuleObservations:input_type -> masi.edge.v1.ConfigureRuleObservationsRequest
+	81,  // 110: masi.edge.v1.EdgeControl.GetStatus:input_type -> masi.edge.v1.GetStatusRequest
+	68,  // 111: masi.edge.v1.ControlSink.CommitResults:input_type -> masi.edge.v1.InferenceResultBatch
+	75,  // 112: masi.edge.v1.ControlSink.PublishRuleObservations:input_type -> masi.edge.v1.RuleObservationBatch
+	80,  // 113: masi.edge.v1.ControlSink.PublishTargetStatus:input_type -> masi.edge.v1.TargetStatusBatch
+	29,  // 114: masi.edge.v1.EdgeControl.AssignTarget:output_type -> masi.edge.v1.TargetReply
+	29,  // 115: masi.edge.v1.EdgeControl.RenewTarget:output_type -> masi.edge.v1.TargetReply
+	29,  // 116: masi.edge.v1.EdgeControl.RevokeTarget:output_type -> masi.edge.v1.TargetReply
+	37,  // 117: masi.edge.v1.EdgeControl.PreflightEffect:output_type -> masi.edge.v1.PreflightEffectReply
+	39,  // 118: masi.edge.v1.EdgeControl.ExecuteEffect:output_type -> masi.edge.v1.EffectResult
+	78,  // 119: masi.edge.v1.EdgeControl.AcknowledgeEffect:output_type -> masi.edge.v1.PublishAck
+	53,  // 120: masi.edge.v1.EdgeControl.PrepareRoute:output_type -> masi.edge.v1.RouteReply
+	53,  // 121: masi.edge.v1.EdgeControl.CommitRoute:output_type -> masi.edge.v1.RouteReply
+	53,  // 122: masi.edge.v1.EdgeControl.ResumeRoute:output_type -> masi.edge.v1.RouteReply
+	78,  // 123: masi.edge.v1.EdgeControl.ConfigureRuleObservations:output_type -> masi.edge.v1.PublishAck
+	82,  // 124: masi.edge.v1.EdgeControl.GetStatus:output_type -> masi.edge.v1.EdgeStatus
+	72,  // 125: masi.edge.v1.ControlSink.CommitResults:output_type -> masi.edge.v1.CanonicalAckBatch
+	78,  // 126: masi.edge.v1.ControlSink.PublishRuleObservations:output_type -> masi.edge.v1.PublishAck
+	78,  // 127: masi.edge.v1.ControlSink.PublishTargetStatus:output_type -> masi.edge.v1.PublishAck
+	114, // [114:128] is the sub-list for method output_type
+	100, // [100:114] is the sub-list for method input_type
+	100, // [100:100] is the sub-list for extension type_name
+	100, // [100:100] is the sub-list for extension extendee
+	0,   // [0:100] is the sub-list for field type_name
 }
 
 func init() { file_edge_v1_edge_proto_init() }
@@ -9690,7 +10225,7 @@ func file_edge_v1_edge_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_edge_v1_edge_proto_rawDesc), len(file_edge_v1_edge_proto_rawDesc)),
 			NumEnums:      22,
-			NumMessages:   58,
+			NumMessages:   61,
 			NumExtensions: 0,
 			NumServices:   2,
 		},

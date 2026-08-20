@@ -1,6 +1,6 @@
 {
   "version": "v1",
-  "digest": "sha256:d3447451851d1c8b477c8d2698d142a99231f4eb6d0cd50b21ba86d4e8fa2f7e",
+  "digest": "sha256:e33fc6c4c041a5177dab636209325f53e901e507d48269e61971e256cf5e66d1",
   "actor_scopes": {
     "actor:73e617760d4fba1b1b994ed4ea5275305a14bacb91ab90f10aefc1c972b44bfe": [
       {
@@ -21,7 +21,9 @@
           "plugin-statistics-run",
           "plugin.statistics.manage",
           "fleet-operation",
-          "rule-observation-epoch"
+          "rule-observation-epoch",
+          "bounded-capture",
+          "analysis-task"
         ],
         "levels": [
           "operator",
@@ -49,7 +51,9 @@
           "plugin-statistics-run",
           "plugin.statistics.manage",
           "fleet-operation",
-          "rule-observation-epoch"
+          "rule-observation-epoch",
+          "bounded-capture",
+          "analysis-task"
         ],
         "levels": [
           "operator",

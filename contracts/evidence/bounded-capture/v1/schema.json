@@ -1,0 +1,74 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://masi-nids.example/contracts/evidence/bounded-capture/v1/schema.json",
+  "title": "Bounded Capture Request and Readback V1",
+  "type": "object",
+  "oneOf": [
+    {"$ref": "#/$defs/request"},
+    {"$ref": "#/$defs/readback"}
+  ],
+  "$defs": {
+    "identity": {"type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"},
+    "digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "filter": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "source_ipv4": {"type": "string", "format": "ipv4-prefix"},
+        "destination_ipv4": {"type": "string", "format": "ipv4-prefix"},
+        "protocol": {"type": "integer", "minimum": 0, "maximum": 255},
+        "source_port": {"type": "integer", "minimum": 0, "maximum": 65535},
+        "destination_port": {"type": "integer", "minimum": 0, "maximum": 65535}
+      }
+    },
+    "request": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema_version", "capture_id", "capture_digest", "target_id", "capture_adapter_id", "duration_ms", "sample_limit", "byte_limit", "expires_at_unix_ms", "max_concurrent_on_target", "payload_mode", "filter"],
+      "properties": {
+        "schema_version": {"const": "bounded-capture/v1"},
+        "capture_id": {"$ref": "#/$defs/identity"},
+        "capture_digest": {"$ref": "#/$defs/digest"},
+        "target_id": {"$ref": "#/$defs/identity"},
+        "capture_adapter_id": {"const": "bounded-flow-evidence/v1"},
+        "duration_ms": {"type": "integer", "minimum": 1, "maximum": 300000},
+        "sample_limit": {"type": "integer", "minimum": 1, "maximum": 10000},
+        "byte_limit": {"type": "integer", "minimum": 1, "maximum": 16777216},
+        "expires_at_unix_ms": {"type": "integer", "minimum": 1},
+        "max_concurrent_on_target": {"type": "integer", "minimum": 1, "maximum": 4},
+        "payload_mode": {"const": "flow-metadata-only"},
+        "filter": {"$ref": "#/$defs/filter"}
+      }
+    },
+    "readback": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema_version", "capture_id", "capture_digest", "target_id", "target_control_incarnation_id", "target_assignment_generation", "application_generation", "actor_runtime_epoch", "capture_session_id", "started_at_unix_ms", "finished_at_unix_ms", "observed_samples", "observed_bytes", "content_digest", "observed_flow_digest", "capture_window_digest", "truncated", "gap"],
+      "properties": {
+        "schema_version": {"const": "bounded-capture-readback/v1"},
+        "capture_id": {"$ref": "#/$defs/identity"},
+        "capture_digest": {"$ref": "#/$defs/digest"},
+        "target_id": {"$ref": "#/$defs/identity"},
+        "target_control_incarnation_id": {"$ref": "#/$defs/identity"},
+        "target_assignment_generation": {"type": "integer", "minimum": 1},
+        "application_generation": {"type": "integer", "minimum": 1},
+        "actor_runtime_epoch": {"$ref": "#/$defs/identity"},
+        "capture_session_id": {"$ref": "#/$defs/identity"},
+        "started_at_unix_ms": {"type": "integer", "minimum": 1},
+        "finished_at_unix_ms": {"type": "integer", "minimum": 1},
+        "observed_samples": {"type": "integer", "minimum": 0, "maximum": 10000},
+        "observed_bytes": {"type": "integer", "minimum": 0, "maximum": 16777216},
+        "content_digest": {"$ref": "#/$defs/digest"},
+        "observed_flow_digest": {"$ref": "#/$defs/digest"},
+        "capture_window_digest": {"$ref": "#/$defs/digest"},
+        "truncated": {"type": "boolean"},
+        "gap": {"type": "boolean"}
+      }
+    }
+  },
+  "x-masi-semantic-constraints": [
+    {"constraint_id": "CAPTURE-SAME-EFFECT-QUEUE", "operator": "effect-intent-only"},
+    {"constraint_id": "CAPTURE-NO-RAW-PAYLOAD", "fields": ["/payload_mode"], "operator": "const-flow-metadata-only"},
+    {"constraint_id": "CAPTURE-EXACT-WINDOW-IDENTITY", "fields": ["/capture_window_digest", "/capture_session_id", "/target_assignment_generation", "/application_generation"], "operator": "digest-bound"}
+  ]
+}

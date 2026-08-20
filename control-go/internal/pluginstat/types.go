@@ -23,6 +23,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math"
 	"regexp"
@@ -300,13 +301,48 @@ type Truncation struct {
 }
 
 type Provenance struct {
-	PluginID          string `json:"plugin_id"`
-	PluginRevision    string `json:"plugin_revision"`
-	ComputedAtUnixMS  int64  `json:"computed_at_unix_ms"`
-	DefinitionID      string `json:"definition_id"`
-	DefinitionDigest  string `json:"definition_digest"`
-	RunID             string `json:"run_id"`
-	BindingGeneration int64  `json:"binding_generation"`
+	PluginID          string                    `json:"plugin_id"`
+	PluginRevision    string                    `json:"plugin_revision"`
+	ComputedAtUnixMS  int64                     `json:"computed_at_unix_ms"`
+	DefinitionID      string                    `json:"definition_id"`
+	DefinitionDigest  string                    `json:"definition_digest"`
+	RunID             string                    `json:"run_id"`
+	BindingGeneration int64                     `json:"binding_generation"`
+	ExternalSource    *ExternalSourceProvenance `json:"external_source,omitempty"`
+}
+
+// ExternalSourceProvenance binds an approved read-only-tool capability to the
+// exact request/response observed by the producer. It contains no endpoint or
+// credential and is mandatory when the definition references an external
+// source capability.
+type ExternalSourceProvenance struct {
+	CapabilityID     string `json:"capability_id"`
+	RequestDigest    string `json:"request_digest"`
+	ObservedAtUnixMS int64  `json:"observed_at_unix_ms"`
+	ResponseDigest   string `json:"response_digest"`
+	ETagOrVersion    string `json:"etag_or_version,omitempty"`
+	Status           string `json:"status"`
+}
+
+func validateExternalProvenance(kind PluginKind, capabilities []string, p *ExternalSourceProvenance) error {
+	if len(capabilities) == 0 {
+		if p != nil {
+			return errors.New("pluginstat: external provenance present without approved capability")
+		}
+		return nil
+	}
+	if kind != KindReadOnlyTool || len(capabilities) != 1 || p == nil ||
+		p.CapabilityID != capabilities[0] || !identityRE.MatchString(p.CapabilityID) ||
+		!digestRE.MatchString(p.RequestDigest) || !digestRE.MatchString(p.ResponseDigest) ||
+		p.ObservedAtUnixMS < 1 || len(p.ETagOrVersion) > 256 {
+		return errors.New("pluginstat: exact external-source provenance required")
+	}
+	switch p.Status {
+	case "complete", "partial", "timeout":
+	default:
+		return errors.New("pluginstat: external-source status invalid")
+	}
+	return nil
 }
 
 // Artifact is PluginStatisticsArtifactV1.

@@ -39,6 +39,17 @@ type ControlSinkServer struct {
 	MaxBatchRecords int
 	MaxBatchBytes   int
 	Accepting       func() bool
+	AuthorizeTarget func(context.Context, string) error
+}
+
+func (s *ControlSinkServer) authorizeTarget(ctx context.Context, targetID string) error {
+	if s.AuthorizeTarget == nil {
+		return nil
+	}
+	if err := s.AuthorizeTarget(ctx, targetID); err != nil {
+		return status.Error(codes.PermissionDenied, "mTLS workload/target assignment mismatch")
+	}
+	return nil
 }
 
 const (
@@ -109,6 +120,9 @@ func (s *ControlSinkServer) CommitResults(ctx context.Context, batch *edgev1.Inf
 			// A nil/empty record (nil normalizes to empty on the wire) lacks
 			// the required identity/digest fields: reject fail-closed.
 			return nil, status.Error(codes.InvalidArgument, "record missing identity/digest")
+		}
+		if err := s.authorizeTarget(ctx, rec.GetTargetId()); err != nil {
+			return nil, err
 		}
 		if rec.GetModelControlIncarnationId() != route.GetModelControlIncarnationId() ||
 			rec.GetLogicalPoolId() != route.GetLogicalPoolId() || rec.GetPoolGeneration() != route.GetPoolGeneration() ||
@@ -297,7 +311,7 @@ func (s *ControlSinkServer) PublishRuleObservations(ctx context.Context, batch *
 	if s.Accepting != nil && !s.Accepting() {
 		return nil, status.Error(codes.Unavailable, "control core is draining")
 	}
-	if batch == nil || batch.GetSchemaVersion() != "p4-rule-observation/v1" {
+	if batch == nil || batch.GetSchemaVersion() != "p4-rule-observation-batch/v1" {
 		return nil, status.Error(codes.InvalidArgument, "unknown schema major")
 	}
 	if err := s.validateWireSize(batch); err != nil {
@@ -316,11 +330,16 @@ func (s *ControlSinkServer) PublishRuleObservations(ctx context.Context, batch *
 	var lastReason string
 	for _, o := range batch.GetObservations() {
 		if o == nil || o.GetTargetId() == "" || o.GetEntityId() == "" || o.GetRuleId() == "" ||
+			o.GetEffectIntentId() == "" || o.GetOperationId() == "" || !wireDigest(o.GetCanonicalEntryDigest()) ||
+			!wireDigest(o.GetMatchPriorityActionDigest()) ||
 			o.GetObservationEpoch() == 0 || o.GetResetEpoch() == 0 || o.GetSampleSequence() == 0 ||
 			o.GetReadCompletedAtUnixMs() <= 0 || o.GetInstallationReadback() != "exact" || o.GetSamplingCoveragePpm() == 0 || o.GetSamplingCoveragePpm() > 1_000_000 {
 			rejected++
 			lastReason = "MALFORMED_OBSERVATION"
 			continue
+		}
+		if err := s.authorizeTarget(ctx, o.GetTargetId()); err != nil {
+			return nil, err
 		}
 		sample := ruleobs.CounterSample{
 			Sequence:        int64(o.GetSampleSequence()),
@@ -349,7 +368,9 @@ func (s *ControlSinkServer) PublishRuleObservations(ctx context.Context, batch *
 			ObservationEpoch: int64(o.GetObservationEpoch()),
 			ResetEpoch:       int64(o.GetResetEpoch()),
 		}
-		if _, err := s.RuleObs.IngestSample(ctx, o.GetTargetId(), o.GetEntityId(), o.GetRuleId(), key, sample); err != nil {
+		if _, err := s.RuleObs.IngestSample(ctx, o.GetTargetId(), o.GetEntityId(), o.GetRuleId(),
+			o.GetEffectIntentId(), o.GetOperationId(), o.GetCanonicalEntryDigest(),
+			o.GetMatchPriorityActionDigest(), key, sample); err != nil {
 			rejected++
 			lastReason = reasonOf(err)
 			continue
@@ -392,6 +413,9 @@ func (s *ControlSinkServer) PublishTargetStatus(ctx context.Context, batch *edge
 			fence.GetActorRuntimeEpoch() == "" || fence.GetApplicationGeneration() == 0 ||
 			wire.GetFreshnessCode() == edgev1.FreshnessStatus_FRESHNESS_STATUS_UNSPECIFIED {
 			return nil, status.Error(codes.InvalidArgument, "target status identity/fence malformed")
+		}
+		if err := s.authorizeTarget(ctx, wire.GetTargetId()); err != nil {
+			return nil, err
 		}
 		observation := target.CapabilityObservation{
 			ObservationID: wire.GetObservationId(), ObservationDigest: wire.GetObservationDigest(),

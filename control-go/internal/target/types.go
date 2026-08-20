@@ -199,17 +199,19 @@ type ChildIntent struct {
 // FleetOperation is the frozen target set, waves, non-claimable parent, and
 // per-target child intents.
 type FleetOperation struct {
-	FleetOperationID string            `json:"fleet_operation_id"`
-	TargetSetDigest  string            `json:"target_set_digest"`
-	WaveCount        int               `json:"wave_count"`
-	Waves            []Wave            `json:"waves"`
-	ParentIntentID   string            `json:"parent_intent_id"`
-	ParentIntent     governance.Intent `json:"parent_intent"`
-	ChildIntents     []ChildIntent     `json:"child_intents"`
-	AggregateStatus  AggregateStatus   `json:"aggregate_status"`
-	Actor            security.Actor    `json:"actor_ref"`
-	Scope            string            `json:"scope"`
-	TraceID          string            `json:"trace_id"`
+	FleetOperationID      string            `json:"fleet_operation_id"`
+	TargetSetDigest       string            `json:"target_set_digest"`
+	OperationDigest       string            `json:"operation_digest"`
+	CompletedVectorDigest string            `json:"completed_vector_digest"`
+	WaveCount             int               `json:"wave_count"`
+	Waves                 []Wave            `json:"waves"`
+	ParentIntentID        string            `json:"parent_intent_id"`
+	ParentIntent          governance.Intent `json:"parent_intent"`
+	ChildIntents          []ChildIntent     `json:"child_intents"`
+	AggregateStatus       AggregateStatus   `json:"aggregate_status"`
+	Actor                 security.Actor    `json:"actor_ref"`
+	Scope                 string            `json:"scope"`
+	TraceID               string            `json:"trace_id"`
 }
 
 // IsValidFailurePolicy reports whether the policy is a closed-enum value.

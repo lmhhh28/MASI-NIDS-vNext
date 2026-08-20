@@ -24,25 +24,40 @@ func NewGovernanceEdgeAdapter(client *EdgeControlClient) *GovernanceEdgeAdapter 
 	return &GovernanceEdgeAdapter{client: client}
 }
 
-func (a *GovernanceEdgeAdapter) ExecuteEffect(ctx context.Context, intent governance.Intent) (governance.EdgeEffectResult, error) {
+func (a *GovernanceEdgeAdapter) PreflightEffect(ctx context.Context, intent governance.Intent) (governance.EdgePreflightResult, error) {
 	if a == nil || a.client == nil {
-		return governance.EdgeEffectResult{}, errors.New("grpcapi: governance Edge client unavailable")
+		return governance.EdgePreflightResult{}, &governance.PreflightRejectedError{Cause: errors.New("grpcapi: governance Edge client unavailable")}
 	}
 	wire, err := governance.ToEdgeEffectIntent(intent)
 	if err != nil {
-		return governance.EdgeEffectResult{}, err
+		return governance.EdgePreflightResult{}, &governance.PreflightRejectedError{Cause: err}
 	}
 	if wire.EffectDigest != intent.EffectDigest {
-		return governance.EdgeEffectResult{}, errors.New("grpcapi: effect digest differs from canonical protobuf")
+		return governance.EdgePreflightResult{}, &governance.PreflightRejectedError{Cause: errors.New("grpcapi: effect digest differs from canonical protobuf")}
 	}
 	preflight, err := a.client.PreflightEffect(ctx, &edgev1.PreflightEffectRequest{Intent: wire})
 	if err != nil {
-		return governance.EdgeEffectResult{}, err
+		return governance.EdgePreflightResult{}, &governance.PreflightRejectedError{Cause: err}
 	}
 	if preflight.TargetId != intent.TargetID || preflight.EffectIntentId != intent.EffectIntentID ||
 		preflight.PreflightToken == "" || preflight.PlanDigest == "" || preflight.PhysicalEntries > 4096 ||
-		preflight.Admission != edgev1.AdmissionResult_ADMISSION_RESULT_ACCEPTED || preflight.Result != "accepted" {
-		return governance.EdgeEffectResult{}, errors.New("grpcapi: Edge preflight identity/admission mismatch")
+		preflight.ExpiresAtUnixMs < 1 || preflight.Admission != edgev1.AdmissionResult_ADMISSION_RESULT_ACCEPTED || preflight.Result != "accepted" {
+		return governance.EdgePreflightResult{}, &governance.PreflightRejectedError{Cause: errors.New("grpcapi: Edge preflight identity/admission mismatch")}
+	}
+	return governance.EdgePreflightResult{TargetID: preflight.TargetId, EffectIntentID: preflight.EffectIntentId,
+		PlanDigest: preflight.PlanDigest, PhysicalEntries: int(preflight.PhysicalEntries),
+		ExpiresAtUnixMS: preflight.ExpiresAtUnixMs, Result: preflight.Result, ReasonCode: preflight.ReasonCode,
+		TraceID: preflight.TraceId, PreflightToken: preflight.PreflightToken}, nil
+}
+
+func (a *GovernanceEdgeAdapter) ExecuteEffect(ctx context.Context, intent governance.Intent) (governance.EdgeEffectResult, error) {
+	preflight, err := a.PreflightEffect(ctx, intent)
+	if err != nil {
+		return governance.EdgeEffectResult{}, err
+	}
+	wire, err := governance.ToEdgeEffectIntent(intent)
+	if err != nil {
+		return governance.EdgeEffectResult{}, &governance.PreflightRejectedError{Cause: err}
 	}
 	reply, err := a.client.ExecuteEffect(ctx, &edgev1.ExecuteEffectRequest{Intent: wire, PreflightToken: preflight.PreflightToken})
 	if err != nil {
@@ -114,11 +129,32 @@ func mapEffectResult(intent governance.Intent, reply *edgev1.EffectResult) (gove
 	if reply.ExpectedEntries > 4096 || reply.ObservedEntries > 4096 || reply.MismatchedEntries > 4096 || reply.ActiveBank > 1 {
 		return governance.EdgeEffectResult{}, errors.New("grpcapi: Edge effect result exceeds bounds")
 	}
+	entries := make([]governance.AppliedRuleReadback, 0, len(reply.GetAppliedEntries()))
+	for _, entry := range reply.GetAppliedEntries() {
+		if entry == nil {
+			return governance.EdgeEffectResult{}, errors.New("grpcapi: nil applied readback entry")
+		}
+		entries = append(entries, governance.AppliedRuleReadback{EntityID: entry.GetEntityId(), RuleID: entry.GetRuleId(),
+			CanonicalEntryDigest: entry.GetCanonicalEntryDigest(), MatchPriorityActionDigest: entry.GetMatchPriorityActionDigest(),
+			TableID: entry.GetTableId(), DirectCounterID: entry.GetDirectCounterId(), Bank: entry.GetBank()})
+	}
+	var capture *governance.BoundedCaptureReadback
+	if wire := reply.GetBoundedCapture(); wire != nil {
+		capture = &governance.BoundedCaptureReadback{
+			SchemaVersion: wire.GetSchemaVersion(), CaptureID: wire.GetCaptureId(), CaptureDigest: wire.GetCaptureDigest(),
+			CaptureSessionID: wire.GetCaptureSessionId(), StartedAtUnixMS: wire.GetStartedAtUnixMs(),
+			FinishedAtUnixMS: wire.GetFinishedAtUnixMs(), ObservedSamples: int(wire.GetObservedSamples()),
+			ObservedBytes: int64(wire.GetObservedBytes()), ContentDigest: wire.GetContentDigest(),
+			ObservedFlowDigest: wire.GetObservedFlowDigest(), CaptureWindowDigest: wire.GetCaptureWindowDigest(),
+			Truncated: wire.GetTruncated(), Gap: wire.GetGap(),
+		}
+	}
 	return governance.EdgeEffectResult{
 		OperationID: reply.OperationId, TargetID: reply.TargetId, EffectDigest: intent.EffectDigest,
 		Outcome: outcome, ReadbackDigest: reply.ReadbackDigest, ResultDigest: protoDigest(reply),
 		ExpectedEntries: int(reply.ExpectedEntries), ObservedEntries: int(reply.ObservedEntries),
 		MismatchedEntries: int(reply.MismatchedEntries), ActiveBank: int(reply.ActiveBank),
+		ReadbackManifestDigest: reply.GetReadbackManifestDigest(), AppliedEntries: entries, BoundedCapture: capture,
 	}, nil
 }
 

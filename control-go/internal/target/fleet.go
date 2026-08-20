@@ -11,6 +11,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/jackc/pgx/v5"
+
 	"masi-nids/control-go/internal/db"
 	"masi-nids/control-go/internal/governance"
 	"masi-nids/control-go/internal/security"
@@ -114,18 +116,24 @@ func (s *FleetCoordinator) ProjectIntentState(ctx context.Context, tx *db.Tx, in
 	}
 	var fleetOpID string
 	var waveIndex int
-	tag, err := tx.Exec(ctx, `
-		UPDATE fleet_child_intents SET status=$1,reason_code=$2,updated_at=now()
-		WHERE child_intent_id=$3`, string(status), reasonCode, intentID)
-	if err != nil {
-		return fmt.Errorf("fleet: project child state: %w", err)
-	}
-	if tag.RowsAffected() == 0 {
+	var currentStatus string
+	err = tx.QueryRow(ctx, `SELECT fleet_operation_id,wave_index,status
+		FROM fleet_child_intents WHERE child_intent_id=$1 FOR UPDATE`, intentID).
+		Scan(&fleetOpID, &waveIndex, &currentStatus)
+	if errors.Is(err, pgx.ErrNoRows) {
 		return nil
 	}
-	if err := tx.QueryRow(ctx, `SELECT fleet_operation_id,wave_index FROM fleet_child_intents WHERE child_intent_id=$1`, intentID).
-		Scan(&fleetOpID, &waveIndex); err != nil {
-		return fmt.Errorf("fleet: load projected child: %w", err)
+	if err != nil {
+		return fmt.Errorf("fleet: lock projected child: %w", err)
+	}
+	if !allowedChildTransition(ChildStatus(currentStatus), status) {
+		// A stale claim/projection may observe a terminal or later state. It is
+		// audit-only and must never regress the canonical fleet vector.
+		return nil
+	}
+	if _, err := tx.Exec(ctx, `UPDATE fleet_child_intents SET status=$1,reason_code=$2,updated_at=now()
+		WHERE child_intent_id=$3 AND status=$4`, string(status), reasonCode, intentID, currentStatus); err != nil {
+		return fmt.Errorf("fleet: project child state: %w", err)
 	}
 
 	var wavesJSON string
@@ -172,8 +180,10 @@ func (s *FleetCoordinator) ProjectIntentState(ctx context.Context, tx *db.Tx, in
 		return err
 	}
 	aggregate := ProjectAggregate(children, waves)
-	tag, err = tx.Exec(ctx, `UPDATE fleet_operations SET aggregate_status=$1,updated_at=now() WHERE fleet_operation_id=$2`,
-		string(aggregate), fleetOpID)
+	vectorDigest := completedVectorDigest(children)
+	tag, err := tx.Exec(ctx, `UPDATE fleet_operations SET aggregate_status=$1,
+		completed_vector_digest=$2,updated_at=now() WHERE fleet_operation_id=$3`,
+		string(aggregate), vectorDigest, fleetOpID)
 	if err != nil {
 		return fmt.Errorf("fleet: update parent projection: %w", err)
 	}
@@ -181,6 +191,28 @@ func (s *FleetCoordinator) ProjectIntentState(ctx context.Context, tx *db.Tx, in
 		return errors.New("fleet: parent projection missing")
 	}
 	return nil
+}
+
+func allowedChildTransition(current, next ChildStatus) bool {
+	if current == next {
+		return true
+	}
+	switch current {
+	case ChildPending:
+		return next == ChildClaimed || next == ChildHold || next == ChildBlocked || next == ChildSkipped
+	case ChildClaimed:
+		return next == ChildExecuting || next == ChildApplied || next == ChildHold ||
+			next == ChildUnknown || next == ChildReconciling || next == ChildFailed
+	case ChildExecuting:
+		return next == ChildApplied || next == ChildHold || next == ChildUnknown ||
+			next == ChildReconciling || next == ChildFailed
+	case ChildUnknown:
+		return next == ChildReconciling || next == ChildApplied || next == ChildHold || next == ChildFailed
+	case ChildReconciling:
+		return next == ChildApplied || next == ChildHold || next == ChildFailed
+	default:
+		return false
+	}
 }
 
 func fleetChildStatus(state governance.ClaimState, outcome governance.AttemptStatus) (ChildStatus, bool, error) {
@@ -257,7 +289,7 @@ func (s *FleetCoordinator) CreateApprovedFleetOperation(ctx context.Context, dec
 			for index := range fo.ChildIntents {
 				intent := &fo.ChildIntents[index].Intent
 				payload, err := governance.LoadCanonicalEffectPayloadTx(ctx, tx, governance.EffectKind(effectKind),
-					policyDigest, fo.ChildIntents[index].TargetID, fo.Scope, intent.EffectIntentID)
+					policyDigest, fo.ChildIntents[index].TargetID, fo.Scope, intent.EffectIntentID, intent.OperationID)
 				if err != nil {
 					return err
 				}
@@ -267,12 +299,17 @@ func (s *FleetCoordinator) CreateApprovedFleetOperation(ctx context.Context, dec
 					return errors.New("fleet: canonical child effect digest unavailable")
 				}
 			}
+			fo.OperationDigest = computeFleetOperationDigest(fo, decision.DecisionDigest)
+			fo.ParentIntent.EffectDigest = fo.OperationDigest
+			fo.CompletedVectorDigest = completedVectorDigest(fo.ChildIntents)
 			if !inserted {
-				var storedDigest, storedParent, storedDecision string
-				err := tx.QueryRow(ctx, `SELECT fo.target_set_digest,fo.parent_intent_id,i.decision_id
-					FROM fleet_operations fo JOIN effect_intents i ON i.effect_intent_id=fo.parent_intent_id
-					WHERE fo.fleet_operation_id=$1`, fo.FleetOperationID).Scan(&storedDigest, &storedParent, &storedDecision)
-				if err != nil || storedDigest != fo.TargetSetDigest || storedParent != fo.ParentIntentID || storedDecision != decision.DecisionID {
+				var storedTargetDigest, storedParent, storedDecision, storedOperationDigest string
+				err := tx.QueryRow(ctx, `SELECT fo.target_set_digest,fo.parent_intent_id,i.decision_id,fo.operation_digest
+						FROM fleet_operations fo JOIN effect_intents i ON i.effect_intent_id=fo.parent_intent_id
+						WHERE fo.fleet_operation_id=$1`, fo.FleetOperationID).
+					Scan(&storedTargetDigest, &storedParent, &storedDecision, &storedOperationDigest)
+				if err != nil || storedTargetDigest != fo.TargetSetDigest || storedParent != fo.ParentIntentID ||
+					storedDecision != decision.DecisionID || storedOperationDigest != fo.OperationDigest {
 					return errors.New("fleet: existing Decision has no identical atomic fleet vector")
 				}
 				return nil
@@ -369,6 +406,58 @@ func fleetParentDigest(fo FleetOperation, authorizationDigest string) string {
 	return "sha256:" + hex.EncodeToString(h.Sum(nil))
 }
 
+func computeFleetOperationDigest(fo FleetOperation, authorizationDigest string) string {
+	type childDigest struct {
+		TargetID     string           `json:"target_id"`
+		IntentID     string           `json:"intent_id"`
+		WaveIndex    int              `json:"wave_index"`
+		EffectDigest string           `json:"effect_digest"`
+		Fence        governance.Fence `json:"fence"`
+	}
+	children := make([]childDigest, 0, len(fo.ChildIntents))
+	for _, child := range fo.ChildIntents {
+		children = append(children, childDigest{TargetID: child.TargetID, IntentID: child.IntentID,
+			WaveIndex: child.WaveIndex, EffectDigest: child.Intent.EffectDigest, Fence: child.Intent.Fence})
+	}
+	sort.Slice(children, func(i, j int) bool {
+		if children[i].WaveIndex != children[j].WaveIndex {
+			return children[i].WaveIndex < children[j].WaveIndex
+		}
+		return children[i].TargetID < children[j].TargetID
+	})
+	waves, _ := json.Marshal(fo.Waves)
+	childJSON, _ := json.Marshal(children)
+	h := sha256.Sum256([]byte(fo.FleetOperationID + "|" + fo.TargetSetDigest + "|" + fo.Scope + "|" +
+		authorizationDigest + "|" + string(waves) + "|" + string(childJSON)))
+	return "sha256:" + hex.EncodeToString(h[:])
+}
+
+func completedVectorDigest(children []ChildIntent) string {
+	type vectorEntry struct {
+		TargetID     string      `json:"target_id"`
+		IntentID     string      `json:"intent_id"`
+		WaveIndex    int         `json:"wave_index"`
+		Status       ChildStatus `json:"status"`
+		ReasonCode   string      `json:"reason_code"`
+		EffectDigest string      `json:"effect_digest"`
+	}
+	entries := make([]vectorEntry, 0, len(children))
+	for _, child := range children {
+		entries = append(entries, vectorEntry{TargetID: child.TargetID, IntentID: child.IntentID,
+			WaveIndex: child.WaveIndex, Status: child.Status, ReasonCode: child.ReasonCode,
+			EffectDigest: child.Intent.EffectDigest})
+	}
+	sort.Slice(entries, func(i, j int) bool {
+		if entries[i].WaveIndex != entries[j].WaveIndex {
+			return entries[i].WaveIndex < entries[j].WaveIndex
+		}
+		return entries[i].TargetID < entries[j].TargetID
+	})
+	raw, _ := json.Marshal(entries)
+	h := sha256.Sum256(raw)
+	return "sha256:" + hex.EncodeToString(h[:])
+}
+
 func insertFleetOperationTx(ctx context.Context, tx *db.Tx, fo FleetOperation, wavesJSON []byte) error {
 	// The non-claimable parent intent row lives in effect_intents (migration
 	// 0002) with is_fleet_parent=true and claim_state=NULL. The caller's
@@ -380,12 +469,12 @@ func insertFleetOperationTx(ctx context.Context, tx *db.Tx, fo FleetOperation, w
 	_, err := tx.Exec(ctx, `
 			INSERT INTO fleet_operations (
 				fleet_operation_id, target_set_digest, wave_count, waves,
-				parent_intent_id, aggregate_status, actor_ref, scope, reason_code,
-				trace_id, created_at_unix_ms)
-			VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
+					parent_intent_id, aggregate_status, actor_ref, scope, reason_code,
+					trace_id, created_at_unix_ms,operation_digest,completed_vector_digest)
+				VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`,
 		fo.FleetOperationID, fo.TargetSetDigest, fo.WaveCount, wavesJSON,
 		fo.ParentIntentID, string(fo.AggregateStatus), fo.Actor.String(), fo.Scope,
-		"FLEET_PLANNED", fo.TraceID, time.Now().UnixMilli())
+		"FLEET_PLANNED", fo.TraceID, time.Now().UnixMilli(), fo.OperationDigest, fo.CompletedVectorDigest)
 	if err != nil {
 		return err
 	}
@@ -484,6 +573,26 @@ func (s *FleetCoordinator) AdvanceWaveGate(ctx context.Context, fleetOpID string
 				return errors.New("fleet: fail-fast wave has non-applied child; next gate remains closed")
 			}
 		}
+		if waves[currentWave].FailurePolicy == ManualGate {
+			vector, err := loadCompletedVectorTx(ctx, tx, fleetOpID)
+			if err != nil {
+				return err
+			}
+			vectorDigest := completedVectorDigest(vector)
+			var manualAuthorized bool
+			if err := tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM fleet_wave_gate_decisions g
+				 JOIN effect_decisions d ON d.decision_id=g.decision_id
+				 JOIN effect_proposals p ON p.proposal_id=g.proposal_id
+				 WHERE g.fleet_operation_id=$1 AND g.current_wave=$2 AND g.next_wave=$3
+				   AND g.completed_vector_digest=$4 AND d.decision='approve'
+				   AND d.expires_at_unix_ms>$5 AND p.expires_at_unix_ms>$5)`, fleetOpID,
+				currentWave, nextWave, vectorDigest, time.Now().UnixMilli()).Scan(&manualAuthorized); err != nil {
+				return err
+			}
+			if !manualAuthorized {
+				return errors.New("fleet: manual gate lacks exact completed-vector Decision")
+			}
+		}
 		var nextValid bool
 		if err := tx.QueryRow(ctx, `SELECT count(*)>0 AND bool_and(i.deadline_unix_ms>$3 AND d.decision='approve'
 		 AND d.expires_at_unix_ms>$3 AND p.expires_at_unix_ms>$3 AND p.scope=$4)
@@ -526,23 +635,118 @@ func (s *FleetCoordinator) AdvanceWaveGate(ctx context.Context, fleetOpID string
 	return result
 }
 
+// AuthorizeManualGate appends the manual continuation Decision bound to the
+// exact completed vector. Opening remains a separate idempotent CAS so a timeout
+// can resume the original gate identity without minting another Decision.
+func (s *FleetCoordinator) AuthorizeManualGate(ctx context.Context, decisions *governance.DecisionService,
+	proposalID string, approver security.Actor, authz governance.AuthzContext, decisionReason,
+	fleetOpID string, currentWave, nextWave int, providedVectorDigest string) (*governance.Decision, error) {
+	if decisions == nil || currentWave < 0 || nextWave != currentWave+1 || providedVectorDigest == "" {
+		return nil, errors.New("fleet: malformed manual gate authorization")
+	}
+	decision, err := decisions.ApproveWithReasonAtomic(ctx, proposalID, approver, authz, decisionReason,
+		func(ctx context.Context, tx *db.Tx, decision *governance.Decision, _ bool) error {
+			var scope, targetSetDigest, effectKind, policyDigest string
+			if err := tx.QueryRow(ctx, `SELECT fo.scope,fo.target_set_digest,p.effect_kind,p.policy_digest
+				FROM fleet_operations fo JOIN effect_proposals p ON p.proposal_id=$2
+				WHERE fo.fleet_operation_id=$1 FOR UPDATE`, fleetOpID, proposalID).
+				Scan(&scope, &targetSetDigest, &effectKind, &policyDigest); err != nil {
+				return err
+			}
+			if effectKind != string(governance.KindFleetOperation) || policyDigest != providedVectorDigest {
+				return errors.New("fleet: manual gate proposal does not bind completed vector")
+			}
+			var proposalScope, proposalTargets string
+			if err := tx.QueryRow(ctx, `SELECT scope,target_set_digest FROM effect_proposals WHERE proposal_id=$1`, proposalID).
+				Scan(&proposalScope, &proposalTargets); err != nil {
+				return err
+			}
+			if proposalScope != scope || proposalTargets != targetSetDigest {
+				return errors.New("fleet: manual gate scope/target drift")
+			}
+			vector, err := loadCompletedVectorTx(ctx, tx, fleetOpID)
+			if err != nil {
+				return err
+			}
+			actual := completedVectorDigest(vector)
+			if actual != providedVectorDigest {
+				return errors.New("fleet: completed vector changed before Decision")
+			}
+			tag, err := tx.Exec(ctx, `INSERT INTO fleet_wave_gate_decisions(fleet_operation_id,current_wave,next_wave,
+				completed_vector_digest,proposal_id,decision_id,actor_ref,reason_code,created_at_unix_ms)
+				VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9) ON CONFLICT(fleet_operation_id,current_wave,next_wave) DO NOTHING`,
+				fleetOpID, currentWave, nextWave, actual, proposalID, decision.DecisionID, decision.Actor.String(),
+				decisionReason, time.Now().UnixMilli())
+			if err != nil {
+				return err
+			}
+			if tag.RowsAffected() == 0 {
+				var storedDigest, storedProposal, storedDecision string
+				if err := tx.QueryRow(ctx, `SELECT completed_vector_digest,proposal_id,decision_id
+					FROM fleet_wave_gate_decisions WHERE fleet_operation_id=$1 AND current_wave=$2 AND next_wave=$3`,
+					fleetOpID, currentWave, nextWave).Scan(&storedDigest, &storedProposal, &storedDecision); err != nil {
+					return err
+				}
+				if storedDigest != actual || storedProposal != proposalID || storedDecision != decision.DecisionID {
+					return errors.New("fleet: manual gate Decision identity conflict")
+				}
+			}
+			return nil
+		})
+	if err != nil {
+		return nil, fmt.Errorf("fleet: authorize manual gate: %w", err)
+	}
+	return decision, nil
+}
+
+func loadCompletedVectorTx(ctx context.Context, tx *db.Tx, fleetOpID string) ([]ChildIntent, error) {
+	rows, err := tx.Query(ctx, `SELECT fc.target_id,fc.child_intent_id,fc.wave_index,fc.status,
+		fc.reason_code,fc.effect_digest FROM fleet_child_intents fc
+		WHERE fc.fleet_operation_id=$1 ORDER BY fc.wave_index,fc.target_id`, fleetOpID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	children := []ChildIntent{}
+	for rows.Next() {
+		var child ChildIntent
+		if err := rows.Scan(&child.TargetID, &child.IntentID, &child.WaveIndex, &child.Status,
+			&child.ReasonCode, &child.Intent.EffectDigest); err != nil {
+			return nil, err
+		}
+		children = append(children, child)
+	}
+	return children, rows.Err()
+}
+
 // Rollback creates a NEW fleet parent + per-target child intents to the exact
 // previous state. It is a new durable operation, never an in-place overwrite of
 // the original fleet operation (ADR-0015: rollback = new fleet parent + per-
 // target intents to exact previous).
-func (s *FleetCoordinator) Rollback(ctx context.Context, originalFleetOpID string, actor security.Actor, scope, traceID string, parent governance.Intent, children []ChildIntent) (string, error) {
-	rollbackID := "fo-rollback-" + shortID(originalFleetOpID+traceID)
+func (s *FleetCoordinator) CreateApprovedRollback(ctx context.Context, decisions *governance.DecisionService,
+	originalFleetOpID, proposalID string, actor security.Actor, authz governance.AuthzContext,
+	decisionReason string, rollback FleetOperation) (*FleetOperation, *governance.Decision, error) {
+	rollbackID := rollback.FleetOperationID
+	if rollbackID == "" {
+		rollbackID = "fo-rollback-" + shortID(originalFleetOpID+proposalID)
+	}
 	// Load the original to copy the frozen target set + exact-previous wave plan.
-	var targetSetDigest string
+	var targetSetDigest, originalScope string
 	var wavesJSON string
-	err := s.pool.Pool.QueryRow(ctx, `SELECT target_set_digest, waves FROM fleet_operations WHERE fleet_operation_id = $1`, originalFleetOpID).
-		Scan(&targetSetDigest, &wavesJSON)
+	err := s.pool.Pool.QueryRow(ctx, `SELECT target_set_digest,waves::text,scope FROM fleet_operations WHERE fleet_operation_id = $1`, originalFleetOpID).
+		Scan(&targetSetDigest, &wavesJSON, &originalScope)
 	if err != nil {
-		return "", fmt.Errorf("fleet: rollback load original: %w", err)
+		return nil, nil, fmt.Errorf("fleet: rollback load original: %w", err)
 	}
 	var waves []Wave
 	if err := json.Unmarshal([]byte(wavesJSON), &waves); err != nil {
-		return "", fmt.Errorf("fleet: rollback parse waves: %w", err)
+		return nil, nil, fmt.Errorf("fleet: rollback parse waves: %w", err)
+	}
+	if rollback.Scope == "" {
+		rollback.Scope = originalScope
+	}
+	if rollback.Scope != originalScope {
+		return nil, nil, errors.New("fleet: rollback scope differs from original")
 	}
 	// Reverse wave order: rollback applies the exact-previous in reverse.
 	rollbackWaves := make([]Wave, 0, len(waves))
@@ -557,20 +761,30 @@ func (s *FleetCoordinator) Rollback(ctx context.Context, originalFleetOpID strin
 		TargetSetDigest:  targetSetDigest,
 		WaveCount:        len(rollbackWaves),
 		Waves:            rollbackWaves,
-		ParentIntent:     parent,
-		ChildIntents:     children,
+		ParentIntent:     rollback.ParentIntent,
+		ChildIntents:     rollback.ChildIntents,
 		AggregateStatus:  AggregatePlanned,
 		Actor:            actor,
-		Scope:            scope,
-		TraceID:          traceID,
+		Scope:            rollback.Scope,
+		TraceID:          rollback.TraceID,
 	}
-	if len(children) == 0 {
-		return "", errors.New("fleet: rollback requires exact previous per-target child intents")
+	if len(rb.ChildIntents) == 0 {
+		return nil, nil, errors.New("fleet: rollback requires exact previous per-target child intents")
 	}
-	if _, err := s.CreateFleetOperation(ctx, rb); err != nil {
-		return "", err
+	waveByTarget := map[string]int{}
+	for _, wave := range rb.Waves {
+		for _, targetID := range wave.TargetIDs {
+			waveByTarget[targetID] = wave.WaveIndex
+		}
 	}
-	return rollbackID, nil
+	for i := range rb.ChildIntents {
+		wave, ok := waveByTarget[rb.ChildIntents[i].TargetID]
+		if !ok {
+			return nil, nil, errors.New("fleet: rollback child outside original target set")
+		}
+		rb.ChildIntents[i].WaveIndex = wave
+	}
+	return s.CreateApprovedFleetOperation(ctx, decisions, proposalID, actor, authz, decisionReason, rb)
 }
 
 func validateFleetOperation(fo FleetOperation) error {
@@ -650,7 +864,8 @@ func insertFleetIntent(ctx context.Context, tx *db.Tx, intent governance.Intent,
 	if err := governance.ValidateFence(intent.Fence); err != nil {
 		return err
 	}
-	payloadJSON := []byte(`{}`)
+	var payloadJSON []byte
+	var err error
 	if !intent.IsFleetParent {
 		if err := governance.ValidateEffectPayload(intent.Payload); err != nil {
 			return err
@@ -658,8 +873,14 @@ func insertFleetIntent(ctx context.Context, tx *db.Tx, intent governance.Intent,
 		if governance.ComputeEffectDigest(intent) != intent.EffectDigest {
 			return errors.New("fleet: child effect digest does not bind payload")
 		}
-		var err error
 		payloadJSON, err = json.Marshal(intent.Payload)
+		if err != nil {
+			return err
+		}
+	} else {
+		payloadJSON, err = json.Marshal(map[string]any{"schema_version": "fleet-parent-projection/v1",
+			"fleet_operation_id": intent.FleetOperationID, "operation_id": intent.OperationID,
+			"operation_digest": intent.EffectDigest})
 		if err != nil {
 			return err
 		}
@@ -684,12 +905,12 @@ func insertFleetIntent(ctx context.Context, tx *db.Tx, intent governance.Intent,
 		claimState = nil
 	}
 	_, err = tx.Exec(ctx, `
-		INSERT INTO effect_intents (
-		 effect_intent_id,operation_id,proposal_id,decision_id,target_id,fleet_operation_id,
-		 is_fleet_parent,fence,effect_digest,authorization_digest,effect_kind,risk_level,
-		 required_write_atomicity,deadline_unix_ms,claim_state,actor_ref,trace_id,reason_code,
-		 actor_issuer,actor_subject,gate_open,effect_payload)
-	VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22)`,
+			INSERT INTO effect_intents (
+			 effect_intent_id,operation_id,proposal_id,proposal_digest,decision_id,target_id,fleet_operation_id,
+			 is_fleet_parent,fence,effect_digest,authorization_digest,effect_kind,risk_level,
+			 required_write_atomicity,deadline_unix_ms,claim_state,actor_ref,trace_id,reason_code,
+			 actor_issuer,actor_subject,gate_open,effect_payload)
+		VALUES ($1,$2,$3,(SELECT proposal_digest FROM effect_proposals WHERE proposal_id=$3),$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22)`,
 		intent.EffectIntentID, intent.OperationID, intent.ProposalID, intent.DecisionID, intent.TargetID,
 		intent.FleetOperationID, intent.IsFleetParent, fenceJSON, intent.EffectDigest, intent.AuthorizationDigest,
 		string(intent.EffectKind), string(intent.RiskLevel), intent.RequiredWriteAtomicity, intent.DeadlineUnixMS,

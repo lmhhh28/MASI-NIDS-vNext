@@ -11,6 +11,7 @@ import (
 	"google.golang.org/grpc/credentials"
 
 	"masi-nids/control-go/internal/config"
+	grpcapi "masi-nids/control-go/internal/grpc"
 )
 
 func grpcServerOptions(cfg *config.Config) ([]grpc.ServerOption, error) {
@@ -35,14 +36,26 @@ func grpcServerOptions(cfg *config.Config) ([]grpc.ServerOption, error) {
 		ClientCAs:    pool,
 		ClientAuth:   tls.RequireAndVerifyClientCert,
 	}
-	return []grpc.ServerOption{grpc.Creds(credentials.NewTLS(tlsCfg))}, nil
+	return []grpc.ServerOption{grpc.Creds(credentials.NewTLS(tlsCfg)),
+		grpc.ChainUnaryInterceptor(grpcapi.UnaryPeerIdentityInterceptor(cfg.TLS.GRPCAllowedClientSANs))}, nil
 }
 
-func httpTLSConfig(cfg *config.Config) *tls.Config {
+func httpTLSConfig(cfg *config.Config) (*tls.Config, error) {
 	if cfg.RuntimeProfile == "test" {
-		return nil
+		return nil, nil
 	}
-	return &tls.Config{MinVersion: tls.VersionTLS13}
+	caPEM, err := os.ReadFile(cfg.TLS.HTTPClientCAFile)
+	if err != nil {
+		return nil, fmt.Errorf("runtime: read HTTP client CA: %w", err)
+	}
+	pool := x509.NewCertPool()
+	if !pool.AppendCertsFromPEM(caPEM) {
+		return nil, fmt.Errorf("runtime: HTTP client CA contains no certificate")
+	}
+	// Browser/API clients are allowed without a client certificate. The /mcp
+	// handler independently requires a verified workload certificate and exact
+	// active plugin binding.
+	return &tls.Config{MinVersion: tls.VersionTLS13, ClientCAs: pool, ClientAuth: tls.VerifyClientCertIfGiven}, nil
 }
 
 func readSecretReference(path string) (string, error) {

@@ -11,18 +11,21 @@ import (
 	"context"
 	"crypto/rand"
 	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"flag"
 	"net"
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
 	"github.com/go-chi/chi/v5"
 	"google.golang.org/grpc"
 
+	"masi-nids/control-go/internal/a2a"
 	"masi-nids/control-go/internal/api"
 	"masi-nids/control-go/internal/config"
 	"masi-nids/control-go/internal/db"
@@ -33,6 +36,8 @@ import (
 	"masi-nids/control-go/internal/grpc/edgev1"
 	"masi-nids/control-go/internal/health"
 	"masi-nids/control-go/internal/logging"
+	controlmcp "masi-nids/control-go/internal/mcp"
+	controlmetrics "masi-nids/control-go/internal/metrics"
 	"masi-nids/control-go/internal/model"
 	"masi-nids/control-go/internal/plugin"
 	"masi-nids/control-go/internal/pluginstat"
@@ -73,7 +78,7 @@ func run() error {
 	slog.Info("postgres pool ready", "max_conns", cfg.Resource.MaxPoolConnections)
 
 	// Schema compatibility check (fail closed on unknown/wrong version).
-	mr := db.NewMigrationReader(pool, 17, cfg.SchemaMigrationDigest)
+	mr := db.NewMigrationReader(pool, 21, cfg.SchemaMigrationDigest)
 	if err := mr.CheckSchemaVersion(ctx); err != nil {
 		// In the first release the schema_meta row may not yet exist when the
 		// DB is brought up by the (not-yet-started) db/ module. We fail closed
@@ -82,6 +87,7 @@ func run() error {
 	}
 
 	var effectClient governance.EdgeEffectClient = stubEdgeEffect{}
+	var effectCompiler governance.EdgeEffectPreflightClient = stubEdgeEffect{}
 	var effectReadback governance.EdgeEffectReadbackClient = stubEdgeEffect{}
 	var deploymentClient model.DeploymentAdapterClient = stubDeploymentAdapter{}
 	var routeClient model.EdgeRouteClient = stubEdgeRoute{}
@@ -94,6 +100,7 @@ func run() error {
 		}
 		defer outbound.Close()
 		effectClient = outbound.edge
+		effectCompiler = outbound.edge
 		effectReadback = outbound.edge
 		deploymentClient = outbound.deployment
 		routeClient = outbound.edge
@@ -133,6 +140,8 @@ func run() error {
 	decisions := governance.NewDecisionService(pool, mapping)
 	intents := governance.NewIntentService(pool)
 	preflight := governance.NewPreflightService(pool)
+	capture := governance.NewCaptureService(pool)
+	captureProjector := governance.NewCaptureProjector()
 	targetRegistry := target.NewRegistryService(pool)
 	fleet := target.NewFleetCoordinator(pool)
 	assignmentSvc := target.NewAssignmentService(pool)
@@ -141,8 +150,16 @@ func run() error {
 	firewallOverlays := firewall.NewOverlayService(pool)
 	firewallActivation := firewall.NewActivationService(pool)
 	firewallProjector := firewall.NewIntentProjector()
-	dispatcher := governance.NewDispatcher(pool, effectClient, preflight, 30*time.Second, "control-core", firewallProjector, fleet)
-	reconcile := governance.NewReconcileService(pool, effectReadback, firewallProjector, fleet)
+	effectOwner, err := runtimeOwner("control-core-effect")
+	if err != nil {
+		return err
+	}
+	statisticsOwner, err := runtimeOwner("control-core-statistics")
+	if err != nil {
+		return err
+	}
+	dispatcher := governance.NewDispatcher(pool, effectClient, preflight, 30*time.Second, effectOwner, firewallProjector, fleet, captureProjector)
+	reconcile := governance.NewReconcileService(pool, effectReadback, firewallProjector, fleet, captureProjector)
 
 	modelRevisions := model.NewRevisionService(pool)
 	modelIncarnation := model.NewIncarnationService(pool)
@@ -153,6 +170,10 @@ func run() error {
 	pluginStat := pluginstat.NewService(pool)
 
 	ruleObs := ruleobs.NewProjector(pool)
+	analysisClient, err := a2a.NewClient(pool, cfg.Outbound.Analysis, cfg.RuntimeProfile == "production")
+	if err != nil {
+		return err
+	}
 
 	// HTTP surface: health + same-origin API + SSE.
 	store := api.NewSessionStoreWithStepUpACRs(cfg.SessionCookieName, cfg.OIDCStepUpACRValues)
@@ -189,6 +210,7 @@ func run() error {
 		Cursor:             cursorCodec,
 		Secure:             cfg.RuntimeProfile == "production",
 		TestLogin:          cfg.RuntimeProfile == "test",
+		RequestTimeout:     cfg.Resource.HTTPRequestTimeout,
 		FirewallRevisions:  firewallRevisions,
 		FirewallOverlays:   firewallOverlays,
 		FirewallActivation: firewallActivation,
@@ -203,24 +225,47 @@ func run() error {
 		PluginStat:         pluginStat,
 		RuleObs:            ruleObs,
 		Preflight:          preflight,
+		FirewallCompiler:   effectCompiler,
 		Dispatcher:         dispatcher,
 		Reconcile:          reconcile,
+		Capture:            capture,
+		Analysis:           analysisClient,
 		AcceptMutation:     checker.AcceptingMutations,
 	}
+	mcpServer := &controlmcp.Server{Pool: pool, AllowedOrigin: cfg.PublicOrigin,
+		Production: cfg.RuntimeProfile == "production", AllowTestLoopback: cfg.RuntimeProfile == "test"}
 	// The OIDC client is configured via deployment profile (issuer/client id
 	// from the secret store); a nil client disables browser login while the
 	// health/API surface still serves probes.
 	r := chi.NewRouter()
+	metricRegistry := controlmetrics.New(pool)
+	runtimeConfigPath := strings.TrimSpace(*cfgPath)
+	if runtimeConfigPath == "" {
+		runtimeConfigPath = strings.TrimSpace(os.Getenv("MASI_CTRL_CONFIG"))
+	}
+	if err := metricRegistry.ConfigureRuntimeFiles(runtimeConfigPath, cfg.TLS.HTTPCertFile, cfg.TLS.GRPCCertFile); err != nil {
+		return err
+	}
+	r.Use(metricRegistry.Middleware)
 	r.Get("/healthz", checker.HandleHealth)
 	r.Get("/readyz", checker.HandleReady)
 	r.Get("/livez", checker.HandleLive)
+	r.Get("/metrics", metricRegistry.Handler)
+	r.Handle("/mcp", http.HandlerFunc(mcpServer.Handler))
 	r.Mount("/", api.Router(deps, oidc, store, hub, cfg.PublicOrigin))
+	httpTLS, err := httpTLSConfig(cfg)
+	if err != nil {
+		return err
+	}
 
 	httpSrv := &http.Server{
 		Addr:              cfg.HTTPListen,
 		Handler:           r,
 		ReadHeaderTimeout: 10 * time.Second,
-		TLSConfig:         httpTLSConfig(cfg),
+		ReadTimeout:       cfg.Resource.HTTPRequestTimeout,
+		IdleTimeout:       cfg.Resource.HTTPIdleTimeout,
+		MaxHeaderBytes:    64 * 1024,
+		TLSConfig:         httpTLS,
 	}
 	httpLn, httpErr := net.Listen("tcp", cfg.HTTPListen)
 	if httpErr != nil {
@@ -243,6 +288,11 @@ func run() error {
 		MaxBatchRecords: 256,
 		MaxBatchBytes:   4 * 1024 * 1024,
 		Accepting:       checker.AcceptingMutations,
+	}
+	if cfg.RuntimeProfile == "production" {
+		sink.AuthorizeTarget = func(ctx context.Context, targetID string) error {
+			return grpcapi.AuthorizeTargetPeer(ctx, pool, targetID)
+		}
 	}
 	edgev1.RegisterControlSinkServer(grpcSrv, sink)
 	grpcLn, grpcErr := net.Listen("tcp", cfg.GRPCListen)
@@ -280,7 +330,7 @@ func run() error {
 	// never fabricate a successful Artifact.
 	startMaintenance(maintenanceCtx, slog, pool, dispatcher, reconcile, firewallOverlays, pluginStat,
 		statisticsExecutor, ingest, ruleObs, mapping, cfg.Resource.EventRetention,
-		cfg.Resource.PluginStatRetention, cfg.Resource.IdempotencyRetention, checker.MarkProgress)
+		cfg.Resource.PluginStatRetention, cfg.Resource.IdempotencyRetention, statisticsOwner, checker.MarkProgress)
 
 	sig := make(chan os.Signal, 1)
 	signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)
@@ -302,7 +352,7 @@ func run() error {
 	if _, err := dispatcher.FenceOwnedClaimsOnShutdown(shutdownCtx); err != nil {
 		slog.Error("fence effect claims during drain", "err", err)
 	}
-	if _, err := pluginStat.ReleaseOwnedClaimsOnShutdown(shutdownCtx, "control-core-statistics"); err != nil {
+	if _, err := pluginStat.ReleaseOwnedClaimsOnShutdown(shutdownCtx, statisticsOwner); err != nil {
 		slog.Error("release statistics claims during drain", "err", err)
 	}
 	grpcStopped := make(chan struct{})
@@ -318,4 +368,12 @@ func run() error {
 	checker.SetState(health.StateStopped, 0)
 	slog.Info("stopped")
 	return nil
+}
+
+func runtimeOwner(prefix string) (string, error) {
+	nonce := make([]byte, 16)
+	if _, err := rand.Read(nonce); err != nil {
+		return "", err
+	}
+	return prefix + "-" + hex.EncodeToString(nonce), nil
 }

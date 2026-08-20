@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"regexp"
 	"sort"
 	"time"
 
@@ -19,6 +20,56 @@ import (
 type ProposalService struct {
 	pool *db.Pool
 	now  func() time.Time
+}
+
+var supersedeReasonRE = regexp.MustCompile(`^[A-Z][A-Z0-9_]{0,63}$`)
+
+// Supersede closes an immutable proposal in favor of an already-created exact
+// replacement. It never edits either body and cannot supersede a proposal that
+// already has a terminal Decision or an Intent.
+func (s *ProposalService) Supersede(ctx context.Context, oldProposalID, replacementProposalID string,
+	actor security.Actor, reasonCode string) error {
+	if oldProposalID == "" || replacementProposalID == "" || oldProposalID == replacementProposalID ||
+		!supersedeReasonRE.MatchString(reasonCode) {
+		return fmt.Errorf("governance: supersede identity/reason malformed")
+	}
+	if err := actor.Validate(); err != nil {
+		return err
+	}
+	return s.pool.WithTx(ctx, []db.TxOption{db.Serializable()}, func(tx *db.Tx) error {
+		var oldScope, oldKind, oldTargetSet, newScope, newKind, newTargetSet string
+		var oldTargets, newTargets []string
+		if err := tx.QueryRow(ctx, `SELECT scope,effect_kind,target_set_digest,target_ids FROM effect_proposals
+			WHERE proposal_id=$1 AND superseded_by_proposal_id IS NULL FOR UPDATE`, oldProposalID).
+			Scan(&oldScope, &oldKind, &oldTargetSet, &oldTargets); err != nil {
+			return err
+		}
+		if err := tx.QueryRow(ctx, `SELECT scope,effect_kind,target_set_digest,target_ids FROM effect_proposals
+			WHERE proposal_id=$1 AND superseded_by_proposal_id IS NULL FOR SHARE`, replacementProposalID).
+			Scan(&newScope, &newKind, &newTargetSet, &newTargets); err != nil {
+			return err
+		}
+		if oldScope != newScope || oldKind != newKind || oldTargetSet != newTargetSet ||
+			fmt.Sprint(oldTargets) != fmt.Sprint(newTargets) {
+			return fmt.Errorf("governance: replacement scope/effect/target set differs")
+		}
+		var blocked bool
+		if err := tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM effect_decisions WHERE proposal_id=$1)
+			OR EXISTS(SELECT 1 FROM effect_intents WHERE proposal_id=$1)`, oldProposalID).Scan(&blocked); err != nil {
+			return err
+		}
+		if blocked {
+			return fmt.Errorf("governance: decided/intent-backed proposal cannot be superseded")
+		}
+		tag, err := tx.Exec(ctx, `UPDATE effect_proposals SET superseded_by_proposal_id=$1,
+			superseded_at_unix_ms=$2,superseded_by_actor_ref=$3,supersede_reason_code=$4
+			WHERE proposal_id=$5 AND superseded_by_proposal_id IS NULL`, replacementProposalID,
+			s.now().UnixMilli(), actor.String(), reasonCode, oldProposalID)
+		if err != nil || tag.RowsAffected() != 1 {
+			return fmt.Errorf("governance: supersede CAS conflict")
+		}
+		return nil
+	})
 }
 
 func NewProposalService(pool *db.Pool) *ProposalService {
@@ -80,6 +131,10 @@ func validateProposal(p Proposal) error {
 	if p.RiskLevel != security.R0 && p.RiskLevel != security.R1 &&
 		p.RiskLevel != security.R2 && p.RiskLevel != security.R3 {
 		return fmt.Errorf("governance: bad risk_level %q", p.RiskLevel)
+	}
+	if p.RiskLevel == security.R0 && (p.EffectKind != KindBoundedCapture ||
+		(p.ActorLevel != security.LevelOperator && p.ActorLevel != security.LevelScopedOperator) || len(p.TargetIDs) != 1) {
+		return fmt.Errorf("governance: R0 governance is limited to single-target Operator bounded capture")
 	}
 	if err := p.Actor.Validate(); err != nil {
 		return fmt.Errorf("governance: actor: %w", err)

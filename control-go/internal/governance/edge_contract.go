@@ -130,11 +130,70 @@ func ToEdgeEffectIntent(intent Intent) (*edgev1.EffectIntent, error) {
 			}
 			out.OverlayRules = append(out.OverlayRules, mapped)
 		}
+	case "capture-start":
+		if intent.Payload.BoundedCapture == nil {
+			return nil, errors.New("governance: bounded capture spec missing")
+		}
+		spec := *intent.Payload.BoundedCapture
+		source, err := edgeOptionalPrefix(spec.Filter.SourceIPv4)
+		if err != nil {
+			return nil, err
+		}
+		destination, err := edgeOptionalPrefix(spec.Filter.DestinationIPv4)
+		if err != nil {
+			return nil, err
+		}
+		protocol, err := edgeOptionalPointer(spec.Filter.Protocol, 255)
+		if err != nil {
+			return nil, err
+		}
+		sourcePort, err := edgeOptionalPointer(spec.Filter.SourcePort, 65535)
+		if err != nil {
+			return nil, err
+		}
+		destinationPort, err := edgeOptionalPointer(spec.Filter.DestinationPort, 65535)
+		if err != nil {
+			return nil, err
+		}
+		out.Kind = edgev1.EffectKind_EFFECT_KIND_BOUNDED_CAPTURE_START
+		out.ReasonCode = "BOUNDED_CAPTURE_START"
+		out.BoundedCapture = &edgev1.BoundedCaptureSpec{
+			SchemaVersion: spec.SchemaVersion, CaptureId: spec.CaptureID, CaptureDigest: spec.CaptureDigest,
+			CaptureAdapterId: spec.CaptureAdapterID, DurationMs: uint32(spec.DurationMS),
+			SampleLimit: uint32(spec.SampleLimit), ByteLimit: uint64(spec.ByteLimit),
+			ExpiresAtUnixMs: spec.ExpiresAtUnixMS, MaxConcurrentOnTarget: uint32(spec.MaxConcurrentOnTarget),
+			PayloadMode: spec.PayloadMode, Source: source, Destination: destination, Protocol: protocol,
+			SourcePort: sourcePort, DestinationPort: destinationPort,
+		}
 	default:
 		return nil, errors.New("governance: unsupported effect payload operation")
 	}
 	out.EffectDigest = edgeEffectDigest(out)
 	return out, nil
+}
+
+func edgeOptionalPrefix(raw string) (*edgev1.Ipv4Prefix, error) {
+	if raw == "" {
+		return nil, nil
+	}
+	var prefix normalizedPrefix
+	parsed, err := netip.ParsePrefix(raw)
+	if err != nil || !parsed.Addr().Is4() || parsed != parsed.Masked() {
+		return nil, errors.New("governance: capture IPv4 prefix malformed")
+	}
+	prefix.Address = parsed.Addr().String()
+	prefix.PrefixLength = uint32(parsed.Bits())
+	return edgePrefix(prefix)
+}
+
+func edgeOptionalPointer(value *uint32, maximum uint32) (*edgev1.OptionalUint32, error) {
+	if value == nil {
+		return &edgev1.OptionalUint32{}, nil
+	}
+	if *value > maximum {
+		return nil, errors.New("governance: capture optional uint32 out of range")
+	}
+	return &edgev1.OptionalUint32{Present: true, Value: *value}, nil
 }
 
 func edgeBaselineRule(rule normalizedBaselineRule) (*edgev1.BaselineRule, error) {

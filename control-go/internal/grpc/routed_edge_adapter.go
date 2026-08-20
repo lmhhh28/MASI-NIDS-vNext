@@ -40,6 +40,14 @@ func (r *RoutedEdgeAdapter) ExecuteEffect(ctx context.Context, intent governance
 	return NewGovernanceEdgeAdapter(client).ExecuteEffect(ctx, intent)
 }
 
+func (r *RoutedEdgeAdapter) PreflightEffect(ctx context.Context, intent governance.Intent) (governance.EdgePreflightResult, error) {
+	client, err := r.clientForWorkload(intent.Fence.EdgeWorkloadRef)
+	if err != nil {
+		return governance.EdgePreflightResult{}, &governance.PreflightRejectedError{Cause: err}
+	}
+	return NewGovernanceEdgeAdapter(client).PreflightEffect(ctx, intent)
+}
+
 func (r *RoutedEdgeAdapter) QueryEffectReadback(ctx context.Context, intent governance.Intent) (governance.EdgeEffectResult, error) {
 	client, err := r.clientForWorkload(intent.Fence.EdgeWorkloadRef)
 	if err != nil {

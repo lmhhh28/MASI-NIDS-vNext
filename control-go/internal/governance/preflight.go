@@ -87,7 +87,7 @@ func (s *PreflightService) preflight(ctx context.Context, proposalID string, all
 			    ORDER BY x.assignment_generation DESC LIMIT 1
 			) a ON a.revoked_at_unix_ms IS NULL
 			JOIN target_capability_observations c ON c.target_id=t.target_id
-			WHERE p.proposal_id = $1`, proposalID).
+				WHERE p.proposal_id = $1 AND p.superseded_by_proposal_id IS NULL`, proposalID).
 		Scan(&proposalDigest, &targetSetDigest, &policyDigest, &traceID,
 			&proposalExpires, &targetID, &evidenceJSON, &effectKind, &scope, &targetStatus,
 			&incarnationID, &assignmentGeneration, &edgeWorkloadRef, &actorRuntimeEpoch, &applicationGeneration,
@@ -113,6 +113,16 @@ func (s *PreflightService) preflight(ctx context.Context, proposalID string, all
 		err = s.pool.Pool.QueryRow(deadlineCtx, `SELECT EXISTS(SELECT 1 FROM firewall_overlays
 			WHERE target_id=$1 AND scope=$2 AND rule->>'canonical_rule_digest'=$3 AND NOT deleted)`,
 			targetID, scope, policyDigest).Scan(&policyExact)
+	case KindBoundedCapture:
+		err = s.pool.Pool.QueryRow(deadlineCtx, `SELECT EXISTS(
+			SELECT 1 FROM bounded_capture_requests r
+			WHERE r.target_id=$1 AND r.scope=$2 AND r.capture_digest=$3
+			  AND r.state IN ('planned','authorized','claimed','executing','unknown')
+			  AND r.expires_at_unix_ms>$4
+			  AND (SELECT count(*) FROM bounded_capture_requests c
+			       WHERE c.target_id=r.target_id AND c.state IN ('authorized','claimed','executing','unknown')
+			         AND c.expires_at_unix_ms>$4) <= r.max_concurrent_on_target)`,
+			targetID, scope, policyDigest, now.UnixMilli()).Scan(&policyExact)
 	default:
 		return nil, fmt.Errorf("preflight: effect kind %s is not a P4 effect", effectKind)
 	}

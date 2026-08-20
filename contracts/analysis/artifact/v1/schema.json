@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://masi-nids.example/contracts/analysis/artifact/v1/schema.json",
+  "title": "Non-executable Analysis Artifact V1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "artifact_id", "artifact_digest", "task_id", "plugin_id", "binding_generation", "input_digest", "analysis_outcome", "observed_claims", "inferred_claims", "uncertainties", "limitations", "missing_evidence", "recommendations", "generated_content", "provider_metadata", "tool_trajectory_digest", "trace_id", "media_type", "non_executable", "deployment_eligible"],
+  "properties": {
+    "schema_version": {"const": "masi-analysis-artifact/v1"},
+    "artifact_id": {"$ref": "#/$defs/identity"},
+    "artifact_digest": {"$ref": "#/$defs/digest"},
+    "task_id": {"$ref": "#/$defs/identity"},
+    "plugin_id": {"$ref": "#/$defs/identity"},
+    "binding_generation": {"type": "integer", "minimum": 1},
+    "input_digest": {"$ref": "#/$defs/digest"},
+    "analysis_outcome": {"enum": ["succeeded", "limited", "insufficient_evidence", "failed"]},
+    "observed_claims": {"type": "array", "maxItems": 128, "items": {"$ref": "#/$defs/grounded_claim"}},
+    "inferred_claims": {"$ref": "#/$defs/texts"},
+    "uncertainties": {"$ref": "#/$defs/texts"},
+    "limitations": {"$ref": "#/$defs/texts"},
+    "missing_evidence": {"$ref": "#/$defs/texts"},
+    "recommendations": {"type": "array", "maxItems": 64, "items": {"$ref": "#/$defs/recommendation"}},
+    "generated_content": {"type": "array", "maxItems": 16, "items": {"$ref": "#/$defs/generated_content"}},
+    "provider_metadata": {"$ref": "#/$defs/provider_metadata"},
+    "tool_trajectory_digest": {"$ref": "#/$defs/digest"},
+    "trace_id": {"$ref": "#/$defs/identity"},
+    "media_type": {"enum": ["application/json", "text/markdown"]},
+    "non_executable": {"const": true},
+    "deployment_eligible": {"const": false}
+  },
+  "$defs": {
+    "identity": {"type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"},
+    "digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "texts": {"type": "array", "maxItems": 128, "items": {"type": "string", "minLength": 1, "maxLength": 4096}},
+    "grounded_claim": {
+      "type": "object", "additionalProperties": false, "required": ["claim", "evidence_refs"],
+      "properties": {"claim": {"type": "string", "minLength": 1, "maxLength": 4096}, "evidence_refs": {"type": "array", "minItems": 1, "maxItems": 32, "uniqueItems": true, "items": {"$ref": "#/$defs/identity"}}}
+    },
+    "recommendation": {
+      "type": "object", "additionalProperties": false,
+      "required": ["text", "risk", "preconditions", "expires_at_unix_ms", "evidence_refs"],
+      "properties": {
+        "text": {"type": "string", "minLength": 1, "maxLength": 4096},
+        "risk": {"type": "string", "minLength": 1, "maxLength": 128},
+        "preconditions": {"type": "array", "maxItems": 32, "items": {"type": "string", "minLength": 1, "maxLength": 1024}},
+        "expires_at_unix_ms": {"type": "integer", "minimum": 1},
+        "evidence_refs": {"type": "array", "maxItems": 32, "uniqueItems": true, "items": {"$ref": "#/$defs/identity"}}
+      }
+    },
+    "generated_content": {
+      "type": "object", "additionalProperties": false, "required": ["media_type", "body"],
+      "properties": {"media_type": {"enum": ["application/json", "text/markdown"]}, "body": {"type": "string", "maxLength": 32768}}
+    },
+    "provider_metadata": {
+      "type": "object", "additionalProperties": false, "required": ["provider_id", "model_id", "provider_digest"],
+      "properties": {"provider_id": {"$ref": "#/$defs/identity"}, "model_id": {"$ref": "#/$defs/identity"}, "provider_digest": {"$ref": "#/$defs/digest"}}
+    }
+  },
+  "x-masi-semantic-constraints": [
+    {"constraint_id": "ANALYSIS-ARTIFACT-NON-EXECUTABLE", "fields": ["/non_executable", "/deployment_eligible"], "operator": "true-false"},
+    {"constraint_id": "ANALYSIS-OBSERVED-CLAIM-GROUNDED", "fields": ["/observed_claims"], "operator": "refs-subset-frozen-input"}
+  ]
+}

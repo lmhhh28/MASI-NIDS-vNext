@@ -4,10 +4,12 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5"
 
+	"masi-nids/control-go/internal/a2a"
 	"masi-nids/control-go/internal/firewall"
 	"masi-nids/control-go/internal/governance"
 	"masi-nids/control-go/internal/model"
@@ -22,6 +24,7 @@ type adminMutation struct {
 	Session   *Session
 	Scope     string
 	TargetSet string
+	Level     security.AuthzContextLevel
 }
 
 // authorizeAdminMutation is the common fail-closed gate for platform-control
@@ -45,13 +48,13 @@ func authorizeAdminMutation(r *http.Request, deps Deps, scope, action, targetSet
 	if _, err := deps.Mapping.AuthorizeScope(actor, security.LevelPlatformAdmin, scope, action, targetSet); err != nil {
 		return adminMutation{}, err
 	}
-	return adminMutation{Actor: actor, Session: s, Scope: scope, TargetSet: targetSet}, nil
+	return adminMutation{Actor: actor, Session: s, Scope: scope, TargetSet: targetSet, Level: security.LevelPlatformAdmin}, nil
 }
 
 func authorizeOperatorMutation(r *http.Request, deps Deps, scope, action, targetSet string, risk security.RiskLevel) (adminMutation, error) {
 	s, err := sessionFromContext(r.Context())
 	if err != nil || deps.Mapping == nil || scope == "" || !validDigest(targetSet) ||
-		(risk != security.R1 && risk != security.R2 && risk != security.R3) {
+		(risk != security.R0 && risk != security.R1 && risk != security.R2 && risk != security.R3) {
 		return adminMutation{}, errors.New("operator mutation identity unavailable")
 	}
 	actor := security.Actor{Issuer: s.Actor.Issuer, Subject: s.Actor.Subject}
@@ -67,10 +70,191 @@ func authorizeOperatorMutation(r *http.Request, deps Deps, scope, action, target
 	}
 	for _, level := range []security.AuthzContextLevel{security.LevelOperator, security.LevelScopedOperator} {
 		if _, err := deps.Mapping.AuthorizeScope(actor, level, scope, action, targetSet); err == nil {
-			return adminMutation{Actor: actor, Session: s, Scope: scope, TargetSet: targetSet}, nil
+			return adminMutation{Actor: actor, Session: s, Scope: scope, TargetSet: targetSet, Level: level}, nil
 		}
 	}
 	return adminMutation{}, errors.New("operator mutation denied")
+}
+
+func handleRegisterBoundedCapture(deps Deps) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var body struct {
+			TargetID        string                        `json:"target_id"`
+			Scope           string                        `json:"scope"`
+			TargetSetDigest string                        `json:"target_set_digest"`
+			Spec            governance.BoundedCaptureSpec `json:"spec"`
+			TraceID         string                        `json:"trace_id"`
+			IdempotencyKey  string                        `json:"idempotency_key"`
+		}
+		if decodeStrictJSON(w, r, 32*1024, &body) != nil || deps.Capture == nil ||
+			body.TargetID == "" || body.IdempotencyKey == "" {
+			WriteError(w, http.StatusBadRequest, "BOUNDED_CAPTURE_MALFORMED")
+			return
+		}
+		if targetSetDigest([]string{body.TargetID}) != body.TargetSetDigest {
+			WriteError(w, http.StatusConflict, "BOUNDED_CAPTURE_TARGET_SET_MISMATCH")
+			return
+		}
+		operator, err := authorizeOperatorMutation(r, deps, body.Scope, string(governance.KindBoundedCapture),
+			body.TargetSetDigest, security.R0)
+		if err != nil {
+			WriteError(w, http.StatusForbidden, "BOUNDED_CAPTURE_DENIED")
+			return
+		}
+		out, err := deps.Capture.Register(r.Context(), body.Spec, body.TargetID, body.Scope, operator.Actor, body.TraceID)
+		if err != nil {
+			WriteError(w, http.StatusConflict, "BOUNDED_CAPTURE_REJECTED")
+			return
+		}
+		writeJSON(w, http.StatusCreated, map[string]any{"capture": out})
+	}
+}
+
+func authorizeAnalysisMutation(r *http.Request, deps Deps, scope, targetSetDigest string) (security.Actor, error) {
+	session, err := sessionFromContext(r.Context())
+	if err != nil || deps.Mapping == nil || scope == "" || !validDigest(targetSetDigest) {
+		return security.Actor{}, errors.New("analysis identity unavailable")
+	}
+	actor := security.Actor{Issuer: session.Actor.Issuer, Subject: session.Actor.Subject}
+	if err := actor.Validate(); err != nil {
+		return security.Actor{}, err
+	}
+	for _, level := range []security.AuthzContextLevel{security.LevelAnalyst, security.LevelOperator, security.LevelScopedOperator} {
+		if _, err := deps.Mapping.AuthorizeScope(actor, level, scope, "analysis-task", targetSetDigest); err == nil {
+			return actor, nil
+		}
+	}
+	return security.Actor{}, errors.New("analysis scope denied")
+}
+
+func handleSubmitAnalysisTask(deps Deps) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var body struct {
+			Input          a2a.InputBundle `json:"input"`
+			IdempotencyKey string          `json:"idempotency_key"`
+		}
+		if decodeStrictJSON(w, r, 64*1024, &body) != nil || deps.Analysis == nil || body.IdempotencyKey == "" ||
+			(body.Input.IdempotencyKey != "" && body.Input.IdempotencyKey != body.IdempotencyKey) {
+			WriteError(w, http.StatusBadRequest, "ANALYSIS_TASK_MALFORMED")
+			return
+		}
+		body.Input.IdempotencyKey = body.IdempotencyKey
+		actor, err := authorizeAnalysisMutation(r, deps, body.Input.Scope, body.Input.TargetSetDigest)
+		if err != nil {
+			WriteError(w, http.StatusForbidden, "ANALYSIS_TASK_DENIED")
+			return
+		}
+		out, err := deps.Analysis.Submit(r.Context(), body.Input, actor)
+		if err != nil {
+			if out != nil && out.Status == "unknown" {
+				writeJSON(w, http.StatusAccepted, out)
+				return
+			}
+			WriteError(w, http.StatusConflict, "ANALYSIS_TASK_REJECTED")
+			return
+		}
+		writeJSON(w, http.StatusAccepted, out)
+	}
+}
+
+func handlePollAnalysisTask(deps Deps) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var body struct {
+			Scope           string `json:"scope"`
+			TargetSetDigest string `json:"target_set_digest"`
+			IdempotencyKey  string `json:"idempotency_key"`
+		}
+		taskID := chi.URLParam(r, "taskID")
+		if decodeStrictJSON(w, r, 8*1024, &body) != nil || deps.Analysis == nil || taskID == "" || body.IdempotencyKey == "" {
+			WriteError(w, http.StatusBadRequest, "ANALYSIS_POLL_MALFORMED")
+			return
+		}
+		var scope, targetSetDigest string
+		if err := deps.Pool.Pool.QueryRow(r.Context(), `SELECT scope,input_bundle->>'target_set_digest'
+			FROM analysis_task_requests WHERE task_id=$1`, taskID).Scan(&scope, &targetSetDigest); err != nil {
+			WriteError(w, http.StatusNotFound, "ANALYSIS_TASK_NOT_FOUND")
+			return
+		}
+		if body.Scope != scope || body.TargetSetDigest != targetSetDigest {
+			WriteError(w, http.StatusConflict, "ANALYSIS_POLL_SCOPE_DRIFT")
+			return
+		}
+		actor, err := authorizeAnalysisMutation(r, deps, scope, targetSetDigest)
+		if err != nil {
+			WriteError(w, http.StatusForbidden, "ANALYSIS_POLL_DENIED")
+			return
+		}
+		out, err := deps.Analysis.Poll(r.Context(), taskID, actor)
+		if err != nil {
+			WriteError(w, http.StatusConflict, "ANALYSIS_POLL_REJECTED")
+			return
+		}
+		writeJSON(w, http.StatusOK, out)
+	}
+}
+
+func handleCreateBoundedCaptureIntent(deps Deps) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var body struct {
+			ProposalID      string `json:"proposal_id"`
+			DecisionID      string `json:"decision_id"`
+			EffectIntentID  string `json:"effect_intent_id"`
+			OperationID     string `json:"operation_id"`
+			Scope           string `json:"scope"`
+			TargetSetDigest string `json:"target_set_digest"`
+			DeadlineUnixMS  int64  `json:"deadline_unix_ms"`
+			IdempotencyKey  string `json:"idempotency_key"`
+		}
+		captureID := chi.URLParam(r, "captureID")
+		if decodeStrictJSON(w, r, 16*1024, &body) != nil || captureID == "" || body.ProposalID == "" ||
+			body.DecisionID == "" || body.EffectIntentID == "" || body.OperationID == "" ||
+			body.IdempotencyKey == "" || deps.Intents == nil || deps.Preflight == nil {
+			WriteError(w, http.StatusBadRequest, "BOUNDED_CAPTURE_INTENT_MALFORMED")
+			return
+		}
+		var targetID, scope, captureDigest, state, decisionDigest string
+		var expiresAt int64
+		if err := deps.Pool.Pool.QueryRow(r.Context(), `SELECT target_id,scope,capture_digest,state,expires_at_unix_ms
+			FROM bounded_capture_requests WHERE capture_id=$1`, captureID).
+			Scan(&targetID, &scope, &captureDigest, &state, &expiresAt); err != nil {
+			WriteError(w, http.StatusNotFound, "BOUNDED_CAPTURE_NOT_FOUND")
+			return
+		}
+		if scope != body.Scope || targetSetDigest([]string{targetID}) != body.TargetSetDigest ||
+			(state != "planned" && state != "authorized") || body.DeadlineUnixMS <= time.Now().UnixMilli() ||
+			body.DeadlineUnixMS > expiresAt {
+			WriteError(w, http.StatusConflict, "BOUNDED_CAPTURE_INTENT_DRIFT")
+			return
+		}
+		operator, err := authorizeOperatorMutation(r, deps, scope, string(governance.KindBoundedCapture),
+			body.TargetSetDigest, security.R0)
+		if err != nil {
+			WriteError(w, http.StatusForbidden, "BOUNDED_CAPTURE_INTENT_DENIED")
+			return
+		}
+		if err := deps.Pool.Pool.QueryRow(r.Context(), `SELECT decision_digest FROM effect_decisions
+			WHERE decision_id=$1 AND proposal_id=$2 AND decision='approve' AND actor_issuer=$3 AND actor_subject=$4`,
+			body.DecisionID, body.ProposalID, operator.Actor.Issuer, operator.Actor.Subject).Scan(&decisionDigest); err != nil {
+			WriteError(w, http.StatusConflict, "BOUNDED_CAPTURE_DECISION_STALE")
+			return
+		}
+		token, err := deps.Preflight.Preflight(r.Context(), body.ProposalID)
+		if err != nil || token.TargetID != targetID || token.PolicyDigest != captureDigest {
+			WriteError(w, http.StatusConflict, "BOUNDED_CAPTURE_PREFLIGHT_HOLD")
+			return
+		}
+		out, err := deps.Intents.Create(r.Context(), body.ProposalID, body.DecisionID, *token, governance.Intent{
+			EffectIntentID: body.EffectIntentID, OperationID: body.OperationID, TargetID: targetID,
+			Fence: token.Fence, AuthorizationDigest: decisionDigest, EffectKind: governance.KindBoundedCapture,
+			RiskLevel: security.R0, RequiredWriteAtomicity: "CONTINUE_ON_ERROR", DeadlineUnixMS: body.DeadlineUnixMS,
+			Actor: operator.Actor, TraceID: token.TraceID,
+		})
+		if err != nil {
+			WriteError(w, http.StatusConflict, "BOUNDED_CAPTURE_INTENT_REJECTED")
+			return
+		}
+		writeJSON(w, http.StatusAccepted, out)
+	}
 }
 
 func handleCreateFleetOperation(deps Deps) http.HandlerFunc {
@@ -109,11 +293,14 @@ func handleCreateFleetOperation(deps Deps) http.HandlerFunc {
 func handleAdvanceFleetWave(deps Deps) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var body struct {
-			CurrentWave     int    `json:"current_wave"`
-			NextWave        int    `json:"next_wave"`
-			Scope           string `json:"scope"`
-			TargetSetDigest string `json:"target_set_digest"`
-			IdempotencyKey  string `json:"idempotency_key"`
+			CurrentWave           int    `json:"current_wave"`
+			NextWave              int    `json:"next_wave"`
+			Scope                 string `json:"scope"`
+			TargetSetDigest       string `json:"target_set_digest"`
+			CompletedVectorDigest string `json:"completed_vector_digest,omitempty"`
+			GateProposalID        string `json:"gate_proposal_id,omitempty"`
+			DecisionReason        string `json:"decision_reason,omitempty"`
+			IdempotencyKey        string `json:"idempotency_key"`
 		}
 		fleetID := chi.URLParam(r, "fleetID")
 		if decodeStrictJSON(w, r, 8*1024, &body) != nil || fleetID == "" || body.IdempotencyKey == "" ||
@@ -133,15 +320,66 @@ func handleAdvanceFleetWave(deps Deps) http.HandlerFunc {
 			WriteError(w, http.StatusConflict, "FLEET_OPERATION_DRIFT")
 			return
 		}
-		if _, err := authorizeOperatorMutation(r, deps, scope, effectKind, targetDigest, security.RiskLevel(risk)); err != nil {
+		operator, err := authorizeOperatorMutation(r, deps, scope, effectKind, targetDigest, security.RiskLevel(risk))
+		if err != nil {
 			WriteError(w, http.StatusForbidden, "FLEET_WAVE_DENIED")
 			return
+		}
+		if body.GateProposalID != "" {
+			if !validDigest(body.CompletedVectorDigest) || !validReasonCode(body.DecisionReason) || deps.Decisions == nil {
+				WriteError(w, http.StatusBadRequest, "FLEET_MANUAL_GATE_MALFORMED")
+				return
+			}
+			stepUp := security.StepUpType(operator.Session.StepUpType)
+			authz := governance.AuthzContext{StepUpType: stepUp,
+				StepUpAgeMS:       int(timeSinceMS(operator.Session.LastStepUp)),
+				PhishingResistant: stepUp.IsPhishingResistant()}
+			if _, err := deps.FleetCoordinator.AuthorizeManualGate(r.Context(), deps.Decisions,
+				body.GateProposalID, operator.Actor, authz, body.DecisionReason, fleetID,
+				body.CurrentWave, body.NextWave, body.CompletedVectorDigest); err != nil {
+				WriteError(w, http.StatusConflict, "FLEET_MANUAL_GATE_REJECTED")
+				return
+			}
 		}
 		if err := deps.FleetCoordinator.AdvanceWaveGate(r.Context(), fleetID, body.CurrentWave, body.NextWave); err != nil {
 			WriteError(w, http.StatusConflict, "FLEET_WAVE_REJECTED")
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"fleet_operation_id": fleetID, "opened_wave": body.NextWave})
+	}
+}
+
+func handleRollbackFleetOperation(deps Deps) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var body struct {
+			ProposalID     string                `json:"proposal_id"`
+			DecisionReason string                `json:"decision_reason"`
+			Rollback       target.FleetOperation `json:"rollback"`
+			IdempotencyKey string                `json:"idempotency_key"`
+		}
+		originalID := chi.URLParam(r, "fleetID")
+		if decodeStrictJSON(w, r, 4*1024*1024, &body) != nil || originalID == "" || body.ProposalID == "" ||
+			!validReasonCode(body.DecisionReason) || body.IdempotencyKey == "" ||
+			deps.FleetCoordinator == nil || deps.Decisions == nil {
+			WriteError(w, http.StatusBadRequest, "FLEET_ROLLBACK_MALFORMED")
+			return
+		}
+		s, err := sessionFromContext(r.Context())
+		if err != nil {
+			WriteError(w, http.StatusUnauthorized, "UNAUTHENTICATED")
+			return
+		}
+		actor := security.Actor{Issuer: s.Actor.Issuer, Subject: s.Actor.Subject}
+		stepUp := security.StepUpType(s.StepUpType)
+		authz := governance.AuthzContext{StepUpType: stepUp, StepUpAgeMS: int(timeSinceMS(s.LastStepUp)),
+			PhishingResistant: stepUp.IsPhishingResistant()}
+		fleet, decision, err := deps.FleetCoordinator.CreateApprovedRollback(r.Context(), deps.Decisions,
+			originalID, body.ProposalID, actor, authz, body.DecisionReason, body.Rollback)
+		if err != nil {
+			WriteError(w, http.StatusConflict, "FLEET_ROLLBACK_REJECTED")
+			return
+		}
+		writeJSON(w, http.StatusCreated, map[string]any{"fleet": fleet, "decision": decision})
 	}
 }
 
@@ -207,13 +445,29 @@ func handleTargetLifecycle(deps Deps, activate bool) http.HandlerFunc {
 		if activate {
 			err = deps.TargetRegistry.Activate(r.Context(), targetID, admin.Actor, auth, body.ReasonCode, body.TraceID)
 		} else {
+			var generation int64
+			var revoked *int64
+			assignmentErr := deps.Pool.QueryRow(r.Context(), `SELECT assignment_generation,revoked_at_unix_ms
+					FROM target_assignments WHERE target_id=$1 ORDER BY assignment_generation DESC LIMIT 1`, targetID).
+				Scan(&generation, &revoked)
+			if assignmentErr == nil && revoked == nil {
+				if err = deps.Assignment.Revoke(r.Context(), targetID, generation, time.Now().UnixMilli()); err != nil {
+					WriteError(w, http.StatusConflict, "TARGET_ASSIGNMENT_REVOKE_REJECTED")
+					return
+				}
+			} else if assignmentErr != nil && !errors.Is(assignmentErr, pgx.ErrNoRows) {
+				WriteError(w, http.StatusInternalServerError, "TARGET_ASSIGNMENT_QUERY_FAILED")
+				return
+			}
 			err = deps.TargetRegistry.Retire(r.Context(), targetID, admin.Actor, auth, body.ReasonCode, body.TraceID)
 		}
 		if err != nil {
 			WriteError(w, http.StatusConflict, "TARGET_LIFECYCLE_REJECTED")
 			return
 		}
-		writeJSON(w, http.StatusOK, map[string]string{"target_id": targetID, "status": map[bool]string{true: "active", false: "retired"}[activate]})
+		writeJSON(w, http.StatusOK, map[string]string{"target_id": targetID,
+			"status":       map[bool]string{true: "active", false: "retired"}[activate],
+			"operation_id": lifecycleOperationID(r, deps, targetID, body.TraceID)})
 	}
 }
 

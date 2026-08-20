@@ -133,7 +133,9 @@ func (s *IngestService) ingestOne(ctx context.Context, tx *db.Tx, r InferenceRes
 		SELECT EXISTS (
 		 SELECT 1 FROM shard_bindings sb
 		 JOIN model_control_state mcs ON mcs.singleton=true
-		 JOIN pool_generations pg ON pg.logical_pool_id=sb.logical_pool_id AND pg.pool_generation=sb.current_generation
+		 JOIN pool_generations pg ON pg.logical_pool_id=sb.logical_pool_id
+		  AND pg.model_control_incarnation_id=sb.model_control_incarnation_id
+		  AND pg.pool_generation=sb.current_generation
 		 WHERE sb.shard_id=$1 AND sb.scope=$2 AND sb.model_control_incarnation_id=$3
 		   AND mcs.writer_enabled AND mcs.active_incarnation_id=sb.model_control_incarnation_id
 		   AND sb.logical_pool_id=$4 AND sb.current_generation=$5

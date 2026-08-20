@@ -26,8 +26,8 @@ var e2eDigest = "sha256:" + strings.Repeat("a", 64)
 
 // e2eActors are the two identities granted by testdata/role-mapping-e2e.json.
 const (
-	e2eIssuer    = "https://idp.example"
-	e2eMakerSub  = "operator-a" // levels: operator, scoped-operator, platform-admin, analyst
+	e2eIssuer     = "https://idp.example"
+	e2eMakerSub   = "operator-a" // levels: operator, scoped-operator, platform-admin, analyst
 	e2eCheckerSub = "operator-b" // levels: operator, scoped-operator, analyst
 )
 
@@ -166,7 +166,11 @@ func (e errNotReady) Error() string { return string(e) }
 func (p *proc) login(t *testing.T, subject string) string {
 	t.Helper()
 	body, _ := json.Marshal(map[string]string{"issuer": e2eIssuer, "subject": subject})
-	resp, err := http.Post(p.baseURL+"/oidc/test-login", "application/json", bytes.NewReader(body))
+	req, _ := http.NewRequest(http.MethodPost, p.baseURL+"/oidc/test-login", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Origin", p.baseURL)
+	req.Header.Set("Sec-Fetch-Site", "same-origin")
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		t.Fatalf("test-login: %v", err)
 	}
@@ -301,7 +305,7 @@ func (p *proc) seedBaseline(ctx context.Context) {
 	p.exec(ctx, `INSERT INTO model_control_incarnations(incarnation_id,source,rotated_at_unix_ms,actor_ref,trace_id) VALUES('inc-e2e','initial',1,'e2e','trace-e2e') ON CONFLICT DO NOTHING`)
 	p.exec(ctx, `UPDATE model_control_state SET active_incarnation_id='inc-e2e', writer_enabled=true`)
 	p.exec(ctx, `INSERT INTO logical_pools(logical_pool_id,current_generation,availability_profile,runtime_profile,actor_ref,trace_id) VALUES('pool-e2e',1,'availability-single/v1','model-runtime-central-cpu/v1','e2e','trace-e2e') ON CONFLICT DO NOTHING`)
-	p.exec(ctx, `INSERT INTO pool_generations(logical_pool_id,pool_generation,model_revision_id,startup_envelope_digest,pool_observation_digest,binding_digest,status,min_ready_replicas,capacity_qualified,model_revision_digest,model_bundle_digest,feature_contract_digest,label_contract_digest,output_adapter_digest,wire_profile_digest,runtime_profile_digest,optimization_profile_digest) VALUES('pool-e2e',1,'rev-e2e',$1,$1,$1,'active',1,true,$1,$1,$1,$1,$1,$1,$1,$1) ON CONFLICT DO NOTHING`, d)
+	p.exec(ctx, `INSERT INTO pool_generations(logical_pool_id,model_control_incarnation_id,pool_generation,model_revision_id,startup_envelope_digest,pool_observation_digest,binding_digest,status,min_ready_replicas,capacity_qualified,model_revision_digest,model_bundle_digest,feature_contract_digest,label_contract_digest,output_adapter_digest,wire_profile_digest,runtime_profile_digest,optimization_profile_digest) VALUES('pool-e2e','inc-e2e',1,'rev-e2e',$1,$1,$1,'active',1,true,$1,$1,$1,$1,$1,$1,$1,$1) ON CONFLICT DO NOTHING`, d)
 	p.exec(ctx, `INSERT INTO shard_bindings(shard_id,logical_pool_id,model_control_incarnation_id,current_generation,current_binding_generation,current_revision_id,route_epoch,resume_state,loaded,ready,cas_digest,scope) VALUES('shard-e2e','pool-e2e','inc-e2e',1,1,'rev-e2e',1,'current',true,true,$1,'scope-e2e') ON CONFLICT(shard_id) DO UPDATE SET model_control_incarnation_id='inc-e2e',current_generation=1,current_binding_generation=1,current_revision_id='rev-e2e',route_epoch=1,resume_state='current',scope='scope-e2e'`, d)
 	nowMS := time.Now().UnixMilli()
 	p.exec(ctx, `INSERT INTO targets(target_id,display_name,p4runtime_endpoint,device_id,role,status,desired_profile_digest,credential_ref,scope,actor_ref,trace_id) VALUES('target-e2e','target e2e','https://127.0.0.1:9559',1,'masi','active',$1,'cred-e2e','scope-e2e','actor-e2e','trace-e2e')`, d)

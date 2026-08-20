@@ -157,7 +157,8 @@ func (m *RoleScopeMapping) ScopeIDs(actor Actor) ([]string, error) {
 }
 
 // CanApprove enforces the R0-R3 maker-checker rules:
-//   - R0: pure read creates no Proposal/Decision/Intent (not approvable here).
+//   - R0: pure reads create no governance facts; the sole first-release R0
+//     mutation (bounded capture) requires an exact scoped Operator decision.
 //   - R1: same stable Operator may be proposer and approver.
 //   - R2: approver MUST be a different stable actor than proposer, with fresh
 //     phishing-resistant step-up.
@@ -168,7 +169,10 @@ func (m *RoleScopeMapping) ScopeIDs(actor Actor) ([]string, error) {
 func CanApprove(risk RiskLevel, proposer Actor, proposerLevel AuthzContextLevel, approver Actor, approverCtx AuthzContext) error {
 	switch risk {
 	case R0:
-		return errors.New("security: R0 read-only creates no approvable proposal")
+		if approverCtx.Level != LevelOperator && approverCtx.Level != LevelScopedOperator {
+			return errors.New("security: R0 mutation approver must be operator/scoped-operator")
+		}
+		return nil
 	case R1:
 		if !proposer.Equal(approver) {
 			return errors.New("security: R1 allows same-Operator proposer/approver only")

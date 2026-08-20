@@ -466,7 +466,10 @@ fn config(input: ConfigInput<'_>) -> EdgeConfig {
             inference_deadline_ms: 1_000,
             inference_max_attempts: 3,
             control_batch_records: 32,
-            control_message_bytes: 1_048_576,
+            // A 4,096-rule exact per-entry readback manifest is slightly over
+            // 1 MiB. Keep the qualified wire bound explicit and well below the
+            // implementation ceiling (4 MiB).
+            control_message_bytes: 2_097_152,
             control_deadline_ms: 1_000,
             observation_interval_ms: 100,
             observation_batches: 4,
@@ -625,6 +628,7 @@ fn baseline_effect(assignment: &TargetAssignment, operation: &str, rules: usize)
             })
             .collect(),
         overlay_rules: Vec::new(),
+        bounded_capture: None,
         deadline_unix_ms: unix_ms() + 10_000,
         actor_ref: "operator-module".into(),
         reason_code: "BASELINE_ACTIVATION".into(),
@@ -2153,6 +2157,8 @@ async fn rule_observation_preserves_installation_counter_and_eligible_layers()
             rule_id: compiled_entry.logical_rule_id,
             canonical_entity: expected_entry.encode_to_vec(),
             canonical_entry_digest: compiled_entry.canonical_entry_digest,
+            entity_id: compiled_entry.entity_id,
+            match_priority_action_digest: compiled_entry.match_priority_action_digest,
             table_id: compiled_entry.table_id,
             direct_counter_id: compiled_entry.direct_counter_id,
             bank: compiled_entry.bank,

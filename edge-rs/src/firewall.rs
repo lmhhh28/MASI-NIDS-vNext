@@ -236,6 +236,12 @@ pub fn compile(
                 "unspecified effect kind is forbidden",
             ));
         }
+        EffectKind::BoundedCaptureStart => {
+            return Err(EdgeError::precondition(
+                "BOUNDED_CAPTURE_PROFILE_UNSUPPORTED",
+                "bounded capture is not qualified in this Edge target profile",
+            ));
+        }
     };
     let bank = if kind == EffectKind::BaselineActivate {
         inactive_bank
@@ -250,15 +256,19 @@ pub fn compile(
                 intent.overlay_rules[index].rule_id.clone()
             }
             EffectKind::Unspecified => String::new(),
+            EffectKind::BoundedCaptureStart => String::new(),
         };
         let table_id = table_entry(entity)?.table_id;
+        let canonical_entry_digest = canonical_entity_digest(entity)?;
         contract_entries.push(CanonicalP4Entry {
             logical_rule_id,
             table_id,
             direct_counter_id: direct_counter,
             bank,
             entity: entity.encode_to_vec(),
-            canonical_entry_digest: canonical_entity_digest(entity)?,
+            entity_id: canonical_entry_digest.clone(),
+            match_priority_action_digest: canonical_entry_digest.clone(),
+            canonical_entry_digest,
         });
     }
     let mut contract = CompiledEffectPlan {

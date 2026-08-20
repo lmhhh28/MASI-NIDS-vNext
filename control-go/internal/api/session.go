@@ -386,15 +386,15 @@ func requireMutationGuard(st *SessionStore, allowedOrigin string) func(http.Hand
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			s, ok := st.SessionFromRequest(r)
 			if !ok {
-				http.Error(w, `{"error":"UNAUTHENTICATED"}`, http.StatusUnauthorized)
+				WriteError(w, http.StatusUnauthorized, "UNAUTHENTICATED")
 				return
 			}
 			if err := VerifyOrigin(r, allowedOrigin); err != nil {
-				http.Error(w, `{"error":"CROSS_ORIGIN_REJECTED"}`, http.StatusForbidden)
+				WriteError(w, http.StatusForbidden, "CROSS_ORIGIN_REJECTED")
 				return
 			}
 			if !verifyCSRF(s, r.Header.Get(csrfHeader)) {
-				http.Error(w, `{"error":"CSRF_REJECTED"}`, http.StatusForbidden)
+				WriteError(w, http.StatusForbidden, "CSRF_REJECTED")
 				return
 			}
 			ctx := context.WithValue(r.Context(), sessionKey{}, s)

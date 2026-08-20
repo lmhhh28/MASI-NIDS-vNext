@@ -92,11 +92,11 @@ func TestFleetProjectionPostgres(t *testing.T) {
 			if parent {
 				state = nil
 			}
-			if _, err := pool.Exec(ctx, `INSERT INTO effect_intents(effect_intent_id,operation_id,proposal_id,decision_id,
-				target_id,fleet_operation_id,is_fleet_parent,fence,effect_digest,authorization_digest,effect_kind,
+			if _, err := pool.Exec(ctx, `INSERT INTO effect_intents(effect_intent_id,operation_id,proposal_id,proposal_digest,decision_id,
+					target_id,fleet_operation_id,is_fleet_parent,fence,effect_digest,authorization_digest,effect_kind,
 				risk_level,required_write_atomicity,deadline_unix_ms,claim_state,actor_ref,trace_id,reason_code,
 				actor_issuer,actor_subject,gate_open)
-				VALUES($1,'operation-'||$1,$2,$3,$4,$5,$6,'{}',$7,$7,'firewall-overlay','R2',
+					VALUES($1,'operation-'||$1,$2,$7,$3,$4,$5,$6,'{}',$7,$7,'firewall-overlay','R2',
 				'CONTINUE_ON_ERROR',$8,$9,'checker-e2e','trace-e2e','CREATED','https://issuer.example','checker-e2e',$10)`,
 				id, proposalID, decisionID, targetID, opID, parent, d, nowMS+600000, state, gate); err != nil {
 				t.Fatal(err)
@@ -141,6 +141,7 @@ func TestFleetProjectionPostgres(t *testing.T) {
 	if err := coordinator.AdvanceWaveGate(ctx, opID, 0, 1); err != nil {
 		t.Fatal(err)
 	}
+	project(second, governance.ClaimClaimed, "", "CLAIMED")
 	project(second, governance.ClaimFinalized, governance.AttemptApplied, "APPLIED")
 	if err := pool.QueryRow(ctx, `SELECT aggregate_status FROM fleet_operations WHERE fleet_operation_id=$1`, opID).Scan(&aggregate); err != nil || aggregate != "applied" {
 		t.Fatalf("applied aggregate=%s err=%v", aggregate, err)

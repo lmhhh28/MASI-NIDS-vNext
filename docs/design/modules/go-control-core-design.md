@@ -2,8 +2,8 @@
 
 - 模块 ID：`MOD-CTRL-001`
 - 目录：`control-go/`
-- 文档状态：`DRAFT`
-- 主要需求：`ARCH-002`、`ARCH-004`、`MOD-TARGET-FLEET-001`、`FUNC-API-001`、`FUNC-GOV-001`、`FUNC-EFFECT-001`、`FUNC-FW-001`、`FUNC-RULE-001`、`FUNC-INF-MODEL-001`、`FUNC-TARGET-FLEET-001`、`PLUGIN-STAT-001`、`DB-GOV-001`、`DB-PLUGIN-001`、`DB-PLUGIN-STAT-001`、`DB-MODEL-001`、`DB-RULE-001`、`DB-FW-001`、`DB-TARGET-FLEET-001`、`SEC-002`、`TEST-003`、`TEST-GATE-001`
+- 文档状态：`IMPLEMENTED`；operational Module Complete 只由 `control-go/evidence/module-gates/latest.json` 指向的当前源码绑定证据机器派生，不等于 pairwise/system/production qualification
+- 主要需求：`ARCH-002`、`ARCH-004`、`ARCH-REUSE-001`、`MOD-TARGET-FLEET-001`、`FUNC-API-001`、`FUNC-GOV-001`、`FUNC-EFFECT-001`、`FUNC-EVIDENCE-001`、`FUNC-FW-001`、`FUNC-RULE-001`、`FUNC-INF-MODEL-001`、`FUNC-TARGET-FLEET-001`、`CONTRACT-AGENT-001`、`AGENT-002`、`AGENT-005`、`AGENT-006`、`AGENT-007`、`PLUGIN-STAT-001`、`OBS-001`、`DB-GOV-001`、`DB-PLUGIN-001`、`DB-PLUGIN-STAT-001`、`DB-MODEL-001`、`DB-RULE-001`、`DB-FW-001`、`DB-TARGET-FLEET-001`、`SEC-002`、`TEST-003`、`TEST-GATE-001`
 - 主要 ADR：ADR-0001、ADR-0003、ADR-0004、ADR-0006、ADR-0007、ADR-0008、ADR-0014、ADR-0015、ADR-0017、ADR-0018
 
 ## 1. 模块目标
@@ -19,6 +19,7 @@ Go Control Core
 ├─ Identity & Session (OIDC callback, session, CSRF, scope mapping)
 ├─ API & Projection (OpenAPI, SSE invalidation, cursor)
 ├─ Event / Incident / Evidence
+├─ Bounded Capture governance / projection
 ├─ Governance (eligibility, risk, proposal, decision)
 ├─ Effect Orchestrator + bounded dispatcher
 ├─ Firewall Policy Manager
@@ -27,6 +28,8 @@ Go Control Core
 ├─ Model Manager + deployment adapter coordinator
 ├─ Plugin Manager
 ├─ Plugin Statistics + bounded dispatcher
+├─ Private MCP read-only server + outbound Analysis A2A client
+├─ Low-cardinality Prometheus metrics
 ├─ Audit / Retention / Reconcile
 └─ PostgreSQL repositories / outbox claim adapters
 ```
@@ -59,7 +62,7 @@ Event partition、Incident聚合和policy evaluation使用强类型热字段；�
 - Effect Intent：唯一可claim的设备副作用事实；
 - Effect Attempt/Result：claim/fence、Edge call、readback与finalize记录。
 
-纯只读R0不创建Proposal、Decision或Intent。对会改变设备状态的R0/R1，只有Owner启用且已资格化的确定性policy可作为授权来源直接产生intent；人类Operator发起的R0/R1必须先持久化canonical Proposal和绑定exact digest的Decision，R1才允许同一Operator兼任proposer/approver。R2必须先有proposal，由与proposer具有不同稳定`(iss,sub)`的scoped Operator在最近5分钟内完成可验证的phishing-resistant step-up后审批；普通Incident API拒绝R3。Baseline firewall使用typed R3：Platform Admin maker创建immutable revision，不同稳定身份的scoped Operator checker在phishing-resistant step-up后对exact diff/default/target-set/wave/plan digest授权。
+纯只读R0不创建Proposal、Decision或Intent。首期唯一R0 mutation是单 target、metadata-only bounded capture；它仍要求exact scoped Operator Proposal/Decision并进入既有`effect_intents`队列，不形成第二capture queue。R1才允许同一Operator兼任proposer/approver。R2必须先有proposal，由与proposer具有不同稳定`(iss,sub)`的scoped Operator在最近5分钟内完成可验证的phishing-resistant step-up后审批；普通Incident API拒绝R3。Baseline firewall使用typed R3：Platform Admin maker创建immutable revision，不同稳定身份的scoped Operator checker在phishing-resistant step-up后对exact diff/default/target-set/wave/plan digest授权。
 
 Claim前重新验证actor、scope、risk、evidence freshness、target assignment、generation/P4Info、capacity、TTL、policy/authorization expiry和digest。缺失/漂移在零Edge RPC前HOLD/reject。
 
@@ -70,6 +73,8 @@ Dispatcher从PostgreSQL `effect_intents`以lease/CAS/fence有界claim，transact
 ## 6. Firewall Policy Manager
 
 Manager拥有normalized baseline revision、default、current/previous binding、activation operation、response overlay/expiry和readback reference。它不生成raw P4 entity；调用Edge compiler/preflight取得per-target compiled plan与capacity evidence。
+
+Revision inspection通过只读Edge `PreflightEffect`边界返回physical plan digest、entry count、capacity与exact target/P4Info/application fence；preflight token不返回浏览器，inspection不claim intent、不发P4 Write。Edge尚未资格化的能力稳定返回HOLD，不伪造compile/capture成功。
 
 Baseline激活事实跟踪inactive write/readback、selector switch/readback、PG current CAS、previous grace/cleanup。Selector已切但CAS未知时状态为reconciling，冻结同target baseline mutation并沿原operationreadback；rollback是激活exact previous的新operation。
 
@@ -123,7 +128,9 @@ Statistics是既有kind的output capability，不是模块或kind。Go拥有：
 
 生产同源提供static asset gateway或受信代理后的`/api`、`/events`和OIDC callback。Go/受信认证组件拥有code exchange、session、scope mapping和业务授权；会话cookie固定为Secure、HttpOnly、SameSite及受控path/domain/expiry，并实施replay与session-fixation防护。Mutation的CSRF token绑定session/origin并验证适用的`Origin`/`Sec-Fetch-Site`信号；logout、session revocation或actor/scope变化关闭SSE并使旧session/cache不可继续使用。浏览器不持token/secret。
 
-OpenAPI generated contract是唯一Web HTTP接口。List使用server cursor和bounded page；mutation使用idempotency key和operation identity，不返回模糊即时成功。SSE只发送有界invalidation/小投影，单event不超过64 KiB，按15秒heartbeat维持；cursor gap/generation change要求snapshot refetch。Go按session/origin/scope授权stream，不在URL、cursor或payload携带credential。
+OpenAPI是Web HTTP接口唯一源；exact-version-pinned generator产出并检查入库的TypeScript SDK，freshness与strict typecheck是模块门禁。List使用scope-bound authenticated keyset cursor和bounded page，不使用OFFSET；mutation使用idempotency key和operation identity，不返回模糊即时成功。SSE只发送有界invalidation/小投影，单event不超过64 KiB，按15秒heartbeat维持；cursor gap/generation change要求snapshot refetch。Go按session/origin/scope授权stream，不在URL、cursor或payload携带credential。
+
+Private MCP固定`2025-11-25` Streamable HTTP JSON边界，只暴露内置read-only tools/resources，并以verified workload certificate、active qualified binding、round/call/parallelism/deadline/bytes预算和append-only audit约束。Outbound Analysis A2A固定`1.0` HTTP+JSON、静态peer/IP allowlist、mTLS、无redirect/retry/stream/push；Go先冻结canonical input再在transaction外调用，Artifact必须grounded、bounded、non-executable且`deployment_eligible=false`。
 
 Go为Web生成canonical/authorized projection，明确current/desired/observed、stale/HOLD/unknown/reconciling等namespace。路由可见性从不替代服务端授权。
 
@@ -143,6 +150,7 @@ Go为Web生成canonical/authorized projection，明确current/desired/observed�
 - endpoint、URL、artifact、external capability采用allowlist和SSRF/path/symlink防护；
 - 各外部模块使用最小mTLS identity，Go不向Web/插件暴露P4/Central/DB secret；
 - audit是append-only业务记录，trace/Prometheus/Grafana不是事实源或授权输入。
+- `/metrics`只输出固定route/state/result/quality/bucket维度，覆盖HTTP吞吐/字节/延迟、domain backlog/result、PostgreSQL transaction/lock/WAL、CPU/RSS/FD/thread、config drift和certificate expiry；target/rule/operation/actor/digest/IP不得成为label。
 
 ## 14. 模块黑盒 E2E 验收范围
 
@@ -156,10 +164,12 @@ Go为Web生成canonical/authorized projection，明确current/desired/observed�
 - rule epoch/formula/quality/rollup/retention；
 - model qualification/pool rollout/readback/CAS/recovery/rollback；
 - plugin lifecycle/revoke和statistics freeze/run/validate/current/history/auth；
+- bounded capture、MCP read-only与A2A input/task/artifact/fence/budget；
+- generated TypeScript client freshness/typecheck、component adoption registry、reachable-vulnerability scan；
 - OIDC/session/CSRF/API/SSE/cursor、fault、DB failover、资源和性能。
 
 测试只通过公开Go API/gRPC和数据库结果观察，不导入内部package或以日志作为主要oracle。
 
 ## 15. Module Complete 判定
 
-Go的全部子域必须在一个release中完整实现；不能以“后续补齐某manager/页面”宣称模块完成。真实PostgreSQL、public-boundary E2E、Go format/vet/staticcheck/race、migration integration、fault/security/performance/compatibility和README命令都必须通过。任何stub dispatcher、硬编码授权、外部等待持有transaction、第二queue或缺失绝对门槛都会阻断Module Complete。
+Go的全部子域必须在一个release中完整实现；不能以“后续补齐某manager/页面”宣称模块完成。真实PostgreSQL、public-boundary E2E、Go format/vet/staticcheck/race、migration integration、fault/security/performance/compatibility、generated-client/supply-chain/vulnerability、真实OCI startup/readiness/liveness和README命令都必须实际通过；适用的DEC-044 formal soak必须运行满3,600秒。任何stub成功、硬编码授权、外部等待持有transaction、第二queue、适用测试`FAIL/HOLD/NOT_RUN`、真实启动失败或open P0都会阻断operational completion。仅受保护基线、dirty tree、Owner尚未冻结的production绝对门槛及未来pairwise/system资格造成的qualification-only `HOLD/NOT_RUN`不把已满足上述条件的模块改回incomplete，但不得宣称相应MODULE PASS、pairwise、system或production qualification。

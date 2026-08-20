@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://masi-nids.example/contracts/analysis/input/v1/schema.json",
+  "title": "Frozen Analysis Input Bundle V1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "task_id", "skill", "plugin_id", "binding_generation", "scope", "target_set_digest", "event_refs", "incident_refs", "evidence_refs", "runtime_refs", "input_digest", "deadline_unix_ms", "locale", "content_request", "idempotency_key", "trace_id"],
+  "properties": {
+    "schema_version": {"const": "masi-analysis-input/v1"},
+    "task_id": {"$ref": "#/$defs/identity"},
+    "skill": {"enum": ["analyze_nids_incident", "compare_event_windows", "draft_mitigation_advice", "generate_incident_content"]},
+    "plugin_id": {"$ref": "#/$defs/identity"},
+    "binding_generation": {"type": "integer", "minimum": 1},
+    "scope": {"type": "string", "minLength": 1, "maxLength": 256},
+    "target_set_digest": {"$ref": "#/$defs/digest"},
+    "event_refs": {"type": "array", "maxItems": 128, "uniqueItems": true, "items": {"$ref": "#/$defs/fact_ref"}},
+    "incident_refs": {"type": "array", "maxItems": 32, "uniqueItems": true, "items": {"$ref": "#/$defs/fact_ref"}},
+    "evidence_refs": {"type": "array", "maxItems": 128, "uniqueItems": true, "items": {"$ref": "#/$defs/fact_ref"}},
+    "runtime_refs": {"type": "array", "maxItems": 64, "uniqueItems": true, "items": {"$ref": "#/$defs/fact_ref"}},
+    "input_digest": {"$ref": "#/$defs/digest"},
+    "deadline_unix_ms": {"type": "integer", "minimum": 1},
+    "locale": {"type": "string", "minLength": 1, "maxLength": 32},
+    "content_request": {"type": "string", "maxLength": 2048},
+    "idempotency_key": {"$ref": "#/$defs/identity"},
+    "trace_id": {"$ref": "#/$defs/identity"}
+  },
+  "$defs": {
+    "identity": {"type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"},
+    "digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "fact_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "digest"],
+      "properties": {"id": {"$ref": "#/$defs/identity"}, "digest": {"$ref": "#/$defs/digest"}}
+    }
+  },
+  "x-masi-semantic-constraints": [
+    {"constraint_id": "ANALYSIS-INPUT-GO-FROZEN", "fields": ["/input_digest", "/event_refs", "/incident_refs", "/evidence_refs", "/runtime_refs"], "operator": "canonical-fact-read-and-digest"},
+    {"constraint_id": "ANALYSIS-INPUT-NO-CREDENTIAL", "operator": "no-endpoint-credential-prompt-packet-payload"}
+  ]
+}

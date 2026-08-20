@@ -53,6 +53,7 @@ func TestEffectDispatchFirewallProjectionAndAckOutboxPostgres(t *testing.T) {
 			argument  string
 		}{
 			{`DELETE FROM effect_acknowledgements WHERE operation_id=$1`, operationID},
+			{`DELETE FROM effect_attempt_readback_entries WHERE operation_id=$1`, operationID},
 			{`DELETE FROM effect_attempts WHERE operation_id=$1`, operationID},
 			{`DELETE FROM firewall_activations WHERE operation_id=$1`, operationID},
 			{`DELETE FROM firewall_bindings WHERE target_id=$1`, targetID},
@@ -151,7 +152,7 @@ func TestEffectDispatchFirewallProjectionAndAckOutboxPostgres(t *testing.T) {
 			Fence: preflight.Fence, AuthorizationDigest: decision.DecisionDigest,
 			EffectKind: governance.KindFirewallBaselineActivate, RiskLevel: security.R3,
 			RequiredWriteAtomicity: "CONTINUE_ON_ERROR", DeadlineUnixMS: nowMS + 60_000,
-			Actor: operator, TraceID: "trace-effect-intent"})
+			Actor: operator, TraceID: preflight.TraceID})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -170,6 +171,9 @@ func TestEffectDispatchFirewallProjectionAndAckOutboxPostgres(t *testing.T) {
 		originalWire, _ := governance.ToEdgeEffectIntent(*intent)
 		persistedWire, _ := governance.ToEdgeEffectIntent(persistedIntent)
 		t.Fatalf("JSONB changed semantic effect digest: original=%+v persisted=%+v payload=%s", originalWire, persistedWire, persistedPayload)
+	}
+	if _, err := firewall.NewActivationService(pool).Activate(ctx, targetID, revisionID, operationID); err != nil {
+		t.Fatalf("prepare firewall activation gate: %v", err)
 	}
 
 	edge := &effectEdgeFake{failAcknowledgements: 1}
@@ -216,10 +220,14 @@ func (f *effectEdgeFake) ExecuteEffect(_ context.Context, intent governance.Inte
 	if _, err := governance.ToEdgeEffectIntent(intent); err != nil {
 		return governance.EdgeEffectResult{}, err
 	}
+	entry := governance.AppliedRuleReadback{EntityID: "entity-rule-effect-e2e", RuleID: "rule-effect-e2e",
+		CanonicalEntryDigest:      "sha256:" + strings.Repeat("e", 64),
+		MatchPriorityActionDigest: "sha256:" + strings.Repeat("f", 64), TableID: 1, DirectCounterID: 1, Bank: 1}
 	return governance.EdgeEffectResult{OperationID: intent.OperationID, TargetID: intent.TargetID,
 		EffectDigest: intent.EffectDigest, Outcome: "applied", ReadbackDigest: "sha256:" + strings.Repeat("c", 64),
 		ResultDigest: "sha256:" + strings.Repeat("d", 64), ExpectedEntries: 1, ObservedEntries: 1,
-		ActiveBank: 1}, nil
+		ActiveBank: 1, AppliedEntries: []governance.AppliedRuleReadback{entry},
+		ReadbackManifestDigest: governance.ComputeReadbackManifestDigest([]governance.AppliedRuleReadback{entry})}, nil
 }
 
 func (f *effectEdgeFake) AcknowledgeEffect(_ context.Context, _ governance.Intent, _ governance.EdgeEffectResult, _ string, _ int64) error {

@@ -54,11 +54,13 @@ type Config struct {
 // TLS pins the server identities. Production requires HTTPS and gRPC mTLS;
 // explicit test profile may use loopback plaintext for deterministic rehearsal.
 type TLS struct {
-	HTTPCertFile     string `json:"http_cert_file"`
-	HTTPKeyFile      string `json:"http_key_file"`
-	GRPCCertFile     string `json:"grpc_cert_file"`
-	GRPCKeyFile      string `json:"grpc_key_file"`
-	GRPCClientCAFile string `json:"grpc_client_ca_file"`
+	HTTPCertFile          string   `json:"http_cert_file"`
+	HTTPKeyFile           string   `json:"http_key_file"`
+	HTTPClientCAFile      string   `json:"http_client_ca_file"`
+	GRPCCertFile          string   `json:"grpc_cert_file"`
+	GRPCKeyFile           string   `json:"grpc_key_file"`
+	GRPCClientCAFile      string   `json:"grpc_client_ca_file"`
+	GRPCAllowedClientSANs []string `json:"grpc_allowed_client_sans"`
 }
 
 type MTLSClient struct {
@@ -79,6 +81,22 @@ type OutboundClients struct {
 	Edges            []EdgeMTLSClient `json:"edges"`
 	Deployment       MTLSClient       `json:"deployment"`
 	PluginStatistics MTLSClient       `json:"plugin_statistics"`
+	Analysis         []A2APeer        `json:"analysis"`
+}
+
+// A2APeer is one statically allowlisted A2A 1.0 HTTP+JSON analysis peer.
+// AllowedIPs pins DNS resolution and prevents the endpoint from becoming a
+// generic SSRF primitive.
+type A2APeer struct {
+	PeerID           string   `json:"peer_id"`
+	PluginID         string   `json:"plugin_id"`
+	BaseURL          string   `json:"base_url"`
+	ServerName       string   `json:"server_name"`
+	CAFile           string   `json:"ca_file"`
+	CertFile         string   `json:"cert_file"`
+	KeyFile          string   `json:"key_file"`
+	AllowedIPs       []string `json:"allowed_ips"`
+	MaxResponseBytes int      `json:"max_response_bytes"`
 }
 
 // ProfileDigests pins the frozen profile digests Go consumes (ADR-0005).
@@ -124,6 +142,8 @@ type Resource struct {
 	EventRetention         time.Duration `json:"event_retention"`            // 90d
 	PluginStatRetention    time.Duration `json:"plugin_stat_retention"`      // 90d
 	IdempotencyRetention   time.Duration `json:"idempotency_retention"`      // 7d
+	HTTPRequestTimeout     time.Duration `json:"http_request_timeout"`       // 30s
+	HTTPIdleTimeout        time.Duration `json:"http_idle_timeout"`          // 60s
 }
 
 // Probe holds the startup/readiness/liveness probe budgets (ADR-0006 §9).
@@ -202,6 +222,9 @@ func (c *Config) validate() error {
 		return errors.New("public_origin required")
 	}
 	if c.RuntimeProfile == "production" {
+		if err := validateProductionPostgresDSN(c.PostgreSQLDSN); err != nil {
+			return err
+		}
 		if c.PostgreSQLRole != "masi_control_app" {
 			return errors.New("production postgresql_role must be exact masi_control_app")
 		}
@@ -237,7 +260,7 @@ func (c *Config) validate() error {
 		if c.SSEHMACKeyRef == "" {
 			return errors.New("production sse_hmac_key_ref required for authenticated API cursors")
 		}
-		if c.TLS.HTTPCertFile == "" || c.TLS.HTTPKeyFile == "" || c.TLS.GRPCCertFile == "" ||
+		if c.TLS.HTTPCertFile == "" || c.TLS.HTTPKeyFile == "" || c.TLS.HTTPClientCAFile == "" || c.TLS.GRPCCertFile == "" ||
 			c.TLS.GRPCKeyFile == "" || c.TLS.GRPCClientCAFile == "" {
 			return errors.New("production HTTP TLS and gRPC mTLS files required")
 		}
@@ -257,18 +280,65 @@ func (c *Config) validate() error {
 				return fmt.Errorf("production Edge %s: %w", edge.WorkloadRef, err)
 			}
 		}
+		if len(c.TLS.GRPCAllowedClientSANs) != len(seenWorkloads) {
+			return errors.New("production gRPC client SAN allowlist must exactly match Edge workloads")
+		}
+		seenSANs := make(map[string]struct{}, len(c.TLS.GRPCAllowedClientSANs))
+		for _, san := range c.TLS.GRPCAllowedClientSANs {
+			if !workloadRefRE.MatchString(san) {
+				return errors.New("production gRPC client SAN malformed")
+			}
+			if _, exists := seenSANs[san]; exists {
+				return errors.New("production gRPC client SAN duplicated")
+			}
+			if _, exists := seenWorkloads[san]; !exists {
+				return errors.New("production gRPC client SAN has no Edge workload")
+			}
+			seenSANs[san] = struct{}{}
+		}
 		if err := validateMTLSClient(c.Outbound.Deployment); err != nil {
 			return fmt.Errorf("production deployment adapter: %w", err)
 		}
 		if err := validateMTLSClient(c.Outbound.PluginStatistics); err != nil {
 			return fmt.Errorf("production plugin statistics adapter: %w", err)
 		}
+		if len(c.Outbound.Analysis) < 1 || len(c.Outbound.Analysis) > 16 {
+			return errors.New("production requires 1..16 static Analysis A2A peers")
+		}
+		seenPeers := make(map[string]struct{}, len(c.Outbound.Analysis))
+		seenAnalysisPlugins := make(map[string]struct{}, len(c.Outbound.Analysis))
+		for _, peer := range c.Outbound.Analysis {
+			if err := validateA2APeer(peer, true); err != nil {
+				return fmt.Errorf("production Analysis A2A peer %s: %w", peer.PeerID, err)
+			}
+			if _, exists := seenPeers[peer.PeerID]; exists {
+				return errors.New("production Analysis A2A peer_id duplicated")
+			}
+			if _, exists := seenAnalysisPlugins[peer.PluginID]; exists {
+				return errors.New("production Analysis A2A plugin_id duplicated")
+			}
+			seenPeers[peer.PeerID] = struct{}{}
+			seenAnalysisPlugins[peer.PluginID] = struct{}{}
+		}
 	} else {
-		if !strings.HasPrefix(c.PublicOrigin, "http://127.0.0.1") && !strings.HasPrefix(c.PublicOrigin, "http://localhost") {
+		if !loopbackListen(c.HTTPListen) || !loopbackListen(c.GRPCListen) {
+			return errors.New("test http_listen and grpc_listen must be loopback-only")
+		}
+		origin, err := url.Parse(c.PublicOrigin)
+		if err != nil || origin.Scheme != "http" || origin.User != nil || origin.Hostname() == "" ||
+			(origin.Hostname() != "localhost" && (net.ParseIP(origin.Hostname()) == nil || !net.ParseIP(origin.Hostname()).IsLoopback())) {
 			return errors.New("test public_origin must be loopback http")
 		}
 		if !IsTestDB(c.PostgreSQLDSN) {
 			return errors.New("test runtime PostgreSQL database name must contain test")
+		}
+		if len(c.Outbound.Analysis) > 16 {
+			return errors.New("test Analysis A2A peer bound exceeded")
+		}
+		for _, peer := range c.Outbound.Analysis {
+			if err := validateA2APeer(peer, false); err != nil {
+				return fmt.Errorf("test Analysis A2A peer %s: %w", peer.PeerID, err)
+			}
 		}
 	}
 	if c.SessionCookieName == "" {
@@ -291,6 +361,10 @@ func (c *Config) validate() error {
 		c.Resource.LockTimeout <= 0 || c.Resource.LockTimeout > 10*time.Second ||
 		c.Resource.IdleConnTimeout <= 0 || c.Resource.IdleConnTimeout > 30*time.Minute {
 		return errors.New("resource connection/concurrency/timeout bounds invalid")
+	}
+	if c.Resource.HTTPRequestTimeout < time.Second || c.Resource.HTTPRequestTimeout > 2*time.Minute ||
+		c.Resource.HTTPIdleTimeout < time.Second || c.Resource.HTTPIdleTimeout > 5*time.Minute {
+		return errors.New("resource HTTP timeout bounds invalid")
 	}
 	if c.Resource.MaxProposalBytes < 1 || c.Resource.MaxProposalBytes > 32*1024 ||
 		c.Resource.MaxNoteBytes < 1 || c.Resource.MaxNoteBytes > 2*1024 ||
@@ -350,6 +424,43 @@ func validateMTLSClient(client MTLSClient) error {
 	return nil
 }
 
+func validateA2APeer(peer A2APeer, production bool) error {
+	if !workloadRefRE.MatchString(peer.PeerID) || !workloadRefRE.MatchString(peer.PluginID) ||
+		peer.MaxResponseBytes < 1024 || peer.MaxResponseBytes > 128*1024 || len(peer.AllowedIPs) < 1 || len(peer.AllowedIPs) > 16 {
+		return errors.New("identity/response/IP bounds malformed")
+	}
+	u, err := url.Parse(peer.BaseURL)
+	if err != nil || u.User != nil || u.RawQuery != "" || u.Fragment != "" || u.Hostname() == "" ||
+		(u.Path != "" && u.Path != "/") {
+		return errors.New("base_url must be an origin without credentials/query/fragment/path")
+	}
+	if production {
+		if u.Scheme != "https" || peer.ServerName == "" || strings.Contains(peer.ServerName, ":") ||
+			peer.CAFile == "" || peer.CertFile == "" || peer.KeyFile == "" {
+			return errors.New("production peer requires HTTPS and exact mTLS identity")
+		}
+	} else if u.Scheme != "http" || (u.Hostname() != "localhost" &&
+		(net.ParseIP(u.Hostname()) == nil || !net.ParseIP(u.Hostname()).IsLoopback())) {
+		return errors.New("test A2A peer must use loopback HTTP")
+	}
+	seen := map[string]struct{}{}
+	for _, raw := range peer.AllowedIPs {
+		ip := net.ParseIP(raw)
+		if ip == nil || ip.IsUnspecified() || ip.IsMulticast() {
+			return errors.New("allowed A2A IP malformed/unsafe")
+		}
+		if production && ip.IsLoopback() {
+			return errors.New("production A2A peer cannot resolve to loopback")
+		}
+		canonical := ip.String()
+		if _, exists := seen[canonical]; exists {
+			return errors.New("allowed A2A IP duplicated")
+		}
+		seen[canonical] = struct{}{}
+	}
+	return nil
+}
+
 func (c *Config) applyDefaults() {
 	if c.Resource.MaxPoolConnections == 0 {
 		c.Resource.MaxPoolConnections = 16
@@ -405,12 +516,51 @@ func (c *Config) applyDefaults() {
 	if c.Resource.IdempotencyRetention == 0 {
 		c.Resource.IdempotencyRetention = 7 * 24 * time.Hour
 	}
+	if c.Resource.HTTPRequestTimeout == 0 {
+		c.Resource.HTTPRequestTimeout = 30 * time.Second
+	}
+	if c.Resource.HTTPIdleTimeout == 0 {
+		c.Resource.HTTPIdleTimeout = 60 * time.Second
+	}
 	if c.Probe.StartupMaxSeconds == 0 {
 		c.Probe.StartupMaxSeconds = 120
 	}
 	if c.Probe.DrainTimeout == 0 {
 		c.Probe.DrainTimeout = 30 * time.Second
 	}
+}
+
+func loopbackListen(address string) bool {
+	host, port, err := net.SplitHostPort(address)
+	if err != nil || port == "" || host == "" {
+		return false
+	}
+	if host == "localhost" {
+		return true
+	}
+	ip := net.ParseIP(host)
+	return ip != nil && ip.IsLoopback()
+}
+
+func validateProductionPostgresDSN(dsn string) error {
+	mode := ""
+	if parsed, err := url.Parse(dsn); err == nil && parsed.Scheme != "" {
+		mode = parsed.Query().Get("sslmode")
+		if parsed.Hostname() == "" {
+			return errors.New("production PostgreSQL DSN host required")
+		}
+	} else {
+		for _, field := range strings.Fields(dsn) {
+			parts := strings.SplitN(field, "=", 2)
+			if len(parts) == 2 && strings.EqualFold(parts[0], "sslmode") {
+				mode = strings.Trim(parts[1], "'\"")
+			}
+		}
+	}
+	if mode != "verify-full" {
+		return errors.New("production PostgreSQL DSN requires sslmode=verify-full")
+	}
+	return nil
 }
 
 // IsTestDB confirms a DSN targets a test-named database (AGENTS.md: destructive

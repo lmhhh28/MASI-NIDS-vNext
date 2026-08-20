@@ -2,7 +2,7 @@
 
 Go Control is the sole business writer for the core PostgreSQL facts and exposes the same-origin HTTP/SSE API plus the Edge-to-Control gRPC sink. It does not run migrations at application startup and never waits for Edge, P4, OIDC, MCP, A2A, or deployment calls while holding a database transaction.
 
-The module gate (`scripts/run-module-gates.sh`) produces the Module-Complete candidate evidence: the real PostgreSQL public-boundary E2E, the eight internal-package postgres E2E suites, the OCI smoke and the DEC-044 3600-second formal soak all execute against the real `control-core` binary, and the gate summary records `overall_module_complete=true` with `result=HOLD` / `qualification=NOT_QUALIFIED`. The HOLD is deliberate: control-core process thresholds are `OBSERVED_ONLY_OWNER_NOT_FROZEN_DEC_001`, so qualification stays `NOT_QUALIFIED` until the Owner freezes the absolute thresholds. Formal pairwise/system integration, PostgreSQL HA/PITR and production mTLS/OIDC qualification remain outside this independent-module phase (`TEST-GO-CTRL-001`, `TEST-TEL-INF-001`, `TEST-P4-FW-001`, `TEST-TARGET-FLEET-001`, `TEST-PLUGIN-STAT-001`).
+The module gate (`scripts/run-module-gates.sh`) is the sole operational-completion authority for the current source tree. It builds a fresh run-specific binary, executes all five real-process HTTP/gRPC scenarios and every internal package against PostgreSQL 18, regenerates/typechecks the OpenAPI TypeScript SDK, validates component locks and reachable vulnerabilities, starts the digest-pinned OCI through readiness/liveness/graceful shutdown, verifies source/binary freshness, and (when requested) runs the exact DEC-044 3,600-second soak. `overall_module_complete=true` may coexist with summary `result=HOLD` / `qualification=NOT_QUALIFIED` only for qualification-only blockers such as Owner-unfrozen absolute production thresholds and the future pairwise/system phase; the underlying test results are not rewritten to PASS.
 
 ## Language-level checks
 
@@ -12,9 +12,13 @@ From `control-go/`:
 gofmt -w ./cmd ./internal ./tests
 go vet ./...
 staticcheck ./...
-go test ./...
-go test -race ./...
-go test -coverprofile=coverage.out ./...
+govulncheck ./...
+go test -count=1 ./...
+go test -count=1 -race ./...
+go test -count=1 -coverprofile=coverage.out ./...
+npm --prefix ../contracts/openapi/v1/typescript-client ci --ignore-scripts --no-audit --no-fund
+scripts/check-typescript-client.sh
+scripts/check-supply-chain.sh
 go test ./internal/ruleobs -run TestGoldenRuleFormula
 go test ./internal/pluginstat -run TestGoldenDefinitionFieldsMatchContract
 ```
@@ -34,15 +38,15 @@ MASI_CONTROL_E2E_DSN='postgres://masi:masi@127.0.0.1:55433/masi_control_test?ssl
 MASI_CONTROL_E2E_BINARY=/tmp/masi-control-e2e \
 MASI_CONTROL_E2E_CONFIG="$PWD/testdata/control-e2e-config.json" \
 MASI_CONTROL_E2E_REQUIRED=1 \
-go test -v ./tests/process_e2e -run TestRealControlProcessCommitResults
+go test -count=1 -v ./tests/process_e2e
 MASI_CONTROL_E2E_DSN='postgres://masi:masi@127.0.0.1:55433/masi_control_test?sslmode=disable' \
 MASI_CONTROL_E2E_CONFIG="$PWD/testdata/control-e2e-config.json" \
 MASI_CONTROL_E2E_REQUIRED=1 \
-go test -v ./internal/plugin -run TestPluginAuditLifecyclePostgres
+go test -count=1 -v ./internal/...
 docker compose -f testdata/compose.e2e.yaml down -v
 ```
 
-The process E2E launches the actual `control-core` binary, waits on `/readyz`, calls `ControlSink.CommitResults` over the public test-profile gRPC boundary, verifies committed/idempotent/conflict ACKs, checks PostgreSQL as the outcome oracle, and confirms bounded graceful shutdown. The plugin PostgreSQL E2E verifies atomic structured audit records, `active → drain → revoked`, refusal to reuse a pre-revocation qualification, and reactivation only after a new qualification.
+The process suite launches the actual `control-core` binary separately for commit-before-ACK, session/CSRF/origin, governance maker-checker, fail-closed effect dispatch, and target lifecycle scenarios. The internal PostgreSQL suite additionally covers A2A, MCP, bounded capture, metrics, firewall/readback, model, plugin/statistics, rule observation, target/fleet, idempotency and migration-domain invariants.
 
 ## 可复制门禁
 
@@ -70,7 +74,7 @@ control-core 的进程资源门槛为 `OBSERVED_ONLY_OWNER_NOT_FROZEN_DEC_001`�
 - `MASI_CONTROL_FORMAL_SOAK=1` — 启用 formal soak 子门禁。
 - `MASI_CONTROL_SOAK_SECONDS` — soak 窗口秒数（默认 3600；小于 3600 为 rehearsal）。
 - `MASI_CONTROL_SKIP_OCI=1` — 跳过 OCI 子门禁（结构化 `NOT_RUN`，不伪造 PASS）。
-- `MASI_CONTROL_E2E_DSN` / `MASI_CONTROL_E2E_CONFIG` / `MASI_CONTROL_E2E_BINARY` — 真实 PostgreSQL DSN、配置路径与 `control-core` binary。
+- `MASI_CONTROL_E2E_DSN` / `MASI_CONTROL_E2E_CONFIG` — 门禁使用的真实 PostgreSQL DSN与配置路径。门禁始终自行构建run-specific binary，不接受外部`MASI_CONTROL_E2E_BINARY`；该变量只用于手工直接运行process/soak test。
 - `MASI_CONTROL_COMMAND_TIMEOUT_SECONDS` / `MASI_CONTROL_MAX_LOG_BYTES` — 单命令超时（默认 7200s）与单日志字节上限（默认 16MiB）。
 
 ## Runtime profiles
@@ -81,8 +85,11 @@ control-core 的进程资源门槛为 `OBSERVED_ONLY_OWNER_NOT_FROZEN_DEC_001`�
 ## OCI
 
 ```sh
-docker build -t masi-control-core:dev .
-docker run --rm masi-control-core:dev --help
+oci_tmp=$(mktemp -d /tmp/masi-control-oci.XXXXXX)
+install -d -m 700 "$oci_tmp/evidence"
+scripts/run-oci-smoke.sh "$PWD" "$(cd .. && pwd)" \
+  "$PWD/testdata/control-e2e-config.json" "$oci_tmp/evidence" \
+  "$oci_tmp/runtime.json" masi-control-core:dev-smoke
 ```
 
-Production startup additionally requires a config and read-only certificate/secret mounts. OCI startup/readiness/liveness evidence must record the exact image digest and selected deployment/availability profile.
+The Dockerfile pins both builder and runtime images by digest. The smoke runs the non-root image with a read-only root filesystem and records immutable image ID, runtime config digest, startup/readiness/liveness and graceful shutdown. Production startup additionally requires HTTPS/gRPC certificates, OIDC/role mapping, secret mounts and real outbound mTLS adapters; the test-profile OCI result is a module boundary result, not production qualification.

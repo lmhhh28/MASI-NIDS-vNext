@@ -14,18 +14,18 @@ use crate::{
     config::EdgeConfig,
     contract::{
         edge::{
-            AcknowledgeEffectRequest, ActorState, AdmissionResult, ClearAdvanceCondition,
-            CommitRouteRequest, CompiledEffectPlan, ConfigureRuleObservationsRequest, CounterValue,
-            DataQuality, DropEvidence, EffectIntent, EffectJournalRecord, EffectResult,
-            EffectStatus, Fence, FreshnessStatus, InferenceRecord, InferenceRouteLifecycle,
-            InstallationReadbackStatus, JournalStage, PreflightEffectReply, PrepareRouteRequest,
-            PublishAck, PublishStatus, RenewTargetRequest, ResultWalRecord, ResultWalStage,
-            ResumeRouteRequest, RevokeTargetRequest, RouteReply, RouteResumeWatermark,
-            RouteWalRecord, RouteWalStage, RuleObservation, RuleObservationBatch, SamplingEvidence,
-            SnapshotConsistency, SourceGap, SourceWalRecord, SourceWalStage, SupplementalHint,
-            TargetAssignment, TargetReply, TargetStatus, TargetStatusBatch, TelemetryCell,
-            TelemetryFlowDirection, TelemetryFlowIdentityProfile, TelemetryIpVersion,
-            TelemetrySnapshot,
+            AcknowledgeEffectRequest, ActorState, AdmissionResult, AppliedRuleReadback,
+            ClearAdvanceCondition, CommitRouteRequest, CompiledEffectPlan,
+            ConfigureRuleObservationsRequest, CounterValue, DataQuality, DropEvidence,
+            EffectIntent, EffectJournalRecord, EffectResult, EffectStatus, Fence, FreshnessStatus,
+            InferenceRecord, InferenceRouteLifecycle, InstallationReadbackStatus, JournalStage,
+            PreflightEffectReply, PrepareRouteRequest, PublishAck, PublishStatus,
+            RenewTargetRequest, ResultWalRecord, ResultWalStage, ResumeRouteRequest,
+            RevokeTargetRequest, RouteReply, RouteResumeWatermark, RouteWalRecord, RouteWalStage,
+            RuleObservation, RuleObservationBatch, SamplingEvidence, SnapshotConsistency,
+            SourceGap, SourceWalRecord, SourceWalStage, SupplementalHint, TargetAssignment,
+            TargetReply, TargetStatus, TargetStatusBatch, TelemetryCell, TelemetryFlowDirection,
+            TelemetryFlowIdentityProfile, TelemetryIpVersion, TelemetrySnapshot,
         },
         p4::{Entity, Update, entity, update},
     },
@@ -237,10 +237,67 @@ struct ObservedRule {
     operation_id: String,
     rule_id: String,
     canonical_entry_digest: String,
+    entity_id: String,
+    match_priority_action_digest: String,
     table_id: u32,
     direct_counter_id: u32,
     bank: u32,
     expires_at_unix_ms: Option<i64>,
+}
+
+fn applied_readback_entries(plan: &CompiledPlan) -> Vec<AppliedRuleReadback> {
+    let mut entries = plan
+        .contract
+        .entries
+        .iter()
+        .map(|entry| AppliedRuleReadback {
+            entity_id: entry.entity_id.clone(),
+            rule_id: entry.logical_rule_id.clone(),
+            canonical_entry_digest: entry.canonical_entry_digest.clone(),
+            match_priority_action_digest: entry.match_priority_action_digest.clone(),
+            table_id: entry.table_id,
+            direct_counter_id: entry.direct_counter_id,
+            bank: entry.bank,
+        })
+        .collect::<Vec<_>>();
+    entries.sort_by(|left, right| {
+        left.entity_id
+            .cmp(&right.entity_id)
+            .then(left.rule_id.cmp(&right.rule_id))
+            .then(
+                left.canonical_entry_digest
+                    .cmp(&right.canonical_entry_digest),
+            )
+    });
+    entries
+}
+
+fn readback_manifest_digest(plan: &CompiledPlan) -> String {
+    let entries = applied_readback_entries(plan);
+    #[derive(serde::Serialize)]
+    struct ManifestEntry<'a> {
+        entity_id: &'a str,
+        rule_id: &'a str,
+        canonical_entry_digest: &'a str,
+        match_priority_action_digest: &'a str,
+        table_id: u32,
+        direct_counter_id: u32,
+        bank: u32,
+    }
+    let manifest = entries
+        .iter()
+        .map(|entry| ManifestEntry {
+            entity_id: &entry.entity_id,
+            rule_id: &entry.rule_id,
+            canonical_entry_digest: &entry.canonical_entry_digest,
+            match_priority_action_digest: &entry.match_priority_action_digest,
+            table_id: entry.table_id,
+            direct_counter_id: entry.direct_counter_id,
+            bank: entry.bank,
+        })
+        .collect::<Vec<_>>();
+    let canonical = serde_json::to_vec(&manifest).unwrap_or_default();
+    digest::sha256(&canonical)
 }
 
 #[derive(Debug)]
@@ -924,6 +981,9 @@ impl TargetActor {
                 },
                 reason_code: "EXACT_READBACK".into(),
                 trace_id: intent.trace_id.clone(),
+                applied_entries: applied_readback_entries(&plan),
+                readback_manifest_digest: readback_manifest_digest(&plan),
+                bounded_capture: None,
             },
             Err(EdgeError::UnknownOutcome(message)) => EffectResult {
                 schema_version: "edge-effect-result/v1".into(),
@@ -1372,6 +1432,10 @@ impl TargetActor {
                 "effect_kind",
                 "unspecified effect cannot execute",
             )),
+            crate::contract::edge::EffectKind::BoundedCaptureStart => Err(EdgeError::precondition(
+                "BOUNDED_CAPTURE_PROFILE_UNSUPPORTED",
+                "bounded capture is not qualified in this Edge target profile",
+            )),
         }
     }
 
@@ -1522,6 +1586,9 @@ impl TargetActor {
             },
             reason_code,
             trace_id: recovered.intent.trace_id.clone(),
+            applied_entries: applied_readback_entries(&recovered.plan),
+            readback_manifest_digest: readback_manifest_digest(&recovered.plan),
+            bounded_capture: None,
         };
         let durable = EffectJournalRecord {
             schema_version: "edge-effect-journal/v1".into(),
@@ -1612,6 +1679,9 @@ impl TargetActor {
             }
             crate::contract::edge::EffectKind::Unspecified => Err(EdgeError::WalCorrupt(
                 "unspecified effect kind in journal".into(),
+            )),
+            crate::contract::edge::EffectKind::BoundedCaptureStart => Err(EdgeError::WalCorrupt(
+                "bounded capture journal is unsupported by this target profile".into(),
             )),
         }
     }
@@ -2914,6 +2984,11 @@ impl TargetActor {
             }
             previous_rule_id = Some(rule.rule_id.as_str());
             digest::validate_sha256(&rule.canonical_entry_digest, "canonical_entry_digest")?;
+            digest::validate_identity(&rule.entity_id, "entity_id")?;
+            digest::validate_sha256(
+                &rule.match_priority_action_digest,
+                "match_priority_action_digest",
+            )?;
             let entity = Entity::decode(rule.canonical_entity.as_slice()).map_err(|error| {
                 EdgeError::invalid(
                     "canonical_entity",
@@ -2983,6 +3058,8 @@ impl TargetActor {
                 operation_id: rule.operation_id.clone(),
                 rule_id: rule.rule_id.clone(),
                 canonical_entry_digest: rule.canonical_entry_digest.clone(),
+                entity_id: rule.entity_id.clone(),
+                match_priority_action_digest: rule.match_priority_action_digest.clone(),
                 table_id: rule.table_id,
                 direct_counter_id: rule.direct_counter_id,
                 bank: rule.bank,
@@ -3086,6 +3163,9 @@ impl TargetActor {
                     DataQuality::Valid
                 } as i32,
                 expires_at_unix_ms: rule.expires_at_unix_ms.unwrap_or_default(),
+                entity_id: rule.entity_id.clone(),
+                sampling_coverage_ppm: 1_000_000,
+                match_priority_action_digest: rule.match_priority_action_digest.clone(),
             });
         }
         let mut batch = RuleObservationBatch {
@@ -3133,11 +3213,14 @@ impl TargetActor {
     }
 
     async fn publish_status(&mut self) -> EdgeResult<()> {
-        let batch = TargetStatusBatch {
+        let mut batch = TargetStatusBatch {
             schema_version: "edge-target-status-batch/v1".into(),
             targets: vec![self.status.borrow().clone()],
             trace_id: format!("status:{}", self.assignment.target_id),
+            batch_id: format!("status:{}:{}", self.assignment.target_id, unix_ms()?),
+            batch_digest: String::new(),
         };
+        batch.batch_digest = digest::message_sha256(&batch);
         self.sink.publish_status(batch).await.map(|_| ())
     }
 
@@ -3281,7 +3364,10 @@ impl TargetActor {
     fn update_status(&self) {
         let session = self.session.as_ref();
         let (freshness, freshness_code) = self.freshness();
-        let _ = self.status.send(TargetStatus {
+        let observed_at = unix_ms().unwrap_or_default();
+        let capacity_raw = serde_json::to_vec(&self.config.limits).unwrap_or_default();
+        let expected_pipeline = self.assignment.expected_pipeline.as_ref();
+        let mut status = TargetStatus {
             target_id: self.assignment.target_id.clone(),
             actor_state: self.state as i32,
             fence: self.assignment.fence.clone(),
@@ -3303,7 +3389,27 @@ impl TargetActor {
             reason_code: self.reason_code.clone(),
             expired_overlay_observations: self.expired_overlay_rules.len() as u64,
             freshness_code: freshness_code as i32,
-        });
+            p4info_digest: expected_pipeline
+                .map_or_else(String::new, |value| value.p4info_digest.clone()),
+            capacity_digest: digest::sha256(&capacity_raw),
+            capacity_available: self.commands.len() < self.config.limits.actor_high_queue,
+            observed_at_unix_ms: observed_at,
+            expires_at_unix_ms: observed_at.saturating_add(
+                i64::try_from(
+                    self.config
+                        .limits
+                        .telemetry_poll_interval_ms
+                        .saturating_mul(3),
+                )
+                .unwrap_or(i64::MAX),
+            ),
+            profile_digest: expected_pipeline
+                .map_or_else(String::new, |value| value.profile_digest.clone()),
+            observation_id: format!("status:{}:{}", self.assignment.target_id, observed_at),
+            observation_digest: String::new(),
+        };
+        status.observation_digest = digest::message_sha256(&status);
+        let _ = self.status.send(status);
     }
 
     fn freshness(&self) -> (&'static str, FreshnessStatus) {

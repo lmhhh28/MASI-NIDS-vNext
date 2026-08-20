@@ -2,8 +2,8 @@
   "schema_version": "module-findings/v1",
   "module_id": "MOD-CTRL-001",
   "decision_id": "DEC-044",
-  "reviewed_at": "2026-08-19T00:00:00Z",
-  "review_scope": "MOD-CTRL-001 control-core real PostgreSQL 18 startup, gRPC ControlSink commit-before-ACK boundary, governance/firewall/model/plugin/target sub-domain integration, staticcheck cleanup and module-gate qualification evidence",
+  "reviewed_at": "2026-08-20T09:59:35Z",
+  "review_scope": "MOD-CTRL-001 full independent-module re-review: public HTTP/SSE/MCP/A2A/metrics/capture boundaries, governance/firewall/model/target/plugin-statistics fences, PostgreSQL 18 schema and identity enforcement, generated TypeScript client, supply-chain/vulnerability controls, real process/OCI and fresh module-gate evidence",
   "findings": [
     {
       "finding_id": "CTRL-E2E-0001",
@@ -74,6 +74,137 @@
       "opened_at": "2026-08-19T00:00:00Z",
       "closed_at": "2026-08-19T00:00:00Z",
       "resolution": "outbound_clients migrated grpc.DialContext+WithBlock to grpc.NewClient (the existing health check gates readiness); the workload_ref regexp is precompiled; the unused clientForTarget method was removed. staticcheck ./... is clean."
+    },
+    {
+      "finding_id": "CTRL-REVIEW-0001",
+      "severity": "P0",
+      "status": "CLOSED",
+      "title": "Mandatory Control public boundaries for bounded capture, MCP, A2A, metrics and operation APIs were absent",
+      "requirement_ids": ["MOD-CTRL-001", "FUNC-API-001", "FUNC-EVIDENCE-001", "CONTRACT-AGENT-001", "OBS-001"],
+      "evidence_refs": [
+        "control-go/internal/api/router.go",
+        "control-go/internal/a2a/client.go",
+        "control-go/internal/mcp/server.go",
+        "control-go/internal/metrics/metrics.go",
+        "control-go/internal/governance/capture.go",
+        "contracts/openapi/v1/openapi.yaml"
+      ],
+      "opened_at": "2026-08-20T00:00:00Z",
+      "closed_at": "2026-08-20T09:59:35Z",
+      "resolution": "Implemented bounded metadata-only capture on the sole effect-intent queue, private read-only MCP 2025-11-25, static-peer A2A 1.0 polling with grounded non-executable artifacts, bounded low-cardinality metrics, and canonical detail/operation/reconcile APIs. Public routes are checked against OpenAPI and exercised by unit, real PostgreSQL and process tests."
+    },
+    {
+      "finding_id": "CTRL-REVIEW-0002",
+      "severity": "P0",
+      "status": "CLOSED",
+      "title": "Effect, firewall, fleet and model control paths admitted stale leases, gates or incarnation ABA",
+      "requirement_ids": ["MOD-CTRL-001", "FUNC-EFFECT-001", "FUNC-FW-001", "FUNC-INF-MODEL-001", "FUNC-TARGET-FLEET-001"],
+      "evidence_refs": [
+        "control-go/internal/governance/dispatcher.go",
+        "control-go/internal/firewall/activation.go",
+        "control-go/internal/target/fleet.go",
+        "control-go/internal/model/recovery.go",
+        "db/migrations/0025_go_control_review_hardening.sql"
+      ],
+      "opened_at": "2026-08-20T00:00:00Z",
+      "closed_at": "2026-08-20T09:59:35Z",
+      "resolution": "Added renewable single-owner leases, no expired-claim blind reuse, pre-side-effect HOLD classification, target-scoped activation CAS/gates, immutable fleet completed-vector/manual gates and rollback, and model-control incarnation keys that fence restored same-number generations."
+    },
+    {
+      "finding_id": "CTRL-REVIEW-0003",
+      "severity": "P1",
+      "status": "CLOSED",
+      "title": "Database and inbound boundaries did not fully enforce exact readback, verify-full and workload identity",
+      "requirement_ids": ["MOD-CTRL-001", "DB-GOV-001", "DB-FW-001", "DB-MODEL-001", "SEC-002"],
+      "evidence_refs": [
+        "db/migrations/0025_go_control_review_hardening.sql",
+        "control-go/internal/grpc/peer_auth.go",
+        "control-go/cmd/control-core/runtime_security.go",
+        "control-go/internal/db/migration_reader.go"
+      ],
+      "opened_at": "2026-08-20T00:00:00Z",
+      "closed_at": "2026-08-20T09:59:35Z",
+      "resolution": "Added exact proposal/decision/readback foreign keys and manifest rows, application-role grants, schema-chain digest checks, PostgreSQL verify-full production requirements, TLS 1.3 client identity verification and exact inbound gRPC SAN authorization."
+    },
+    {
+      "finding_id": "CTRL-REVIEW-0004",
+      "severity": "P1",
+      "status": "CLOSED",
+      "title": "Rule observation, plugin statistics and API pagination trusted caller or incomplete identity",
+      "requirement_ids": ["MOD-CTRL-001", "FUNC-RULE-001", "PLUGIN-STAT-001", "FUNC-API-001"],
+      "evidence_refs": [
+        "control-go/internal/ruleobs/projector.go",
+        "control-go/internal/governance/readback_manifest.go",
+        "control-go/internal/pluginstat/service.go",
+        "contracts/plugin/statistics/v1/schema.json",
+        "control-go/internal/api/router.go"
+      ],
+      "opened_at": "2026-08-20T00:00:00Z",
+      "closed_at": "2026-08-20T09:59:35Z",
+      "resolution": "Rule epochs now derive only from exact Edge per-entry readback and exclude delete proofs; external-source capability and provenance are exact-fenced in plugin statistics; list projections use authenticated scope-bound keyset cursors with no OFFSET."
+    },
+    {
+      "finding_id": "CTRL-REVIEW-0005",
+      "severity": "P1",
+      "status": "CLOSED",
+      "title": "Module gate could reuse stale binary, cached tests, stale source and non-starting OCI evidence",
+      "requirement_ids": ["MOD-CTRL-001", "TEST-GATE-001", "DEC-044"],
+      "evidence_refs": [
+        "control-go/scripts/run-module-gates.sh",
+        "control-go/scripts/run-oci-smoke.sh",
+        "control-go/scripts/validate-soak-evidence.py"
+      ],
+      "opened_at": "2026-08-20T00:00:00Z",
+      "closed_at": "2026-08-20T09:59:35Z",
+      "resolution": "The gate now builds a run-specific binary, disables Go test cache, executes all process and internal PostgreSQL tests, verifies binary/source digests after long-running commands, validates findings, and records an immutable OCI image ID after real startup/readiness/liveness/graceful shutdown."
+    },
+    {
+      "finding_id": "CTRL-REVIEW-0006",
+      "severity": "P1",
+      "status": "CLOSED",
+      "title": "Public projections could conflate database failures with 404 or disclose facts across scope",
+      "requirement_ids": ["MOD-CTRL-001", "FUNC-API-001", "SEC-002"],
+      "evidence_refs": [
+        "control-go/internal/api/public_operations.go",
+        "control-go/internal/api/session.go",
+        "control-go/internal/api/public_operations_postgres_e2e_test.go"
+      ],
+      "opened_at": "2026-08-20T00:00:00Z",
+      "closed_at": "2026-08-20T09:59:35Z",
+      "resolution": "Database faults now map to bounded internal errors rather than false not-found; model incarnation/pool, target candidate conflicts, statistics history and all detail reads are scope-filtered; CSRF errors use the canonical JSON envelope."
+    },
+    {
+      "finding_id": "CTRL-REVIEW-0007",
+      "severity": "P1",
+      "status": "CLOSED",
+      "title": "Control metrics lacked required latency, backlog, resource, domain and drift coverage",
+      "requirement_ids": ["MOD-CTRL-001", "OBS-001"],
+      "evidence_refs": [
+        "control-go/internal/metrics/metrics.go",
+        "control-go/internal/metrics/metrics_test.go",
+        "control-go/internal/metrics/metrics_postgres_e2e_test.go"
+      ],
+      "opened_at": "2026-08-20T00:00:00Z",
+      "closed_at": "2026-08-20T09:59:35Z",
+      "resolution": "Added fixed-dimension HTTP throughput/bytes/histograms, governance/firewall/target/fleet/model/plugin/statistics/A2A/MCP/rule aggregates, PostgreSQL transaction/lock/WAL metrics, CPU/RSS/FD/thread, config drift, certificate expiry and explicit series bounds with negative cardinality tests."
+    },
+    {
+      "finding_id": "CTRL-REVIEW-0008",
+      "severity": "P1",
+      "status": "CLOSED",
+      "title": "OpenAPI client, immutable build inputs and reachable vulnerability controls were incomplete",
+      "requirement_ids": ["MOD-CTRL-001", "FUNC-API-001", "ARCH-REUSE-001", "TEST-GATE-001"],
+      "evidence_refs": [
+        "contracts/generated/typescript/control-api/sdk.gen.ts",
+        "contracts/openapi/v1/typescript-client/package-lock.json",
+        "contracts/supply-chain/v1/control-core-components.json",
+        "control-go/scripts/check-typescript-client.sh",
+        "control-go/scripts/check-supply-chain.sh",
+        "control-go/Dockerfile"
+      ],
+      "opened_at": "2026-08-20T00:00:00Z",
+      "closed_at": "2026-08-20T09:59:35Z",
+      "resolution": "Added an exact-version OpenAPI TypeScript SDK generator and freshness/typecheck gate, a component adoption registry and lock validation, digest-pinned Go 1.26.6/Alpine OCI stages, patched chi/pgx/text dependencies, and a mandatory govulncheck gate with zero reachable vulnerabilities."
     }
   ]
 }

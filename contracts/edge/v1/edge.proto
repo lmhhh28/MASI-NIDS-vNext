@@ -199,6 +199,28 @@ enum EffectKind {
   EFFECT_KIND_BASELINE_ACTIVATE = 1;
   EFFECT_KIND_OVERLAY_UPSERT = 2;
   EFFECT_KIND_OVERLAY_DELETE = 3;
+  EFFECT_KIND_BOUNDED_CAPTURE_START = 4;
+}
+
+// BoundedCaptureSpec is an R0, resource-bounded device mutation. It travels
+// through the same durable EffectIntent/journal/readback/CAS path as firewall
+// effects; it is not a second queue or a general packet-capture service.
+message BoundedCaptureSpec {
+  string schema_version = 1;
+  string capture_id = 2;
+  string capture_digest = 3;
+  string capture_adapter_id = 4;
+  uint32 duration_ms = 5;
+  uint32 sample_limit = 6;
+  uint64 byte_limit = 7;
+  int64 expires_at_unix_ms = 8;
+  uint32 max_concurrent_on_target = 9;
+  string payload_mode = 10;
+  Ipv4Prefix source = 11;
+  Ipv4Prefix destination = 12;
+  OptionalUint32 protocol = 13;
+  OptionalUint32 source_port = 14;
+  OptionalUint32 destination_port = 15;
 }
 
 enum FirewallAction {
@@ -264,6 +286,7 @@ message EffectIntent {
   string reason_code = 15;
   string trace_id = 16;
   P4WriteAtomicity required_write_atomicity = 17;
+  BoundedCaptureSpec bounded_capture = 18;
 }
 
 message PreflightEffectRequest { EffectIntent intent = 1; }
@@ -309,6 +332,37 @@ message EffectResult {
   uint32 active_bank = 12;
   string reason_code = 13;
   string trace_id = 14;
+  repeated AppliedRuleReadback applied_entries = 15;
+  string readback_manifest_digest = 16;
+  BoundedCaptureReadback bounded_capture = 17;
+}
+
+// BoundedCaptureReadback proves the exact bounded capture window and evidence
+// identity without returning packet payload on the control RPC.
+message BoundedCaptureReadback {
+  string schema_version = 1;
+  string capture_id = 2;
+  string capture_digest = 3;
+  string capture_session_id = 4;
+  int64 started_at_unix_ms = 5;
+  int64 finished_at_unix_ms = 6;
+  uint32 observed_samples = 7;
+  uint64 observed_bytes = 8;
+  string content_digest = 9;
+  string observed_flow_digest = 10;
+  string capture_window_digest = 11;
+  bool truncated = 12;
+  bool gap = 13;
+}
+
+message AppliedRuleReadback {
+  string entity_id = 1;
+  string rule_id = 2;
+  string canonical_entry_digest = 3;
+  string match_priority_action_digest = 4;
+  uint32 table_id = 5;
+  uint32 direct_counter_id = 6;
+  uint32 bank = 7;
 }
 
 message AcknowledgeEffectRequest {
@@ -330,6 +384,8 @@ message CanonicalP4Entry {
   uint32 bank = 4;
   bytes entity = 5;
   string canonical_entry_digest = 6;
+  string entity_id = 7;
+  string match_priority_action_digest = 8;
 }
 
 message CompiledEffectPlan {
@@ -922,6 +978,7 @@ message RuleObservation {
   int64 expires_at_unix_ms = 22;
   string entity_id = 23;
   uint32 sampling_coverage_ppm = 24;
+  string match_priority_action_digest = 25;
 }
 
 message RuleObservationBatch {
@@ -941,6 +998,8 @@ message ObservableRule {
   uint32 direct_counter_id = 7;
   uint32 bank = 8;
   int64 expires_at_unix_ms = 9;
+  string match_priority_action_digest = 10;
+  string entity_id = 11;
 }
 
 message ConfigureRuleObservationsRequest {

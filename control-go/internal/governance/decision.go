@@ -85,7 +85,7 @@ func (s *DecisionService) decide(ctx context.Context, proposalID string, approve
 			SELECT proposal_id, proposal_digest, actor_issuer, actor_subject, actor_level,
 			       scope, risk_level, effect_kind, target_set_digest, policy_digest,
 			       expires_at_unix_ms, trace_id
-			FROM effect_proposals WHERE proposal_id = $1`, proposalID).
+				FROM effect_proposals WHERE proposal_id = $1 AND superseded_by_proposal_id IS NULL`, proposalID).
 		Scan(&p.ProposalID, &p.ProposalDigest, &actorIssuer, &actorSubject, &p.ActorLevel,
 			&p.Scope, &p.RiskLevel,
 			&p.EffectKind, &p.TargetSetDigest, &p.PolicyDigest, &p.ExpiresAtUnixMS, &p.TraceID)

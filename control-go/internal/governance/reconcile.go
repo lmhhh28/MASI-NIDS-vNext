@@ -52,7 +52,8 @@ func (r *ReconcileService) ReconcileUnknown(ctx context.Context, intentID string
 	identityExact := edgeRes.OperationID == intent.OperationID && edgeRes.TargetID == intent.TargetID &&
 		edgeRes.EffectDigest == intent.EffectDigest && validSHA256(edgeRes.ResultDigest)
 	if identityExact && edgeRes.Outcome == "applied" && edgeRes.MismatchedEntries == 0 &&
-		edgeRes.ReadbackDigest != "" && edgeRes.ExpectedEntries == edgeRes.ObservedEntries {
+		edgeRes.ReadbackDigest != "" && edgeRes.ExpectedEntries == edgeRes.ObservedEntries &&
+		validateAppliedReadback(*intent, edgeRes) == nil {
 		status = AttemptApplied
 		reason = "RECONCILED_APPLIED"
 	} else if identityExact && (edgeRes.Outcome == "absent" || edgeRes.Outcome == "hold") {
@@ -94,11 +95,15 @@ func (r *ReconcileService) ReconcileUnknown(ctx context.Context, intentID string
 		if _, err := tx.Exec(ctx, `INSERT INTO effect_attempts(
 		 attempt_id,intent_id,operation_id,attempt_number,status,plan_digest,readback_digest,
 		 expected_entries,observed_entries,mismatched_entries,active_bank,started_at_unix_ms,
-		 finished_at_unix_ms,trace_id,reason_code)
-		 VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$12,$13,$14)`, attemptID,
+			 finished_at_unix_ms,trace_id,reason_code,readback_manifest_digest,readback_entry_count)
+			 VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$12,$13,$14,$15,$16)`, attemptID,
 			intent.EffectIntentID, intent.OperationID, attemptNumber, string(status), intent.EffectDigest,
 			readback, edgeRes.ExpectedEntries, edgeRes.ObservedEntries, edgeRes.MismatchedEntries,
-			activeBank, committedAt, intent.TraceID, reason); err != nil {
+			activeBank, committedAt, intent.TraceID, reason, nullableString(edgeRes.ReadbackManifestDigest),
+			len(edgeRes.AppliedEntries)); err != nil {
+			return err
+		}
+		if err := persistReadbackManifestTx(ctx, tx, attemptID, intent, edgeRes); err != nil {
 			return err
 		}
 		claimState := ClaimUnknown

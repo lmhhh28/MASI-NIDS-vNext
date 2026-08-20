@@ -88,6 +88,13 @@ var v1RequiredTables = []string{
 	"model_rollout_groups",
 	"event_identities",
 	"api_mutation_idempotency",
+	"effect_attempt_readback_entries",
+	"fleet_wave_gate_decisions",
+	"bounded_capture_requests",
+	"bounded_capture_results",
+	"mcp_access_audit",
+	"analysis_task_requests",
+	"analysis_artifacts",
 }
 
 // checkRequiredTables verifies every v1 anchor table exists; a missing table

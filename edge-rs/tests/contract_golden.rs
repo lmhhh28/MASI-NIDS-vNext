@@ -195,6 +195,7 @@ fn effect() -> EffectIntent {
             action: FirewallAction::Drop as i32,
         }],
         overlay_rules: Vec::new(),
+        bounded_capture: None,
         deadline_unix_ms: 1_893_456_030_000,
         actor_ref: "oidc-subject-operator-golden-0002".into(),
         reason_code: "BASELINE_ACTIVATION".into(),

@@ -49,6 +49,23 @@ paths:
       operationId: listEvidence
       parameters: [{$ref: '#/components/parameters/Cursor'}, {$ref: '#/components/parameters/PageSize'}]
       responses: {'200': {$ref: '#/components/responses/Projection200'}}
+  /api/evidence/captures:
+    get:
+      operationId: listBoundedCaptures
+      parameters: [{$ref: '#/components/parameters/Cursor'}, {$ref: '#/components/parameters/PageSize'}]
+      responses: {'200': {$ref: '#/components/responses/Projection200'}}
+    post:
+      operationId: registerBoundedCapture
+      security: [{oidc: [], csrf: []}]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/BoundedCaptureRegistrationRequest'}}}}
+      responses: {'201': {$ref: '#/components/responses/Mutation201'}, '409': {$ref: '#/components/responses/Error409'}}
+  /api/evidence/captures/{captureID}/intents:
+    post:
+      operationId: createBoundedCaptureIntent
+      security: [{oidc: [], csrf: []}]
+      parameters: [{name: captureID, in: path, required: true, schema: {$ref: '#/components/schemas/Identity'}}]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/CreateEffectIntentRequest'}}}}
+      responses: {'202': {$ref: '#/components/responses/Mutation200'}, '409': {$ref: '#/components/responses/Error409'}}
   /api/effects/proposals:
     get:
       operationId: listProposals
@@ -63,6 +80,18 @@ paths:
         '400': {$ref: '#/components/responses/Error400'}
         '403': {$ref: '#/components/responses/Error403'}
         '409': {$ref: '#/components/responses/Error409'}
+  /api/effects/proposals/{proposalID}:
+    get:
+      operationId: getProposal
+      parameters: [{$ref: '#/components/parameters/ProposalID'}]
+      responses: {'200': {$ref: '#/components/responses/Projection200'}, '404': {$ref: '#/components/responses/Error404'}}
+  /api/effects/proposals/{proposalID}/supersede:
+    post:
+      operationId: supersedeProposal
+      security: [{oidc: [], csrf: []}]
+      parameters: [{$ref: '#/components/parameters/ProposalID'}]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/SupersedeProposalRequest'}}}}
+      responses: {'200': {$ref: '#/components/responses/Mutation200'}, '409': {$ref: '#/components/responses/Error409'}}
   /api/effects/decisions:
     get:
       operationId: listDecisions
@@ -76,11 +105,48 @@ paths:
         '201': {description: terminal authorization decision recorded, content: {application/json: {schema: {$ref: '#/components/schemas/Decision'}}}}
         '403': {$ref: '#/components/responses/Error403'}
         '409': {$ref: '#/components/responses/Error409'}
+  /api/effects/decisions/{decisionID}:
+    get:
+      operationId: getDecision
+      parameters: [{$ref: '#/components/parameters/DecisionID'}]
+      responses: {'200': {$ref: '#/components/responses/Projection200'}, '404': {$ref: '#/components/responses/Error404'}}
   /api/effects/intents:
     get:
       operationId: listEffectIntents
       parameters: [{$ref: '#/components/parameters/Cursor'}, {$ref: '#/components/parameters/PageSize'}]
       responses: {'200': {$ref: '#/components/responses/Projection200'}}
+    post:
+      operationId: createEffectIntent
+      security: [{oidc: [], csrf: []}]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/CreateEffectIntentRequest'}}}}
+      responses: {'201': {$ref: '#/components/responses/Mutation201'}, '409': {$ref: '#/components/responses/Error409'}}
+  /api/effects/intents/{intentID}:
+    get:
+      operationId: getEffectIntent
+      parameters: [{$ref: '#/components/parameters/IntentID'}]
+      responses: {'200': {$ref: '#/components/responses/Projection200'}, '404': {$ref: '#/components/responses/Error404'}}
+  /api/effects/operations/{operationID}:
+    get:
+      operationId: getEffectOperation
+      parameters: [{$ref: '#/components/parameters/OperationID'}]
+      responses: {'200': {$ref: '#/components/responses/Projection200'}, '404': {$ref: '#/components/responses/Error404'}}
+  /api/effects/operations/{operationID}/attempts:
+    get:
+      operationId: getEffectOperationAttempts
+      parameters: [{$ref: '#/components/parameters/OperationID'}]
+      responses: {'200': {$ref: '#/components/responses/Projection200'}}
+  /api/effects/operations/{operationID}/readback:
+    get:
+      operationId: getEffectOperationReadback
+      parameters: [{$ref: '#/components/parameters/OperationID'}]
+      responses: {'200': {$ref: '#/components/responses/Projection200'}}
+  /api/effects/operations/{operationID}/reconcile:
+    post:
+      operationId: reconcileEffectOperation
+      security: [{oidc: [], csrf: []}]
+      parameters: [{$ref: '#/components/parameters/OperationID'}]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/ScopedMutationRequest'}}}}
+      responses: {'200': {$ref: '#/components/responses/Mutation200'}, '409': {$ref: '#/components/responses/Error409'}}
   /api/targets:
     get:
       operationId: listTargets
@@ -94,6 +160,52 @@ paths:
         '201': {description: stable candidate target created, content: {application/json: {schema: {$ref: '#/components/schemas/Target'}}}}
         '403': {$ref: '#/components/responses/Error403'}
         '409': {$ref: '#/components/responses/Error409'}
+  /api/targets/{targetID}:
+    get:
+      operationId: getTarget
+      parameters: [{$ref: '#/components/parameters/TargetID'}]
+      responses: {'200': {$ref: '#/components/responses/Projection200'}, '404': {$ref: '#/components/responses/Error404'}}
+  /api/targets/candidates/import:
+    post:
+      operationId: importTargetCandidate
+      security: [{oidc: [], csrf: []}]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/ImportTargetCandidateRequest'}}}}
+      responses: {'201': {$ref: '#/components/responses/Mutation201'}, '409': {$ref: '#/components/responses/Error409'}}
+  /api/targets/candidates/{targetID}/diff:
+    get:
+      operationId: getTargetCandidateDiff
+      parameters: [{$ref: '#/components/parameters/TargetID'}]
+      responses: {'200': {$ref: '#/components/responses/Projection200'}, '404': {$ref: '#/components/responses/Error404'}}
+  /api/targets/{targetID}/observation:
+    get:
+      operationId: getTargetObservation
+      parameters: [{$ref: '#/components/parameters/TargetID'}]
+      responses: {'200': {$ref: '#/components/responses/Projection200'}, '404': {$ref: '#/components/responses/Error404'}}
+  /api/targets/{targetID}/operations/{operationID}:
+    get:
+      operationId: getTargetOperation
+      parameters: [{$ref: '#/components/parameters/TargetID'}, {$ref: '#/components/parameters/OperationID'}]
+      responses: {'200': {$ref: '#/components/responses/Projection200'}, '404': {$ref: '#/components/responses/Error404'}}
+  /api/targets/{targetID}/verify:
+    post:
+      operationId: verifyTarget
+      security: [{oidc: [], csrf: []}]
+      parameters: [{$ref: '#/components/parameters/TargetID'}]
+      requestBody: {$ref: '#/components/requestBodies/AdminLifecycle'}
+      responses: {'200': {$ref: '#/components/responses/Mutation200'}, '409': {$ref: '#/components/responses/Error409'}}
+  /api/targets/{targetID}/assign:
+    post:
+      operationId: assignTarget
+      security: [{oidc: [], csrf: []}]
+      parameters: [{$ref: '#/components/parameters/TargetID'}]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/AssignTargetRequest'}}}}
+      responses: {'201': {$ref: '#/components/responses/Mutation201'}, '409': {$ref: '#/components/responses/Error409'}}
+  /api/targets/{targetID}/drain:
+    post: {operationId: drainTarget, security: [{oidc: [], csrf: []}], parameters: [{$ref: '#/components/parameters/TargetID'}], requestBody: {$ref: '#/components/requestBodies/AdminLifecycle'}, responses: {'200': {$ref: '#/components/responses/Mutation200'}, '409': {$ref: '#/components/responses/Error409'}}}
+  /api/targets/{targetID}/disable:
+    post: {operationId: disableTarget, security: [{oidc: [], csrf: []}], parameters: [{$ref: '#/components/parameters/TargetID'}], requestBody: {$ref: '#/components/requestBodies/AdminLifecycle'}, responses: {'200': {$ref: '#/components/responses/Mutation200'}, '409': {$ref: '#/components/responses/Error409'}}}
+  /api/targets/{targetID}/quarantine:
+    post: {operationId: quarantineTarget, security: [{oidc: [], csrf: []}], parameters: [{$ref: '#/components/parameters/TargetID'}], requestBody: {$ref: '#/components/requestBodies/AdminLifecycle'}, responses: {'200': {$ref: '#/components/responses/Mutation200'}, '409': {$ref: '#/components/responses/Error409'}}}
   /api/targets/{targetID}/activate:
     post:
       operationId: activateTarget
@@ -113,6 +225,30 @@ paths:
       operationId: listFleetOperations
       parameters: [{$ref: '#/components/parameters/Cursor'}, {$ref: '#/components/parameters/PageSize'}]
       responses: {'200': {$ref: '#/components/responses/Projection200'}}
+    post:
+      operationId: createFleetOperation
+      security: [{oidc: [], csrf: []}]
+      requestBody: {required: true, content: {application/json: {schema: {type: object, required: [idempotency_key], maxProperties: 8, properties: {idempotency_key: {$ref: '#/components/schemas/IdempotencyKey'}}}}}}
+      responses: {'201': {$ref: '#/components/responses/Mutation201'}, '409': {$ref: '#/components/responses/Error409'}}
+  /api/fleet/operations/{fleetID}:
+    get:
+      operationId: getFleetOperation
+      parameters: [{$ref: '#/components/parameters/FleetID'}]
+      responses: {'200': {$ref: '#/components/responses/Projection200'}, '404': {$ref: '#/components/responses/Error404'}}
+  /api/fleet/operations/{fleetID}/advance:
+    post:
+      operationId: advanceFleetWave
+      security: [{oidc: [], csrf: []}]
+      parameters: [{$ref: '#/components/parameters/FleetID'}]
+      requestBody: {required: true, content: {application/json: {schema: {type: object, required: [idempotency_key], maxProperties: 9, properties: {idempotency_key: {$ref: '#/components/schemas/IdempotencyKey'}}}}}}
+      responses: {'200': {$ref: '#/components/responses/Mutation200'}, '409': {$ref: '#/components/responses/Error409'}}
+  /api/fleet/operations/{fleetID}/rollback:
+    post:
+      operationId: createFleetRollback
+      security: [{oidc: [], csrf: []}]
+      parameters: [{$ref: '#/components/parameters/FleetID'}]
+      requestBody: {required: true, content: {application/json: {schema: {type: object, required: [idempotency_key], maxProperties: 5, properties: {idempotency_key: {$ref: '#/components/schemas/IdempotencyKey'}}}}}}
+      responses: {'201': {$ref: '#/components/responses/Mutation201'}, '409': {$ref: '#/components/responses/Error409'}}
   /api/firewall/revisions:
     get:
       operationId: listFirewallRevisions
@@ -125,6 +261,47 @@ paths:
       responses:
         '201': {description: immutable normalized revision created, content: {application/json: {schema: {$ref: '#/components/schemas/FirewallRevision'}}}}
         '403': {$ref: '#/components/responses/Error403'}
+  /api/firewall/revisions/{revisionID}:
+    get:
+      operationId: getFirewallRevision
+      parameters: [{$ref: '#/components/parameters/RevisionID'}]
+      responses: {'200': {$ref: '#/components/responses/Projection200'}, '404': {$ref: '#/components/responses/Error404'}}
+  /api/firewall/revisions/{revisionID}/inspection:
+    get:
+      operationId: inspectFirewallRevision
+      parameters: [{$ref: '#/components/parameters/RevisionID'}]
+      responses: {'200': {$ref: '#/components/responses/Projection200'}}
+  /api/firewall/revisions/{revisionID}/activation-proposals:
+    post:
+      operationId: createFirewallActivationProposal
+      security: [{oidc: [], csrf: []}]
+      parameters: [{$ref: '#/components/parameters/RevisionID'}]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/FirewallProposalRequest'}}}}
+      responses: {'201': {$ref: '#/components/responses/Mutation201'}, '409': {$ref: '#/components/responses/Error409'}}
+  /api/firewall/activation-proposals/{proposalID}/decisions:
+    post:
+      operationId: decideFirewallActivationProposal
+      security: [{oidc: [], csrf: []}]
+      parameters: [{$ref: '#/components/parameters/ProposalID'}]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/PathDecisionRequest'}}}}
+      responses: {'201': {$ref: '#/components/responses/Mutation201'}, '409': {$ref: '#/components/responses/Error409'}}
+  /api/firewall/bindings:
+    get:
+      operationId: listFirewallBindings
+      parameters: [{$ref: '#/components/parameters/Cursor'}, {$ref: '#/components/parameters/PageSize'}]
+      responses: {'200': {$ref: '#/components/responses/Projection200'}}
+  /api/firewall/activations/{operationID}:
+    get:
+      operationId: getFirewallActivation
+      parameters: [{$ref: '#/components/parameters/OperationID'}]
+      responses: {'200': {$ref: '#/components/responses/Projection200'}, '404': {$ref: '#/components/responses/Error404'}}
+  /api/firewall/activations/{operationID}/rollback-proposals:
+    post:
+      operationId: createFirewallRollbackProposal
+      security: [{oidc: [], csrf: []}]
+      parameters: [{$ref: '#/components/parameters/OperationID'}]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/FirewallProposalRequest'}}}}
+      responses: {'201': {$ref: '#/components/responses/Mutation201'}, '409': {$ref: '#/components/responses/Error409'}}
   /api/firewall/activations:
     post:
       operationId: prepareFirewallActivation
@@ -183,6 +360,11 @@ paths:
       responses:
         '201': {description: ordered shard vector durably frozen, content: {application/json: {schema: {$ref: '#/components/schemas/RolloutGroup'}}}}
         '409': {$ref: '#/components/responses/Error409'}
+  /api/models/rollout-groups/{groupID}:
+    get:
+      operationId: getModelRolloutGroup
+      parameters: [{$ref: '#/components/parameters/GroupID'}]
+      responses: {'200': {$ref: '#/components/responses/Projection200'}, '404': {$ref: '#/components/responses/Error404'}}
   /api/models/rollout-groups/{groupID}/advance:
     post:
       operationId: advanceModelRolloutGroup
@@ -192,6 +374,52 @@ paths:
       responses:
         '202': {description: ordered rollout advanced; per-shard status remains authoritative, content: {application/json: {schema: {$ref: '#/components/schemas/RolloutGroup'}}}}
         '409': {$ref: '#/components/responses/Error409'}
+  /api/models/rollout-groups/{groupID}/rollback:
+    post:
+      operationId: createModelRollbackGroup
+      security: [{oidc: [], csrf: []}]
+      parameters: [{$ref: '#/components/parameters/GroupID'}]
+      requestBody: {required: true, content: {application/json: {schema: {type: object, required: [idempotency_key], maxProperties: 5, properties: {idempotency_key: {$ref: '#/components/schemas/IdempotencyKey'}}}}}}
+      responses: {'201': {$ref: '#/components/responses/Mutation201'}, '409': {$ref: '#/components/responses/Error409'}}
+  /api/models/incarnations/current:
+    get:
+      operationId: getCurrentModelControlIncarnation
+      responses: {'200': {$ref: '#/components/responses/Projection200'}, '404': {$ref: '#/components/responses/Error404'}}
+  /api/models/incarnations/rotate:
+    post:
+      operationId: rotateModelControlIncarnation
+      security: [{oidc: [], csrf: []}]
+      requestBody: {required: true, content: {application/json: {schema: {type: object, required: [idempotency_key], maxProperties: 7, properties: {idempotency_key: {$ref: '#/components/schemas/IdempotencyKey'}}}}}}
+      responses: {'201': {$ref: '#/components/responses/Mutation201'}, '409': {$ref: '#/components/responses/Error409'}}
+  /api/models/incarnations/{incarnationID}/enable-writer:
+    post:
+      operationId: enableModelWriter
+      security: [{oidc: [], csrf: []}]
+      parameters: [{name: incarnationID, in: path, required: true, schema: {$ref: '#/components/schemas/Identity'}}]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/ScopedMutationRequest'}}}}
+      responses: {'200': {$ref: '#/components/responses/Mutation200'}, '409': {$ref: '#/components/responses/Error409'}}
+  /api/models/pools:
+    get:
+      operationId: listModelPools
+      parameters: [{$ref: '#/components/parameters/Cursor'}, {$ref: '#/components/parameters/PageSize'}]
+      responses: {'200': {$ref: '#/components/responses/Projection200'}}
+  /api/models/pools/{poolID}:
+    get:
+      operationId: getModelPool
+      parameters: [{name: poolID, in: path, required: true, schema: {$ref: '#/components/schemas/Identity'}}]
+      responses: {'200': {$ref: '#/components/responses/Projection200'}, '404': {$ref: '#/components/responses/Error404'}}
+  /api/models/operations/{operationID}:
+    get:
+      operationId: getModelOperation
+      parameters: [{$ref: '#/components/parameters/OperationID'}]
+      responses: {'200': {$ref: '#/components/responses/Projection200'}, '404': {$ref: '#/components/responses/Error404'}}
+  /api/models/operations/{operationID}/recover:
+    post:
+      operationId: recoverModelOperation
+      security: [{oidc: [], csrf: []}]
+      parameters: [{$ref: '#/components/parameters/OperationID'}]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/ScopedMutationRequest'}}}}
+      responses: {'200': {$ref: '#/components/responses/Mutation200'}, '409': {$ref: '#/components/responses/Error409'}}
   /api/plugins:
     get:
       operationId: listPlugins
@@ -249,6 +477,16 @@ paths:
       security: [{oidc: [], csrf: []}]
       requestBody: {$ref: '#/components/requestBodies/RegisterStatisticsDefinition'}
       responses: {'201': {$ref: '#/components/responses/Mutation201'}, '409': {$ref: '#/components/responses/Error409'}}
+  /api/plugins/statistics/definitions/{definitionID}:
+    get:
+      operationId: getStatisticsDefinition
+      parameters: [{name: definitionID, in: path, required: true, schema: {$ref: '#/components/schemas/Identity'}}]
+      responses: {'200': {$ref: '#/components/responses/Projection200'}, '404': {$ref: '#/components/responses/Error404'}}
+  /api/plugins/statistics/definitions/{definitionID}/history:
+    get:
+      operationId: getStatisticsDefinitionHistory
+      parameters: [{name: definitionID, in: path, required: true, schema: {$ref: '#/components/schemas/Identity'}}]
+      responses: {'200': {$ref: '#/components/responses/Projection200'}}
   /api/plugins/statistics/runs:
     get:
       operationId: listStatisticsRuns
@@ -259,6 +497,11 @@ paths:
       security: [{oidc: [], csrf: []}]
       requestBody: {$ref: '#/components/requestBodies/RequestStatisticsRun'}
       responses: {'201': {$ref: '#/components/responses/Mutation201'}, '409': {$ref: '#/components/responses/Error409'}}
+  /api/plugins/statistics/runs/{runID}:
+    get:
+      operationId: getStatisticsRun
+      parameters: [{name: runID, in: path, required: true, schema: {$ref: '#/components/schemas/Identity'}}]
+      responses: {'200': {$ref: '#/components/responses/Projection200'}, '404': {$ref: '#/components/responses/Error404'}}
   /api/plugins/statistics/current:
     get:
       operationId: listStatisticsCurrent
@@ -274,6 +517,30 @@ paths:
       security: [{oidc: [], csrf: []}]
       requestBody: {$ref: '#/components/requestBodies/CreateStatisticsSchedule'}
       responses: {'201': {$ref: '#/components/responses/Mutation201'}, '409': {$ref: '#/components/responses/Error409'}}
+  /api/plugins/statistics/schedules/{scheduleID}:
+    get:
+      operationId: getStatisticsSchedule
+      parameters: [{name: scheduleID, in: path, required: true, schema: {$ref: '#/components/schemas/Identity'}}]
+      responses: {'200': {$ref: '#/components/responses/Projection200'}, '404': {$ref: '#/components/responses/Error404'}}
+  /api/plugins/statistics/schedules/{scheduleID}/history:
+    get:
+      operationId: getStatisticsScheduleHistory
+      parameters: [{name: scheduleID, in: path, required: true, schema: {$ref: '#/components/schemas/Identity'}}]
+      responses: {'200': {$ref: '#/components/responses/Projection200'}}
+  /api/plugins/statistics/schedules/{scheduleID}/revise:
+    post:
+      operationId: reviseStatisticsSchedule
+      security: [{oidc: [], csrf: []}]
+      parameters: [{name: scheduleID, in: path, required: true, schema: {$ref: '#/components/schemas/Identity'}}]
+      requestBody: {required: true, content: {application/json: {schema: {type: object, required: [idempotency_key], maxProperties: 8, properties: {idempotency_key: {$ref: '#/components/schemas/IdempotencyKey'}}}}}}
+      responses: {'201': {$ref: '#/components/responses/Mutation201'}, '409': {$ref: '#/components/responses/Error409'}}
+  /api/plugins/statistics/schedules/{scheduleID}/disable:
+    post:
+      operationId: disableStatisticsSchedule
+      security: [{oidc: [], csrf: []}]
+      parameters: [{name: scheduleID, in: path, required: true, schema: {$ref: '#/components/schemas/Identity'}}]
+      requestBody: {required: true, content: {application/json: {schema: {type: object, required: [idempotency_key], maxProperties: 8, properties: {idempotency_key: {$ref: '#/components/schemas/IdempotencyKey'}}}}}}
+      responses: {'201': {$ref: '#/components/responses/Mutation201'}, '409': {$ref: '#/components/responses/Error409'}}
   /api/plugins/statistics/artifacts/{artifactID}:
     get:
       operationId: getStatisticsArtifact
@@ -281,6 +548,28 @@ paths:
       responses:
         '200': {description: exact validated artifact, content: {application/json: {schema: {$ref: '../../plugin/statistics/v1/schema.json#/$defs/artifact_record'}}}}
         '404': {$ref: '#/components/responses/Error404'}
+  /api/analysis/tasks:
+    get:
+      operationId: listAnalysisTasks
+      parameters: [{$ref: '#/components/parameters/Cursor'}, {$ref: '#/components/parameters/PageSize'}]
+      responses: {'200': {$ref: '#/components/responses/Projection200'}}
+    post:
+      operationId: submitAnalysisTask
+      security: [{oidc: [], csrf: []}]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/AnalysisTaskRequest'}}}}
+      responses: {'202': {$ref: '#/components/responses/Mutation200'}, '409': {$ref: '#/components/responses/Error409'}}
+  /api/analysis/tasks/{taskID}/poll:
+    post:
+      operationId: pollAnalysisTask
+      security: [{oidc: [], csrf: []}]
+      parameters: [{name: taskID, in: path, required: true, schema: {$ref: '#/components/schemas/Identity'}}]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/ScopedMutationRequest'}}}}
+      responses: {'200': {$ref: '#/components/responses/Mutation200'}, '409': {$ref: '#/components/responses/Error409'}}
+  /api/analysis/artifacts/{artifactID}:
+    get:
+      operationId: getAnalysisArtifact
+      parameters: [{$ref: '#/components/parameters/ArtifactID'}]
+      responses: {'200': {$ref: '#/components/responses/Projection200'}, '404': {$ref: '#/components/responses/Error404'}}
   /events:
     get:
       operationId: streamSseEvents
@@ -292,6 +581,8 @@ paths:
     get: {operationId: readyz, security: [], responses: {'200': {$ref: '#/components/responses/Health200'}, '503': {$ref: '#/components/responses/Error503'}}}
   /livez:
     get: {operationId: livez, security: [], responses: {'200': {$ref: '#/components/responses/Health200'}, '503': {$ref: '#/components/responses/Error503'}}}
+  /metrics:
+    get: {operationId: metrics, security: [], responses: {'200': {description: bounded low-cardinality Prometheus text exposition, content: {text/plain: {schema: {type: string, maxLength: 1048576}}}}}}
   /oidc/login:
     get: {operationId: oidcLogin, security: [], responses: {'303': {description: redirect to exact configured issuer}}}
   /oidc/callback:
@@ -333,6 +624,11 @@ components:
     GroupID: {name: groupID, in: path, required: true, schema: {$ref: '#/components/schemas/Identity'}}
     PluginID: {name: pluginID, in: path, required: true, schema: {$ref: '#/components/schemas/Identity'}}
     ArtifactID: {name: artifactID, in: path, required: true, schema: {$ref: '#/components/schemas/Identity'}}
+    ProposalID: {name: proposalID, in: path, required: true, schema: {$ref: '#/components/schemas/Identity'}}
+    DecisionID: {name: decisionID, in: path, required: true, schema: {$ref: '#/components/schemas/Identity'}}
+    IntentID: {name: intentID, in: path, required: true, schema: {$ref: '#/components/schemas/Identity'}}
+    OperationID: {name: operationID, in: path, required: true, schema: {$ref: '#/components/schemas/Identity'}}
+    FleetID: {name: fleetID, in: path, required: true, schema: {$ref: '#/components/schemas/Identity'}}
   requestBodies:
     CreateProposal:
       required: true
@@ -468,7 +764,7 @@ components:
         target_ids: {type: array, minItems: 1, maxItems: 128, uniqueItems: true, items: {$ref: '#/components/schemas/Identity'}}
         scope: {type: string, minLength: 1, maxLength: 256}
         policy_digest: {$ref: '#/components/schemas/Digest'}
-        risk_level: {enum: [R1, R2, R3]}
+        risk_level: {enum: [R0, R1, R2, R3]}
         evidence_refs: {type: array, maxItems: 128, uniqueItems: true, items: {type: string, minLength: 1, maxLength: 256}}
         note: {type: string, maxLength: 2048}
         idempotency_key: {$ref: '#/components/schemas/IdempotencyKey'}
@@ -482,6 +778,103 @@ components:
         proposal_id: {$ref: '#/components/schemas/Identity'}
         decision: {enum: [approve, reject]}
         reason_code: {$ref: '#/components/schemas/ReasonCode'}
+        idempotency_key: {$ref: '#/components/schemas/IdempotencyKey'}
+    PathDecisionRequest:
+      type: object
+      additionalProperties: false
+      required: [decision, reason_code, idempotency_key]
+      properties:
+        decision: {enum: [approve, reject]}
+        reason_code: {$ref: '#/components/schemas/ReasonCode'}
+        idempotency_key: {$ref: '#/components/schemas/IdempotencyKey'}
+    ScopedMutationRequest:
+      type: object
+      additionalProperties: false
+      required: [scope, target_set_digest, idempotency_key]
+      properties:
+        scope: {type: string, minLength: 1, maxLength: 256}
+        target_set_digest: {$ref: '#/components/schemas/Digest'}
+        idempotency_key: {$ref: '#/components/schemas/IdempotencyKey'}
+    SupersedeProposalRequest:
+      type: object
+      additionalProperties: false
+      required: [replacement_proposal_id, scope, target_set_digest, reason_code, idempotency_key]
+      properties:
+        replacement_proposal_id: {$ref: '#/components/schemas/Identity'}
+        scope: {type: string, minLength: 1, maxLength: 256}
+        target_set_digest: {$ref: '#/components/schemas/Digest'}
+        reason_code: {$ref: '#/components/schemas/ReasonCode'}
+        idempotency_key: {$ref: '#/components/schemas/IdempotencyKey'}
+    CreateEffectIntentRequest:
+      type: object
+      additionalProperties: false
+      required: [proposal_id, decision_id, effect_intent_id, operation_id, scope, target_set_digest, deadline_unix_ms, idempotency_key]
+      properties:
+        proposal_id: {$ref: '#/components/schemas/Identity'}
+        decision_id: {$ref: '#/components/schemas/Identity'}
+        effect_intent_id: {$ref: '#/components/schemas/Identity'}
+        operation_id: {$ref: '#/components/schemas/Identity'}
+        scope: {type: string, minLength: 1, maxLength: 256}
+        target_set_digest: {$ref: '#/components/schemas/Digest'}
+        deadline_unix_ms: {type: integer, minimum: 1}
+        idempotency_key: {$ref: '#/components/schemas/IdempotencyKey'}
+    BoundedCaptureRegistrationRequest:
+      type: object
+      additionalProperties: false
+      required: [target_id, scope, target_set_digest, spec, trace_id, idempotency_key]
+      properties:
+        target_id: {$ref: '#/components/schemas/Identity'}
+        scope: {type: string, minLength: 1, maxLength: 256}
+        target_set_digest: {$ref: '#/components/schemas/Digest'}
+        spec: {type: object, minProperties: 6, maxProperties: 12}
+        trace_id: {$ref: '#/components/schemas/Identity'}
+        idempotency_key: {$ref: '#/components/schemas/IdempotencyKey'}
+    ImportTargetCandidateRequest:
+      type: object
+      additionalProperties: false
+      required: [target, provenance, target_set_digest, idempotency_key]
+      properties:
+        target: {type: object, minProperties: 8, maxProperties: 16}
+        provenance:
+          type: object
+          additionalProperties: false
+          required: [source_id, source_revision, retrieved_at_unix_ms, digest]
+          properties:
+            source_id: {$ref: '#/components/schemas/Identity'}
+            source_revision: {type: string, minLength: 1, maxLength: 128}
+            retrieved_at_unix_ms: {type: integer, minimum: 1}
+            digest: {$ref: '#/components/schemas/Digest'}
+        target_set_digest: {$ref: '#/components/schemas/Digest'}
+        idempotency_key: {$ref: '#/components/schemas/IdempotencyKey'}
+    AssignTargetRequest:
+      type: object
+      additionalProperties: false
+      required: [assignment, prior_generation, prior_election_ceiling, scope, target_set_digest, idempotency_key]
+      properties:
+        assignment: {type: object, minProperties: 10, maxProperties: 18}
+        prior_generation: {type: integer, minimum: 0}
+        prior_election_ceiling: {type: integer, minimum: 0}
+        scope: {type: string, minLength: 1, maxLength: 256}
+        target_set_digest: {$ref: '#/components/schemas/Digest'}
+        idempotency_key: {$ref: '#/components/schemas/IdempotencyKey'}
+    FirewallProposalRequest:
+      type: object
+      additionalProperties: false
+      required: [proposal_id, target_set_digest, evidence_refs, expires_at_unix_ms, note, trace_id, idempotency_key]
+      properties:
+        proposal_id: {$ref: '#/components/schemas/Identity'}
+        target_set_digest: {$ref: '#/components/schemas/Digest'}
+        evidence_refs: {type: array, maxItems: 128, uniqueItems: true, items: {type: string, maxLength: 256}}
+        expires_at_unix_ms: {type: integer, minimum: 1}
+        note: {type: string, maxLength: 2048}
+        trace_id: {$ref: '#/components/schemas/Identity'}
+        idempotency_key: {$ref: '#/components/schemas/IdempotencyKey'}
+    AnalysisTaskRequest:
+      type: object
+      additionalProperties: false
+      required: [input, idempotency_key]
+      properties:
+        input: {type: object, minProperties: 12, maxProperties: 20}
         idempotency_key: {$ref: '#/components/schemas/IdempotencyKey'}
     RegisterTargetRequest:
       type: object

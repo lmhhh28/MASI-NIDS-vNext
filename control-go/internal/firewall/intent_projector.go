@@ -56,11 +56,23 @@ func (p *IntentProjector) projectBaseline(ctx context.Context, tx *db.Tx, intent
 	switch {
 	case state == governance.ClaimClaimed:
 		completed, _ := json.Marshal([]ActivationStage{StagePrepared})
-		_, err := tx.Exec(ctx, `INSERT INTO firewall_activations(operation_id,target_id,desired_revision_id,
+		var expectedVersion int64
+		var expectedCurrent *string
+		var expectedBank int
+		expectedCAS := "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+		err := tx.QueryRow(ctx, `SELECT binding_version,current_revision_id,active_bank,cas_digest
+			FROM firewall_bindings WHERE target_id=$1 FOR UPDATE`, targetID).
+			Scan(&expectedVersion, &expectedCurrent, &expectedBank, &expectedCAS)
+		if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+			return err
+		}
+		_, err = tx.Exec(ctx, `INSERT INTO firewall_activations(operation_id,target_id,desired_revision_id,
 			current_stage,completed_stages,expected_entries,observed_entries,mismatched_entries,
-			default_readback,selector_readback,result,reason_code)
-			VALUES($1,$2,$3,'prepared',$4,0,0,0,'missing','old-bank','prepared','CLAIMED')
-			ON CONFLICT(operation_id) DO NOTHING`, operationID, targetID, revisionID, completed)
+			default_readback,selector_readback,result,reason_code,expected_binding_version,
+			expected_current_revision_id,expected_active_bank,expected_cas_digest)
+			VALUES($1,$2,$3,'prepared',$4,0,0,0,'missing','old-bank','prepared','CLAIMED',$5,$6,$7,$8)
+			ON CONFLICT(operation_id) DO NOTHING`, operationID, targetID, revisionID, completed,
+			expectedVersion, expectedCurrent, expectedBank, expectedCAS)
 		return err
 	case state == governance.ClaimUnknown || outcome == governance.AttemptReconciling:
 		if _, err := tx.Exec(ctx, `UPDATE firewall_activations SET result='reconciling',reason_code=$1,updated_at=now()
@@ -85,6 +97,16 @@ func (p *IntentProjector) projectBaseline(ctx context.Context, tx *db.Tx, intent
 		if expected != observed || mismatched != 0 || readbackDigest == "" || activeBank < 0 || activeBank > 1 {
 			return errors.New("firewall projector: applied attempt lacks exact readback")
 		}
+		var expectedVersion int64
+		var expectedRevision *string
+		var expectedBank int
+		var expectedCAS string
+		if err := tx.QueryRow(ctx, `SELECT expected_binding_version,expected_current_revision_id,
+			expected_active_bank,expected_cas_digest FROM firewall_activations
+			WHERE operation_id=$1 AND target_id=$2 FOR UPDATE`, operationID, targetID).
+			Scan(&expectedVersion, &expectedRevision, &expectedBank, &expectedCAS); err != nil {
+			return err
+		}
 		var currentRevision *string
 		err := tx.QueryRow(ctx, `SELECT current_revision_id FROM firewall_bindings WHERE target_id=$1 FOR UPDATE`, targetID).
 			Scan(&currentRevision)
@@ -92,21 +114,35 @@ func (p *IntentProjector) projectBaseline(ctx context.Context, tx *db.Tx, intent
 			return err
 		}
 		if errors.Is(err, pgx.ErrNoRows) {
-			if _, err := tx.Exec(ctx, `INSERT INTO firewall_bindings(target_id,current_revision_id,
-				previous_revision_id,active_bank,selector_state,operation_id,cas_digest)
-				VALUES($1,$2,NULL,$3,'stable',$4,$5)`, targetID, revisionID, activeBank, operationID, policyDigest); err != nil {
+			tag, err := tx.Exec(ctx, `INSERT INTO firewall_bindings(target_id,current_revision_id,
+					previous_revision_id,active_bank,selector_state,operation_id,cas_digest,binding_version)
+					SELECT $1,$2,NULL,$3,'stable',$4,$5,1
+						WHERE $6=0 AND $7::text IS NULL`, targetID, revisionID, activeBank, operationID,
+				policyDigest, expectedVersion, expectedRevision)
+			if err != nil {
 				return err
+			}
+			if tag.RowsAffected() != 1 {
+				return errors.New("firewall projector: initial selector/current binding CAS conflict")
 			}
 		} else {
 			var previous any
 			if currentRevision != nil {
 				previous = *currentRevision
 			}
-			if _, err := tx.Exec(ctx, `UPDATE firewall_bindings SET current_revision_id=$1,
-				previous_revision_id=$2,active_bank=$3,selector_state='stable',operation_id=$4,
-				cas_digest=$5,updated_at=now() WHERE target_id=$6`, revisionID, previous,
-				activeBank, operationID, policyDigest, targetID); err != nil {
+			tag, err := tx.Exec(ctx, `UPDATE firewall_bindings SET current_revision_id=$1,
+					previous_revision_id=$2,active_bank=$3,selector_state='stable',operation_id=$4,
+					cas_digest=$5,binding_version=binding_version+1,updated_at=now()
+					WHERE target_id=$6 AND binding_version=$7
+					  AND current_revision_id IS NOT DISTINCT FROM $8
+					  AND active_bank=$9 AND cas_digest=$10`, revisionID, previous,
+				activeBank, operationID, policyDigest, targetID, expectedVersion,
+				expectedRevision, expectedBank, expectedCAS)
+			if err != nil {
 				return err
+			}
+			if tag.RowsAffected() != 1 {
+				return errors.New("firewall projector: selector/current binding CAS conflict")
 			}
 		}
 		completed, _ := json.Marshal(ActivationStagesInOrder)

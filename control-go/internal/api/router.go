@@ -15,6 +15,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5"
 
+	"masi-nids/control-go/internal/a2a"
 	"masi-nids/control-go/internal/db"
 	"masi-nids/control-go/internal/firewall"
 	"masi-nids/control-go/internal/governance"
@@ -37,11 +38,12 @@ type Deps struct {
 	Mapping        *security.RoleScopeMapping
 	Cursor         *CursorCodec
 	Secure         bool
+	RequestTimeout time.Duration
 	AcceptMutation func() bool
 	// TestLogin enables the test-only /oidc/test-login route that mints a session
 	// for caller-supplied identity. Set only in the test runtime profile; production
 	// never wires it. Authorization still flows through Mapping.
-	TestLogin      bool
+	TestLogin bool
 
 	// Wired subdomain services (constructed with the real pool at startup). The
 	// read projections above currently query the pool directly; mutations and
@@ -61,8 +63,11 @@ type Deps struct {
 	PluginStat         *pluginstat.Service
 	RuleObs            *ruleobs.Projector
 	Preflight          *governance.PreflightService
+	FirewallCompiler   governance.EdgeEffectPreflightClient
 	Dispatcher         *governance.Dispatcher
 	Reconcile          *governance.ReconcileService
+	Capture            *governance.CaptureService
+	Analysis           *a2a.Client
 }
 
 // Router assembles the same-origin /api surface + /events SSE + OIDC.
@@ -70,65 +75,114 @@ func Router(deps Deps, oidc *OIDCClient, store *SessionStore, hub *Hub, allowedO
 	r := chi.NewRouter()
 
 	// OIDC (no session required to start login; callback verifies).
-	r.Get("/oidc/login", handleLogin(oidc, store, deps.Secure))
-	r.Get("/oidc/callback", handleCallback(oidc, store, deps.Secure))
+	r.With(requestDeadline(deps.RequestTimeout)).Get("/oidc/login", handleLogin(oidc, store, deps.Secure))
+	r.With(requestDeadline(deps.RequestTimeout)).Get("/oidc/callback", handleCallback(oidc, store, deps.Secure))
 	// Test-only session minting. Registered solely in the test runtime profile
 	// (deps.TestLogin); production never wires it. Mints identity only —
 	// authorization still flows through the RoleScopeMapping.
 	if deps.TestLogin {
-		r.Post("/oidc/test-login", handleTestLogin(store, deps.Secure))
+		r.With(requestDeadline(deps.RequestTimeout)).Post("/oidc/test-login", handleTestLogin(store, deps.Secure, allowedOrigin))
 	}
-	r.With(requireMutationGuard(store, allowedOrigin)).Post("/oidc/logout", handleLogout(store, deps.Secure))
+	r.With(requestDeadline(deps.RequestTimeout), requireMutationGuard(store, allowedOrigin)).Post("/oidc/logout", handleLogout(store, deps.Secure))
 
 	// Session bootstrap: the SPA reads its CSRF token + actor here (the ONLY
 	// credential in the browser is the HttpOnly cookie).
-	r.Get("/api/session", handleSession(store))
+	r.With(requestDeadline(deps.RequestTimeout)).Get("/api/session", handleSession(store))
 
 	// Read projections (session required; server-side scope filtering).
 	r.Group(func(r chi.Router) {
+		r.Use(requestDeadline(deps.RequestTimeout))
 		r.Use(requireSession(store))
 		r.Get("/api/events", handleListEvents(deps))
 		r.Get("/api/events/{id}", handleGetEvent(deps))
 		r.Get("/api/incidents", handleListIncidents(deps))
 		r.Get("/api/evidence", handleListEvidence(deps))
+		r.Get("/api/evidence/captures", handleListBoundedCaptures(deps))
 		r.Get("/api/effects/proposals", handleListProposals(deps))
+		r.Get("/api/effects/proposals/{proposalID}", handleGetEffectProposal(deps))
 		r.Get("/api/effects/decisions", handleListDecisions(deps))
+		r.Get("/api/effects/decisions/{decisionID}", handleGetEffectDecision(deps))
 		r.Get("/api/effects/intents", handleListIntents(deps))
+		r.Get("/api/effects/intents/{intentID}", handleGetEffectIntent(deps))
+		r.Get("/api/effects/operations/{operationID}", handleGetEffectOperation(deps))
+		r.Get("/api/effects/operations/{operationID}/attempts", handleGetEffectAttempts(deps))
+		r.Get("/api/effects/operations/{operationID}/readback", handleGetEffectReadback(deps))
 		r.Get("/api/targets", handleListTargets(deps))
+		r.Get("/api/targets/{targetID}", handleGetTarget(deps))
+		r.Get("/api/targets/{targetID}/observation", handleGetTargetObservation(deps))
+		r.Get("/api/targets/{targetID}/operations/{operationID}", handleGetTargetOperation(deps))
+		r.Get("/api/targets/candidates/{targetID}/diff", handleGetTargetCandidateDiff(deps))
 		r.Get("/api/fleet/operations", handleListFleetOperations(deps))
+		r.Get("/api/fleet/operations/{fleetID}", handleGetFleetOperation(deps))
 		r.Get("/api/firewall/revisions", handleListFirewallRevisions(deps))
+		r.Get("/api/firewall/revisions/{revisionID}", handleGetFirewallRevision(deps))
+		r.Get("/api/firewall/revisions/{revisionID}/inspection", handleInspectFirewallRevision(deps))
+		r.Get("/api/firewall/bindings", handleListFirewallBindings(deps))
+		r.Get("/api/firewall/activations/{operationID}", handleGetFirewallActivation(deps))
 		r.Get("/api/rule-effectiveness", handleListRuleEffectiveness(deps))
 		r.Get("/api/models/revisions", handleListModelRevisions(deps))
 		r.Get("/api/models/bindings", handleListModelBindings(deps))
 		r.Get("/api/models/rollout-groups", handleListModelRolloutGroups(deps))
+		r.Get("/api/models/rollout-groups/{groupID}", handleGetModelRolloutGroup(deps))
+		r.Get("/api/models/incarnations/current", handleGetModelIncarnation(deps))
+		r.Get("/api/models/pools", handleListModelPools(deps))
+		r.Get("/api/models/pools/{poolID}", handleGetModelPool(deps))
+		r.Get("/api/models/operations/{operationID}", handleGetModelOperation(deps))
 		r.Get("/api/plugins", handleListPlugins(deps))
 		r.Get("/api/plugins/statistics/definitions", handleListPluginStatDefinitions(deps))
+		r.Get("/api/plugins/statistics/definitions/{definitionID}", handleGetPluginStatDefinition(deps))
+		r.Get("/api/plugins/statistics/definitions/{definitionID}/history", handleGetPluginStatDefinitionHistory(deps))
 		r.Get("/api/plugins/statistics/runs", handleListPluginStatRuns(deps))
+		r.Get("/api/plugins/statistics/runs/{runID}", handleGetPluginStatRun(deps))
 		r.Get("/api/plugins/statistics/current", handleListPluginStatsCurrent(deps))
 		r.Get("/api/plugins/statistics/schedules", handleListPluginStatSchedules(deps))
+		r.Get("/api/plugins/statistics/schedules/{scheduleID}", handleGetPluginStatSchedule(deps))
+		r.Get("/api/plugins/statistics/schedules/{scheduleID}/history", handleGetPluginStatScheduleHistory(deps))
 		r.Get("/api/plugins/statistics/artifacts/{artifactID}", handleGetPluginStatArtifact(deps))
+		r.Get("/api/analysis/tasks", handleListAnalysisTasks(deps))
+		r.Get("/api/analysis/artifacts/{artifactID}", handleGetAnalysisArtifact(deps))
 	})
 
 	// Mutations: session + Origin + CSRF + server-side scope authorization.
 	r.Group(func(r chi.Router) {
+		r.Use(requestDeadline(deps.RequestTimeout))
 		r.Use(requireMutationAdmission(deps.AcceptMutation))
 		r.Use(requireMutationGuard(store, allowedOrigin))
 		r.Use(requireMutationIdempotency(deps.Pool))
 		r.Post("/api/effects/proposals", handleCreateProposal(deps))
+		r.Post("/api/effects/proposals/{proposalID}/supersede", handleSupersedeProposal(deps))
 		r.Post("/api/effects/decisions", handleRecordDecision(deps))
+		r.Post("/api/effects/intents", handleCreateEffectIntent(deps))
+		r.Post("/api/effects/operations/{operationID}/reconcile", handleReconcileEffectOperation(deps))
+		r.Post("/api/evidence/captures", handleRegisterBoundedCapture(deps))
+		r.Post("/api/evidence/captures/{captureID}/intents", handleCreateBoundedCaptureIntent(deps))
 		r.Post("/api/plugins/statistics/runs", handleStartPluginStatRun(deps))
 		r.Post("/api/targets", handleRegisterTarget(deps))
+		r.Post("/api/targets/candidates/import", handleImportTargetCandidate(deps))
+		r.Post("/api/targets/{targetID}/verify", handleVerifyTarget(deps))
 		r.Post("/api/targets/{targetID}/activate", handleTargetLifecycle(deps, true))
+		r.Post("/api/targets/{targetID}/assign", handleAssignTarget(deps))
+		r.Post("/api/targets/{targetID}/drain", handleTargetOperationalLifecycle(deps, target.StatusDraining))
+		r.Post("/api/targets/{targetID}/disable", handleTargetOperationalLifecycle(deps, target.StatusDisabled))
+		r.Post("/api/targets/{targetID}/quarantine", handleTargetOperationalLifecycle(deps, target.StatusQuarantined))
 		r.Post("/api/targets/{targetID}/retire", handleTargetLifecycle(deps, false))
 		r.Post("/api/fleet/operations", handleCreateFleetOperation(deps))
 		r.Post("/api/fleet/operations/{fleetID}/advance", handleAdvanceFleetWave(deps))
+		r.Post("/api/fleet/operations/{fleetID}/rollback", handleRollbackFleetOperation(deps))
 		r.Post("/api/firewall/revisions", handleCreateFirewallRevision(deps))
+		r.Post("/api/firewall/revisions/{revisionID}/activation-proposals", handleCreateFirewallActivationProposal(deps, false))
+		r.Post("/api/firewall/activations/{operationID}/rollback-proposals", handleCreateFirewallActivationProposal(deps, true))
+		r.Post("/api/firewall/activation-proposals/{proposalID}/decisions", handleFirewallProposalDecision(deps))
 		r.Post("/api/firewall/activations", handlePrepareFirewallActivation(deps))
 		r.Post("/api/firewall/overlays", handleCreateFirewallOverlay(deps))
 		r.Post("/api/models/revisions", handleRegisterModelRevision(deps))
 		r.Post("/api/models/revisions/{revisionID}/revoke", handleRevokeModelRevision(deps))
 		r.Post("/api/models/rollout-groups", handleCreateModelRolloutGroup(deps))
 		r.Post("/api/models/rollout-groups/{groupID}/advance", handleAdvanceModelRolloutGroup(deps))
+		r.Post("/api/models/rollout-groups/{groupID}/rollback", handleCreateModelRollbackGroup(deps))
+		r.Post("/api/models/operations/{operationID}/recover", handleRecoverModelOperation(deps))
+		r.Post("/api/models/incarnations/rotate", handleRotateModelIncarnation(deps))
+		r.Post("/api/models/incarnations/{incarnationID}/enable-writer", handleEnableModelWriter(deps))
 		r.Post("/api/plugins", handleRegisterPluginManifest(deps))
 		r.Post("/api/plugins/{pluginID}/qualifications", handleQualifyPlugin(deps))
 		r.Post("/api/plugins/{pluginID}/bindings", handleActivatePluginBinding(deps))
@@ -137,11 +191,28 @@ func Router(deps Deps, oidc *OIDCClient, store *SessionStore, hub *Hub, allowedO
 		r.Post("/api/plugins/{pluginID}/rollback", handlePluginBindingLifecycle(deps, "rollback"))
 		r.Post("/api/plugins/statistics/definitions", handleRegisterPluginStatDefinition(deps))
 		r.Post("/api/plugins/statistics/schedules", handleCreatePluginStatSchedule(deps))
+		r.Post("/api/plugins/statistics/schedules/{scheduleID}/revise", handleRevisePluginStatSchedule(deps, false))
+		r.Post("/api/plugins/statistics/schedules/{scheduleID}/disable", handleRevisePluginStatSchedule(deps, true))
+		r.Post("/api/analysis/tasks", handleSubmitAnalysisTask(deps))
+		r.Post("/api/analysis/tasks/{taskID}/poll", handlePollAnalysisTask(deps))
 	})
 
 	// SSE (read-only stream; session + origin verified inside).
 	r.Get("/events", hub.ServeEvents(store, deps.Mapping, allowedOrigin))
 	return r
+}
+
+func requestDeadline(timeout time.Duration) func(http.Handler) http.Handler {
+	if timeout <= 0 {
+		timeout = 30 * time.Second
+	}
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			ctx, cancel := context.WithTimeout(r.Context(), timeout)
+			defer cancel()
+			next.ServeHTTP(w, r.WithContext(ctx))
+		})
+	}
 }
 
 func requireMutationAdmission(accept func() bool) func(http.Handler) http.Handler {
@@ -315,9 +386,11 @@ func actorRefOf(s *Session) string {
 }
 
 // scopedJSONList centralizes the fail-closed SQL scope predicate and bounded,
-// authenticated cursor contract for read projections. Both supplied queries use
-// $1 for the authorized scope array; itemSQL uses $2 as limit and the helper
-// appends OFFSET $3. Cursor kind+scope binding prevents cross-resource replay.
+// authenticated keyset cursor contract for read projections. countSQL uses $1
+// for the authorized scope array. itemSQL must use $1 for scopes, $2 for the
+// page limit and $3 for the exclusive stable string key, and return (JSON,key).
+// Cursor kind+scope binding prevents cross-resource replay; no OFFSET/deep-page
+// scan is used.
 func scopedJSONList(deps Deps, kind, countSQL, itemSQL string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		s, scopes, err := readAuthorization(r, deps)
@@ -340,7 +413,7 @@ func scopedJSONList(deps Deps, kind, countSQL, itemSQL string) http.HandlerFunc 
 			return
 		}
 		scopeHash := digestText(strings.Join(scopes, "\x00"))
-		if cur.Kind != "" && (cur.Kind != kind || cur.ScopeHash != scopeHash || !cur.Forward) {
+		if cur.Kind != "" && (cur.Kind != kind || cur.ScopeHash != scopeHash || !cur.Forward || cur.LastID != 0) {
 			WriteError(w, http.StatusBadRequest, "CURSOR_SCOPE_MISMATCH")
 			return
 		}
@@ -349,20 +422,18 @@ func scopedJSONList(deps Deps, kind, countSQL, itemSQL string) http.HandlerFunc 
 			WriteError(w, http.StatusInternalServerError, "COUNT_FAILED")
 			return
 		}
-		if cur.LastID > total || cur.LastID > 10_000_000 {
-			WriteError(w, http.StatusBadRequest, "CURSOR_OUT_OF_RANGE")
-			return
-		}
-		rows, err := deps.Pool.Pool.Query(r.Context(), itemSQL+" OFFSET $3", scopes, pageSize, cur.LastID)
+		rows, err := deps.Pool.Pool.Query(r.Context(), itemSQL, scopes, pageSize+1, cur.LastKey)
 		if err != nil {
 			WriteError(w, http.StatusInternalServerError, "QUERY_FAILED")
 			return
 		}
 		defer rows.Close()
-		items := make([]any, 0, pageSize)
+		items := make([]any, 0, pageSize+1)
+		lastKey := ""
 		for rows.Next() {
 			var raw []byte
-			if err := rows.Scan(&raw); err != nil {
+			var key string
+			if err := rows.Scan(&raw, &key); err != nil || key == "" || len(key) > 128 {
 				WriteError(w, http.StatusInternalServerError, "SCAN_FAILED")
 				return
 			}
@@ -372,6 +443,9 @@ func scopedJSONList(deps Deps, kind, countSQL, itemSQL string) http.HandlerFunc 
 				return
 			}
 			items = append(items, item)
+			if len(items) == pageSize {
+				lastKey = key
+			}
 		}
 		if err := rows.Err(); err != nil {
 			WriteError(w, http.StatusInternalServerError, "QUERY_FAILED")
@@ -379,8 +453,10 @@ func scopedJSONList(deps Deps, kind, countSQL, itemSQL string) http.HandlerFunc 
 		}
 		p := NewProjection(kind, ProjectionCurrent, pageSize, total, 1, actorRefOf(s), strings.Join(scopes, ","))
 		p.Items = items
-		if nextOffset := cur.LastID + int64(len(items)); nextOffset < total {
-			p.Cursor, err = deps.Cursor.Encode(Cursor{LastID: nextOffset, Forward: true, Generation: 1,
+		if len(items) == pageSize+1 {
+			items = items[:pageSize]
+			p.Items = items
+			p.Cursor, err = deps.Cursor.Encode(Cursor{LastKey: lastKey, Forward: true, Generation: 1,
 				Kind: kind, ScopeHash: scopeHash})
 			if err != nil {
 				WriteError(w, http.StatusInternalServerError, "CURSOR_ENCODE_FAILED")
@@ -396,7 +472,8 @@ func handleListIncidents(deps Deps) http.HandlerFunc {
 		`SELECT count(*) FROM incidents WHERE scope=ANY($1)`,
 		`SELECT jsonb_build_object('incident_id',incident_id,'severity',severity,'status',status,
 		 'created_at_unix_ms',(extract(epoch from created_at)*1000)::bigint)
-			 FROM incidents WHERE scope=ANY($1) ORDER BY created_at DESC,incident_id DESC LIMIT $2`)
+			,incident_id FROM incidents WHERE scope=ANY($1)
+			 AND ($3::text='' OR incident_id>$3) ORDER BY incident_id LIMIT $2`)
 }
 
 func handleListEvidence(deps Deps) http.HandlerFunc {
@@ -405,7 +482,8 @@ func handleListEvidence(deps Deps) http.HandlerFunc {
 		`SELECT jsonb_build_object('evidence_id',evidence_id,'kind',kind,
 		 'reference_digest',reference_digest,'source',source,
 		 'created_at_unix_ms',(extract(epoch from created_at)*1000)::bigint)
-			 FROM evidence_refs WHERE scope=ANY($1) ORDER BY created_at DESC,evidence_id DESC LIMIT $2`)
+			,evidence_id FROM evidence_refs WHERE scope=ANY($1)
+			 AND ($3::text='' OR evidence_id>$3) ORDER BY evidence_id LIMIT $2`)
 }
 
 func handleListFleetOperations(deps Deps) http.HandlerFunc {
@@ -419,9 +497,10 @@ func handleListFleetOperations(deps Deps) http.HandlerFunc {
 		   'status',fc.status,'reason_code',fc.reason_code,'gate_open',fc.gate_open)
 		   ORDER BY fc.wave_index,fc.target_id) FROM fleet_child_intents fc
 		   WHERE fc.fleet_operation_id=fo.fleet_operation_id),'[]'::jsonb),
-		 'created_at_unix_ms',fo.created_at_unix_ms)
+		 'created_at_unix_ms',fo.created_at_unix_ms),fo.fleet_operation_id
 		 FROM fleet_operations fo WHERE fo.scope=ANY($1)
-		 ORDER BY fo.created_at DESC,fo.fleet_operation_id DESC LIMIT $2`)
+		 AND ($3::text='' OR fo.fleet_operation_id>$3)
+		 ORDER BY fo.fleet_operation_id LIMIT $2`)
 }
 
 func handleListModelRevisions(deps Deps) http.HandlerFunc {
@@ -429,8 +508,9 @@ func handleListModelRevisions(deps Deps) http.HandlerFunc {
 		`SELECT count(*) FROM model_revisions WHERE scope=ANY($1)`,
 		`SELECT jsonb_build_object('model_revision_id',model_revision_id,
 		 'model_revision_digest',model_revision_digest,'qualification_status',qualification_status,
-		 'reader_runtime_profile',reader_runtime_profile)
-			 FROM model_revisions WHERE scope=ANY($1) ORDER BY created_at DESC,model_revision_id DESC LIMIT $2`)
+		 'reader_runtime_profile',reader_runtime_profile),model_revision_id
+			 FROM model_revisions WHERE scope=ANY($1) AND ($3::text='' OR model_revision_id>$3)
+			 ORDER BY model_revision_id LIMIT $2`)
 }
 
 func handleListModelBindings(deps Deps) http.HandlerFunc {
@@ -438,8 +518,8 @@ func handleListModelBindings(deps Deps) http.HandlerFunc {
 		`SELECT count(*) FROM shard_bindings WHERE scope=ANY($1)`,
 		`SELECT jsonb_build_object('shard_id',shard_id,'logical_pool_id',logical_pool_id,
 		 'current_generation',current_generation,'current_binding_generation',current_binding_generation,
-		 'current_revision_id',current_revision_id,'route_epoch',route_epoch,'resume_state',resume_state)
-		 FROM shard_bindings WHERE scope=ANY($1) ORDER BY shard_id LIMIT $2`)
+		 'current_revision_id',current_revision_id,'route_epoch',route_epoch,'resume_state',resume_state),shard_id
+		 FROM shard_bindings WHERE scope=ANY($1) AND ($3::text='' OR shard_id>$3) ORDER BY shard_id LIMIT $2`)
 }
 
 func handleListModelRolloutGroups(deps Deps) http.HandlerFunc {
@@ -452,9 +532,9 @@ func handleListModelRolloutGroups(deps Deps) http.HandlerFunc {
 		   'shard_id',s.shard_id,'operation_id',s.operation_id,'status',s.status,
 		   'current_generation',s.current_generation,'route_epoch',s.route_epoch,
 		   'reason_code',s.reason_code) ORDER BY s.shard_index)
-		   FROM model_rollout_group_shards s WHERE s.group_id=g.group_id),'[]'::jsonb))
+			   FROM model_rollout_group_shards s WHERE s.group_id=g.group_id),'[]'::jsonb)),g.group_id
 		 FROM model_rollout_groups g WHERE g.scope=ANY($1)
-		 ORDER BY g.created_at DESC,g.group_id DESC LIMIT $2`)
+		 AND ($3::text='' OR g.group_id>$3) ORDER BY g.group_id LIMIT $2`)
 }
 
 func handleListPlugins(deps Deps) http.HandlerFunc {
@@ -462,10 +542,10 @@ func handleListPlugins(deps Deps) http.HandlerFunc {
 		`SELECT count(DISTINCT plugin_id) FROM plugin_manifests WHERE scope=ANY($1)`,
 		`SELECT jsonb_build_object('plugin_id',plugin_id,'manifest_id',manifest_id,
 		 'manifest_revision',manifest_revision,'manifest_digest',manifest_digest,'kind',kind,
-		 'runtime_profile',runtime_profile) FROM (
+		 'runtime_profile',runtime_profile),plugin_id FROM (
 		   SELECT DISTINCT ON (plugin_id) * FROM plugin_manifests
 		   WHERE scope=ANY($1) ORDER BY plugin_id,manifest_revision DESC
-		 ) p ORDER BY plugin_id LIMIT $2`)
+		 ) p WHERE ($3::text='' OR plugin_id>$3) ORDER BY plugin_id LIMIT $2`)
 }
 
 func handleListPluginStatDefinitions(deps Deps) http.HandlerFunc {
@@ -473,8 +553,9 @@ func handleListPluginStatDefinitions(deps Deps) http.HandlerFunc {
 		`SELECT count(*) FROM plugin_statistics_definitions WHERE scope=ANY($1)`,
 		`SELECT jsonb_build_object('definition_id',definition_id,'definition_digest',definition_digest,
 		 'plugin_id',plugin_id,'binding_generation',binding_generation,'producer_kind',producer_kind,
-		 'display_hint',display_hint,'revoked',revoked)
-			 FROM plugin_statistics_definitions WHERE scope=ANY($1) ORDER BY created_at DESC,definition_id DESC LIMIT $2`)
+		 'display_hint',display_hint,'revoked',revoked),definition_id
+			 FROM plugin_statistics_definitions WHERE scope=ANY($1)
+			 AND ($3::text='' OR definition_id>$3) ORDER BY definition_id LIMIT $2`)
 }
 
 func handleListPluginStatRuns(deps Deps) http.HandlerFunc {
@@ -482,8 +563,9 @@ func handleListPluginStatRuns(deps Deps) http.HandlerFunc {
 		`SELECT count(*) FROM plugin_statistic_runs WHERE scope=ANY($1)`,
 		`SELECT jsonb_build_object('run_id',run_id,'definition_id',definition_id,'status',status,
 		 'binding_generation',binding_generation,'started_at_unix_ms',started_at_unix_ms,
-		 'finished_at_unix_ms',finished_at_unix_ms,'artifact_id',artifact_id)
-			 FROM plugin_statistic_runs WHERE scope=ANY($1) ORDER BY created_at DESC,run_id DESC LIMIT $2`)
+		 'finished_at_unix_ms',finished_at_unix_ms,'artifact_id',artifact_id),run_id
+			 FROM plugin_statistic_runs WHERE scope=ANY($1) AND ($3::text='' OR run_id>$3)
+			 ORDER BY run_id LIMIT $2`)
 }
 
 func handleListPluginStatSchedules(deps Deps) http.HandlerFunc {
@@ -493,10 +575,10 @@ func handleListPluginStatSchedules(deps Deps) http.HandlerFunc {
 		`SELECT jsonb_build_object('schedule_id',schedule_id,'schedule_revision',schedule_revision,
 		 'definition_id',definition_id,'definition_digest',definition_digest,
 		 'interval_seconds',interval_seconds,'disabled',disabled,'data_class',data_class,
-		 'target_set_digest',target_set_digest,'reason_code',reason_code)
+		 'target_set_digest',target_set_digest,'reason_code',reason_code),schedule_id
 		 FROM (SELECT DISTINCT ON(schedule_id) * FROM plugin_statistic_schedules
 		 WHERE scope=ANY($1) ORDER BY schedule_id,schedule_revision DESC) latest
-		 ORDER BY schedule_id LIMIT $2`)
+		 WHERE ($3::text='' OR schedule_id>$3) ORDER BY schedule_id LIMIT $2`)
 }
 
 func handleListEvents(deps Deps) http.HandlerFunc {
@@ -637,9 +719,9 @@ func handleListProposals(deps Deps) http.HandlerFunc {
 		`SELECT count(*) FROM effect_proposals WHERE scope=ANY($1)`,
 		`SELECT jsonb_build_object('proposal_id',proposal_id,'risk_level',risk_level,
 		 'effect_kind',effect_kind,'reason_code',reason_code,
-		 'created_at_unix_ms',(extract(epoch from created_at)*1000)::bigint)
+		 'created_at_unix_ms',(extract(epoch from created_at)*1000)::bigint),proposal_id
 		 FROM effect_proposals WHERE scope=ANY($1)
-		 ORDER BY created_at DESC,proposal_id DESC LIMIT $2`)
+		 AND ($3::text='' OR proposal_id>$3) ORDER BY proposal_id LIMIT $2`)
 }
 
 func handleListDecisions(deps Deps) http.HandlerFunc {
@@ -649,9 +731,10 @@ func handleListDecisions(deps Deps) http.HandlerFunc {
 		`SELECT jsonb_build_object('decision_id',d.decision_id,'proposal_id',d.proposal_id,
 		 'proposal_digest',d.proposal_digest,'risk_level',d.risk_level,'decision',d.decision,
 		 'decision_digest',d.decision_digest,'expires_at_unix_ms',d.expires_at_unix_ms,
-		 'created_at_unix_ms',d.created_at_unix_ms,'reason_code',d.reason_code)
+		 'created_at_unix_ms',d.created_at_unix_ms,'reason_code',d.reason_code),d.decision_id
 		 FROM effect_decisions d JOIN effect_proposals p ON p.proposal_id=d.proposal_id
-		 WHERE p.scope=ANY($1) ORDER BY d.created_at DESC,d.decision_id DESC LIMIT $2`)
+		 WHERE p.scope=ANY($1) AND ($3::text='' OR d.decision_id>$3)
+		 ORDER BY d.decision_id LIMIT $2`)
 }
 
 func handleListIntents(deps Deps) http.HandlerFunc {
@@ -659,17 +742,30 @@ func handleListIntents(deps Deps) http.HandlerFunc {
 		`SELECT count(*) FROM effect_intents i JOIN effect_proposals p ON p.proposal_id=i.proposal_id WHERE p.scope=ANY($1)`,
 		`SELECT jsonb_build_object('effect_intent_id',i.effect_intent_id,'operation_id',i.operation_id,
 		 'target_id',i.target_id,'claim_state',i.claim_state,'deadline_unix_ms',i.deadline_unix_ms,
-		 'reason_code',i.reason_code)
+		 'reason_code',i.reason_code),i.effect_intent_id
 		 FROM effect_intents i JOIN effect_proposals p ON p.proposal_id=i.proposal_id
-		 WHERE p.scope=ANY($1) ORDER BY i.created_at DESC,i.effect_intent_id DESC LIMIT $2`)
+		 WHERE p.scope=ANY($1) AND ($3::text='' OR i.effect_intent_id>$3)
+		 ORDER BY i.effect_intent_id LIMIT $2`)
 }
 
 func handleListTargets(deps Deps) http.HandlerFunc {
 	return scopedJSONList(deps, "target",
 		`SELECT count(*) FROM targets WHERE scope=ANY($1)`,
 		`SELECT jsonb_build_object('target_id',target_id,'lifecycle',status,'device_id',device_id,
-		 'role',role,'desired_profile_digest',desired_profile_digest)
-		 FROM targets WHERE scope=ANY($1) ORDER BY target_id LIMIT $2`)
+		 'role',role,'desired_profile_digest',desired_profile_digest),target_id
+		 FROM targets WHERE scope=ANY($1) AND ($3::text='' OR target_id>$3) ORDER BY target_id LIMIT $2`)
+}
+
+func handleListBoundedCaptures(deps Deps) http.HandlerFunc {
+	return scopedJSONList(deps, "bounded-capture",
+		`SELECT count(*) FROM bounded_capture_requests WHERE scope=ANY($1)`,
+		`SELECT jsonb_build_object('capture_id',r.capture_id,'target_id',r.target_id,'capture_digest',r.capture_digest,
+		 'duration_ms',r.duration_ms,'sample_limit',r.sample_limit,'byte_limit',r.byte_limit,
+		 'expires_at_unix_ms',r.expires_at_unix_ms,'state',r.state,'effect_intent_id',r.effect_intent_id,
+		 'evidence_id',x.evidence_id,'content_digest',x.content_digest,'observed_samples',x.observed_samples,
+		 'observed_bytes',x.observed_bytes,'truncated',x.truncated,'gap',x.gap),r.capture_id
+		 FROM bounded_capture_requests r LEFT JOIN bounded_capture_results x ON x.capture_id=r.capture_id
+		 WHERE r.scope=ANY($1) AND ($3::text='' OR r.capture_id>$3) ORDER BY r.capture_id LIMIT $2`)
 }
 
 func handleListFirewallRevisions(deps Deps) http.HandlerFunc {
@@ -677,9 +773,9 @@ func handleListFirewallRevisions(deps Deps) http.HandlerFunc {
 		`SELECT count(*) FROM firewall_revisions WHERE scope=ANY($1)`,
 		`SELECT jsonb_build_object('revision_id',revision_id,'revision_digest',revision_digest,
 		 'target_id',target_id,'default_action',default_action,'scope',scope,
-		 'created_at_unix_ms',(extract(epoch from created_at)*1000)::bigint)
+		 'created_at_unix_ms',(extract(epoch from created_at)*1000)::bigint),revision_id
 		 FROM firewall_revisions WHERE scope=ANY($1)
-		 ORDER BY created_at DESC,revision_id DESC LIMIT $2`)
+		 AND ($3::text='' OR revision_id>$3) ORDER BY revision_id LIMIT $2`)
 }
 
 func handleListRuleEffectiveness(deps Deps) http.HandlerFunc {
@@ -689,11 +785,11 @@ func handleListRuleEffectiveness(deps Deps) http.HandlerFunc {
 		 JOIN effect_intents i ON i.effect_intent_id=e.effect_intent_id
 		 JOIN effect_proposals p ON p.proposal_id=i.proposal_id WHERE p.scope=ANY($1)`,
 		`SELECT jsonb_build_object('rule_id',e.rule_id,'quality_status',ro.quality_status,
-		 'rate',ro.rate,'coverage',ro.coverage,'outcome_status',ro.outcome_status)
+		 'rate',ro.rate,'coverage',ro.coverage,'outcome_status',ro.outcome_status),e.epoch_id
 		 FROM rule_observations ro JOIN rule_observation_epochs e ON e.epoch_id=ro.epoch_id
 		 JOIN effect_intents i ON i.effect_intent_id=e.effect_intent_id
 		 JOIN effect_proposals p ON p.proposal_id=i.proposal_id WHERE p.scope=ANY($1)
-		 ORDER BY ro.updated_at DESC,e.epoch_id DESC LIMIT $2`)
+		 AND ($3::text='' OR e.epoch_id>$3) ORDER BY e.epoch_id LIMIT $2`)
 }
 
 func handleListPluginStatsCurrent(deps Deps) http.HandlerFunc {
@@ -701,8 +797,44 @@ func handleListPluginStatsCurrent(deps Deps) http.HandlerFunc {
 		`SELECT count(*) FROM plugin_statistics_current WHERE scope=ANY($1)`,
 		`SELECT jsonb_build_object('definition_id',definition_id,'binding_generation',binding_generation,
 		 'artifact_id',artifact_id,'run_id',run_id,'quality',quality,
-		 'updated_at_unix_ms',(extract(epoch from updated_at)*1000)::bigint)
-		 FROM plugin_statistics_current WHERE scope=ANY($1) ORDER BY definition_id LIMIT $2`)
+		 'updated_at_unix_ms',(extract(epoch from updated_at)*1000)::bigint),definition_id
+		 FROM plugin_statistics_current WHERE scope=ANY($1) AND ($3::text='' OR definition_id>$3)
+		 ORDER BY definition_id LIMIT $2`)
+}
+
+func handleListAnalysisTasks(deps Deps) http.HandlerFunc {
+	return scopedJSONList(deps, "analysis-task",
+		`SELECT count(*) FROM analysis_task_requests WHERE scope=ANY($1)`,
+		`SELECT jsonb_build_object('task_id',task_id,'plugin_id',plugin_id,'binding_generation',binding_generation,
+		 'status',status,'poll_count',poll_count,'deadline_unix_ms',deadline_unix_ms,
+		 'remote_task_id',remote_task_id,'updated_at_unix_ms',updated_at_unix_ms),task_id
+		 FROM analysis_task_requests WHERE scope=ANY($1) AND ($3::text='' OR task_id>$3)
+		 ORDER BY task_id LIMIT $2`)
+}
+
+func handleGetAnalysisArtifact(deps Deps) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		actor, scopes, err := readAuthorization(r, deps)
+		_ = actor
+		if err != nil {
+			WriteError(w, http.StatusForbidden, "ANALYSIS_ARTIFACT_DENIED")
+			return
+		}
+		artifactID := chi.URLParam(r, "artifactID")
+		var raw []byte
+		if err := deps.Pool.Pool.QueryRow(r.Context(), `SELECT jsonb_build_object(
+			'artifact_id',artifact_id,'task_id',task_id,'plugin_id',plugin_id,'binding_generation',binding_generation,
+			'artifact_digest',artifact_digest,'media_type',media_type,'analysis_outcome',analysis_outcome,
+			'non_executable',non_executable,'deployment_eligible',deployment_eligible,'body',body)
+			FROM analysis_artifacts WHERE artifact_id=$1 AND scope=ANY($2)`, artifactID, scopes).Scan(&raw); err != nil {
+			WriteError(w, http.StatusNotFound, "ANALYSIS_ARTIFACT_NOT_FOUND")
+			return
+		}
+		w.Header().Set("Cache-Control", "private, no-store")
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write(raw)
+	}
 }
 
 // ---- Mutations (governed) ----
@@ -785,7 +917,7 @@ func handleCreateProposal(deps Deps) http.HandlerFunc {
 			return
 		}
 		risk := security.RiskLevel(body.RiskLevel)
-		if risk == security.R0 || (risk != security.R1 && risk != security.R2 && risk != security.R3) {
+		if risk != security.R0 && risk != security.R1 && risk != security.R2 && risk != security.R3 {
 			WriteError(w, http.StatusBadRequest, "RISK_LEVEL_INVALID")
 			return
 		}
@@ -801,12 +933,26 @@ func handleCreateProposal(deps Deps) http.HandlerFunc {
 		targetDigest := targetSetDigest(body.TargetIDs)
 		level := security.LevelAnalyst
 		authorized := false
-		if risk == security.R1 && deps.Mapping != nil {
+		if (risk == security.R0 || risk == security.R1) && deps.Mapping != nil {
 			for _, candidate := range []security.AuthzContextLevel{security.LevelOperator, security.LevelScopedOperator} {
 				if _, err := deps.Mapping.AuthorizeScope(actor, candidate, body.Scope, body.EffectKind, targetDigest); err == nil {
 					level = candidate
 					authorized = true
 					break
+				}
+			}
+			if risk == security.R0 {
+				if kind != governance.KindBoundedCapture || len(body.TargetIDs) != 1 {
+					WriteError(w, http.StatusBadRequest, "R0_ONLY_BOUNDED_CAPTURE")
+					return
+				}
+				var exact bool
+				if err := deps.Pool.Pool.QueryRow(r.Context(), `SELECT EXISTS(SELECT 1 FROM bounded_capture_requests
+					WHERE target_id=$1 AND scope=$2 AND capture_digest=$3 AND state='planned'
+					  AND expires_at_unix_ms>=$4)`, body.TargetIDs[0], body.Scope, body.PolicyDigest,
+					body.ExpiresAtUnixMS).Scan(&exact); err != nil || !exact {
+					WriteError(w, http.StatusConflict, "BOUNDED_CAPTURE_POLICY_NOT_FROZEN")
+					return
 				}
 			}
 		}
@@ -999,7 +1145,7 @@ func validEffectKind(kind governance.EffectKind) bool {
 		governance.KindModelRollback, governance.KindModelRecovery,
 		governance.KindPluginActivate, governance.KindPluginDrain,
 		governance.KindPluginRevoke, governance.KindPluginStatisticsRun,
-		governance.KindRuleObservationEpoch:
+		governance.KindRuleObservationEpoch, governance.KindBoundedCapture:
 		return true
 	default:
 		return false

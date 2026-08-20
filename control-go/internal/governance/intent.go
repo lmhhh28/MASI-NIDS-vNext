@@ -57,8 +57,8 @@ func (s *IntentService) Create(ctx context.Context, proposalID, decisionID strin
 		var proposalExpiry, decisionExpiry int64
 		if err := tx.QueryRow(ctx, `SELECT p.proposal_digest,p.target_set_digest,p.policy_digest,p.effect_kind,p.risk_level,
 			 p.target_ids,p.expires_at_unix_ms,d.decision_digest,d.decision,d.expires_at_unix_ms,d.actor_issuer,d.actor_subject,p.evidence_refs::text,p.scope
-		 FROM effect_proposals p JOIN effect_decisions d ON d.proposal_id=p.proposal_id
-		 WHERE p.proposal_id=$1 AND d.decision_id=$2 FOR UPDATE`, proposalID, decisionID).Scan(
+			 FROM effect_proposals p JOIN effect_decisions d ON d.proposal_id=p.proposal_id
+			 WHERE p.proposal_id=$1 AND p.superseded_by_proposal_id IS NULL AND d.decision_id=$2 FOR UPDATE`, proposalID, decisionID).Scan(
 			&proposalDigest, &targetSetDigest, &policyDigest, &effectKind, &risk, &targetIDs, &proposalExpiry,
 			&decisionDigest, &decision, &decisionExpiry, &actorIssuer, &actorSubject, &evidenceJSON, &proposalScope); err != nil {
 			return err
@@ -71,7 +71,8 @@ func (s *IntentService) Create(ctx context.Context, proposalID, decisionID strin
 		evidenceDigest := "sha256:" + hex.EncodeToString(evidenceSum[:])
 		if proposalDigest != token.ProposalDigest || targetSetDigest != token.TargetSetDigest || policyDigest != token.PolicyDigest || token.EvidenceDigest != evidenceDigest ||
 			intent.TargetID != token.TargetID || intent.Fence != token.Fence || string(intent.EffectKind) != effectKind || string(intent.RiskLevel) != risk ||
-			intent.AuthorizationDigest != decisionDigest || intent.Actor.Issuer != actorIssuer || intent.Actor.Subject != actorSubject {
+			intent.AuthorizationDigest != decisionDigest || intent.Actor.Issuer != actorIssuer || intent.Actor.Subject != actorSubject ||
+			intent.TraceID != token.TraceID {
 			return errors.New("governance: intent/preflight/decision fence mismatch")
 		}
 		found := false
@@ -85,7 +86,7 @@ func (s *IntentService) Create(ctx context.Context, proposalID, decisionID strin
 			return errors.New("governance: intent target outside frozen set")
 		}
 		payload, err := loadEffectPayloadTx(ctx, tx, EffectKind(effectKind), policyDigest, intent.TargetID,
-			proposalScope, intent.EffectIntentID)
+			proposalScope, intent.EffectIntentID, intent.OperationID)
 		if err != nil {
 			return err
 		}
@@ -116,13 +117,14 @@ func (s *IntentService) Create(ctx context.Context, proposalID, decisionID strin
 		if !current {
 			return errors.New("governance: target/assignment/capability drifted")
 		}
-		tag, err := tx.Exec(ctx, `INSERT INTO effect_intents(effect_intent_id,operation_id,proposal_id,decision_id,target_id,
-			 is_fleet_parent,fence,effect_digest,authorization_digest,effect_kind,risk_level,required_write_atomicity,
-			 deadline_unix_ms,claim_state,actor_ref,trace_id,reason_code,actor_issuer,actor_subject,gate_open,effect_payload)
-			 VALUES($1,$2,$3,$4,$5,false,$6,$7,$8,$9,$10,$11,$12,'unclaimed',$13,$14,'INTENT_CREATED',$15,$16,true,$17)
-			 ON CONFLICT DO NOTHING`, intent.EffectIntentID, intent.OperationID, proposalID, decisionID, intent.TargetID, fenceJSON,
+		gateOpen := EffectKind(effectKind) != KindFirewallBaselineActivate && EffectKind(effectKind) != KindFirewallRollback
+		tag, err := tx.Exec(ctx, `INSERT INTO effect_intents(effect_intent_id,operation_id,proposal_id,proposal_digest,decision_id,target_id,
+				 is_fleet_parent,fence,effect_digest,authorization_digest,effect_kind,risk_level,required_write_atomicity,
+				 deadline_unix_ms,claim_state,actor_ref,trace_id,reason_code,actor_issuer,actor_subject,gate_open,effect_payload)
+					 VALUES($1,$2,$3,$4,$5,$6,false,$7,$8,$9,$10,$11,$12,$13,'unclaimed',$14,$15,'INTENT_CREATED',$16,$17,$18,$19)
+				 ON CONFLICT DO NOTHING`, intent.EffectIntentID, intent.OperationID, proposalID, proposalDigest, decisionID, intent.TargetID, fenceJSON,
 			intent.EffectDigest, intent.AuthorizationDigest, string(intent.EffectKind), string(intent.RiskLevel), intent.RequiredWriteAtomicity,
-			intent.DeadlineUnixMS, intent.Actor.String(), intent.TraceID, intent.Actor.Issuer, intent.Actor.Subject, payloadJSON)
+			intent.DeadlineUnixMS, intent.Actor.String(), intent.TraceID, intent.Actor.Issuer, intent.Actor.Subject, gateOpen, payloadJSON)
 		if err != nil {
 			return err
 		}
@@ -144,7 +146,7 @@ func (s *IntentService) Create(ctx context.Context, proposalID, decisionID strin
 	return &intent, nil
 }
 
-func loadEffectPayloadTx(ctx context.Context, tx *db.Tx, kind EffectKind, policyDigest, targetID, scope, intentID string) (EffectPayload, error) {
+func loadEffectPayloadTx(ctx context.Context, tx *db.Tx, kind EffectKind, policyDigest, targetID, scope, intentID, operationID string) (EffectPayload, error) {
 	payload := EffectPayload{
 		SchemaVersion: "p4-effect-payload/v1", PolicyRevisionDigest: policyDigest,
 		BaselineRules: json.RawMessage(`[]`), OverlayRules: json.RawMessage(`[]`),
@@ -184,6 +186,42 @@ func loadEffectPayloadTx(ctx context.Context, tx *db.Tx, kind EffectKind, policy
 		}
 		payload.OverlayRules = append(json.RawMessage(`[`), edgeRule...)
 		payload.OverlayRules = append(payload.OverlayRules, ']')
+	case KindBoundedCapture:
+		if _, err := tx.Exec(ctx, `SELECT pg_advisory_xact_lock(hashtextextended($1,0))`, "bounded-capture:"+targetID); err != nil {
+			return EffectPayload{}, err
+		}
+		var raw []byte
+		var state string
+		var existingIntent, existingOperation *string
+		if err := tx.QueryRow(ctx, `SELECT spec,state,effect_intent_id,operation_id FROM bounded_capture_requests
+			WHERE capture_digest=$1 AND target_id=$2 AND scope=$3 AND expires_at_unix_ms>$4 FOR UPDATE`,
+			policyDigest, targetID, scope, time.Now().UnixMilli()).Scan(&raw, &state, &existingIntent, &existingOperation); err != nil {
+			return EffectPayload{}, fmt.Errorf("governance: exact bounded capture request unavailable: %w", err)
+		}
+		var spec BoundedCaptureSpec
+		if err := json.Unmarshal(raw, &spec); err != nil || normalizeCaptureSpec(&spec) != nil ||
+			spec.CaptureDigest != policyDigest || ComputeCaptureDigest(spec) != policyDigest {
+			return EffectPayload{}, errors.New("governance: persisted bounded capture envelope invalid")
+		}
+		if state != "planned" && (state != "authorized" || existingIntent == nil || existingOperation == nil ||
+			*existingIntent != intentID || *existingOperation != operationID) {
+			return EffectPayload{}, errors.New("governance: bounded capture request already consumed")
+		}
+		var active int
+		if err := tx.QueryRow(ctx, `SELECT count(*) FROM bounded_capture_requests
+			WHERE target_id=$1 AND state IN ('authorized','claimed','executing','unknown')
+			  AND expires_at_unix_ms>$2 AND capture_id<>$3`, targetID, time.Now().UnixMilli(), spec.CaptureID).Scan(&active); err != nil {
+			return EffectPayload{}, err
+		}
+		if active >= spec.MaxConcurrentOnTarget {
+			return EffectPayload{}, errors.New("governance: bounded capture concurrency limit reached")
+		}
+		if _, err := tx.Exec(ctx, `UPDATE bounded_capture_requests SET state='authorized',effect_intent_id=$1,
+			operation_id=$2,reason_code='CAPTURE_AUTHORIZED' WHERE capture_id=$3`, intentID, operationID, spec.CaptureID); err != nil {
+			return EffectPayload{}, err
+		}
+		payload.Operation = "capture-start"
+		payload.BoundedCapture = &spec
 	default:
 		return EffectPayload{}, fmt.Errorf("governance: effect kind %s is not a P4 effect intent", kind)
 	}
@@ -197,15 +235,15 @@ func loadEffectPayloadTx(ctx context.Context, tx *db.Tx, kind EffectKind, policy
 // the atomic fleet coordinator. Callers must already be inside the Decision +
 // full-child-vector transaction; browser-supplied payloads are never trusted.
 func LoadCanonicalEffectPayloadTx(ctx context.Context, tx *db.Tx, kind EffectKind,
-	policyDigest, targetID, scope, intentID string) (EffectPayload, error) {
-	return loadEffectPayloadTx(ctx, tx, kind, policyDigest, targetID, scope, intentID)
+	policyDigest, targetID, scope, intentID, operationID string) (EffectPayload, error) {
+	return loadEffectPayloadTx(ctx, tx, kind, policyDigest, targetID, scope, intentID, operationID)
 }
 
 func ValidateEffectPayload(payload EffectPayload) error {
 	if payload.SchemaVersion != "p4-effect-payload/v1" || !validSHA256(payload.PolicyRevisionDigest) {
 		return errors.New("governance: effect payload schema/policy digest malformed")
 	}
-	if payload.Operation != "baseline-activate" && payload.Operation != "overlay-upsert" && payload.Operation != "overlay-delete" {
+	if payload.Operation != "baseline-activate" && payload.Operation != "overlay-upsert" && payload.Operation != "overlay-delete" && payload.Operation != "capture-start" {
 		return errors.New("governance: effect payload operation unsupported")
 	}
 	if !json.Valid(payload.BaselineRules) || !json.Valid(payload.OverlayRules) ||
@@ -219,7 +257,18 @@ func ValidateEffectPayload(payload EffectPayload) error {
 	if err := json.Unmarshal(payload.OverlayRules, &overlays); err != nil || len(overlays) > 1024 {
 		return errors.New("governance: overlay effect rule vector invalid")
 	}
-	if payload.Operation == "baseline-activate" {
+	if payload.Operation == "capture-start" {
+		if len(baseline) != 0 || len(overlays) != 0 || payload.DefaultAction != "" || payload.BoundedCapture == nil {
+			return errors.New("governance: capture payload cannot contain firewall fields")
+		}
+		spec := *payload.BoundedCapture
+		if err := normalizeCaptureSpec(&spec); err != nil || spec.CaptureDigest != payload.PolicyRevisionDigest ||
+			ComputeCaptureDigest(spec) != payload.PolicyRevisionDigest {
+			return errors.New("governance: bounded capture payload digest invalid")
+		}
+	} else if payload.BoundedCapture != nil {
+		return errors.New("governance: firewall payload cannot contain bounded capture")
+	} else if payload.Operation == "baseline-activate" {
 		if payload.DefaultAction != "permit-and-continue" && payload.DefaultAction != "drop" || len(overlays) != 0 {
 			return errors.New("governance: baseline payload default/overlay conflict")
 		}

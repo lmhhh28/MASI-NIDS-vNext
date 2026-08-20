@@ -25,7 +25,8 @@ func startMaintenance(ctx context.Context, logger *slog.Logger, pool *db.Pool,
 	dispatcher *governance.Dispatcher, reconcile *governance.ReconcileService,
 	overlays *firewall.OverlayService, stats *pluginstat.Service, statsExecutor pluginstat.Executor,
 	ingest *event.IngestService, rules *ruleobs.Projector, mapping *security.RoleScopeMapping,
-	eventRetention, pluginStatRetention, idempotencyRetention time.Duration, markProgress func()) {
+	eventRetention, pluginStatRetention, idempotencyRetention time.Duration,
+	statisticsOwner string, markProgress func()) {
 	go func() {
 		ticker := time.NewTicker(2 * time.Second)
 		defer ticker.Stop()
@@ -36,15 +37,17 @@ func startMaintenance(ctx context.Context, logger *slog.Logger, pool *db.Pool,
 				return
 			case now := <-ticker.C:
 				stepCtx, cancel := context.WithTimeout(ctx, time.Second)
+				if _, err := dispatcher.FenceExpiredClaims(stepCtx, 4); err != nil {
+					logger.Warn("effect expired claim fence", "err", err)
+				}
 				if _, err := dispatcher.RetryPendingAcknowledgements(stepCtx, 4); err != nil {
 					logger.Warn("effect acknowledgement retry", "err", err)
 				}
 				var intentID string
 				err := pool.Pool.QueryRow(stepCtx, `SELECT effect_intent_id FROM effect_intents
-					WHERE NOT is_fleet_parent AND claim_state IN ('unclaimed','claimed')
-					  AND gate_open AND not_before_unix_ms <= $1 AND deadline_unix_ms > $1
-					  AND (claim_state='unclaimed' OR claim_expires_at_unix_ms <= $1)
-					ORDER BY created_at LIMIT 1`, now.UnixMilli()).Scan(&intentID)
+						WHERE NOT is_fleet_parent AND claim_state='unclaimed'
+						  AND gate_open AND not_before_unix_ms <= $1 AND deadline_unix_ms > $1
+						ORDER BY created_at LIMIT 1`, now.UnixMilli()).Scan(&intentID)
 				if err == nil {
 					if _, err := dispatcher.Dispatch(stepCtx, intentID); err != nil {
 						logger.Warn("effect dispatch", "intent_id", intentID, "err", err)
@@ -82,7 +85,7 @@ func startMaintenance(ctx context.Context, logger *slog.Logger, pool *db.Pool,
 					logger.Warn("statistics schedule materialize", "err", err)
 				}
 				if statsExecutor != nil {
-					if _, err := stats.DispatchNext(stepCtx, "control-core-statistics", statsExecutor, runAuthorize); err != nil {
+					if _, err := stats.DispatchNext(stepCtx, statisticsOwner, statsExecutor, runAuthorize); err != nil {
 						logger.Warn("statistics dispatch", "err", err)
 					}
 				}

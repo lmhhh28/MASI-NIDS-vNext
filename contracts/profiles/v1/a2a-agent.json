@@ -1,0 +1,12 @@
+{
+  "schema_version": "masi-profile/v1",
+  "profile_id": "a2a-agent/v1",
+  "protocol_version": "1.0",
+  "binding": "HTTP+JSON",
+  "content_type": "application/a2a+json",
+  "required_request_header": {"A2A-Version": "1.0"},
+  "operations": {"submit": "POST /message:send", "poll": "GET /tasks/{id}"},
+  "forbidden_operations": ["message:stream", "tasks/{id}:subscribe", "pushNotificationConfigs", "dynamic-public-discovery"],
+  "transport": {"production": "TLS1.3-mTLS", "redirects": false, "static_peer_allowlist": true, "dns_ip_pin": true},
+  "bounds": {"outbound_delegations_per_run": 2, "delegation_depth": 1, "polls_per_task": 3, "response_bytes": 131072, "deadline_ms": 30000}
+}

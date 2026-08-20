@@ -1,0 +1,12 @@
+{
+  "schema_version": "masi-profile/v1",
+  "profile_id": "masi-mcp-readonly/v1",
+  "protocol_version": "2025-11-25",
+  "transport": "Streamable HTTP bounded JSON POST",
+  "endpoint": "/mcp",
+  "required_headers": ["MCP-Protocol-Version", "Origin", "X-MASI-Plugin-ID", "X-MASI-Binding-Generation", "X-MASI-MCP-Round"],
+  "authentication": ["verified-mTLS-workload-SAN", "active-qualified-exact-plugin-binding"],
+  "capabilities": ["fixed-read-only-tools", "fixed-read-only-resources"],
+  "forbidden": ["prompts", "sampling", "elicitation", "server-notifications", "mutation", "arbitrary-uri", "legacy-HTTP-SSE", "2025-03-26-fallback"],
+  "bounds": {"rounds": 2, "calls": 6, "parallelism": 4, "tool_timeout_ms": 2000, "tool_timeout_hard_ms": 5000, "response_bytes": 32768, "response_bytes_hard": 65536, "total_response_bytes": 131072, "total_response_bytes_hard": 262144, "sessions": 1024}
+}

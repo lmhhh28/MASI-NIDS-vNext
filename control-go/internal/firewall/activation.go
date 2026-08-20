@@ -59,22 +59,55 @@ func (s *ActivationService) Activate(ctx context.Context, targetID, desiredRevis
 		if intentID == "" || policyDigest != revisionDigest || claimState != "unclaimed" {
 			return errors.New("firewall: activation intent is stale, drifted, or already claimed")
 		}
+		var expectedVersion int64
+		var expectedCurrent *string
+		var expectedBank int
+		expectedCAS := "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+		err = tx.QueryRow(ctx, `SELECT binding_version,current_revision_id,active_bank,cas_digest
+			FROM firewall_bindings WHERE target_id=$1 FOR UPDATE`, targetID).
+			Scan(&expectedVersion, &expectedCurrent, &expectedBank, &expectedCAS)
+		if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+			return err
+		}
 		tag, err := tx.Exec(ctx, `INSERT INTO firewall_activations(operation_id,target_id,desired_revision_id,
 			current_stage,completed_stages,expected_entries,observed_entries,mismatched_entries,
-			default_readback,selector_readback,result,reason_code)
-			VALUES($1,$2,$3,'prepared',$4,0,0,0,'missing','old-bank','prepared','PREPARED')
-			ON CONFLICT(operation_id) DO NOTHING`, operationID, targetID, desiredRevisionID, completed)
+			default_readback,selector_readback,result,reason_code,expected_binding_version,
+			expected_current_revision_id,expected_active_bank,expected_cas_digest)
+			VALUES($1,$2,$3,'prepared',$4,0,0,0,'missing','old-bank','prepared','PREPARED',$5,$6,$7,$8)
+			ON CONFLICT(operation_id) DO NOTHING`, operationID, targetID, desiredRevisionID, completed,
+			expectedVersion, expectedCurrent, expectedBank, expectedCAS)
 		if err != nil {
 			return err
 		}
 		if tag.RowsAffected() == 0 {
-			var existingTarget, existingRevision string
+			var existingTarget, existingRevision, existingCAS string
+			var existingVersion int64
+			var existingCurrent *string
+			var existingBank int
 			if err := tx.QueryRow(ctx, `SELECT target_id,desired_revision_id FROM firewall_activations
-				WHERE operation_id=$1`, operationID).Scan(&existingTarget, &existingRevision); err != nil {
+					WHERE operation_id=$1`, operationID).Scan(&existingTarget, &existingRevision); err != nil {
 				return err
 			}
-			if existingTarget != targetID || existingRevision != desiredRevisionID {
+			if err := tx.QueryRow(ctx, `SELECT expected_binding_version,expected_current_revision_id,
+					expected_active_bank,expected_cas_digest FROM firewall_activations WHERE operation_id=$1`,
+				operationID).Scan(&existingVersion, &existingCurrent, &existingBank, &existingCAS); err != nil {
+				return err
+			}
+			if existingTarget != targetID || existingRevision != desiredRevisionID ||
+				existingVersion != expectedVersion || existingBank != expectedBank ||
+				existingCAS != expectedCAS || !sameNullableString(existingCurrent, expectedCurrent) {
 				return errors.New("firewall: activation operation identity conflict")
+			}
+		}
+		tag, err = tx.Exec(ctx, `UPDATE effect_intents SET gate_open=true,reason_code='ACTIVATION_PREPARED'
+			WHERE effect_intent_id=$1 AND operation_id=$2 AND claim_state='unclaimed' AND NOT gate_open`, intentID, operationID)
+		if err != nil {
+			return err
+		}
+		if tag.RowsAffected() == 0 {
+			var alreadyOpen bool
+			if err := tx.QueryRow(ctx, `SELECT gate_open FROM effect_intents WHERE effect_intent_id=$1`, intentID).Scan(&alreadyOpen); err != nil || !alreadyOpen {
+				return errors.New("firewall: activation gate CAS conflict")
 			}
 		}
 		return nil
@@ -84,6 +117,13 @@ func (s *ActivationService) Activate(ctx context.Context, targetID, desiredRevis
 	}
 	return ActivationOutcome{OperationID: operationID, TargetID: targetID, Stage: StagePrepared,
 		Result: ActivationPrepared, ReasonCode: "PREPARED"}, nil
+}
+
+func sameNullableString(left, right *string) bool {
+	if left == nil || right == nil {
+		return left == nil && right == nil
+	}
+	return *left == *right
 }
 
 // Load returns the durable activation projection without inferring success from

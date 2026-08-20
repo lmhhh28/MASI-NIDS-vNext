@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 
@@ -30,10 +31,11 @@ const (
 // external waits occur OUTSIDE any DB transaction.
 type AssignmentService struct {
 	pool *db.Pool
+	now  func() time.Time
 }
 
 func NewAssignmentService(pool *db.Pool) *AssignmentService {
-	return &AssignmentService{pool: pool}
+	return &AssignmentService{pool: pool, now: time.Now}
 }
 
 // HandoffResult is the outcome of an assignment handoff CAS.
@@ -70,6 +72,13 @@ func (s *AssignmentService) Handoff(ctx context.Context, a Assignment, priorGene
 	if a.ExpiresAtUnixMS <= a.IssuedAtUnixMS {
 		return HandoffConflict, fmt.Errorf("target: lease expires must be after issued")
 	}
+	now := time.Now
+	if s != nil && s.now != nil {
+		now = s.now
+	}
+	if a.IssuedAtUnixMS > now().Add(5*time.Second).UnixMilli() {
+		return HandoffConflict, errors.New("target: assignment issued_at is in the future")
+	}
 	leaseMS := a.ExpiresAtUnixMS - a.IssuedAtUnixMS
 	if leaseMS < assignmentLeaseMinMS || leaseMS > assignmentLeaseMaxMS {
 		return HandoffConflict, fmt.Errorf("target: lease duration must be %d..%d ms", assignmentLeaseMinMS, assignmentLeaseMaxMS)
@@ -95,8 +104,9 @@ func (s *AssignmentService) Handoff(ctx context.Context, a Assignment, priorGene
 			} else if errors.Is(err, pgx.ErrNoRows) {
 				result = HandoffConflict
 				return nil
+			} else {
+				return err
 			}
-			return err
 		}
 		// If the prior lease is still alive the handoff cannot proceed (the
 		// caller must complete revoke/drain first). This is a HOLD, not an error
@@ -107,6 +117,10 @@ func (s *AssignmentService) Handoff(ctx context.Context, a Assignment, priorGene
 		}
 		if priorExpires > a.IssuedAtUnixMS && revokedAt == nil {
 			result = HandoffLeaseAlive
+			return nil
+		}
+		if revokedAt != nil && a.IssuedAtUnixMS < *revokedAt {
+			result = HandoffConflict
 			return nil
 		}
 		// CAS-insert the new assignment generation with the strictly-higher range.

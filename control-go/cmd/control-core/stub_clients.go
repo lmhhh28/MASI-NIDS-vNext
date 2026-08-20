@@ -65,6 +65,12 @@ func (stubEdgeRoute) ResumeRoute(ctx context.Context, hs model.CommittedBindingH
 // stubEdgeEffect is a fail-closed governance.EdgeEffectClient.
 type stubEdgeEffect struct{}
 
+func (stubEdgeEffect) PreflightEffect(ctx context.Context, intent governance.Intent) (governance.EdgePreflightResult, error) {
+	_ = ctx
+	_ = intent
+	return governance.EdgePreflightResult{}, &governance.PreflightRejectedError{Cause: errEdgeNotConfigured}
+}
+
 func (stubEdgeEffect) ExecuteEffect(ctx context.Context, intent governance.Intent) (governance.EdgeEffectResult, error) {
 	_ = ctx
 	_ = intent

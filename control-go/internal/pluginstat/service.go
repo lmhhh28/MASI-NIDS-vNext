@@ -103,9 +103,6 @@ func (s *Service) StartOnDemand(ctx context.Context, req OnDemandRequest, actor 
 			req.DefinitionID, req.DefinitionDigest, req.Scope, req.DataClass).Scan(&bindingGen, &projections, &externalCaps); err != nil {
 			return err
 		}
-		if len(externalCaps) > 0 {
-			return errors.New("pluginstat: external-source adapter unavailable for this on-demand path")
-		}
 		if req.ScheduleID != "" {
 			var scheduleCurrent bool
 			if err := tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM plugin_statistic_schedules s
@@ -142,7 +139,9 @@ func (s *Service) StartOnDemand(ctx context.Context, req OnDemandRequest, actor 
 			}
 		}
 		bundle := InputBundle{BundleID: "bundle-" + shortDigest(requestDigest), DefinitionID: req.DefinitionID, DefinitionDigest: req.DefinitionDigest,
-			SourceRevision: fmt.Sprintf("postgres-snapshot-%d", s.now().UnixMilli()), WindowStartUnixMS: req.WindowStartUnixMS, WindowEndUnixMS: req.WindowEndUnixMS, Rows: rows}
+			SourceRevision: fmt.Sprintf("postgres-snapshot-%d", s.now().UnixMilli()), WindowStartUnixMS: req.WindowStartUnixMS,
+			WindowEndUnixMS: req.WindowEndUnixMS, Rows: rows,
+			ExternalSourceCapabilityRefs: append([]string(nil), externalCaps...)}
 		frozen := ComputeFrozenInputDigest(bundle)
 		bundle.FrozenInputDigest = frozen
 		bundleJSON, err := json.Marshal(bundle)
@@ -262,14 +261,15 @@ func NewService(pool *db.Pool) *Service {
 
 // InputBundle is the Go-frozen canonical input for one run.
 type InputBundle struct {
-	BundleID          string           `json:"bundle_id"`
-	DefinitionID      string           `json:"definition_id"`
-	DefinitionDigest  string           `json:"definition_digest"`
-	SourceRevision    string           `json:"source_revision"`
-	FrozenInputDigest string           `json:"frozen_input_digest"`
-	WindowStartUnixMS int64            `json:"window_start_unix_ms"`
-	WindowEndUnixMS   int64            `json:"window_end_unix_ms"`
-	Rows              []map[string]any `json:"rows"`
+	BundleID                     string           `json:"bundle_id"`
+	DefinitionID                 string           `json:"definition_id"`
+	DefinitionDigest             string           `json:"definition_digest"`
+	SourceRevision               string           `json:"source_revision"`
+	FrozenInputDigest            string           `json:"frozen_input_digest"`
+	WindowStartUnixMS            int64            `json:"window_start_unix_ms"`
+	WindowEndUnixMS              int64            `json:"window_end_unix_ms"`
+	Rows                         []map[string]any `json:"rows"`
+	ExternalSourceCapabilityRefs []string         `json:"external_source_capability_refs"`
 }
 
 // ErrIdempotencyConflict is same key + different digest (STATISTICS-
@@ -286,6 +286,14 @@ func (s *Service) FreezeInput(ctx context.Context, b InputBundle) (string, error
 	}
 	if len(b.Rows) > 10000 {
 		return "", errors.New("pluginstat: input rows > 10000")
+	}
+	if len(b.ExternalSourceCapabilityRefs) > MaxExternalCapabilityRefs || hasDuplicates(b.ExternalSourceCapabilityRefs) {
+		return "", errors.New("pluginstat: external-source capability refs outside bound")
+	}
+	for _, capabilityID := range b.ExternalSourceCapabilityRefs {
+		if !identityRE.MatchString(capabilityID) || forbiddenValueRE.MatchString(capabilityID) {
+			return "", errors.New("pluginstat: external-source capability identity malformed")
+		}
 	}
 	for _, row := range b.Rows {
 		if len(row) > 64 {
@@ -421,9 +429,14 @@ func (s *Service) RegisterDefinition(ctx context.Context, d Definition, manifest
 
 // ComputeFrozenInputDigest is the pure canonical input digest.
 func ComputeFrozenInputDigest(b InputBundle) string {
+	externalCaps := append([]string(nil), b.ExternalSourceCapabilityRefs...)
+	sortStrings(externalCaps)
 	h := sha256.New()
 	fmt.Fprintf(h, "%s|%s|%s|%d|%d|%d", b.DefinitionID, b.DefinitionDigest,
 		b.SourceRevision, b.WindowStartUnixMS, b.WindowEndUnixMS, len(b.Rows))
+	if len(externalCaps) > 0 {
+		fmt.Fprintf(h, "|external:%v", externalCaps)
+	}
 	for _, r := range b.Rows {
 		keys := make([]string, 0, len(r))
 		for k := range r {
@@ -731,14 +744,17 @@ func (s *Service) commitSucceeded(ctx context.Context, token ClaimToken, artifac
 	}
 	return s.pool.WithTx(ctx, []db.TxOption{db.ReadCommitted()}, func(tx *db.Tx) error {
 		var bindingGen int64
-		var defID, defDigest, scope string
+		var defID, defDigest, scope, producerKind string
+		var externalCapabilities []string
 		if err := tx.QueryRow(ctx, `
-				SELECT binding_generation, definition_id,definition_digest,scope
-				FROM plugin_statistic_runs WHERE run_id = $1 AND status='running'
-				 AND claim_lease_id=$2 AND claim_generation=$3 AND result_fence=$4
-				 AND claim_expires_unix_ms >= $5 FOR UPDATE`, token.RunID, token.LeaseID,
+					SELECT r.binding_generation,r.definition_id,r.definition_digest,r.scope,
+					       d.producer_kind,d.external_capability_ids
+					FROM plugin_statistic_runs r JOIN plugin_statistics_definitions d ON d.definition_id=r.definition_id
+					WHERE r.run_id = $1 AND r.status='running'
+					 AND claim_lease_id=$2 AND claim_generation=$3 AND result_fence=$4
+					 AND claim_expires_unix_ms >= $5 FOR UPDATE`, token.RunID, token.LeaseID,
 			token.ClaimGeneration, token.ResultFence, s.now().UnixMilli()).
-			Scan(&bindingGen, &defID, &defDigest, &scope); err != nil {
+			Scan(&bindingGen, &defID, &defDigest, &scope, &producerKind, &externalCapabilities); err != nil {
 			return err
 		}
 		if defID != artifact.DefinitionID || defDigest != artifact.DefinitionDigest || token.DefinitionID != defID ||
@@ -748,6 +764,9 @@ func (s *Service) commitSucceeded(ctx context.Context, token ClaimToken, artifac
 			artifact.Provenance.BindingGeneration != bindingGen || artifact.Provenance.PluginID != token.PluginID ||
 			artifact.Provenance.PluginRevision != token.PluginRevision {
 			return fmt.Errorf("pluginstat: artifact definition %s != run definition %s", artifact.DefinitionID, defID)
+		}
+		if err := validateExternalProvenance(PluginKind(producerKind), externalCapabilities, artifact.Provenance.ExternalSource); err != nil {
+			return err
 		}
 		var stillEligible bool
 		if err := tx.QueryRow(ctx, `SELECT EXISTS(

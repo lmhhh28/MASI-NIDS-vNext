@@ -51,6 +51,16 @@ blackbox_evidence="${evidence_root}/module-blackbox"
 oci_evidence="${evidence_root}/oci-smoke"
 formal_soak_evidence="${evidence_root}/formal-soak"
 qualification_evidence="${evidence_root}/qualification"
+runtime_root="$(mktemp -d "${TMPDIR:-/tmp}/masi-control-gate.${run_id}.XXXXXX")"
+chmod 0755 -- "${runtime_root}"
+control_binary="${runtime_root}/control-core"
+oci_runtime_config="${runtime_root}/oci-control-config.json"
+
+cleanup_runtime() {
+  unlink -- "${control_binary}" "${oci_runtime_config}" 2>/dev/null || true
+  rmdir -- "${runtime_root}" 2>/dev/null || true
+}
+trap cleanup_runtime EXIT
 
 if ! mkdir -- "${evidence_root}"; then
   echo "module gate run id already exists: ${run_id}" >&2
@@ -291,6 +301,13 @@ publish_latest() {
 }
 
 cd -- "${ctrl_root}"
+calculate_source_tree_digest() {
+  printf 'sha256:%s\n' "$(tar --sort=name --mtime=@1786406400 --owner=0 --group=0 --numeric-owner \
+    --exclude='control-go/evidence' \
+    --exclude='**/node_modules' \
+    --exclude='control-go/**/__pycache__' --exclude='contracts/**/__pycache__' \
+    -cf - -C "${repo_root}" control-go contracts db | sha256sum | awk '{print $1}')"
+}
 source_revision="$(git -C "${repo_root}" rev-parse HEAD)"
 baseline_git_tree="$(git -C "${repo_root}" rev-parse 'HEAD^{tree}')"
 working_tree_status="$(git -C "${repo_root}" status --porcelain=v1 --untracked-files=all)"
@@ -300,17 +317,10 @@ if [[ -n "${working_tree_status}" ]]; then
 fi
 printf '%s\n' "${working_tree_status}" >"${evidence_root}/working-tree-status.txt"
 working_tree_status_digest="sha256:$(sha256sum "${evidence_root}/working-tree-status.txt" | awk '{print $1}')"
-source_archive="${evidence_root}/source-tree.tar"
-tar --sort=name --mtime=@1786406400 --owner=0 --group=0 --numeric-owner \
-  --exclude='control-go/evidence' \
-  --exclude='control-go/**/__pycache__' --exclude='contracts/**/__pycache__' \
-  -cf "${source_archive}" -C "${repo_root}" control-go contracts db
-source_tree_digest="sha256:$(sha256sum "${source_archive}" | awk '{print $1}')"
-unlink -- "${source_archive}"
+source_tree_digest="$(calculate_source_tree_digest)"
 
 control_dsn="${MASI_CONTROL_E2E_DSN:-postgres://masi:masi@127.0.0.1:55433/masi_control_test?sslmode=disable}"
 control_config="${MASI_CONTROL_E2E_CONFIG:-${ctrl_root}/testdata/control-e2e-config.json}"
-control_binary="${MASI_CONTROL_E2E_BINARY:-/tmp/masi-control-gate}"
 blackbox_e2e_endpoint="$(jq -r '.grpc_listen // empty' "${control_config}" 2>/dev/null || true)"
 if [[ -z "${blackbox_e2e_endpoint}" ]]; then
   blackbox_e2e_endpoint="127.0.0.1:19090"
@@ -319,19 +329,26 @@ fi
 # Language-level and contract gates.
 run_gate go-version go version
 run_gate public-contracts python3 "${script_dir}/validate-public-contracts.py" --repo "${repo_root}"
+run_gate typescript-client "${script_dir}/check-typescript-client.sh"
+run_gate supply-chain "${script_dir}/check-supply-chain.sh"
 run_gate format bash -lc 'cd "${0}" && test -z "$(gofmt -l ./cmd ./internal ./tests)"' "${ctrl_root}"
 run_gate vet bash -lc 'cd "${0}" && go vet ./...' "${ctrl_root}"
 run_gate staticcheck bash -lc 'cd "${0}" && staticcheck ./...' "${ctrl_root}"
-run_gate tests bash -lc 'cd "${0}" && go test ./...' "${ctrl_root}"
-run_gate race bash -lc 'cd "${0}" && go test -race ./...' "${ctrl_root}"
-run_gate coverage bash -lc 'cd "${0}" && go test -coverprofile "${1}/coverage.out" ./cmd/... ./internal/... ./tests/...' "${ctrl_root}" "${evidence_root}"
+run_gate vulnerability-scan bash -lc 'cd "${0}" && govulncheck ./...' "${ctrl_root}"
+run_gate tests bash -lc 'cd "${0}" && go test -count=1 ./...' "${ctrl_root}"
+run_gate race bash -lc 'cd "${0}" && go test -count=1 -race ./...' "${ctrl_root}"
+run_gate coverage bash -lc 'cd "${0}" && go test -count=1 -coverprofile "${1}/coverage.out" ./cmd/... ./internal/... ./tests/...' "${ctrl_root}" "${evidence_root}"
 
 # Migration integration against the real PostgreSQL test instance. The migrate-test
 # runner refuses any database whose name does not contain "test".
 run_gate migration bash -lc 'cd "${0}" && go run ./cmd/migrate-test --dsn "${1}" --dir ../db/migrations' "${ctrl_root}" "${control_dsn}"
 
 # Release binary used by the real-process black-box E2E and the formal soak.
-run_gate release-build bash -lc 'cd "${0}" && go build -o /tmp/masi-control-gate ./cmd/control-core && echo release-build-ok' "${ctrl_root}"
+run_gate release-build bash -lc 'cd "${0}" && test ! -e "${1}" && go build -trimpath -o "${1}" ./cmd/control-core && test -x "${1}" && echo release-build-ok' "${ctrl_root}" "${control_binary}"
+binary_digest=""
+if [[ -x "${control_binary}" ]]; then
+  binary_digest="sha256:$(sha256sum "${control_binary}" | awk '{print $1}')"
+fi
 
 # Real-process public-boundary black-box E2E: launches the real control-core binary,
 # waits on /readyz, calls ControlSink.CommitResults over the public test-profile gRPC
@@ -341,7 +358,7 @@ MASI_CONTROL_E2E_DSN="${control_dsn}" \
   MASI_CONTROL_E2E_BINARY="${control_binary}" \
   MASI_CONTROL_E2E_CONFIG="${control_config}" \
   MASI_CONTROL_E2E_REQUIRED=1 \
-  run_gate blackbox-e2e bash -lc 'cd "${0}" && go test -v ./tests/process_e2e -run TestRealControlProcessCommitResults' "${ctrl_root}"
+  run_gate blackbox-e2e bash -lc 'cd "${0}" && go test -count=1 -v ./tests/process_e2e' "${ctrl_root}"
 blackbox_e2e_status="${last_command_status}"
 blackbox_e2e_result="PASS"
 if [[ "${blackbox_e2e_status}" -ne 0 ]]; then
@@ -355,13 +372,15 @@ fi
 MASI_CONTROL_E2E_DSN="${control_dsn}" \
   MASI_CONTROL_E2E_CONFIG="${control_config}" \
   MASI_CONTROL_E2E_REQUIRED=1 \
-  run_gate postgres-e2e bash -lc 'cd "${0}" && go test -v ./internal/api ./internal/firewall ./internal/governance ./internal/model ./internal/plugin ./internal/pluginstat ./internal/target -run Postgres' "${ctrl_root}"
+  run_gate postgres-e2e bash -lc 'cd "${0}" && go test -count=1 -v ./internal/...' "${ctrl_root}"
 
 # OCI smoke: the production image builds and the control-core binary runs inside it.
 oci_result="NOT_RUN"
 oci_qualification="NOT_QUALIFIED"
 if [[ "${MASI_CONTROL_SKIP_OCI:-0}" != "1" ]]; then
-  run_gate oci-smoke bash -lc 'cd "${0}" && docker build -t masi-control-core:module-gates . >/dev/null 2>&1 && docker run --rm masi-control-core:module-gates --help >/dev/null 2>&1 && echo oci-ok' "${ctrl_root}"
+  oci_tag="masi-control-core:module-gates-$(printf '%s' "${run_id}" | sha256sum | cut -c1-16)"
+  run_gate oci-smoke "${script_dir}/run-oci-smoke.sh" "${ctrl_root}" "${repo_root}" \
+    "${control_config}" "${oci_evidence}" "${oci_runtime_config}" "${oci_tag}"
   oci_status="${last_command_status}"
   oci_result="$(recorded_result oci-smoke)"
   if [[ "${oci_result}" == "PASS" ]]; then
@@ -372,7 +391,7 @@ if [[ "${MASI_CONTROL_SKIP_OCI:-0}" != "1" ]]; then
     oci_qualification="NOT_QUALIFIED"
   fi
 else
-  record_not_run oci-smoke OCI_GATE_EXPLICITLY_SKIPPED "docker build/run masi-control-core:module-gates"
+  record_not_run oci-smoke OCI_GATE_EXPLICITLY_SKIPPED "scripts/run-oci-smoke.sh"
   oci_result="$(recorded_result oci-smoke)"
   oci_qualification="NOT_QUALIFIED"
 fi
@@ -394,7 +413,7 @@ if [[ "${MASI_CONTROL_FORMAL_SOAK:-0}" == "1" ]]; then
     MASI_CONTROL_E2E_REQUIRED=1 \
     MASI_CONTROL_SOAK_SECONDS="${MASI_CONTROL_SOAK_SECONDS:-3600}" \
     MASI_CONTROL_EVIDENCE_DIR="${formal_soak_evidence}" \
-    run_gate formal-soak bash -lc 'cd "${0}" && go test -v -timeout 75m ./tests/soak -run TestFormalSoak' "${ctrl_root}"
+    run_gate formal-soak bash -lc 'cd "${0}" && go test -count=1 -v -timeout 75m ./tests/soak -run TestFormalSoak' "${ctrl_root}"
   formal_soak_status="${last_command_status}"
   if [[ -f "${formal_soak_evidence_file}" ]] && python3 "${script_dir}/validate-soak-evidence.py" \
       --repo "${repo_root}" --evidence "${formal_soak_evidence_file}" >/dev/null; then
@@ -425,19 +444,44 @@ else
   record_not_run formal-soak-validation FORMAL_SOAK_NOT_REQUESTED "validate-soak-evidence.py"
 fi
 
+# The binary and source tree must still match the exact artifacts observed at
+# gate start/build time. This detects a replaced binary or workspace edits made
+# while long-running E2E/soak commands were in flight.
+binary_digest_end=""
+if [[ -x "${control_binary}" ]]; then
+  binary_digest_end="sha256:$(sha256sum "${control_binary}" | awk '{print $1}')"
+fi
+run_gate binary-integrity bash -lc 'test -n "${1}" && test "${1}" = "${2}"' \
+  "${ctrl_root}" "${binary_digest}" "${binary_digest_end}"
+
+source_tree_digest_end="$(calculate_source_tree_digest)"
+printf '%s\n' "${source_tree_digest_end}" >"${evidence_root}/source-tree-end-digest.txt"
+run_gate source-integrity bash -lc 'test "${1}" = "${2}"' \
+  "${ctrl_root}" "${source_tree_digest}" "${source_tree_digest_end}"
+working_tree_status_end="$(git -C "${repo_root}" status --porcelain=v1 --untracked-files=all)"
+printf '%s\n' "${working_tree_status_end}" >"${evidence_root}/working-tree-status-end.txt"
+working_tree_status_end_digest="sha256:$(sha256sum "${evidence_root}/working-tree-status-end.txt" | awk '{print $1}')"
+
+run_gate findings-validation python3 "${script_dir}/validate-evidence.py" \
+  --schema "${repo_root}/contracts/evidence/module-findings/v1/schema.json" \
+  --document "${ctrl_root}/module-findings.json"
+
 # Artifact digests.
 go_mod_digest="sha256:$(sha256sum "${ctrl_root}/go.mod" | awk '{print $1}')"
 edge_contract_digest="sha256:$(sha256sum "${repo_root}/contracts/edge/v1/edge.proto" | awk '{print $1}')"
 control_adapter_digest="sha256:$(sha256sum "${repo_root}/contracts/control-adapter/v1/control_adapter.proto" | awk '{print $1}')"
 module_findings_schema_digest="sha256:$(sha256sum "${repo_root}/contracts/evidence/module-findings/v1/schema.json" | awk '{print $1}')"
 module_findings_registry_digest="sha256:$(sha256sum "${ctrl_root}/module-findings.json" | awk '{print $1}')"
+component_registry_digest="sha256:$(sha256sum "${repo_root}/contracts/supply-chain/v1/control-core-components.json" | awk '{print $1}')"
 traceability_digest="sha256:$(sha256sum "${ctrl_root}/requirements-traceability.json" | awk '{print $1}')"
 requirements_digest="sha256:$(sha256sum "${repo_root}/docs/masi-nids-vnext-system-requirements-2026-08-09.md" | awk '{print $1}')"
+typescript_client_digest="sha256:$(tar --sort=name --mtime=@1786406400 --owner=0 --group=0 --numeric-owner \
+  -cf - -C "${repo_root}/contracts/generated/typescript/control-api" . | sha256sum | awk '{print $1}')"
 qualification_soak_profile_digest="sha256:$(sha256sum "${repo_root}/contracts/profiles/v1/qualification-soak-3600s.json" | awk '{print $1}')"
 soak_evidence_schema_digest="sha256:$(sha256sum "${repo_root}/contracts/evidence/soak/v1/schema.json" | awk '{print $1}')"
-binary_digest=""
-if [[ -f /tmp/masi-control-gate ]]; then
-  binary_digest="sha256:$(sha256sum /tmp/masi-control-gate | awk '{print $1}')"
+oci_evidence_digest=""
+if [[ -f "${oci_evidence}/oci-smoke-evidence.json" ]]; then
+  oci_evidence_digest="sha256:$(sha256sum "${oci_evidence}/oci-smoke-evidence.json" | awk '{print $1}')"
 fi
 formal_soak_evidence_digest=""
 formal_soak_evidence_relative=""
@@ -457,9 +501,12 @@ fi
 
 go_result="$(recorded_result go-version)"
 public_contracts_result="$(recorded_result public-contracts)"
+typescript_client_result="$(recorded_result typescript-client)"
+supply_chain_result="$(recorded_result supply-chain)"
 format_result="$(recorded_result format)"
 vet_result="$(recorded_result vet)"
 staticcheck_result="$(recorded_result staticcheck)"
+vulnerability_scan_result="$(recorded_result vulnerability-scan)"
 tests_result="$(recorded_result tests)"
 race_result="$(recorded_result race)"
 coverage_result="$(recorded_result coverage)"
@@ -468,12 +515,16 @@ release_build_result="$(recorded_result release-build)"
 postgres_e2e_result="$(recorded_result postgres-e2e)"
 formal_soak_execution_result="$(recorded_result formal-soak)"
 formal_soak_validation_result="$(recorded_result formal-soak-validation)"
+binary_integrity_result="$(recorded_result binary-integrity)"
+source_integrity_result="$(recorded_result source-integrity)"
+findings_validation_result="$(recorded_result findings-validation)"
 
 overall_status="HOLD"
-for required_result in "${go_result}" "${public_contracts_result}" "${format_result}" \
-  "${vet_result}" "${staticcheck_result}" "${tests_result}" "${race_result}" \
+for required_result in "${go_result}" "${public_contracts_result}" "${typescript_client_result}" "${supply_chain_result}" "${format_result}" \
+  "${vet_result}" "${staticcheck_result}" "${vulnerability_scan_result}" "${tests_result}" "${race_result}" \
   "${coverage_result}" "${migration_result}" "${release_build_result}" \
-  "${postgres_e2e_result}" "${oci_result}" "${formal_soak_result}"; do
+  "${postgres_e2e_result}" "${oci_result}" "${formal_soak_result}" \
+  "${binary_integrity_result}" "${source_integrity_result}" "${findings_validation_result}"; do
   if [[ "${required_result}" == "FAIL" ]]; then
     overall_status="FAIL"
   fi
@@ -515,10 +566,14 @@ fi
 if [[ "${oci_result}" != "PASS" ]]; then
   module_complete=false
 fi
-for executed_result in "${go_result}" "${public_contracts_result}" "${format_result}" \
-  "${vet_result}" "${staticcheck_result}" "${tests_result}" "${race_result}" \
+if [[ -z "${oci_evidence_digest}" ]]; then
+  module_complete=false
+fi
+for executed_result in "${go_result}" "${public_contracts_result}" "${typescript_client_result}" "${supply_chain_result}" "${format_result}" \
+  "${vet_result}" "${staticcheck_result}" "${vulnerability_scan_result}" "${tests_result}" "${race_result}" \
   "${coverage_result}" "${migration_result}" "${release_build_result}" \
-  "${postgres_e2e_result}" "${formal_soak_validation_result}"; do
+  "${postgres_e2e_result}" "${formal_soak_validation_result}" \
+  "${binary_integrity_result}" "${source_integrity_result}" "${findings_validation_result}"; do
   if [[ "${executed_result}" != "PASS" ]]; then
     module_complete=false
   fi
@@ -537,22 +592,30 @@ jq -n \
   --arg run_id "${run_id}" --arg generated_at "${generated_at}" \
   --arg source_revision "${source_revision}" --arg baseline_git_tree "${baseline_git_tree}" \
   --arg source_tree_digest "${source_tree_digest}" \
+  --arg source_tree_digest_end "${source_tree_digest_end}" \
   --argjson working_tree_dirty "${working_tree_dirty}" \
   --arg working_tree_status_digest "${working_tree_status_digest}" \
+  --arg working_tree_status_end_digest "${working_tree_status_end_digest}" \
   --arg go_mod_digest "${go_mod_digest}" \
   --arg edge_contract_digest "${edge_contract_digest}" \
   --arg control_adapter_digest "${control_adapter_digest}" \
   --arg module_findings_schema_digest "${module_findings_schema_digest}" \
   --arg module_findings_registry_digest "${module_findings_registry_digest}" \
+  --arg component_registry_digest "${component_registry_digest}" \
   --arg traceability_digest "${traceability_digest}" --arg requirements_digest "${requirements_digest}" \
+  --arg typescript_client_digest "${typescript_client_digest}" \
   --arg qualification_soak_profile_digest "${qualification_soak_profile_digest}" \
   --arg soak_evidence_schema_digest "${soak_evidence_schema_digest}" \
   --arg binary_digest "${binary_digest}" \
   --arg formal_soak_evidence_digest "${formal_soak_evidence_digest}" \
+  --arg oci_evidence_digest "${oci_evidence_digest}" \
   --arg formal_soak_evidence_relative "${formal_soak_evidence_relative}" \
   --arg go_result "${go_result}" --arg public_contracts_result "${public_contracts_result}" \
+  --arg typescript_client_result "${typescript_client_result}" \
+  --arg supply_chain_result "${supply_chain_result}" \
   --arg format_result "${format_result}" --arg vet_result "${vet_result}" \
   --arg staticcheck_result "${staticcheck_result}" --arg tests_result "${tests_result}" \
+  --arg vulnerability_scan_result "${vulnerability_scan_result}" \
   --arg race_result "${race_result}" --arg coverage_result "${coverage_result}" \
   --arg migration_result "${migration_result}" --arg release_build_result "${release_build_result}" \
   --arg blackbox_e2e_result "${blackbox_e2e_result}" \
@@ -560,6 +623,9 @@ jq -n \
   --arg postgres_e2e_result "${postgres_e2e_result}" \
   --arg formal_soak_execution_result "${formal_soak_execution_result}" \
   --arg formal_soak_validation_result "${formal_soak_validation_result}" \
+  --arg binary_integrity_result "${binary_integrity_result}" \
+  --arg source_integrity_result "${source_integrity_result}" \
+  --arg findings_validation_result "${findings_validation_result}" \
   --arg oci_result "${oci_result}" --arg oci_qualification "${oci_qualification}" \
   --arg formal_soak_result "${formal_soak_result}" \
   --arg formal_soak_qualification "${formal_soak_qualification}" \
@@ -590,25 +656,35 @@ jq -n \
       control_adapter_contract: $control_adapter_digest,
       module_findings_schema: $module_findings_schema_digest,
       module_findings_registry: $module_findings_registry_digest,
+      component_adoption_registry: $component_registry_digest,
       traceability_manifest: $traceability_digest,
       requirements_baseline: $requirements_digest,
+      generated_typescript_client: $typescript_client_digest,
       qualification_soak_profile: $qualification_soak_profile_digest,
       soak_evidence_schema: $soak_evidence_schema_digest,
+      source_tree_end: $source_tree_digest_end,
+      working_tree_status_end: $working_tree_status_end_digest,
       release_binary: (if $binary_digest == "" then null else $binary_digest end),
-      oci_evidence: null,
+      oci_evidence: (if $oci_evidence_digest == "" then null else $oci_evidence_digest end),
       formal_soak_evidence: (if $formal_soak_evidence_digest == "" then null else $formal_soak_evidence_digest end)
     },
     executed_gates: {
       go_version: $go_result,
       public_contract_schema_golden_negative: $public_contracts_result,
+      generated_typescript_client: $typescript_client_result,
+      supply_chain_registry_and_locks: $supply_chain_result,
       format: $format_result,
       vet: $vet_result,
       staticcheck: $staticcheck_result,
+      vulnerability_scan: $vulnerability_scan_result,
       unit_property_contract_golden: $tests_result,
       race: $race_result,
       coverage: $coverage_result,
       migration_integration: $migration_result,
       release_build: $release_build_result,
+      release_binary_integrity: $binary_integrity_result,
+      source_tree_integrity: $source_integrity_result,
+      findings_registry_validation: $findings_validation_result,
       real_process_public_boundary_blackbox: $blackbox_e2e_result,
       postgres_e2e: $postgres_e2e_result,
       oci_startup: {result:$oci_result,qualification:$oci_qualification},

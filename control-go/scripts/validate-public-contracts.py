@@ -22,6 +22,7 @@ import argparse
 import copy
 import hashlib
 import json
+import re
 from pathlib import Path
 from typing import Any
 
@@ -189,6 +190,9 @@ GO_CONTRACTS = [
     "contracts/p4/rule-observation/v1/schema.json",
     "contracts/db/effect-cas/v1/schema.json",
     "contracts/analysis/v1/schema.json",
+    "contracts/analysis/input/v1/schema.json",
+    "contracts/analysis/artifact/v1/schema.json",
+    "contracts/evidence/bounded-capture/v1/schema.json",
     "contracts/plugin/v1/schema.json",
     "contracts/plugin/manifest/v1/schema.json",
     "contracts/plugin/wit/v1/schema.json",
@@ -219,6 +223,28 @@ def main() -> int:
         schema = load(path)
         Draft202012Validator.check_schema(schema)
         checked.append({"name": rel, "digest": sha256(path)})
+
+    for rel, profile_id, version in [
+        ("contracts/profiles/v1/a2a-agent.json", "a2a-agent/v1", "1.0"),
+        ("contracts/profiles/v1/masi-mcp-readonly.json", "masi-mcp-readonly/v1", "2025-11-25"),
+    ]:
+        profile_path = repo / rel
+        profile = load(profile_path)
+        if profile.get("profile_id") != profile_id or profile.get("protocol_version") != version:
+            raise ValueError(f"{rel} profile/version drift")
+        checked.append({"name": rel, "digest": sha256(profile_path)})
+
+    supply_schema_path = repo / "contracts/supply-chain/v1/schema.json"
+    supply_registry_path = repo / "contracts/supply-chain/v1/control-core-components.json"
+    supply_schema = load(supply_schema_path)
+    supply_registry = load(supply_registry_path)
+    validate(supply_schema, supply_registry, "supply-chain:control-core")
+    bad_supply = copy.deepcopy(supply_registry)
+    bad_supply["components"][0]["decision"] = "UNPINNED"
+    reject(supply_schema, bad_supply, "supply-chain:unknown-decision")
+    negative_vectors += 1
+    checked.append({"name": "contracts/supply-chain/v1/control-core-components.json",
+                    "digest": sha256(supply_registry_path)})
 
     # ---- 2. edge.proto surface drift (Go implements ControlSink, calls EdgeControl) ----
     edge_proto = (repo / "contracts" / "edge" / "v1" / "edge.proto").read_text(encoding="utf-8")
@@ -569,7 +595,8 @@ def main() -> int:
     oa = yaml.safe_load((repo / "contracts" / "openapi" / "v1" / "openapi.yaml").read_text(encoding="utf-8"))
     if oa.get("openapi") != "3.1.2":
         raise ValueError("openapi.yaml openapi version not 3.1.2")
-    required_paths = ["/api/events", "/api/incidents", "/api/evidence", "/api/effects/proposals",
+    required_paths = ["/api/events", "/api/incidents", "/api/evidence", "/api/evidence/captures",
+                      "/api/evidence/captures/{captureID}/intents", "/api/effects/proposals",
                       "/api/effects/decisions", "/api/effects/intents", "/api/firewall/revisions",
                       "/api/firewall/activations",
                       "/api/firewall/overlays",
@@ -578,7 +605,13 @@ def main() -> int:
                       "/api/plugins/statistics/definitions", "/api/plugins/statistics/runs",
                       "/api/plugins/statistics/current", "/api/plugins/statistics/schedules",
                       "/api/plugins/statistics/artifacts/{artifactID}", "/events", "/healthz", "/readyz",
-                      "/livez", "/oidc/callback"]
+                      "/api/analysis/tasks", "/api/analysis/artifacts/{artifactID}",
+                      "/api/effects/operations/{operationID}", "/api/effects/operations/{operationID}/readback",
+                      "/api/targets/{targetID}", "/api/targets/{targetID}/observation",
+                      "/api/fleet/operations/{fleetID}", "/api/firewall/bindings",
+                      "/api/firewall/activations/{operationID}", "/api/models/incarnations/current",
+                      "/api/models/pools", "/api/models/operations/{operationID}",
+                      "/livez", "/metrics", "/oidc/callback"]
     missing = [p for p in required_paths if p not in oa.get("paths", {})]
     if missing:
         raise ValueError(f"openapi.yaml missing paths: {missing}")
@@ -586,6 +619,14 @@ def main() -> int:
         raise ValueError("openapi.yaml missing oidc/csrf securitySchemes")
     if oa.get("x-masi-openapi-profile") != "openapi-rest/v1":
         raise ValueError("openapi.yaml x-masi-openapi-profile not openapi-rest/v1")
+
+    router_source = (repo / "control-go/internal/api/router.go").read_text(encoding="utf-8")
+    routed = set(re.findall(r'\br\.(?:Get|Post)\("([^"?]+)"', router_source))
+    routed.discard("/oidc/test-login")
+    routed.update({"/healthz", "/readyz", "/livez", "/metrics"})
+    undocumented = sorted(path for path in routed if path not in oa.get("paths", {}))
+    if undocumented:
+        raise ValueError(f"router paths missing from OpenAPI: {undocumented}")
 
     def local_ref(value):
         if not isinstance(value, dict) or "$ref" not in value or not value["$ref"].startswith("#/components/"):
@@ -613,6 +654,21 @@ def main() -> int:
                 if "idempotency_key" not in schema.get("required", []):
                     raise ValueError(f"mutation body lacks required idempotency_key: {path_name}")
     checked.append({"name": "openapi-rest", "digest": sha256(repo / "contracts/openapi/v1/openapi.yaml")})
+
+    sdk_path = repo / "contracts/generated/typescript/control-api/sdk.gen.ts"
+    types_path = repo / "contracts/generated/typescript/control-api/types.gen.ts"
+    package_lock_path = repo / "contracts/openapi/v1/typescript-client/package-lock.json"
+    sdk = sdk_path.read_text(encoding="utf-8")
+    for operation in ["listEvents", "registerBoundedCapture", "inspectFirewallRevision", "submitAnalysisTask"]:
+        if f"export const {operation}" not in sdk:
+            raise ValueError(f"generated TypeScript SDK missing operation {operation}")
+    package_lock = load(package_lock_path)
+    root_deps = package_lock.get("packages", {}).get("", {}).get("devDependencies", {})
+    if package_lock.get("lockfileVersion") != 3 or root_deps.get("@hey-api/openapi-ts") != "0.99.0" or root_deps.get("typescript") != "5.9.3":
+        raise ValueError("TypeScript client generator lock drift")
+    checked.append({"name": "generated-typescript-sdk", "digest": sha256(sdk_path)})
+    checked.append({"name": "generated-typescript-types", "digest": sha256(types_path)})
+    checked.append({"name": "typescript-client-package-lock", "digest": sha256(package_lock_path)})
 
     # ---- 7. Semantic spot-checks (cross-record invariants) ----
     # R2 maker-checker: proposer != approver, both stable (iss,sub).

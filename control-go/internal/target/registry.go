@@ -181,6 +181,76 @@ func (s *RegistryService) Activate(ctx context.Context, targetID string, actor s
 	return err
 }
 
+// Verify marks a candidate verified only when the current authenticated Edge
+// observation is fresh and proves the exact desired profile/pipeline/capacity.
+func (s *RegistryService) Verify(ctx context.Context, targetID string, actor security.Actor,
+	auth LifecycleAuthorization, reasonCode, traceID string) error {
+	return s.pool.WithTx(ctx, []db.TxOption{db.Serializable()}, func(tx *db.Tx) error {
+		var previous, scope, desired string
+		if err := tx.QueryRow(ctx, `SELECT status,scope,desired_profile_digest FROM targets
+			WHERE target_id=$1 FOR UPDATE`, targetID).Scan(&previous, &scope, &desired); err != nil {
+			return err
+		}
+		if err := validateLifecycleMutation(actor, auth, scope, reasonCode, traceID); err != nil {
+			return err
+		}
+		var exact bool
+		if err := tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM target_capability_observations c
+			WHERE c.target_id=$1 AND c.profile_digest=$2 AND c.capacity_available AND c.lease_valid
+			  AND c.p4_connected AND c.primary_actor AND c.pipeline_exact AND c.freshness='fresh'
+			  AND c.expires_at_unix_ms>$3)`, targetID, desired, s.now().UnixMilli()).Scan(&exact); err != nil {
+			return err
+		}
+		if previous != string(StatusCandidate) || !exact {
+			return errors.New("target: candidate lacks fresh exact capability verification")
+		}
+		tag, err := tx.Exec(ctx, `UPDATE targets SET status='verified' WHERE target_id=$1 AND status='candidate'`, targetID)
+		if err != nil || tag.RowsAffected() != 1 {
+			return errors.New("target: verify CAS conflict")
+		}
+		return appendLifecycleEvent(ctx, tx, targetID, previous, string(StatusVerified), scope, actor,
+			reasonCode, traceID, s.now().UnixMilli())
+	})
+}
+
+// Transition performs the non-terminal operational lifecycle transitions. It
+// does not wait for an external device; Assignment revoke/drain is a separate,
+// explicit operation and must precede handoff.
+func (s *RegistryService) Transition(ctx context.Context, targetID string, desired TargetStatus,
+	actor security.Actor, auth LifecycleAuthorization, reasonCode, traceID string) error {
+	if desired != StatusDraining && desired != StatusDisabled && desired != StatusQuarantined {
+		return errors.New("target: unsupported operational lifecycle transition")
+	}
+	return s.pool.WithTx(ctx, []db.TxOption{db.Serializable()}, func(tx *db.Tx) error {
+		var previous, scope string
+		if err := tx.QueryRow(ctx, `SELECT status,scope FROM targets WHERE target_id=$1 FOR UPDATE`, targetID).
+			Scan(&previous, &scope); err != nil {
+			return err
+		}
+		if err := validateLifecycleMutation(actor, auth, scope, reasonCode, traceID); err != nil {
+			return err
+		}
+		allowed := false
+		switch desired {
+		case StatusDraining:
+			allowed = previous == string(StatusActive)
+		case StatusDisabled:
+			allowed = previous == string(StatusActive) || previous == string(StatusDraining) || previous == string(StatusQuarantined)
+		case StatusQuarantined:
+			allowed = previous == string(StatusActive) || previous == string(StatusDraining) || previous == string(StatusVerified)
+		}
+		if !allowed {
+			return fmt.Errorf("target: transition %s -> %s rejected", previous, desired)
+		}
+		tag, err := tx.Exec(ctx, `UPDATE targets SET status=$1 WHERE target_id=$2 AND status=$3`, string(desired), targetID, previous)
+		if err != nil || tag.RowsAffected() != 1 {
+			return errors.New("target: lifecycle transition CAS conflict")
+		}
+		return appendLifecycleEvent(ctx, tx, targetID, previous, string(desired), scope, actor,
+			reasonCode, traceID, s.now().UnixMilli())
+	})
+}
+
 // Retire marks a target retired. A retired ID is never reassigned and can never
 // return to active/verified (the CHECK constraint enforces terminality).
 func (s *RegistryService) Retire(ctx context.Context, targetID string, actor security.Actor, auth LifecycleAuthorization, reasonCode, traceID string) error {

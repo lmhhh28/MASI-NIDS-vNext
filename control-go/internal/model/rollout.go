@@ -465,7 +465,7 @@ func (s *RolloutService) upsertPoolGeneration(ctx context.Context, req RolloutRe
 	}
 	pg := PoolGeneration{
 		LogicalPoolID: req.LogicalPoolID, PoolGeneration: req.TargetGeneration,
-		ModelControlIncarnationID: req.ModelControlIncarnationID, OperationID: req.OperationID,
+		ModelControlIncarnationID: req.ModelControlIncarnationID, OperationID: poolGenerationOperationID(req),
 		Scope: req.Scope, BindingGeneration: proposedBindingGeneration,
 		ModelRevisionID:       req.TargetRevisionID,
 		StartupEnvelopeDigest: envelope.StartupEnvelopeDigest,
@@ -482,15 +482,15 @@ func (s *RolloutService) upsertPoolGeneration(ctx context.Context, req RolloutRe
 	}
 	err := s.pool.WithTx(ctx, []db.TxOption{db.ReadCommitted()}, func(tx *db.Tx) error {
 		tag, err := tx.Exec(ctx, `
-				INSERT INTO pool_generations (
-					logical_pool_id, pool_generation, model_revision_id,
-					startup_envelope_digest, pool_observation_digest, binding_digest,
-					status, min_ready_replicas, capacity_qualified,
-					model_revision_digest,model_bundle_digest,feature_contract_digest,
-					label_contract_digest,output_adapter_digest,wire_profile_digest,runtime_profile_digest,optimization_profile_digest)
-				VALUES ($1,$2,$3,$4,$5,$6,$7,$8,false,$9,$10,$11,$12,$13,$14,$15,$16)
-				ON CONFLICT (logical_pool_id, pool_generation) DO NOTHING`,
-			pg.LogicalPoolID, pg.PoolGeneration, pg.ModelRevisionID,
+					INSERT INTO pool_generations (
+						logical_pool_id, model_control_incarnation_id, pool_generation, model_revision_id,
+						startup_envelope_digest, pool_observation_digest, binding_digest,
+						status, min_ready_replicas, capacity_qualified,
+						model_revision_digest,model_bundle_digest,feature_contract_digest,
+						label_contract_digest,output_adapter_digest,wire_profile_digest,runtime_profile_digest,optimization_profile_digest)
+					VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,false,$10,$11,$12,$13,$14,$15,$16,$17)
+					ON CONFLICT (logical_pool_id, model_control_incarnation_id, pool_generation) DO NOTHING`,
+			pg.LogicalPoolID, pg.ModelControlIncarnationID, pg.PoolGeneration, pg.ModelRevisionID,
 			pg.StartupEnvelopeDigest, pg.PoolObservationDigest, pg.BindingDigest,
 			string(pg.Status), pg.MinReadyReplicas, pg.ModelRevisionDigest, pg.ModelBundleDigest,
 			pg.FeatureContractDigest, pg.LabelContractDigest, pg.OutputAdapterDigest, pg.WireProfileDigest, pg.RuntimeProfileDigest, pg.OptimizationProfileDigest)
@@ -506,7 +506,8 @@ func (s *RolloutService) upsertPoolGeneration(ctx context.Context, req RolloutRe
 			binding_digest,status,min_ready_replicas,capacity_qualified,model_revision_digest,
 			model_bundle_digest,feature_contract_digest,label_contract_digest,output_adapter_digest,
 			wire_profile_digest,runtime_profile_digest,optimization_profile_digest FROM pool_generations
-			WHERE logical_pool_id=$1 AND pool_generation=$2 FOR UPDATE`, pg.LogicalPoolID, pg.PoolGeneration).
+				WHERE logical_pool_id=$1 AND model_control_incarnation_id=$2 AND pool_generation=$3 FOR UPDATE`,
+			pg.LogicalPoolID, pg.ModelControlIncarnationID, pg.PoolGeneration).
 			Scan(&existing.ModelRevisionID, &existing.StartupEnvelopeDigest, &existing.PoolObservationDigest,
 				&existing.BindingDigest, &status, &existing.MinReadyReplicas, &existing.CapacityQualified,
 				&existing.ModelRevisionDigest, &existing.ModelBundleDigest, &existing.FeatureContractDigest,
@@ -563,16 +564,20 @@ func (s *RolloutService) loadReusablePoolObservation(ctx context.Context, pool P
 	err := s.pool.Pool.QueryRow(ctx, `SELECT c.observation_id,e.readback_body,e.capacity_body
 		FROM model_pool_observations_current c JOIN model_pool_observation_events e
 		 ON e.observation_id=c.observation_id
-		JOIN pool_generations pg ON pg.logical_pool_id=c.logical_pool_id AND pg.pool_generation=c.pool_generation
-		WHERE c.logical_pool_id=$1 AND c.pool_generation=$2 AND c.scope=$3
-		 AND c.pool_observation_digest=$4 AND pg.capacity_qualified
-		 AND pg.status IN ('active','draining') AND pg.model_revision_id=$5
-		 AND pg.startup_envelope_digest=$6 AND pg.binding_digest=$7
-		 AND pg.model_revision_digest=$8 AND pg.model_bundle_digest=$9
-		 AND pg.feature_contract_digest=$10 AND pg.label_contract_digest=$11
-		 AND pg.output_adapter_digest=$12 AND pg.wire_profile_digest=$13
-		 AND pg.runtime_profile_digest=$14 AND pg.optimization_profile_digest=$15`,
-		pool.LogicalPoolID, pool.PoolGeneration, pool.Scope, pool.PoolObservationDigest,
+			JOIN pool_generations pg ON pg.logical_pool_id=c.logical_pool_id
+			 AND pg.model_control_incarnation_id=c.model_control_incarnation_id
+			 AND pg.pool_generation=c.pool_generation
+			WHERE c.logical_pool_id=$1 AND c.model_control_incarnation_id=$2
+			 AND c.pool_generation=$3 AND c.scope=$4
+			 AND c.pool_observation_digest=$5 AND pg.capacity_qualified
+			 AND pg.status IN ('active','draining') AND pg.model_revision_id=$6
+			 AND pg.startup_envelope_digest=$7 AND pg.binding_digest=$8
+			 AND pg.model_revision_digest=$9 AND pg.model_bundle_digest=$10
+			 AND pg.feature_contract_digest=$11 AND pg.label_contract_digest=$12
+			 AND pg.output_adapter_digest=$13 AND pg.wire_profile_digest=$14
+			 AND pg.runtime_profile_digest=$15 AND pg.optimization_profile_digest=$16`,
+		pool.LogicalPoolID, pool.ModelControlIncarnationID, pool.PoolGeneration,
+		pool.Scope, pool.PoolObservationDigest,
 		pool.ModelRevisionID, pool.StartupEnvelopeDigest, pool.BindingDigest, pool.ModelRevisionDigest,
 		pool.ModelBundleDigest, pool.FeatureContractDigest, pool.LabelContractDigest,
 		pool.OutputAdapterDigest, pool.WireProfileDigest, pool.RuntimeProfileDigest,
@@ -647,30 +652,33 @@ func (s *RolloutService) recordPoolObservation(ctx context.Context, req RolloutR
 			}
 		}
 		if _, err := tx.Exec(ctx, `INSERT INTO model_pool_observations_current(
-			logical_pool_id,pool_generation,observation_id,record_digest,pool_observation_digest,
-			observed_at_unix_ms,scope,updated_at)
-			VALUES($1,$2,$3,$4,$5,$6,$7,now())
-			ON CONFLICT (logical_pool_id,pool_generation) DO UPDATE SET
+				logical_pool_id,model_control_incarnation_id,pool_generation,observation_id,record_digest,pool_observation_digest,
+				observed_at_unix_ms,scope,updated_at)
+				VALUES($1,$2,$3,$4,$5,$6,$7,$8,now())
+				ON CONFLICT (logical_pool_id,model_control_incarnation_id,pool_generation) DO UPDATE SET
 			 observation_id=EXCLUDED.observation_id,record_digest=EXCLUDED.record_digest,
 			 pool_observation_digest=EXCLUDED.pool_observation_digest,
 			 observed_at_unix_ms=EXCLUDED.observed_at_unix_ms,scope=EXCLUDED.scope,updated_at=now()
 			WHERE (model_pool_observations_current.observed_at_unix_ms,model_pool_observations_current.observation_id)
 			    <= (EXCLUDED.observed_at_unix_ms,EXCLUDED.observation_id)`,
-			pool.LogicalPoolID, pool.PoolGeneration, observationID, recordDigest,
-			readback.PoolObservationDigest, readback.ObservedAtUnixMS, req.Scope); err != nil {
+			pool.LogicalPoolID, req.ModelControlIncarnationID, pool.PoolGeneration,
+			observationID, recordDigest, readback.PoolObservationDigest,
+			readback.ObservedAtUnixMS, req.Scope); err != nil {
 			return err
 		}
 		var currentID string
 		if err := tx.QueryRow(ctx, `SELECT observation_id FROM model_pool_observations_current
-			WHERE logical_pool_id=$1 AND pool_generation=$2 FOR UPDATE`, pool.LogicalPoolID, pool.PoolGeneration).Scan(&currentID); err != nil {
+				WHERE logical_pool_id=$1 AND model_control_incarnation_id=$2 AND pool_generation=$3 FOR UPDATE`,
+			pool.LogicalPoolID, req.ModelControlIncarnationID, pool.PoolGeneration).Scan(&currentID); err != nil {
 			return err
 		}
 		if currentID != observationID {
 			return errors.New("model: newer pool observation already current")
 		}
 		tag, err = tx.Exec(ctx, `UPDATE pool_generations SET capacity_qualified=true
-			WHERE logical_pool_id=$1 AND pool_generation=$2 AND status IN ('warming','active','draining')`,
-			pool.LogicalPoolID, pool.PoolGeneration)
+				WHERE logical_pool_id=$1 AND model_control_incarnation_id=$2 AND pool_generation=$3
+				  AND status IN ('warming','active','draining')`,
+			pool.LogicalPoolID, req.ModelControlIncarnationID, pool.PoolGeneration)
 		if err != nil {
 			return err
 		}
@@ -694,8 +702,10 @@ func (s *RolloutService) casSwapBinding(ctx context.Context, req RolloutRequest,
 	err := s.pool.WithTx(ctx, []db.TxOption{db.ReadCommitted()}, func(tx *db.Tx) error {
 		var observedID, observedDigest string
 		if err := tx.QueryRow(ctx, `SELECT observation_id,pool_observation_digest
-			FROM model_pool_observations_current WHERE logical_pool_id=$1 AND pool_generation=$2 FOR SHARE`,
-			req.LogicalPoolID, req.TargetGeneration).Scan(&observedID, &observedDigest); err != nil {
+				FROM model_pool_observations_current WHERE logical_pool_id=$1
+				 AND model_control_incarnation_id=$2 AND pool_generation=$3 FOR SHARE`,
+			req.LogicalPoolID, req.ModelControlIncarnationID, req.TargetGeneration).
+			Scan(&observedID, &observedDigest); err != nil {
 			return fmt.Errorf("model: load current pool observation: %w", err)
 		}
 		if observedID != observationID || observedDigest != poolObservationDigest {
@@ -743,8 +753,8 @@ func (s *RolloutService) casSwapBinding(ctx context.Context, req RolloutRequest,
 		// Mark pool generation active.
 		tag, err = tx.Exec(ctx, `
 			UPDATE pool_generations SET status = 'active', capacity_qualified = true
-			WHERE logical_pool_id = $1 AND pool_generation = $2`,
-			req.LogicalPoolID, req.TargetGeneration)
+				WHERE logical_pool_id = $1 AND model_control_incarnation_id=$2 AND pool_generation = $3`,
+			req.LogicalPoolID, req.ModelControlIncarnationID, req.TargetGeneration)
 		if err != nil {
 			return err
 		}
@@ -755,10 +765,12 @@ func (s *RolloutService) casSwapBinding(ctx context.Context, req RolloutRequest,
 		if curGen != req.TargetGeneration {
 			if _, err := tx.Exec(ctx, `
 				UPDATE pool_generations SET status = 'draining'
-				WHERE logical_pool_id = $1 AND pool_generation = $2 AND status = 'active'
-				  AND NOT EXISTS (SELECT 1 FROM shard_bindings sb
-				    WHERE sb.logical_pool_id=$1 AND sb.current_generation=$2)`,
-				req.LogicalPoolID, curGen); err != nil {
+					WHERE logical_pool_id = $1 AND model_control_incarnation_id=$2
+					  AND pool_generation = $3 AND status = 'active'
+					  AND NOT EXISTS (SELECT 1 FROM shard_bindings sb
+					    WHERE sb.logical_pool_id=$1 AND sb.model_control_incarnation_id=$2
+					      AND sb.current_generation=$3)`,
+				req.LogicalPoolID, req.ModelControlIncarnationID, curGen); err != nil {
 				return err
 			}
 		}
@@ -878,9 +890,19 @@ func (s *RolloutService) finishOperation(ctx context.Context, opID string, statu
 }
 
 func envelopeString(req RolloutRequest, rev *ModelRevision) string {
-	return fmt.Sprintf("envelope|%s|%d|%s|%s|%s|%s|%s|%s", req.LogicalPoolID, req.TargetGeneration,
+	return fmt.Sprintf("envelope|%s|%s|%s|%d|%s|%s|%s|%s|%s|%s", req.ModelControlIncarnationID,
+		poolGenerationOperationID(req), req.LogicalPoolID, req.TargetGeneration,
 		rev.ModelRevisionDigest, req.WireProfileDigest, rev.ReaderRuntimeProfile, req.RuntimeProfileDigest,
 		req.OptimizationProfileDigest, req.AvailabilityProfile)
+}
+
+// poolGenerationOperationID is shared by every shard in one immutable pool
+// generation. Per-shard rollout operation IDs remain distinct, while the
+// deployment/startup envelope has one stable operation identity that can be
+// safely reused by an ordered rollout group.
+func poolGenerationOperationID(req RolloutRequest) string {
+	return "mpool-" + shortModelEventID(fmt.Sprintf("%s|%s|%d|%s", req.ModelControlIncarnationID,
+		req.LogicalPoolID, req.TargetGeneration, req.TargetRevisionID))
 }
 
 func digestOf(s string) string {

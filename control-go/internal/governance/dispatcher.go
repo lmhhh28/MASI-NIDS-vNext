@@ -89,7 +89,25 @@ func (d *Dispatcher) Dispatch(ctx context.Context, intentID string) (DispatchRes
 	started := d.now().UnixMilli()
 	edgeCtx, cancel := context.WithTimeout(ctx, time.Until(time.UnixMilli(intent.DeadlineUnixMS)))
 	defer cancel()
+	renewDone := make(chan struct{})
+	renewResult := make(chan error, 1)
+	go func() {
+		renewResult <- d.renewLease(edgeCtx, intent.EffectIntentID, lease.Fence, renewDone, cancel)
+	}()
 	edgeRes, rpcErr := d.edge.ExecuteEffect(edgeCtx, *intent)
+	close(renewDone)
+	// Join the renewal goroutine before accepting the result. A non-blocking
+	// receive here creates a race in which an already-lost lease can be missed
+	// just as ExecuteEffect returns.
+	var preflightRejected *PreflightRejectedError
+	failedBeforeSideEffect := errors.As(rpcErr, &preflightRejected)
+	if leaseErr := <-renewResult; leaseErr != nil {
+		rpcErr = leaseErr
+		failedBeforeSideEffect = false
+	}
+	if failedBeforeSideEffect {
+		return d.finalizePreflightHold(ctx, intent, lease.Fence, started)
+	}
 	if rpcErr == nil {
 		rpcErr = validateEffectResultIdentity(*intent, edgeRes)
 	}
@@ -102,10 +120,39 @@ func (d *Dispatcher) Dispatch(ctx context.Context, intentID string) (DispatchRes
 	if edgeRes.Outcome == "hold" {
 		return d.finalizeKnownHold(ctx, intent, lease.Fence, started, edgeRes)
 	}
-	if err := validateAppliedReadback(edgeRes); err != nil {
+	if err := validateAppliedReadback(*intent, edgeRes); err != nil {
 		return d.markUnknown(ctx, intent, lease.Fence, started, edgeRes, err)
 	}
 	return d.finalizeApplied(ctx, intent, lease.Fence, started, edgeRes)
+}
+
+func (d *Dispatcher) renewLease(ctx context.Context, intentID, leaseID string, done <-chan struct{}, cancel context.CancelFunc) error {
+	interval := d.leaseTTL / 3
+	if interval < time.Second {
+		interval = time.Second
+	}
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-done:
+			return nil
+		case <-ctx.Done():
+			if errors.Is(ctx.Err(), context.Canceled) {
+				return nil
+			}
+			return ctx.Err()
+		case <-ticker.C:
+			ok, err := d.pool.RenewIntentLease(ctx, intentID, leaseID, d.leaseTTL)
+			if err != nil || !ok {
+				if err == nil {
+					err = errors.New("dispatcher: effect lease renewal fence lost")
+				}
+				cancel()
+				return err
+			}
+		}
+	}
 }
 
 func (d *Dispatcher) holdBeforeSideEffect(ctx context.Context, intent *Intent, reason string) error {
@@ -177,6 +224,12 @@ func (d *Dispatcher) loadIntent(ctx context.Context, intentID string) (*Intent, 
 	if err := intent.Actor.Validate(); err != nil {
 		return nil, fmt.Errorf("dispatcher: persisted actor: %w", err)
 	}
+	if intent.IsFleetParent {
+		if !validSHA256(intent.EffectDigest) || intent.ClaimState != "" {
+			return nil, errors.New("dispatcher: malformed/non-fenced fleet parent projection")
+		}
+		return &intent, nil
+	}
 	if err := ValidateEffectPayload(intent.Payload); err != nil {
 		return nil, fmt.Errorf("dispatcher: persisted effect payload invalid: %w", err)
 	}
@@ -196,16 +249,16 @@ func validateEffectResultIdentity(intent Intent, result EdgeEffectResult) error 
 	return nil
 }
 
-func validateAppliedReadback(result EdgeEffectResult) error {
+func validateAppliedReadback(intent Intent, result EdgeEffectResult) error {
 	if result.Outcome != "applied" {
 		return fmt.Errorf("dispatcher: Edge did not prove applied outcome: %s", result.Outcome)
 	}
-	if result.ReadbackDigest == "" || result.ExpectedEntries < 0 || result.ExpectedEntries > 4096 ||
+	if !validSHA256(result.ReadbackDigest) || result.ExpectedEntries < 0 || result.ExpectedEntries > 4096 ||
 		result.ObservedEntries < 0 || result.ObservedEntries > 4096 || result.MismatchedEntries < 0 ||
 		result.MismatchedEntries > 4096 || result.ExpectedEntries != result.ObservedEntries || result.MismatchedEntries != 0 {
 		return fmt.Errorf("dispatcher: Edge readback is not exact")
 	}
-	return nil
+	return validateAppliedReadbackManifest(intent, result)
 }
 
 func (d *Dispatcher) finalizeApplied(ctx context.Context, intent *Intent, leaseID string, started int64, edgeRes EdgeEffectResult) (DispatchResult, error) {
@@ -282,6 +335,29 @@ func (d *Dispatcher) finalizeKnownHold(ctx context.Context, intent *Intent, leas
 	return DispatchResult{IntentID: intent.EffectIntentID, Status: AttemptHold, ReasonCode: "EDGE_HOLD"}, nil
 }
 
+func (d *Dispatcher) finalizePreflightHold(ctx context.Context, intent *Intent, leaseID string, started int64) (DispatchResult, error) {
+	const reason = "EDGE_PREFLIGHT_HOLD"
+	edgeRes := EdgeEffectResult{ActiveBank: -1}
+	err := d.pool.WithTx(ctx, []db.TxOption{db.ReadCommitted()}, func(tx *db.Tx) error {
+		tag, err := tx.Exec(ctx, `UPDATE effect_intents SET claim_state='hold',reason_code=$1
+			WHERE effect_intent_id=$2 AND claim_lease_id=$3`, reason, intent.EffectIntentID, leaseID)
+		if err != nil {
+			return err
+		}
+		if tag.RowsAffected() != 1 {
+			return errors.New("dispatcher: preflight hold finalize CAS conflict")
+		}
+		if err := d.insertAttempt(ctx, tx, intent, AttemptHold, leaseID, started, edgeRes, reason); err != nil {
+			return err
+		}
+		return d.projectStateTx(ctx, tx, intent.EffectIntentID, ClaimState("hold"), AttemptHold, reason)
+	})
+	if err != nil {
+		return DispatchResult{IntentID: intent.EffectIntentID, Status: AttemptHold, ReasonCode: "PREFLIGHT_HOLD_FINALIZE_ERROR"}, err
+	}
+	return DispatchResult{IntentID: intent.EffectIntentID, Status: AttemptHold, ReasonCode: reason}, nil
+}
+
 func (d *Dispatcher) markUnknown(ctx context.Context, intent *Intent, leaseID string, started int64, edgeRes EdgeEffectResult, rpcErr error) (DispatchResult, error) {
 	// Timeout-after-effect: mark unknown and reconcile along the ORIGINAL
 	// operation. No second intent, no blind retry (§5.2).
@@ -345,17 +421,21 @@ func (d *Dispatcher) insertAttempt(ctx context.Context, tx *db.Tx, intent *Inten
 		activeBank = edgeRes.ActiveBank
 	}
 	_, err := tx.Exec(ctx, `
-		INSERT INTO effect_attempts (
-			attempt_id, intent_id, operation_id, attempt_number, status,
-			plan_digest, readback_digest, expected_entries, observed_entries,
-			mismatched_entries, active_bank, started_at_unix_ms, finished_at_unix_ms,
-			trace_id, reason_code)
-		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)`,
+			INSERT INTO effect_attempts (
+				attempt_id, intent_id, operation_id, attempt_number, status,
+				plan_digest, readback_digest, expected_entries, observed_entries,
+				mismatched_entries, active_bank, started_at_unix_ms, finished_at_unix_ms,
+				trace_id, reason_code,readback_manifest_digest,readback_entry_count)
+			VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)`,
 		attemptID, intent.EffectIntentID, intent.OperationID, attemptNumber, string(status),
 		intent.EffectDigest, nullableString(edgeRes.ReadbackDigest),
 		edgeRes.ExpectedEntries, edgeRes.ObservedEntries, edgeRes.MismatchedEntries,
-		activeBank, started, finished, intent.TraceID, reason)
-	return err
+		activeBank, started, finished, intent.TraceID, reason,
+		nullableString(edgeRes.ReadbackManifestDigest), len(edgeRes.AppliedEntries))
+	if err != nil {
+		return err
+	}
+	return persistReadbackManifestTx(ctx, tx, attemptID, intent, edgeRes)
 }
 
 func insertEffectAckTx(ctx context.Context, tx *db.Tx, intent *Intent, result EdgeEffectResult, committedAtUnixMS int64) error {
@@ -446,6 +526,56 @@ func (d *Dispatcher) RetryPendingAcknowledgements(ctx context.Context, limit int
 		acked++
 	}
 	return acked, nil
+}
+
+// FenceExpiredClaims converts expired in-flight effects to unknown under the
+// original identity. A successor may query readback, but cannot execute the
+// side effect again merely because a process lease elapsed.
+func (d *Dispatcher) FenceExpiredClaims(ctx context.Context, limit int) (int, error) {
+	if limit < 1 || limit > 32 {
+		return 0, errors.New("dispatcher: expired claim limit must be 1..32")
+	}
+	count := 0
+	err := d.pool.WithTx(ctx, []db.TxOption{db.ReadCommitted()}, func(tx *db.Tx) error {
+		rows, err := tx.Query(ctx, `SELECT effect_intent_id,claim_lease_id FROM effect_intents
+			WHERE claim_state='claimed' AND claim_expires_at_unix_ms<=$1
+			ORDER BY claim_expires_at_unix_ms FOR UPDATE SKIP LOCKED LIMIT $2`, d.now().UnixMilli(), limit)
+		if err != nil {
+			return err
+		}
+		type expired struct{ intentID, leaseID string }
+		items := make([]expired, 0, limit)
+		for rows.Next() {
+			var item expired
+			if err := rows.Scan(&item.intentID, &item.leaseID); err != nil {
+				rows.Close()
+				return err
+			}
+			items = append(items, item)
+		}
+		if err := rows.Err(); err != nil {
+			rows.Close()
+			return err
+		}
+		rows.Close()
+		for _, item := range items {
+			tag, err := tx.Exec(ctx, `UPDATE effect_intents SET claim_state='unknown',
+				claim_expires_at_unix_ms=NULL,reason_code='CLAIM_LEASE_EXPIRED_UNKNOWN'
+				WHERE effect_intent_id=$1 AND claim_state='claimed' AND claim_lease_id=$2`,
+				item.intentID, item.leaseID)
+			if err != nil {
+				return err
+			}
+			if tag.RowsAffected() == 1 {
+				if err := d.projectStateTx(ctx, tx, item.intentID, ClaimUnknown, AttemptUnknown, "CLAIM_LEASE_EXPIRED_UNKNOWN"); err != nil {
+					return err
+				}
+				count++
+			}
+		}
+		return nil
+	})
+	return count, err
 }
 
 // FenceOwnedClaimsOnShutdown conservatively turns this process's unfinished

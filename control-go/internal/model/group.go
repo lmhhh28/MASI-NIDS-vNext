@@ -53,8 +53,11 @@ func (s *RolloutService) CreateRolloutGroup(ctx context.Context, req RolloutGrou
 		}
 		seen[shard] = struct{}{}
 	}
-	if req.Template.LogicalPoolID == "" || req.Template.TargetGeneration < 1 || req.Template.TargetRevisionID == "" ||
-		req.Template.ModelControlIncarnationID == "" || req.Template.Scope == "" || req.Template.Kind != OpRollout {
+	if req.Template.LogicalPoolID == "" || req.Template.TargetRevisionID == "" ||
+		req.Template.ModelControlIncarnationID == "" || req.Template.Scope == "" ||
+		(req.Template.Kind != OpRollout && req.Template.Kind != OpRollback) ||
+		(req.Template.Kind == OpRollout && req.Template.TargetGeneration < 1) ||
+		(req.Template.Kind == OpRollback && req.Template.TargetGeneration < 0) {
 		return nil, errors.New("model: rollout group template malformed")
 	}
 	requestDigest := rolloutGroupDigest(req)
@@ -251,6 +254,20 @@ func (s *RolloutService) loadRolloutGroup(ctx context.Context, groupID string) (
 		out.Shards = append(out.Shards, child)
 	}
 	return &out, rows.Err()
+}
+
+// LoadRolloutGroup returns the complete frozen shard vector for an authorized
+// scope set. It is read-only and never advances the group.
+func (s *RolloutService) LoadRolloutGroup(ctx context.Context, groupID string, scopes []string) (*RolloutGroupOutcome, error) {
+	if groupID == "" || len(scopes) == 0 || len(scopes) > 256 {
+		return nil, errors.New("model: rollout group read scope malformed")
+	}
+	var allowed bool
+	if err := s.pool.Pool.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM model_rollout_groups
+		WHERE group_id=$1 AND scope=ANY($2))`, groupID, scopes).Scan(&allowed); err != nil || !allowed {
+		return nil, errors.New("model: rollout group not found in authorized scope")
+	}
+	return s.loadRolloutGroup(ctx, groupID)
 }
 
 func rolloutGroupDigest(req RolloutGroupRequest) string {

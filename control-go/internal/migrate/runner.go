@@ -22,8 +22,8 @@ import (
 )
 
 const (
-	ExpectedSchemaVersion = "17"
-	SchemaSource          = "migration-chain/v17"
+	ExpectedSchemaVersion = "21"
+	SchemaSource          = "migration-chain/v21"
 	ProductionHistory     = "masi_migration_history"
 	TestHistory           = "masi_test_migration_history"
 )

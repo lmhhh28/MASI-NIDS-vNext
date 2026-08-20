@@ -21,7 +21,12 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
+	"masi-nids/control-go/internal/config"
+	"masi-nids/control-go/internal/db"
+	"masi-nids/control-go/internal/firewall"
 	edgev1 "masi-nids/control-go/internal/grpc/edgev1"
+	"masi-nids/control-go/internal/security"
+	"masi-nids/control-go/internal/target"
 )
 
 const (
@@ -55,6 +60,13 @@ type phaseRec struct {
 	endOffset   int64
 	elapsedMs   int64
 	errs        int64
+	requests    int64
+	committed   int64
+}
+
+type matrixEvidence struct {
+	FirewallRuleCounts []int
+	TargetCounts       []int
 }
 
 func TestFormalSoak(t *testing.T) {
@@ -110,11 +122,22 @@ func TestFormalSoak(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer conn.Close(context.Background())
-	seedControlFixture(seedCtx, t, conn)
+	zeroTargetsObserved := seedControlFixture(seedCtx, t, conn)
+	cfg, err := config.Load(configPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	servicePool, err := db.New(seedCtx, cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	matrix := seedSoakMatrix(seedCtx, t, servicePool, zeroTargetsObserved)
+	servicePool.Close()
 	defer cleanupSoak(conn)
 
 	var logs strings.Builder
 	cmd := exec.Command(binary, "--config", configPath)
+	cmd.Dir = filepath.Dir(filepath.Dir(configPath))
 	cmd.Stdout = &logs
 	cmd.Stderr = &logs
 	if err := cmd.Start(); err != nil {
@@ -173,6 +196,7 @@ func TestFormalSoak(t *testing.T) {
 		inFlight         int64
 		committedCount   int64
 		oracleMismatches int64
+		metricsErrors    int64
 	)
 	prevCpuTicks := int64(-1)
 
@@ -194,20 +218,35 @@ func TestFormalSoak(t *testing.T) {
 		s.fdCount = fds
 		s.threadCount = threads
 		s.queueDepth = atomic.LoadInt64(&inFlight)
+		metricsClient := &http.Client{Timeout: 2 * time.Second}
+		resp, err := metricsClient.Get("http://" + runtimeCfg.HTTPListen + "/metrics")
+		if err != nil {
+			s.oracleErrors = 1
+			atomic.AddInt64(&metricsErrors, 1)
+		} else {
+			_ = resp.Body.Close()
+			if resp.StatusCode != http.StatusOK {
+				s.oracleErrors = 1
+				atomic.AddInt64(&metricsErrors, 1)
+			}
+		}
 		samplesMu.Lock()
 		samples = append(samples, s)
 		samplesMu.Unlock()
 	}
 
 	// drivePhase paces soakRatePerSec total CommitResults across `concurrency` workers
-	// for `dur`; each request has a unique idempotency key. Returns elapsed + error count.
-	drivePhase := func(ctx context.Context, concurrencyIdx int, keyTag string, dur time.Duration) (int64, int64) {
+	// for `dur`; each request has a unique idempotency key. Returns measured
+	// elapsed, errors, requests and committed ACKs without synthetic clamping.
+	drivePhase := func(ctx context.Context, concurrencyIdx int, keyTag string, dur time.Duration) (int64, int64, int64, int64) {
 		concurrency := phaseConcurrency[concurrencyIdx]
 		phaseStart := time.Now()
 		perWorkerInterval := time.Duration(concurrency) * time.Second / time.Duration(soakRatePerSec)
 		deadline := phaseStart.Add(dur)
 		var wg sync.WaitGroup
 		var localErrs int64
+		var localRequests int64
+		committedBefore := atomic.LoadInt64(&committedCount)
 		for w := 0; w < concurrency; w++ {
 			wg.Add(1)
 			go func(worker int) {
@@ -229,6 +268,7 @@ func TestFormalSoak(t *testing.T) {
 					seq++
 					key := fmt.Sprintf("soak-%s-w%d-%d", keyTag, worker, seq)
 					batch := soakBatch(key, worker, seq)
+					atomic.AddInt64(&localRequests, 1)
 					atomic.AddInt64(&inFlight, 1)
 					rctx, rcancel := context.WithTimeout(ctx, 30*time.Second)
 					ack, err := client.CommitResults(rctx, batch)
@@ -260,7 +300,8 @@ func TestFormalSoak(t *testing.T) {
 			case <-time.After(remaining):
 			}
 		}
-		return time.Since(phaseStart).Milliseconds(), atomic.LoadInt64(&localErrs)
+		return time.Since(phaseStart).Milliseconds(), atomic.LoadInt64(&localErrs),
+			atomic.LoadInt64(&localRequests), atomic.LoadInt64(&committedCount) - committedBefore
 	}
 
 	var warmup time.Duration
@@ -308,7 +349,7 @@ func TestFormalSoak(t *testing.T) {
 
 	currentPhase = "warmup"
 	warmupStart := time.Now()
-	drivePhase(runCtx, 0, "warmup", warmup)
+	_, _, _, _ = drivePhase(runCtx, 0, "warmup", warmup)
 	warmupElapsedMs := time.Since(warmupStart).Milliseconds()
 	if formal && warmupElapsedMs < 60000 {
 		time.Sleep(time.Duration(60000-warmupElapsedMs) * time.Millisecond)
@@ -320,9 +361,10 @@ func TestFormalSoak(t *testing.T) {
 	for i := 0; i < 4; i++ {
 		currentPhase = phaseNames[i]
 		startOffset := time.Since(runStart).Milliseconds()
-		elapsed, errs := drivePhase(runCtx, i, phaseNames[i], phaseDur[i])
+		elapsed, errs, requests, committed := drivePhase(runCtx, i, phaseNames[i], phaseDur[i])
 		endOffset := time.Since(runStart).Milliseconds()
-		recs[i] = phaseRec{name: phaseNames[i], startOffset: startOffset, endOffset: endOffset, elapsedMs: elapsed, errs: errs}
+		recs[i] = phaseRec{name: phaseNames[i], startOffset: startOffset, endOffset: endOffset,
+			elapsedMs: elapsed, errs: errs, requests: requests, committed: committed}
 		if errs > 0 {
 			t.Logf("phase %s had %d errors", phaseNames[i], errs)
 		}
@@ -331,21 +373,6 @@ func TestFormalSoak(t *testing.T) {
 	if formal && qualifiedElapsedMs < 3600000 {
 		time.Sleep(time.Duration(3600000-qualifiedElapsedMs) * time.Millisecond)
 		qualifiedElapsedMs = time.Since(qualifiedStart).Milliseconds()
-	}
-	// Ensure phase elapsed meets the frozen minimum even under scheduling jitter
-	// (drivePhase already waits for deadline, but clamp as final guard).
-	if formal {
-		for i := range recs {
-			if recs[i].elapsedMs < 900000 {
-				recs[i].elapsedMs = 900000
-			}
-		}
-		if warmupElapsedMs < 60000 {
-			warmupElapsedMs = 60000
-		}
-		if qualifiedElapsedMs < 3600000 {
-			qualifiedElapsedMs = 3600000
-		}
 	}
 	monotonicEnd := time.Now()
 	close(sampleStop)
@@ -395,7 +422,7 @@ func TestFormalSoak(t *testing.T) {
 	}
 	result := "HOLD"
 	qualification := "NOT_QUALIFIED"
-	if atomic.LoadInt64(&oracleMismatches) > 0 || oomEvents > 0 || !gracefulShutdown {
+	if atomic.LoadInt64(&oracleMismatches) > 0 || atomic.LoadInt64(&metricsErrors) > 0 || oomEvents > 0 || !gracefulShutdown {
 		result = "FAIL"
 	}
 	for i := range recs {
@@ -464,18 +491,24 @@ func TestFormalSoak(t *testing.T) {
 		if recs[i].errs > 0 || result == "FAIL" {
 			phaseResult = "FAIL"
 		}
+		achievedRate := float64(0)
+		if recs[i].elapsedMs > 0 {
+			achievedRate = float64(recs[i].committed) / (float64(recs[i].elapsedMs) / 1000)
+		}
 		phasesJSON[i] = map[string]any{
 			"name":               recs[i].name,
 			"planned_ms":         900000,
 			"elapsed_ms":         recs[i].elapsedMs,
 			"result":             phaseResult,
 			"requested_rate_pps": float64(soakRatePerSec),
-			"achieved_rate_pps":  float64(soakRatePerSec),
+			"achieved_rate_pps":  achievedRate,
 			"errors":             recs[i].errs,
 			"module_metrics": map[string]any{
 				"phase_start_offset_ms": recs[i].startOffset,
 				"phase_end_offset_ms":   recs[i].endOffset,
 				"planned_duration_met":  recs[i].elapsedMs >= 900000,
+				"requests":              recs[i].requests,
+				"committed":             recs[i].committed,
 			},
 		}
 	}
@@ -484,6 +517,7 @@ func TestFormalSoak(t *testing.T) {
 	for i := range recs {
 		errorCount += recs[i].errs
 	}
+	errorCount += atomic.LoadInt64(&metricsErrors)
 
 	evidence := map[string]any{
 		"schema_version":       schemaVersion,
@@ -527,6 +561,11 @@ func TestFormalSoak(t *testing.T) {
 				"successful_status_samples":         validSamples,
 				"lease_renewals":                    int64(0),
 				"process_resource_threshold_status": thresholdStatus,
+				"firewall_rule_matrix":              fmt.Sprint(matrix.FirewallRuleCounts),
+				"target_count_matrix":               fmt.Sprint(matrix.TargetCounts),
+				"firewall_rule_matrix_completed":    fmt.Sprint(matrix.FirewallRuleCounts) == "[0 128 1024 4096]",
+				"target_count_matrix_completed":     fmt.Sprint(matrix.TargetCounts) == "[0 1 2 32]",
+				"metrics_scrape_errors":             atomic.LoadInt64(&metricsErrors),
 			},
 		},
 		"interruption": "NONE",
@@ -632,8 +671,81 @@ func soakBatch(eventKey string, worker int, seq int64) *edgev1.InferenceResultBa
 	}
 }
 
-func seedControlFixture(ctx context.Context, t *testing.T, conn *pgx.Conn) {
+func seedSoakMatrix(ctx context.Context, t *testing.T, pool *db.Pool, zeroTargetsObserved bool) matrixEvidence {
+	t.Helper()
+	digest := "sha256:" + strings.Repeat("a", 64)
+	actor := security.Actor{Issuer: "https://idp.example", Subject: "soak-matrix-admin"}
+	matrix := matrixEvidence{}
+	if !zeroTargetsObserved {
+		t.Fatal("soak target-count matrix did not observe the zero-target state")
+	}
+	matrix.TargetCounts = append(matrix.TargetCounts, 0)
+	countTargets := func() int {
+		var count int
+		if err := pool.Pool.QueryRow(ctx, `SELECT count(*) FROM targets WHERE scope='scope-e2e' AND status<>'retired'`).Scan(&count); err != nil {
+			t.Fatal(err)
+		}
+		return count
+	}
+	if count := countTargets(); count != 1 {
+		t.Fatalf("soak target-count matrix expected 1, got %d", count)
+	}
+	matrix.TargetCounts = append(matrix.TargetCounts, 1)
+	registry := target.NewRegistryService(pool)
+	auth := target.LifecycleAuthorization{Scope: "scope-e2e", PlatformAdmin: true, StepUpFresh: true, CSRFVerified: true}
+	for index := 0; index < 31; index++ {
+		identity := fmt.Sprintf("soak-matrix-%02d", index)
+		_, err := registry.RegisterTarget(ctx, target.Target{
+			DisplayName: identity, P4RuntimeEndpoint: fmt.Sprintf("https://%s.test:9559", identity),
+			DeviceID: int64(1000 + index), Role: "primary", DesiredProfileDigest: digest,
+			CredentialRef: "cred-" + identity, Scope: "scope-e2e",
+			TLS:   target.TLSIdentity{ServerName: identity + ".test", IdentityRef: "cred-" + identity},
+			Actor: actor, TraceID: "trace-" + identity, IdempotencyKey: "soak-matrix-target-" + fmt.Sprintf("%02d", index),
+		}, auth)
+		if err != nil {
+			t.Fatalf("seed target matrix %d: %v", index, err)
+		}
+		if index == 0 {
+			if count := countTargets(); count != 2 {
+				t.Fatalf("soak target-count matrix expected 2, got %d", count)
+			}
+			matrix.TargetCounts = append(matrix.TargetCounts, 2)
+		}
+	}
+	if count := countTargets(); count != 32 {
+		t.Fatalf("soak target-count matrix expected 32, got %d", count)
+	}
+	matrix.TargetCounts = append(matrix.TargetCounts, 32)
+
+	revisions := firewall.NewRevisionService(pool)
+	for _, count := range []int{0, 128, 1024, 4096} {
+		rules := make([]firewall.Rule, 0, count)
+		for index := 0; index < count; index++ {
+			rule := firewall.Rule{RuleID: fmt.Sprintf("soak-rule-%04d-%04d", count, index), RuleRevision: 1,
+				Priority: index + 1, SourceIPv4: firewall.IPv4Prefix{Address: "192.0.2.0", PrefixLength: 24},
+				DestinationIPv4: firewall.IPv4Prefix{Address: "198.51.100.0", PrefixLength: 24},
+				FragmentClass:   firewall.FragmentNone, Action: "drop", Enabled: true,
+				ActorRef: actor.String(), ReasonCode: "SOAK_MATRIX_RULE"}
+			rule.CanonicalRuleDigest = firewall.ComputeRuleDigest(rule)
+			rules = append(rules, rule)
+		}
+		revision, err := revisions.Create(ctx, firewall.Revision{RevisionID: fmt.Sprintf("soak-fw-%04d", count),
+			TargetID: "target-e2e", DefaultAction: firewall.DefaultDrop, Rules: rules,
+			Scope: "scope-e2e", ActorRef: actor.String()})
+		if err != nil || len(revision.Rules) != count {
+			t.Fatalf("seed firewall matrix %d: revision=%+v err=%v", count, revision, err)
+		}
+		matrix.FirewallRuleCounts = append(matrix.FirewallRuleCounts, count)
+	}
+	return matrix
+}
+
+func seedControlFixture(ctx context.Context, t *testing.T, conn *pgx.Conn) bool {
 	cleanupSoak(conn)
+	var initialTargets int
+	if err := conn.QueryRow(ctx, `SELECT count(*) FROM targets WHERE scope='scope-e2e' AND status<>'retired'`).Scan(&initialTargets); err != nil {
+		t.Fatal(err)
+	}
 	d := "sha256:" + strings.Repeat("a", 64)
 	nowMS := time.Now().UnixMilli()
 	seed := []struct {
@@ -644,7 +756,7 @@ func seedControlFixture(ctx context.Context, t *testing.T, conn *pgx.Conn) {
 		{`INSERT INTO model_control_incarnations(incarnation_id,source,rotated_at_unix_ms,actor_ref,trace_id) VALUES('inc-e2e','initial',1,'e2e','trace-e2e') ON CONFLICT DO NOTHING`, nil},
 		{`UPDATE model_control_state SET active_incarnation_id='inc-e2e',writer_enabled=true`, nil},
 		{`INSERT INTO logical_pools(logical_pool_id,current_generation,availability_profile,runtime_profile,actor_ref,trace_id) VALUES('pool-e2e',1,'availability-single/v1','model-runtime-central-cpu/v1','e2e','trace-e2e') ON CONFLICT DO NOTHING`, nil},
-		{`INSERT INTO pool_generations(logical_pool_id,pool_generation,model_revision_id,startup_envelope_digest,pool_observation_digest,binding_digest,status,min_ready_replicas,capacity_qualified,model_revision_digest,model_bundle_digest,feature_contract_digest,label_contract_digest,output_adapter_digest,wire_profile_digest,runtime_profile_digest,optimization_profile_digest) VALUES('pool-e2e',1,'rev-e2e',$1,$1,$1,'active',1,true,$1,$1,$1,$1,$1,$1,$1,$1) ON CONFLICT DO NOTHING`, []any{d}},
+		{`INSERT INTO pool_generations(logical_pool_id,model_control_incarnation_id,pool_generation,model_revision_id,startup_envelope_digest,pool_observation_digest,binding_digest,status,min_ready_replicas,capacity_qualified,model_revision_digest,model_bundle_digest,feature_contract_digest,label_contract_digest,output_adapter_digest,wire_profile_digest,runtime_profile_digest,optimization_profile_digest) VALUES('pool-e2e','inc-e2e',1,'rev-e2e',$1,$1,$1,'active',1,true,$1,$1,$1,$1,$1,$1,$1,$1) ON CONFLICT DO NOTHING`, []any{d}},
 		{`INSERT INTO shard_bindings(shard_id,logical_pool_id,model_control_incarnation_id,current_generation,current_binding_generation,current_revision_id,route_epoch,resume_state,loaded,ready,cas_digest,scope) VALUES('shard-e2e','pool-e2e','inc-e2e',1,1,'rev-e2e',1,'current',true,true,$1,'scope-e2e') ON CONFLICT(shard_id) DO UPDATE SET model_control_incarnation_id='inc-e2e',current_generation=1,current_binding_generation=1,current_revision_id='rev-e2e',route_epoch=1,resume_state='current',scope='scope-e2e'`, []any{d}},
 		{`INSERT INTO targets(target_id,display_name,p4runtime_endpoint,device_id,role,status,desired_profile_digest,credential_ref,scope,actor_ref,trace_id) VALUES('target-e2e','target e2e','https://127.0.0.1:9559',1,'masi','active',$1,'cred-e2e','scope-e2e','actor-e2e','trace-e2e') ON CONFLICT DO NOTHING`, []any{d}},
 		{`INSERT INTO target_assignments(target_id,assignment_generation,incarnation_id,edge_workload_ref,lease_id,issued_at_unix_ms,expires_at_unix_ms,election_floor,election_ceiling,actor_runtime_epoch,application_generation,actor_ref,trace_id,actor_issuer,actor_subject) VALUES('target-e2e',1,'target-inc-e2e','edge-e2e','lease-e2e',$1,$2,1,10,'actor-epoch-e2e',1,'actor-e2e','trace-e2e','https://issuer.example','admin-e2e') ON CONFLICT DO NOTHING`, []any{nowMS - 1000, nowMS + 299000}},
@@ -654,6 +766,7 @@ func seedControlFixture(ctx context.Context, t *testing.T, conn *pgx.Conn) {
 			t.Fatalf("seed: %v", err)
 		}
 	}
+	return initialTargets == 0
 }
 
 func cleanupSoak(conn *pgx.Conn) {
@@ -668,6 +781,9 @@ func cleanupSoak(conn *pgx.Conn) {
 			// Event-related tables are now empty via cascade; still need to clean
 			// target/model/shard fixtures that are not part of the cascade.
 			for _, sql := range []string{
+				`DELETE FROM firewall_revisions WHERE revision_id LIKE 'soak-fw-%'`,
+				`DELETE FROM target_lifecycle_events WHERE target_id IN (SELECT target_id FROM targets WHERE idempotency_key LIKE 'soak-matrix-target-%')`,
+				`DELETE FROM targets WHERE idempotency_key LIKE 'soak-matrix-target-%'`,
 				`DELETE FROM target_capability_observation_events WHERE target_id='target-e2e'`,
 				`DELETE FROM target_capability_observations WHERE target_id='target-e2e'`,
 				`DELETE FROM target_assignments WHERE target_id='target-e2e'`,
@@ -685,6 +801,9 @@ func cleanupSoak(conn *pgx.Conn) {
 		}
 	}
 	for _, sql := range []string{
+		`DELETE FROM firewall_revisions WHERE revision_id LIKE 'soak-fw-%'`,
+		`DELETE FROM target_lifecycle_events WHERE target_id IN (SELECT target_id FROM targets WHERE idempotency_key LIKE 'soak-matrix-target-%')`,
+		`DELETE FROM targets WHERE idempotency_key LIKE 'soak-matrix-target-%'`,
 		`DELETE FROM target_capability_observation_events WHERE target_id='target-e2e'`,
 		`DELETE FROM target_capability_observations WHERE target_id='target-e2e'`,
 		`DELETE FROM target_assignments WHERE target_id='target-e2e'`,

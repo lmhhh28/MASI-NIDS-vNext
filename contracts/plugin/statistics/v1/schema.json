@@ -115,7 +115,21 @@
         "definition_id": {"$ref": "#/$defs/identity"},
         "definition_digest": {"$ref": "#/$defs/digest"},
         "run_id": {"$ref": "#/$defs/identity"},
-        "binding_generation": {"type": "integer", "minimum": 1}
+        "binding_generation": {"type": "integer", "minimum": 1},
+        "external_source": {"$ref": "#/$defs/external_source_provenance"}
+      }
+    },
+    "external_source_provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["capability_id", "request_digest", "observed_at_unix_ms", "response_digest", "status"],
+      "properties": {
+        "capability_id": {"$ref": "#/$defs/identity"},
+        "request_digest": {"$ref": "#/$defs/digest"},
+        "observed_at_unix_ms": {"type": "integer", "minimum": 1},
+        "response_digest": {"$ref": "#/$defs/digest"},
+        "etag_or_version": {"type": "string", "maxLength": 256},
+        "status": {"enum": ["complete", "partial", "timeout"]}
       }
     },
     "definition_record": {
@@ -196,6 +210,7 @@
         "window_start_unix_ms",
         "window_end_unix_ms",
         "rows",
+        "external_source_capability_refs",
         "bytes_limit",
         "cardinality_limit",
         "actor_ref",
@@ -224,6 +239,12 @@
               "type": ["string", "integer", "number", "boolean"]
             }
           }
+        },
+        "external_source_capability_refs": {
+          "type": "array",
+          "maxItems": 1,
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/identity"}
         },
         "bytes_limit": {"type": "integer", "minimum": 1, "maximum": 2097152},
         "cardinality_limit": {"type": "integer", "minimum": 1, "maximum": 10000},

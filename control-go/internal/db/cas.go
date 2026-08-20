@@ -55,10 +55,10 @@ func (p *Pool) ClaimIntent(ctx context.Context, claimKey, expectedState, expecte
 		err := tx.QueryRow(ctx, `
 				SELECT i.claim_state, i.effect_digest, i.is_fleet_parent, i.deadline_unix_ms,
 			       i.claim_expires_at_unix_ms, i.not_before_unix_ms,
-			       i.gate_open AND NOT EXISTS (
-			           SELECT 1 FROM firewall_activations fa
-			           WHERE fa.target_id=i.target_id AND fa.result='reconciling'
-			             AND fa.operation_id<>i.operation_id)
+				       i.gate_open AND NOT EXISTS (
+				           SELECT 1 FROM firewall_activations fa
+				           WHERE fa.target_id=i.target_id AND fa.result IN ('prepared','reconciling')
+				             AND fa.operation_id<>i.operation_id)
 			       AND (i.fleet_operation_id IS NULL OR EXISTS (
 				           SELECT 1 FROM fleet_child_intents fc
 				           WHERE fc.child_intent_id=i.effect_intent_id AND fc.gate_open)),
@@ -114,8 +114,7 @@ func (p *Pool) ClaimIntent(ctx context.Context, claimKey, expectedState, expecte
 			result = CASFenced
 			return nil
 		}
-		reclaimExpired := currentState == "claimed" && claimExpires != nil && *claimExpires <= nowMS
-		if currentState != expectedState && !reclaimExpired {
+		if currentState != expectedState {
 			result = CASConflict
 			return nil
 		}
@@ -130,13 +129,13 @@ func (p *Pool) ClaimIntent(ctx context.Context, claimKey, expectedState, expecte
 		}
 		leaseID := ownerIdentity + ":" + hex.EncodeToString(leaseNonce)
 		tag, err := tx.Exec(ctx, `
-				UPDATE effect_intents
-				SET claim_state = 'claimed', claim_lease_id = $1,
-				    claim_expires_at_unix_ms = $2
-				WHERE effect_intent_id = $3
-				  AND (claim_state = $4 OR (claim_state='claimed' AND claim_expires_at_unix_ms <= $5))
-				  AND effect_digest = $6`,
-			leaseID, exp.UnixMilli(), claimKey, expectedState, nowMS, expectedEffectDigest)
+					UPDATE effect_intents
+					SET claim_state = 'claimed', claim_lease_id = $1,
+					    claim_expires_at_unix_ms = $2
+					WHERE effect_intent_id = $3
+						  AND claim_state = $4
+						  AND effect_digest = $5`,
+			leaseID, exp.UnixMilli(), claimKey, expectedState, expectedEffectDigest)
 		if err != nil {
 			return err
 		}
@@ -152,6 +151,24 @@ func (p *Pool) ClaimIntent(ctx context.Context, claimKey, expectedState, expecte
 		return "", nil, fmt.Errorf("db: claim intent: %w", err)
 	}
 	return result, lease, nil
+}
+
+// RenewIntentLease extends only the exact current effect claim. Losing renewal
+// fences the in-flight caller; an expired claim is reconciled by operation ID and
+// is never reclaimed for a second blind ExecuteEffect call.
+func (p *Pool) RenewIntentLease(ctx context.Context, intentID, leaseID string, leaseTTL time.Duration) (bool, error) {
+	if intentID == "" || leaseID == "" || leaseTTL < time.Second || leaseTTL > 10*time.Minute {
+		return false, errors.New("db: renew intent lease arguments outside bounds")
+	}
+	nowMS := time.Now().UTC().UnixMilli()
+	tag, err := p.Pool.Exec(ctx, `UPDATE effect_intents
+		SET claim_expires_at_unix_ms=$1
+		WHERE effect_intent_id=$2 AND claim_state='claimed' AND claim_lease_id=$3
+		  AND claim_expires_at_unix_ms>$4`, nowMS+leaseTTL.Milliseconds(), intentID, leaseID, nowMS)
+	if err != nil {
+		return false, err
+	}
+	return tag.RowsAffected() == 1, nil
 }
 
 // FinalizeIntent CAS-finalizes an intent with (operation_id, claim_generation,

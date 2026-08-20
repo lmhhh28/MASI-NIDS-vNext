@@ -40,6 +40,24 @@ func TestValidateDefinitionAccepts(t *testing.T) {
 	}
 }
 
+func TestExternalSourceProvenanceExactCapabilityFence(t *testing.T) {
+	d := "sha256:" + strings.Repeat("a", 64)
+	provenance := &ExternalSourceProvenance{CapabilityID: "approved-ext-cap", RequestDigest: d,
+		ObservedAtUnixMS: 1, ResponseDigest: d, ETagOrVersion: "etag-1", Status: "complete"}
+	if err := validateExternalProvenance(KindReadOnlyTool, []string{"approved-ext-cap"}, provenance); err != nil {
+		t.Fatalf("exact approved external provenance rejected: %v", err)
+	}
+	if err := validateExternalProvenance(KindReadOnlyTool, []string{"other-cap"}, provenance); err == nil {
+		t.Fatal("wrong external capability identity must be rejected")
+	}
+	if err := validateExternalProvenance(KindPureTransform, nil, provenance); err == nil {
+		t.Fatal("pure-transform external provenance must be rejected")
+	}
+	if err := validateExternalProvenance(KindReadOnlyTool, []string{"approved-ext-cap"}, nil); err == nil {
+		t.Fatal("approved external capability without provenance must be rejected")
+	}
+}
+
 func TestValidateDefinitionRejections(t *testing.T) {
 	cases := []struct {
 		name string

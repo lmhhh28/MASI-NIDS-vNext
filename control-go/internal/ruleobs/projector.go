@@ -37,12 +37,17 @@ func (p *Projector) CreateEpoch(ctx context.Context, r ObservationEpochRecord) e
 			canonical_entry_digest, match_priority_action_digest,
 			observation_epoch, reset_epoch, installation_readback)
 			SELECT $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'exact'
-			FROM effect_intents i JOIN effect_attempts a ON a.intent_id=i.effect_intent_id
-			WHERE i.effect_intent_id=$2 AND i.operation_id=$3 AND i.target_id=$6
-			  AND i.claim_state='finalized' AND a.status='applied'
-			  AND a.readback_digest IS NOT NULL AND a.expected_entries=a.observed_entries
-			  AND a.mismatched_entries=0
-			LIMIT 1`,
+				FROM effect_intents i JOIN effect_attempts a ON a.intent_id=i.effect_intent_id
+				JOIN effect_attempt_readback_entries re ON re.attempt_id=a.attempt_id
+				WHERE i.effect_intent_id=$2 AND i.operation_id=$3 AND i.target_id=$6
+				  AND i.claim_state='finalized' AND a.status='applied'
+				  AND i.effect_payload->>'operation' IN ('baseline-activate','overlay-upsert')
+				  AND a.readback_digest IS NOT NULL AND a.expected_entries=a.observed_entries
+				  AND a.mismatched_entries=0 AND a.readback_manifest_digest IS NOT NULL
+				  AND re.intent_id=$2 AND re.operation_id=$3 AND re.target_id=$6
+				  AND re.entity_id=$4 AND re.rule_id=$5
+				  AND re.canonical_entry_digest=$7 AND re.match_priority_action_digest=$8
+				LIMIT 1`,
 		r.EpochID, r.EffectIntentID, r.OperationID, r.EntityID, r.RuleID, r.TargetID,
 		r.CanonicalEntryDigest, r.MatchPriorityActionDigest,
 		r.EpochKey.ObservationEpoch, r.EpochKey.ResetEpoch)
@@ -59,8 +64,10 @@ func (p *Projector) CreateEpoch(ctx context.Context, r ObservationEpochRecord) e
 // and folds it into the 5m/1h rollup windows. A late sample (older epoch key)
 // is rejected — it never crosses the epoch boundary and never mutates a newer
 // epoch's facts.
-func (p *Projector) IngestSample(ctx context.Context, targetID, entityID, ruleID string, key EpochKey, sample CounterSample) (Derived, error) {
-	if targetID == "" || entityID == "" || ruleID == "" || sample.Sequence < 1 || sample.ReadCompletedAt.IsZero() {
+func (p *Projector) IngestSample(ctx context.Context, targetID, entityID, ruleID, effectIntentID,
+	operationID, canonicalEntryDigest, matchPriorityActionDigest string, key EpochKey, sample CounterSample) (Derived, error) {
+	if targetID == "" || entityID == "" || ruleID == "" || effectIntentID == "" || operationID == "" ||
+		canonicalEntryDigest == "" || matchPriorityActionDigest == "" || sample.Sequence < 1 || sample.ReadCompletedAt.IsZero() {
 		return Derived{}, errors.New("ruleobs: target/entity/rule/sequence/read time required")
 	}
 	var derived Derived
@@ -68,7 +75,8 @@ func (p *Projector) IngestSample(ctx context.Context, targetID, entityID, ruleID
 		var epochID string
 		var baseline bool
 		var err error
-		derived, epochID, baseline, err = p.applyLatestTx(ctx, tx, targetID, entityID, ruleID, key, sample)
+		derived, epochID, baseline, err = p.applyLatestTx(ctx, tx, targetID, entityID, ruleID,
+			effectIntentID, operationID, canonicalEntryDigest, matchPriorityActionDigest, key, sample)
 		if err != nil || baseline {
 			return err
 		}
@@ -80,15 +88,20 @@ func (p *Projector) IngestSample(ctx context.Context, targetID, entityID, ruleID
 	return derived, nil
 }
 
-func (p *Projector) applyLatestTx(ctx context.Context, tx *db.Tx, targetID, entityID, ruleID string, key EpochKey, sample CounterSample) (Derived, string, bool, error) {
+func (p *Projector) applyLatestTx(ctx context.Context, tx *db.Tx, targetID, entityID, ruleID,
+	effectIntentID, operationID, canonicalEntryDigest, matchPriorityActionDigest string,
+	key EpochKey, sample CounterSample) (Derived, string, bool, error) {
 	var epochID string
 	var storedObs, storedReset int64
 	if err := tx.QueryRow(ctx, `
 				SELECT epoch_id, observation_epoch, reset_epoch
 				FROM rule_observation_epochs
-				WHERE target_id=$1 AND entity_id = $2 AND rule_id = $3
-				ORDER BY observation_epoch DESC, reset_epoch DESC LIMIT 1
-				FOR UPDATE`, targetID, entityID, ruleID).
+					WHERE target_id=$1 AND entity_id = $2 AND rule_id = $3
+					  AND effect_intent_id=$4 AND operation_id=$5
+					  AND canonical_entry_digest=$6 AND match_priority_action_digest=$7
+					ORDER BY observation_epoch DESC, reset_epoch DESC LIMIT 1
+					FOR UPDATE`, targetID, entityID, ruleID, effectIntentID, operationID,
+		canonicalEntryDigest, matchPriorityActionDigest).
 		Scan(&epochID, &storedObs, &storedReset); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return Derived{}, "", false, fmt.Errorf("ruleobs: no epoch for %s/%s/%s (create epoch after exact readback first)", targetID, entityID, ruleID)

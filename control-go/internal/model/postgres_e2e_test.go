@@ -217,13 +217,13 @@ func TestRolloutPostgres(t *testing.T) {
 		'model-runtime-central-cpu/v1',$2,'trace-pool-e2e')`, poolID, actor.String()); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := pool.Exec(ctx, `INSERT INTO pool_generations(logical_pool_id,pool_generation,
-		model_revision_id,startup_envelope_digest,pool_observation_digest,binding_digest,status,
+	if _, err := pool.Exec(ctx, `INSERT INTO pool_generations(logical_pool_id,model_control_incarnation_id,pool_generation,
+			model_revision_id,startup_envelope_digest,pool_observation_digest,binding_digest,status,
 		min_ready_replicas,capacity_qualified,model_revision_digest,model_bundle_digest,
 		feature_contract_digest,label_contract_digest,output_adapter_digest,wire_profile_digest,
 		runtime_profile_digest,optimization_profile_digest)
-		VALUES($1,1,$2,$3,$4,$5,'active',1,true,$6,$7,$8,$9,$10,$11,$12,$13)`,
-		poolID, oldRevisionID, digest("a"), digest("b"), digest("c"), oldRevision.ModelRevisionDigest,
+			VALUES($1,$2,1,$3,$4,$5,$6,'active',1,true,$7,$8,$9,$10,$11,$12,$13,$14)`,
+		poolID, incarnationID, oldRevisionID, digest("a"), digest("b"), digest("c"), oldRevision.ModelRevisionDigest,
 		oldRevision.ModelBundleDigest, oldRevision.FeatureContractDigest, oldRevision.LabelContractDigest,
 		oldRevision.OutputAdapterDigest, digest("d"), digest("e"), digest("f")); err != nil {
 		t.Fatal(err)
@@ -276,10 +276,10 @@ func TestRolloutPostgres(t *testing.T) {
 	if err := pool.QueryRow(ctx, `SELECT status FROM model_rollout_operations WHERE operation_id=$1`, operationID).Scan(&operationStatus); err != nil {
 		t.Fatal(err)
 	}
-	if err := pool.QueryRow(ctx, `SELECT status FROM pool_generations WHERE logical_pool_id=$1 AND pool_generation=2`, poolID).Scan(&newPoolStatus); err != nil {
+	if err := pool.QueryRow(ctx, `SELECT status FROM pool_generations WHERE logical_pool_id=$1 AND model_control_incarnation_id=$2 AND pool_generation=2`, poolID, incarnationID).Scan(&newPoolStatus); err != nil {
 		t.Fatal(err)
 	}
-	if err := pool.QueryRow(ctx, `SELECT status FROM pool_generations WHERE logical_pool_id=$1 AND pool_generation=1`, poolID).Scan(&oldPoolStatus); err != nil {
+	if err := pool.QueryRow(ctx, `SELECT status FROM pool_generations WHERE logical_pool_id=$1 AND model_control_incarnation_id=$2 AND pool_generation=1`, poolID, incarnationID).Scan(&oldPoolStatus); err != nil {
 		t.Fatal(err)
 	}
 	if currentGen != 2 || previousGen != 1 || bindingGen != 2 || previousBindingGen != 1 ||
