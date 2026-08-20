@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"syscall"
 	"testing"
@@ -76,6 +77,7 @@ func TestRealControlProcessCommitResults(t *testing.T) {
 	seed := []string{
 		`INSERT INTO model_revisions(model_revision_id,model_revision_digest,model_bundle_digest,feature_contract_digest,label_contract_digest,output_adapter_digest,qualification_status,qualified_at_unix_ms,reader_runtime_profile,actor_ref,trace_id,scope) VALUES('rev-e2e',$1,$1,$1,$1,$1,'qualified',1,'model-runtime-central-cpu/v1','e2e','trace-e2e','scope-e2e') ON CONFLICT DO NOTHING`,
 		`INSERT INTO model_control_incarnations(incarnation_id,source,rotated_at_unix_ms,actor_ref,trace_id) VALUES('inc-e2e','initial',1,'e2e','trace-e2e') ON CONFLICT DO NOTHING`,
+		`INSERT INTO model_control_state (singleton, writer_enabled) VALUES (true, false) ON CONFLICT (singleton) DO NOTHING`,
 		`UPDATE model_control_state SET active_incarnation_id='inc-e2e',writer_enabled=true`,
 		`INSERT INTO logical_pools(logical_pool_id,current_generation,availability_profile,runtime_profile,actor_ref,trace_id) VALUES('pool-e2e',1,'availability-single/v1','model-runtime-central-cpu/v1','e2e','trace-e2e') ON CONFLICT DO NOTHING`,
 		`INSERT INTO pool_generations(logical_pool_id,pool_generation,model_revision_id,startup_envelope_digest,pool_observation_digest,binding_digest,status,min_ready_replicas,capacity_qualified,model_revision_digest,model_bundle_digest,feature_contract_digest,label_contract_digest,output_adapter_digest,wire_profile_digest,runtime_profile_digest,optimization_profile_digest) VALUES('pool-e2e',1,'rev-e2e',$1,$1,$1,'active',1,true,$1,$1,$1,$1,$1,$1,$1,$1) ON CONFLICT DO NOTHING`,
@@ -105,6 +107,9 @@ func TestRealControlProcessCommitResults(t *testing.T) {
 	}
 	var logs bytes.Buffer
 	cmd := exec.Command(binary, "--config", configPath)
+	// Run from the control-go root so relative config paths (role_mapping_path,
+	// contract_root) resolve regardless of the test binary's cwd.
+	cmd.Dir = filepath.Dir(filepath.Dir(configPath))
 	cmd.Stdout = &logs
 	cmd.Stderr = &logs
 	if err := cmd.Start(); err != nil {

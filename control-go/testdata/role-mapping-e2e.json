@@ -1,0 +1,64 @@
+{
+  "version": "v1",
+  "digest": "sha256:d3447451851d1c8b477c8d2698d142a99231f4eb6d0cd50b21ba86d4e8fa2f7e",
+  "actor_scopes": {
+    "actor:73e617760d4fba1b1b994ed4ea5275305a14bacb91ab90f10aefc1c972b44bfe": [
+      {
+        "scope_id": "scope-e2e",
+        "target_set_digest": "sha256:b040b50e2f8f96bfcee9bdd70ca819d01ace68e4af8c5a28015c738eb7ac607e",
+        "effect_kinds": [
+          "target-lifecycle",
+          "target-assignment",
+          "firewall-baseline-activate",
+          "firewall-overlay",
+          "firewall-rollback",
+          "model-rollout",
+          "model-rollback",
+          "model-recovery",
+          "plugin-activate",
+          "plugin-drain",
+          "plugin-revoke",
+          "plugin-statistics-run",
+          "plugin.statistics.manage",
+          "fleet-operation",
+          "rule-observation-epoch"
+        ],
+        "levels": [
+          "operator",
+          "scoped-operator",
+          "analyst"
+        ]
+      }
+    ],
+    "actor:88f5c28c6236abf6dce9f6953d70e45f7fa5a534b6c2a48b99b8f0a83ceca7c0": [
+      {
+        "scope_id": "scope-e2e",
+        "target_set_digest": "sha256:b040b50e2f8f96bfcee9bdd70ca819d01ace68e4af8c5a28015c738eb7ac607e",
+        "effect_kinds": [
+          "target-lifecycle",
+          "target-assignment",
+          "firewall-baseline-activate",
+          "firewall-overlay",
+          "firewall-rollback",
+          "model-rollout",
+          "model-rollback",
+          "model-recovery",
+          "plugin-activate",
+          "plugin-drain",
+          "plugin-revoke",
+          "plugin-statistics-run",
+          "plugin.statistics.manage",
+          "fleet-operation",
+          "rule-observation-epoch"
+        ],
+        "levels": [
+          "operator",
+          "scoped-operator",
+          "platform-admin",
+          "analyst"
+        ]
+      }
+    ]
+  },
+  "default_deny": true
+}

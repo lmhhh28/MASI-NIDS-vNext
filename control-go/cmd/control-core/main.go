@@ -101,13 +101,16 @@ func run() error {
 		slog.Info("production outbound mTLS clients ready", "edge_workloads", len(cfg.Outbound.Edges))
 	}
 
-	// Authorization foundation. An empty mapping remains default-deny; production
-	// wiring replaces it with the digest-pinned mapping loaded below.
+	// Authorization foundation. An empty mapping remains default-deny; a
+	// digest-pinned mapping is loaded whenever a role_mapping_path is configured
+	// (production requires it; the test profile points it at a fixture). The
+	// mapping is the sole authorization source — the test login route mints
+	// identity only and never grants scopes.
 	mapping := &security.RoleScopeMapping{
 		Version: "v1", Digest: "sha256:0000000000000000000000000000000000000000000000000000000000000000",
 		ActorScopes: map[string][]security.Scope{}, DefaultDeny: true,
 	}
-	if cfg.RuntimeProfile == "production" {
+	if cfg.RoleMappingPath != "" {
 		mapping, err = security.LoadRoleScopeMapping(cfg.RoleMappingPath, cfg.RoleMappingDigest)
 		if err != nil {
 			return err
@@ -185,6 +188,7 @@ func run() error {
 		Mapping:            mapping,
 		Cursor:             cursorCodec,
 		Secure:             cfg.RuntimeProfile == "production",
+		TestLogin:          cfg.RuntimeProfile == "test",
 		FirewallRevisions:  firewallRevisions,
 		FirewallOverlays:   firewallOverlays,
 		FirewallActivation: firewallActivation,

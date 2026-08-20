@@ -38,6 +38,10 @@ type Deps struct {
 	Cursor         *CursorCodec
 	Secure         bool
 	AcceptMutation func() bool
+	// TestLogin enables the test-only /oidc/test-login route that mints a session
+	// for caller-supplied identity. Set only in the test runtime profile; production
+	// never wires it. Authorization still flows through Mapping.
+	TestLogin      bool
 
 	// Wired subdomain services (constructed with the real pool at startup). The
 	// read projections above currently query the pool directly; mutations and
@@ -68,6 +72,12 @@ func Router(deps Deps, oidc *OIDCClient, store *SessionStore, hub *Hub, allowedO
 	// OIDC (no session required to start login; callback verifies).
 	r.Get("/oidc/login", handleLogin(oidc, store, deps.Secure))
 	r.Get("/oidc/callback", handleCallback(oidc, store, deps.Secure))
+	// Test-only session minting. Registered solely in the test runtime profile
+	// (deps.TestLogin); production never wires it. Mints identity only —
+	// authorization still flows through the RoleScopeMapping.
+	if deps.TestLogin {
+		r.Post("/oidc/test-login", handleTestLogin(store, deps.Secure))
+	}
 	r.With(requireMutationGuard(store, allowedOrigin)).Post("/oidc/logout", handleLogout(store, deps.Secure))
 
 	// Session bootstrap: the SPA reads its CSRF token + actor here (the ONLY
