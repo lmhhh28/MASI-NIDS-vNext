@@ -1,0 +1,26 @@
+{
+  "schema_version": "edge-command-execution/v1",
+  "run_id": "plugin-host-formal-20260821-004",
+  "command_id": "deep-checks",
+  "started_at": "2026-08-21T07:02:08Z",
+  "finished_at": "2026-08-21T07:02:36Z",
+  "duration_ms": 28519,
+  "working_directory": "plugin-host-rs",
+  "argv": [
+    "env",
+    "MASI_PLUGIN_HOST_DEEP_EVIDENCE_DIR=/home/lmhhh/MASI-NIDS-vNext/plugin-host-rs/evidence/module-gates/runs/plugin-host-formal-20260821-004/deep",
+    "/home/lmhhh/MASI-NIDS-vNext/plugin-host-rs/scripts/run-deep-checks.sh"
+  ],
+  "exit_code": 0,
+  "result": "PASS",
+  "qualification": "QUALIFIED",
+  "stable_reason": null,
+  "source_tree_digest": "sha256:965eae8ee05abed795deb0c6f8b5820e00bc12559fea18260e4776ec533eb868",
+  "working_tree_status_digest": "sha256:119a13e9821b5dc1d4ba400f94ba007cb31048c3f68e381ef4e40b037956d16b",
+  "log": {
+    "path": "deep-checks.log",
+    "sha256": "sha256:71b1bfdcfd37117e22b281d48e96bc6654091cca23c04a1b24ea9767616b90bd",
+    "bytes": 73,
+    "media_type": "text/plain"
+  }
+}

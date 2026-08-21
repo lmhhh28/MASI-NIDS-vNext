@@ -1,0 +1,39 @@
+name: masi-plugin-host-acceptance
+
+services:
+  plugin-host:
+    image: ${MASI_PLUGIN_HOST_IMAGE:?set digest-pinned Plugin Host image}
+    command: ["--config", "/run/plugin-host-config/config.json"]
+    user: "65532:65532"
+    read_only: true
+    cap_drop: ["ALL"]
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 128
+    mem_limit: 384m
+    cpus: 1.0
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=16m
+    volumes:
+      - type: bind
+        source: ${MASI_PLUGIN_HOST_CONFIG_DIR:?set absolute config directory}
+        target: /run/plugin-host-config
+        read_only: true
+      - type: bind
+        source: ${MASI_PLUGIN_HOST_SECRET_DIR:?set absolute TLS directory}
+        target: /run/plugin-host-secrets
+        read_only: true
+      - type: bind
+        source: ${MASI_PLUGIN_HOST_ARTIFACT_DIR:?set absolute verified artifact cache}
+        target: /var/lib/masi-plugin-host/artifacts
+        read_only: true
+    ports:
+      - "127.0.0.1:${MASI_PLUGIN_HOST_GRPC_PORT:-7445}:7445"
+      - "127.0.0.1:${MASI_PLUGIN_HOST_HEALTH_PORT:-8080}:8080"
+    restart: "no"
+    stop_grace_period: 10s
+    networks: [plugin-host-internal]
+
+networks:
+  plugin-host-internal:
+    internal: true

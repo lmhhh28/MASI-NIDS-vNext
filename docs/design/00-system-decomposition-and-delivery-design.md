@@ -179,4 +179,4 @@ Module Complete 的含义是该模块被分配的首期功能全部实现；邻�
 
 ## 12. 当前状态
 
-截至 2026-08-14，仓库已经建立公开 contracts 与部分模块实现/证据；Rust Edge 的 operational completion 由其 latest module-gate evidence 独立判定。其完成不授予资格 PASS，也不改变其他八个首期模块或系统 aggregate；九个模块各自完成后，才依 [`../integration/pairwise-and-system-integration-design.md`](../integration/pairwise-and-system-integration-design.md) 正式集成。
+截至2026-08-21，P4/Switch、Rust Edge、Central Inference、Go Control、PostgreSQL State、Plugin Runtime Host六个独立模块已形成各自实现与证据；每个operational completion都只由本模块latest module-gate evidence独立判定。P4/Switch已`PASS/QUALIFIED`，其余五个只达到operational Module Complete并保持各自`HOLD/NOT_QUALIFIED`；Python Analysis、Web、Offline ML仍未开始实现。任何单模块完成都不授予其他模块或系统aggregate资格；九个模块各自完成后，才依[`../integration/pairwise-and-system-integration-design.md`](../integration/pairwise-and-system-integration-design.md)进入正式集成。

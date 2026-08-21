@@ -1,0 +1,6 @@
+/target/
+/.cargo-vendor/
+/evidence/oci-smoke/
+/evidence/supply-chain/
+/evidence/performance/
+/evidence/soak-current/

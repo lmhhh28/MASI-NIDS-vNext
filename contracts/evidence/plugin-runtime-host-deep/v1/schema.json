@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://masi-nids.example/contracts/evidence/plugin-runtime-host-deep/v1/schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "module_id", "cargo_audit", "cargo_deny_advisories_licenses_sources",
+    "line_coverage_percent", "line_coverage_minimum_percent", "valgrind_definite_leaks_and_errors",
+    "sanitizer_profile", "miri", "stable_rust_sanitizer", "result", "qualification", "reason_code"
+  ],
+  "properties": {
+    "schema_version": {"const": "plugin-host-deep-checks-evidence/v1"},
+    "module_id": {"const": "MOD-PLUGIN-001"},
+    "cargo_audit": {"const": "PASS"},
+    "cargo_deny_advisories_licenses_sources": {"const": "PASS"},
+    "line_coverage_percent": {"type": "number", "minimum": 50, "maximum": 100},
+    "line_coverage_minimum_percent": {"const": 50},
+    "valgrind_definite_leaks_and_errors": {"const": "PASS"},
+    "sanitizer_profile": {"type": "string", "minLength": 1, "maxLength": 256},
+    "miri": {"$ref": "#/$defs/notApplicable"},
+    "stable_rust_sanitizer": {"$ref": "#/$defs/notApplicable"},
+    "result": {"const": "PASS"},
+    "qualification": {"const": "NOT_QUALIFIED"},
+    "reason_code": {"const": "RUST_DEEP_CHECKS_PASS"}
+  },
+  "$defs": {
+    "notApplicable": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["applicability", "result", "qualification", "stable_reason"],
+      "properties": {
+        "applicability": {"const": "NOT_APPLICABLE"},
+        "result": {"const": "NOT_RUN"},
+        "qualification": {"const": "NOT_QUALIFIED"},
+        "stable_reason": {"type": "string", "pattern": "^[A-Z][A-Z0-9_]{3,127}$"}
+      }
+    }
+  }
+}

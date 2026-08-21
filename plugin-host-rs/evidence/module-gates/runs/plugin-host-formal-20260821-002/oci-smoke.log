@@ -1,0 +1,275 @@
+#0 building with "default" instance using docker driver
+
+#1 [internal] load build definition from Dockerfile
+#1 transferring dockerfile: 2.34kB done
+#1 DONE 0.0s
+
+#2 [context cargo_vendor] load .dockerignore
+#2 transferring cargo_vendor: 2B done
+#2 DONE 0.0s
+
+#3 [internal] load metadata for docker.io/library/rust@sha256:408fe88047cef61a2087653b0c5255fa51c0f2d6d94ddedd7a2562a9b91a46f6
+#3 ...
+
+#4 [internal] load metadata for gcr.io/distroless/cc-debian12@sha256:adcd20c7b4c988b73cbfbddb26d2eee574571e6d7c9ffea29b3821e0690efb77
+#4 DONE 1.4s
+
+#3 [internal] load metadata for docker.io/library/rust@sha256:408fe88047cef61a2087653b0c5255fa51c0f2d6d94ddedd7a2562a9b91a46f6
+#3 DONE 1.9s
+
+#5 [internal] load .dockerignore
+#5 transferring context:
+#5 transferring context: 545B done
+#5 DONE 0.2s
+
+#6 [builder 1/6] FROM docker.io/library/rust@sha256:408fe88047cef61a2087653b0c5255fa51c0f2d6d94ddedd7a2562a9b91a46f6
+#6 resolve docker.io/library/rust@sha256:408fe88047cef61a2087653b0c5255fa51c0f2d6d94ddedd7a2562a9b91a46f6 done
+#6 DONE 0.0s
+
+#7 [stage-1 1/2] FROM gcr.io/distroless/cc-debian12@sha256:adcd20c7b4c988b73cbfbddb26d2eee574571e6d7c9ffea29b3821e0690efb77
+#7 resolve gcr.io/distroless/cc-debian12@sha256:adcd20c7b4c988b73cbfbddb26d2eee574571e6d7c9ffea29b3821e0690efb77 0.0s done
+#7 DONE 0.0s
+
+#8 [internal] load build context
+#8 transferring context: 216.54kB 0.0s done
+#8 DONE 0.0s
+
+#9 [builder 2/6] WORKDIR /workspace/plugin-host-rs
+#9 CACHED
+
+#10 [builder 3/6] COPY plugin-host-rs/Cargo.toml plugin-host-rs/Cargo.lock plugin-host-rs/build.rs plugin-host-rs/rust-toolchain.toml ./
+#10 CACHED
+
+#11 [context cargo_vendor] load from client
+#11 transferring cargo_vendor: 2.26MB 0.4s done
+#11 DONE 0.4s
+
+#12 [builder 4/6] COPY plugin-host-rs/src ./src
+#12 DONE 0.8s
+
+#13 [builder 5/6] COPY contracts /workspace/contracts
+#13 DONE 0.3s
+
+#14 [builder 6/6] RUN --network=none --mount=type=bind,from=cargo_vendor,target=/vendor,readonly     CARGO_NET_OFFLINE=true cargo build --offline --locked --release --bin masi-plugin-host       --config 'source.crates-io.replace-with="vendored-sources"'       --config 'source.vendored-sources.directory="/vendor"'
+#14 1.162    Compiling proc-macro2 v1.0.107
+#14 1.162    Compiling unicode-ident v1.0.24
+#14 1.162    Compiling quote v1.0.47
+#14 1.162    Compiling serde_core v1.0.229
+#14 1.163    Compiling serde v1.0.229
+#14 1.164    Compiling foldhash v0.2.0
+#14 1.165    Compiling libc v0.2.189
+#14 1.165    Compiling cfg-if v1.0.4
+#14 1.216    Compiling libm v0.2.16
+#14 1.328    Compiling anyhow v1.0.104
+#14 1.339    Compiling hashbrown v0.17.1
+#14 1.350    Compiling equivalent v1.0.2
+#14 1.354    Compiling bytes v1.12.1
+#14 1.378    Compiling pin-project-lite v0.2.17
+#14 1.378    Compiling once_cell v1.21.4
+#14 1.420    Compiling heck v0.5.0
+#14 1.483    Compiling log v0.4.33
+#14 1.541    Compiling fnv v1.0.7
+#14 1.583    Compiling futures-core v0.3.34
+#14 1.636    Compiling itoa v1.0.18
+#14 1.662    Compiling find-msvc-tools v0.1.11
+#14 1.715    Compiling shlex v2.0.1
+#14 1.810    Compiling zmij v1.0.23
+#14 1.815    Compiling cc v1.4.3
+#14 1.928    Compiling syn v3.0.3
+#14 1.948    Compiling syn v2.0.119
+#14 2.030    Compiling version_check v0.9.5
+#14 2.116    Compiling errno v0.3.14
+#14 2.131    Compiling wasmtime-internal-core v47.0.3
+#14 2.162    Compiling mio v1.2.2
+#14 2.220    Compiling signal-hook-registry v1.4.8
+#14 2.239    Compiling socket2 v0.6.5
+#14 2.246    Compiling generic-array v0.14.7
+#14 2.582    Compiling tracing-core v0.1.36
+#14 2.706    Compiling bitflags v2.13.1
+#14 2.835    Compiling memchr v2.8.3
+#14 3.013    Compiling cranelift-srcgen v0.134.4
+#14 3.173    Compiling cranelift-assembler-x64-meta v0.134.4
+#14 3.948    Compiling indexmap v2.14.0
+#14 3.951    Compiling typenum v1.20.1
+#14 4.203    Compiling http v1.5.0
+#14 4.603    Compiling thiserror v2.0.20
+#14 4.772    Compiling either v1.18.0
+#14 4.816    Compiling futures-sink v0.3.34
+#14 4.898    Compiling cranelift-bitset v0.134.3
+#14 4.908    Compiling itertools v0.14.0
+#14 4.941    Compiling ring v0.17.14
+#14 4.980    Compiling getrandom v0.4.3
+#14 5.076    Compiling serde_derive v1.0.229
+#14 5.092    Compiling tokio-macros v2.7.2
+#14 5.235    Compiling thiserror-impl v2.0.20
+#14 5.246    Compiling slab v0.4.12
+#14 5.257    Compiling cranelift-isle v0.134.3
+#14 5.371    Compiling allocator-api2 v0.2.21
+#14 5.502    Compiling tokio v1.53.1
+#14 5.623    Compiling pulley-macros v47.0.3
+#14 5.670    Compiling tracing-attributes v0.1.31
+#14 5.810    Compiling pulley-interpreter v47.0.3
+#14 6.086    Compiling bumpalo v3.20.3
+#14 6.119    Compiling prost-derive v0.14.4
+#14 6.320    Compiling http-body v1.1.0
+#14 6.392    Compiling block-buffer v0.10.4
+#14 6.481    Compiling crypto-common v0.1.7
+#14 6.551    Compiling cranelift-codegen-shared v0.134.4
+#14 6.559    Compiling tracing v0.1.44
+#14 6.594    Compiling httparse v1.10.1
+#14 6.717    Compiling target-lexicon v0.13.5
+#14 6.778    Compiling digest v0.10.7
+#14 6.878    Compiling cobs v0.3.0
+#14 7.001    Compiling cranelift-assembler-x64 v0.134.4
+#14 7.089    Compiling cranelift-codegen-meta v0.134.3
+#14 7.098    Compiling hashbrown v0.16.1
+#14 7.258    Compiling try-lock v0.2.5
+#14 7.301    Compiling cpufeatures v0.2.17
+#14 7.317    Compiling atomic-waker v1.1.2
+#14 7.336    Compiling futures-task v0.3.34
+#14 7.375    Compiling tower-service v0.3.3
+#14 7.422    Compiling leb128fmt v0.1.0
+#14 7.515    Compiling futures-util v0.3.34
+#14 7.686    Compiling gimli v0.33.0
+#14 7.723    Compiling sha2 v0.10.9
+#14 7.995    Compiling smallvec v1.15.2
+#14 9.040    Compiling cranelift-entity v0.134.3
+#14 9.127    Compiling postcard v1.1.3
+#14 9.162    Compiling want v0.3.1
+#14 9.417    Compiling cranelift-bforest v0.134.3
+#14 9.430    Compiling getrandom v0.2.17
+#14 9.554    Compiling cranelift-codegen v0.134.3
+#14 9.607    Compiling futures-channel v0.3.34
+#14 9.684    Compiling tokio-util v0.7.19
+#14 9.722    Compiling rustix v1.1.4
+#14 9.782    Compiling rustc-hash v2.1.3
+#14 9.786    Compiling serde_json v1.0.151
+#14 9.794    Compiling crc32fast v1.5.0
+#14 9.836    Compiling pulldown-cmark v0.13.4
+#14 9.860    Compiling zeroize v1.9.0
+#14 9.901    Compiling arbitrary v1.4.2
+#14 9.903    Compiling untrusted v0.9.0
+#14 9.912    Compiling httpdate v1.0.3
+#14 9.958    Compiling prettyplease v0.2.37
+#14 9.995    Compiling rustls-pki-types v1.15.1
+#14 10.15    Compiling regalloc2 v0.15.2
+#14 10.23    Compiling h2 v0.4.18
+#14 10.77    Compiling cranelift-control v0.134.4
+#14 13.61    Compiling hyper v1.11.0
+#14 14.38    Compiling semver v1.0.28
+#14 14.99    Compiling sync_wrapper v1.0.2
+#14 15.06    Compiling linux-raw-sys v0.12.1
+#14 15.33    Compiling tower-layer v0.3.3
+#14 15.45    Compiling object v0.39.1
+#14 15.62    Compiling foldhash v0.1.5
+#14 15.71    Compiling unicase v2.9.0
+#14 15.98    Compiling regex-syntax v0.8.11
+#14 16.07    Compiling rustls v0.23.43
+#14 16.17    Compiling prost v0.14.4
+#14 16.62    Compiling hashbrown v0.15.5
+#14 17.01    Compiling regex-automata v0.4.18
+#14 17.59    Compiling hyper-util v0.1.20
+#14 17.80    Compiling wasmparser v0.252.0
+#14 17.84    Compiling rustls-webpki v0.103.14
+#14 18.85    Compiling http-body-util v0.1.5
+#14 19.32    Compiling mime v0.3.17
+#14 19.52    Compiling fastrand v2.5.0
+#14 19.74    Compiling subtle v2.6.1
+#14 19.75    Compiling termcolor v1.4.1
+#14 19.81    Compiling fixedbitset v0.5.7
+#14 20.16    Compiling petgraph v0.8.3
+#14 20.17    Compiling tempfile v3.27.0
+#14 20.45    Compiling axum-core v0.5.6
+#14 21.40    Compiling regex v1.13.1
+#14 21.69    Compiling pulldown-cmark-to-cmark v22.0.1
+#14 21.90    Compiling prost-types v0.14.4
+#14 22.84    Compiling tower v0.5.3
+#14 22.92    Compiling wasm-encoder v0.252.0
+#14 23.61    Compiling wasmprinter v0.252.0
+#14 23.75    Compiling wasmtime-internal-versioned-export-macros v47.0.3
+#14 23.95    Compiling pin-project-internal v1.1.13
+#14 24.82    Compiling async-trait v0.1.92
+#14 25.49    Compiling serde_path_to_error v0.1.20
+#14 25.94    Compiling wasmtime-internal-unwinder v47.0.3
+#14 26.06    Compiling utf8parse v0.2.2
+#14 26.11    Compiling id-arena v2.3.0
+#14 26.18    Compiling multimap v0.10.1
+#14 26.26    Compiling percent-encoding v2.3.2
+#14 26.31    Compiling matchit v0.8.4
+#14 26.47    Compiling wasmtime-internal-component-util v47.0.3
+#14 26.52    Compiling axum v0.8.9
+#14 26.87    Compiling wasmtime-environ v47.0.3
+#14 28.48    Compiling wit-parser v0.252.0
+#14 29.18    Compiling prost-build v0.14.4
+#14 30.31    Compiling anstyle-parse v1.0.0
+#14 30.45    Compiling pin-project v1.1.13
+#14 30.49    Compiling tokio-rustls v0.26.4
+#14 30.72    Compiling tonic-build v0.14.6
+#14 31.33    Compiling hyper-timeout v0.5.2
+#14 31.52    Compiling tokio-stream v0.1.19
+#14 32.02    Compiling wasm-encoder v0.257.1
+#14 32.07    Compiling anstyle-query v1.1.5
+#14 32.13    Compiling protoc-bin-vendored-linux-s390_64 v3.2.0
+#14 32.19    Compiling wasmtime-internal-cranelift v47.0.3
+#14 32.71    Compiling wasmtime-internal-component-macro v47.0.3
+#14 32.95    Compiling protoc-bin-vendored-macos-aarch_64 v3.2.0
+#14 33.01    Compiling base64 v0.22.1
+#14 33.47    Compiling protoc-bin-vendored-linux-x86_64 v3.2.0
+#14 33.52    Compiling is_terminal_polyfill v1.70.2
+#14 33.57    Compiling protoc-bin-vendored-linux-aarch_64 v3.2.0
+#14 33.63    Compiling protoc-bin-vendored-linux-ppcle_64 v3.2.0
+#14 33.69    Compiling anstyle v1.0.14
+#14 33.90    Compiling protoc-bin-vendored-win32 v3.2.0
+#14 33.94    Compiling colorchoice v1.0.5
+#14 33.99    Compiling unicode-width v0.2.2
+#14 34.19    Compiling protoc-bin-vendored-linux-x86_32 v3.2.0
+#14 34.24    Compiling protoc-bin-vendored-macos-x86_64 v3.2.0
+#14 34.29    Compiling protoc-bin-vendored v3.2.0
+#14 34.36    Compiling wast v257.0.1
+#14 35.17    Compiling anstream v1.0.0
+#14 39.01    Compiling tonic v0.14.6
+#14 41.11    Compiling tonic-prost-build v0.14.6
+#14 41.50    Compiling wasmtime-internal-wit-bindgen v47.0.3
+#14 42.71    Compiling wasmtime v47.0.3
+#14 43.35    Compiling clap_lex v1.1.0
+#14 43.66    Compiling lazy_static v1.5.0
+#14 43.70    Compiling strsim v0.11.1
+#14 44.47    Compiling clap_builder v4.6.6
+#14 44.52    Compiling sharded-slab v0.1.7
+#14 45.38    Compiling tonic-prost v0.14.6
+#14 45.53    Compiling memfd v0.6.5
+#14 46.02    Compiling masi-plugin-host v0.1.0 (/workspace/plugin-host-rs)
+#14 46.46    Compiling wat v1.257.1
+#14 46.47    Compiling matchers v0.2.0
+#14 46.55    Compiling wasmtime-internal-jit-icache-coherence v47.0.3
+#14 46.59    Compiling tracing-serde v0.2.0
+#14 46.67    Compiling clap_derive v4.6.4
+#14 46.74    Compiling tracing-log v0.2.0
+#14 46.97    Compiling thread_local v1.1.10
+#14 47.01    Compiling encoding_rs v0.8.35
+#14 47.18    Compiling nu-ansi-term v0.50.3
+#14 47.65    Compiling tracing-subscriber v0.3.23
+#14 48.02    Compiling clap v4.6.6
+#14 48.17    Compiling tonic-health v0.14.6
+#14 48.95    Compiling uuid v1.24.1
+#14 49.40    Compiling hex v0.4.3
+#14 51.89    Compiling cranelift-frontend v0.134.3
+#14 53.16    Compiling cranelift-native v0.134.3
+#14 102.4     Finished `release` profile [optimized] target(s) in 1m 42s
+#14 DONE 102.8s
+
+#7 [stage-1 1/2] FROM gcr.io/distroless/cc-debian12@sha256:adcd20c7b4c988b73cbfbddb26d2eee574571e6d7c9ffea29b3821e0690efb77
+#7 CACHED
+
+#15 [stage-1 2/2] COPY --from=builder --chmod=0555 /workspace/plugin-host-rs/target/release/masi-plugin-host /usr/local/bin/masi-plugin-host
+#15 DONE 0.0s
+
+#16 exporting to image
+#16 exporting layers
+#16 exporting layers 0.8s done
+#16 exporting manifest sha256:0074bfe81ff4bf01abe9bc20521bc8886cfb5e5bbefb97ff6ae338a8970dca3c done
+#16 exporting config sha256:03ae00a246d97f3a290060f144095a4ecec33d24f91d1e75299c6b1127efcee1 done
+#16 naming to docker.io/library/masi-plugin-host:module-gates done
+#16 unpacking to docker.io/library/masi-plugin-host:module-gates 0.1s done
+#16 DONE 0.9s
+    Finished `release` profile [optimized] target(s) in 0.16s

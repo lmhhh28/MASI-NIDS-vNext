@@ -1,0 +1,115 @@
+{
+  "case_ids": [
+    "service-hang",
+    "service-trap",
+    "service-wrong-digest",
+    "service-oversize",
+    "service-caller-cancellation",
+    "service-crash-isolation",
+    "service-disable-failure",
+    "service-disable-hang",
+    "service-drain-hang",
+    "trust-freshness-reconcile",
+    "service-failure-quarantine"
+  ],
+  "cases": [
+    {
+      "bounded_millis": 24,
+      "case_id": "service-hang",
+      "fault": "hang",
+      "recovered": true,
+      "result": "PASS",
+      "stable_reason": "DEADLINE_EXCEEDED"
+    },
+    {
+      "bounded_millis": 0,
+      "case_id": "service-trap",
+      "fault": "trap",
+      "recovered": true,
+      "result": "PASS",
+      "stable_reason": "PLUGIN_TRAP"
+    },
+    {
+      "bounded_millis": 0,
+      "case_id": "service-wrong-digest",
+      "fault": "wrong-digest",
+      "recovered": true,
+      "result": "PASS",
+      "stable_reason": "DIGEST_MISMATCH"
+    },
+    {
+      "bounded_millis": 3,
+      "case_id": "service-oversize",
+      "fault": "oversize",
+      "recovered": true,
+      "result": "PASS",
+      "stable_reason": "RESOURCE_EXHAUSTED"
+    },
+    {
+      "bounded_millis": 21,
+      "case_id": "service-caller-cancellation",
+      "fault": "caller-cancel",
+      "recovered": true,
+      "result": "PASS",
+      "stable_reason": "CANCELLED"
+    },
+    {
+      "bounded_millis": 0,
+      "case_id": "service-crash-isolation",
+      "fault": "process-crash",
+      "recovered": true,
+      "result": "PASS",
+      "stable_reason": "UNAVAILABLE"
+    },
+    {
+      "bounded_millis": 0,
+      "case_id": "service-disable-failure",
+      "fault": "disable-rpc-failure",
+      "recovered": true,
+      "result": "PASS",
+      "stable_reason": "UNAVAILABLE"
+    },
+    {
+      "bounded_millis": 25,
+      "case_id": "service-disable-hang",
+      "fault": "disable-hang",
+      "recovered": false,
+      "result": "PASS",
+      "stable_reason": "DEADLINE_EXCEEDED"
+    },
+    {
+      "bounded_millis": 26,
+      "case_id": "service-drain-hang",
+      "fault": "drain-hang",
+      "recovered": false,
+      "result": "PASS",
+      "stable_reason": "DEADLINE_EXCEEDED"
+    },
+    {
+      "bounded_millis": 126,
+      "case_id": "trust-freshness-reconcile",
+      "fault": "revocation-freshness-expired",
+      "recovered": true,
+      "result": "PASS",
+      "stable_reason": "TRUST_STALE"
+    },
+    {
+      "bounded_millis": 9,
+      "case_id": "service-failure-quarantine",
+      "fault": "restart-storm",
+      "recovered": false,
+      "result": "PASS",
+      "stable_reason": "CIRCUIT_OPEN"
+    }
+  ],
+  "host_remained_available": true,
+  "module_id": "MOD-PLUGIN-001",
+  "qualification": "NOT_QUALIFIED",
+  "reason_code": "PLUGIN_HOST_FAULT_MATRIX_PASS",
+  "result": "PASS",
+  "runtime_profiles": [
+    "grpc-service/v1"
+  ],
+  "schema_version": "plugin-host-fault-evidence/v1",
+  "unclassified_failures": 0
+}

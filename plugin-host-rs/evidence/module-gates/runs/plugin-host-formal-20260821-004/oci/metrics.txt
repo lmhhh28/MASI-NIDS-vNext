@@ -1,0 +1,46 @@
+# TYPE masi_plugin_host_ready gauge
+masi_plugin_host_ready 1
+# TYPE masi_plugin_host_bindings gauge
+masi_plugin_host_bindings 0
+# TYPE masi_plugin_host_queued gauge
+masi_plugin_host_queued 0
+# TYPE masi_plugin_host_in_flight gauge
+masi_plugin_host_in_flight 0
+# TYPE masi_plugin_host_manager_connections gauge
+masi_plugin_host_manager_connections 0
+# TYPE masi_plugin_host_manager_connections_peak gauge
+masi_plugin_host_manager_connections_peak 1
+# TYPE masi_plugin_host_invocations_total counter
+masi_plugin_host_invocations_total{runtime="wasm-component/v1",outcome="succeeded"} 0
+masi_plugin_host_invocations_total{runtime="wasm-component/v1",outcome="failed"} 0
+masi_plugin_host_invocations_total{runtime="grpc-service/v1",outcome="succeeded"} 0
+masi_plugin_host_invocations_total{runtime="grpc-service/v1",outcome="failed"} 0
+# TYPE masi_plugin_host_invocation_duration_seconds histogram
+masi_plugin_host_invocation_duration_seconds_bucket{le="0.001"} 0
+masi_plugin_host_invocation_duration_seconds_bucket{le="0.005"} 0
+masi_plugin_host_invocation_duration_seconds_bucket{le="0.01"} 0
+masi_plugin_host_invocation_duration_seconds_bucket{le="0.025"} 0
+masi_plugin_host_invocation_duration_seconds_bucket{le="0.05"} 0
+masi_plugin_host_invocation_duration_seconds_bucket{le="0.1"} 0
+masi_plugin_host_invocation_duration_seconds_bucket{le="0.25"} 0
+masi_plugin_host_invocation_duration_seconds_bucket{le="0.5"} 0
+masi_plugin_host_invocation_duration_seconds_bucket{le="1"} 0
+masi_plugin_host_invocation_duration_seconds_bucket{le="10"} 0
+masi_plugin_host_invocation_duration_seconds_count 0
+masi_plugin_host_invocation_duration_seconds_sum 0.000000
+# TYPE masi_plugin_host_deduplicated_total counter
+masi_plugin_host_deduplicated_total 0
+# TYPE masi_plugin_host_cancellations_total counter
+masi_plugin_host_cancellations_total 0
+# TYPE masi_plugin_host_circuit_opens_total counter
+masi_plugin_host_circuit_opens_total 0
+# TYPE masi_plugin_host_revocations_total counter
+masi_plugin_host_revocations_total 0
+# TYPE masi_plugin_host_activation_failures_total counter
+masi_plugin_host_activation_failures_total 0
+# TYPE masi_plugin_host_process_rss_bytes gauge
+masi_plugin_host_process_rss_bytes 9986048
+# TYPE masi_plugin_host_process_threads gauge
+masi_plugin_host_process_threads 2
+# TYPE masi_plugin_host_process_fds gauge
+masi_plugin_host_process_fds 13

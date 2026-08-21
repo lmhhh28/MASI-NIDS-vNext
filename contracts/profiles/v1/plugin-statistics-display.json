@@ -1,0 +1,10 @@
+{
+  "schema_version": "qualification-profile/v1",
+  "profile_id": "plugin-statistics-display/v1",
+  "display_kinds": ["metric-card", "status", "timeseries", "bar", "heatmap", "table", "text", "evidence-list"],
+  "host_owned": ["route", "component", "design tokens", "dataset", "encode", "ARIA", "authorization", "actions", "exports"],
+  "forbidden": ["HTML", "SVG", "CSS", "JavaScript", "URL", "iframe", "Vue component", "React component", "ECharts option", "formatter", "renderItem", "event handler", "Vega spec", "expression", "remote data"],
+  "unknown_kind": "reject",
+  "raw_json_fallback": false,
+  "runtime_download": false
+}

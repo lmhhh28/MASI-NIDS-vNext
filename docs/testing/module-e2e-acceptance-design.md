@@ -236,13 +236,13 @@ Fake Gateway、只测ORT/Triton、只有Ready、没有actual hardware envelope�
 
 ### 10.2 必验能力与场景
 
-- manifest/kind/version/digest/publisher/provenance/config/capability；
+- strict manifest的artifact/Host API/input-output/config/lifecycle/compatibility/statistics definition exact identity，以及kind/version/digest/publisher/provenance/capability；
 - `wasm-component/v1` WIT和`grpc-service/v1` Host-managed service；
-- activation/binding generation/drain/revoke/rollback/late result；
-- statistics frozen input/typed Artifact/display contract；
+- staged/shadow/active、普通activation generation单调、显式授权rollback、drain/revoke/late result；
+- statistics exact definition revision/digest routing、完整frozen input identity/digest闭包、typed Artifact/display contract；
 - filesystem/network/secret/DB/P4/effect deny；
 - fuel/CPU/memory/PID/FD/disk/deadline/output/queue上限；
-- trap/crash/OOM/hang/restart storm/circuit/quarantine、Manager/Host restart；
+- trap/crash/OOM/hang/cancel、disable/drain失败与超时、trust freshness reconcile、restart storm/circuit/quarantine、Manager/Host restart；
 - 全部插件disabled和故障风暴下核心隔离/performance/soak。
 
 ### 10.3 不变量与Oracle
@@ -256,6 +256,12 @@ Fake Gateway、只测ORT/Triton、只有Ready、没有actual hardware envelope�
 ### 10.4 阻断条件
 
 Wasm hello-world、无sandbox负例、只校验manifest、Fake Host、或未证明Host crash不影响core，均阻断完成。
+
+### 10.5 当前 operational 证据
+
+截至2026-08-21，`plugin-host-rs/evidence/module-gates/latest.json`指向immutable run `plugin-host-formal-20260821-004`，summary digest为`sha256:bef1a250afdd7cceef6f56065f7fdae627f2795f49db970e7e74801a34de8d50`，source-tree digest为`sha256:965eae8ee05abed795deb0c6f8b5820e00bc12559fea18260e4776ec533eb868`。19项required gate、真实release/OCI、两种runtime黑盒、严格contract/golden、service与Wasm故障矩阵、59.801%覆盖率、性能、深度与供应链检查均PASS；正式soak完成60秒warmup和4×900秒阶段，记录2,368,993次成功调用、2,283,115次有类型饱和拒绝、0未分类失败、0 trust refresh失败，真实service crash/restart oracle均为true，368个资源样本内queue/in-flight最终归零并成功清理。open finding/open P0均为0，机器派生`overall_module_complete=true`。
+
+该结论只表示operational Module Complete。summary仍为`qualification=NOT_QUALIFIED`；Go Plugin Manager/PostgreSQL正式pairwise、扩展strict input bundle的Go producer wire资格、core peak相对退化、protected release baseline、production-ha与九模块global gate仍保持`HOLD/NOT_RUN`。`-001`覆盖率失败、`-002`语义审计后撤回、`-003` rustdoc gate失败的证据均原样保留；只有修复后从零执行的`-004`是当前latest。
 
 <a id="module-analysis"></a>
 
@@ -406,4 +412,4 @@ Operational module aggregate 只有在以下全部成立时才能标记完成：
 
 ## 18. 当前状态
 
-截至 2026-08-21，P4/Switch、Rust Edge、Central Inference、Go Control、PostgreSQL State 已建立实现、runner、真实 binary/OCI 与独立模块证据。P4/Switch 已 `PASS/QUALIFIED`；其余四者已 operational Module Complete（`overall_module_complete=true`、open P0=0），qualification 仍 `HOLD/NOT_QUALIFIED`（`DEC-001` 门槛与受保护发布基线未冻结；PostgreSQL 另限于 single-domain/manual-promotion scope）。各模块 operational completion 只以自身 `evidence/module-gates/latest.json` 指向且通过公开语义 validator 的 summary 为准，不得从其他模块继承完成或资格。Plugin Host、Python Analysis、Web、Offline ML 尚未开始实现。本文本身不授予任何资格 PASS。
+截至 2026-08-21，P4/Switch、Rust Edge、Central Inference、Go Control、PostgreSQL State、Plugin Runtime Host 已建立实现、runner、真实 binary/OCI 与独立模块证据。P4/Switch 已 `PASS/QUALIFIED`；其余五者已 operational Module Complete（`overall_module_complete=true`、open P0=0），qualification 仍 `HOLD/NOT_QUALIFIED`（`DEC-001`/protected release基线及未来正式集成门禁仍未满足；PostgreSQL另限于single-domain/manual-promotion，Plugin Host另限于single-domain Host与尚未开始的Go/DB pairwise）。各模块 operational completion 只以自身 `evidence/module-gates/latest.json` 指向且通过公开语义 validator 的summary为准，不得从其他模块继承完成或资格。Python Analysis、Web、Offline ML尚未开始实现，因此九模块global gate及全部正式pairwise/system仍为`HOLD/NOT_RUN`。本文本身不授予任何资格PASS。

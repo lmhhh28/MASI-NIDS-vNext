@@ -1,0 +1,20 @@
+{
+  "schema_version": "plugin-host-release-manifest/v1",
+  "module_id": "MOD-PLUGIN-001",
+  "source_revision": "78536cbd1e7df2710385aed0ab0063f1e0509d0d",
+  "source_tree_digest": "sha256:965eae8ee05abed795deb0c6f8b5820e00bc12559fea18260e4776ec533eb868",
+  "image_ref": "masi-plugin-host:module-gates",
+  "image_id": "sha256:2a8597985c6a7bf0d4ac7a82ce57d8f520a6739e26820912cbecf92243eb54b9",
+  "runtime_profile": "plugin-runtime-host/v1",
+  "wasmtime_version": "47.0.3",
+  "runtime_download": false,
+  "component_registry_digest": "sha256:5a0d25567e0bdfcbbd8b6246970a1ff9f5acd64559f8d98dbac5097121c64f22",
+  "third_party_notices_digest": "sha256:1ddc8c773488e0be3549701f7d9345c707640a5cf2c1457b27cec715ef02d3ef",
+  "evidence_digests": {
+    "image.spdx.json": "sha256:41254dcfafe0619d14b875678dc49f6928c84508d98894ec78e0193c3ac2cdec",
+    "source.spdx.json": "sha256:fb708d316e72b5a8fba73c0225d546a15d5fdfeb6d89b730513b5464411a66f4",
+    "trivy-image.json": "sha256:36b112fbaeb9a926140162ad8fcb91655531d0621eb891c7fb656eb52ebc4df7",
+    "trivy-source-secret.json": "sha256:2faa1ba9fb24f827ec3c2b3a5cd1daa38c1f5472510e020af5e2e9ac87223ec0",
+    "trivy-config.json": "sha256:d739bea9b19e1b80e999994a1fe8d63edf6c89cc0f727142d091c64d97d7bfd1"
+  }
+}

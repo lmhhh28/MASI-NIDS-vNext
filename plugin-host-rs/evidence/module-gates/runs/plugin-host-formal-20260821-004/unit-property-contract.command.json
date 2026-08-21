@@ -1,0 +1,32 @@
+{
+  "schema_version": "edge-command-execution/v1",
+  "run_id": "plugin-host-formal-20260821-004",
+  "command_id": "unit-property-contract",
+  "started_at": "2026-08-21T07:01:00Z",
+  "finished_at": "2026-08-21T07:01:09Z",
+  "duration_ms": 8815,
+  "working_directory": "plugin-host-rs",
+  "argv": [
+    "cargo",
+    "test",
+    "--manifest-path",
+    "/home/lmhhh/MASI-NIDS-vNext/plugin-host-rs/Cargo.toml",
+    "--locked",
+    "--all-targets",
+    "--all-features",
+    "--",
+    "--test-threads=1"
+  ],
+  "exit_code": 0,
+  "result": "PASS",
+  "qualification": "QUALIFIED",
+  "stable_reason": null,
+  "source_tree_digest": "sha256:965eae8ee05abed795deb0c6f8b5820e00bc12559fea18260e4776ec533eb868",
+  "working_tree_status_digest": "sha256:119a13e9821b5dc1d4ba400f94ba007cb31048c3f68e381ef4e40b037956d16b",
+  "log": {
+    "path": "unit-property-contract.log",
+    "sha256": "sha256:ce4f00352dbe81a5b758b38944ab3e352cda05d5843bdff8233542d605e91bdf",
+    "bytes": 3898,
+    "media_type": "text/plain"
+  }
+}

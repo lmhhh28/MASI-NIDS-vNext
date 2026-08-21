@@ -1,0 +1,10 @@
+package masi:plugin-transform@1.0.0;
+
+/// A synchronous, deterministic pure transformation. The world deliberately
+/// imports no WASI interface: filesystem, network, clocks, random, process,
+/// environment, devices and secrets are therefore unavailable by construction.
+world pure-transform {
+  /// Transform one bounded, digest-bound input document into one bounded typed
+  /// result document. The host owns identities, deadlines and output validation.
+  export transform: func(input: list<u8>) -> result<list<u8>, string>;
+}

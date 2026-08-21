@@ -1,0 +1,27 @@
+{
+  "schema_version": "edge-command-execution/v1",
+  "run_id": "plugin-host-formal-20260821-002",
+  "command_id": "oci-smoke",
+  "started_at": "2026-08-21T04:28:41Z",
+  "finished_at": "2026-08-21T04:30:42Z",
+  "duration_ms": 120626,
+  "working_directory": "plugin-host-rs",
+  "argv": [
+    "env",
+    "MASI_PLUGIN_HOST_OCI_EVIDENCE_DIR=/home/lmhhh/MASI-NIDS-vNext/plugin-host-rs/evidence/module-gates/runs/plugin-host-formal-20260821-002/oci",
+    "MASI_PLUGIN_HOST_IMAGE_REF=masi-plugin-host:module-gates",
+    "/home/lmhhh/MASI-NIDS-vNext/plugin-host-rs/scripts/run-oci-smoke.sh"
+  ],
+  "exit_code": 0,
+  "result": "PASS",
+  "qualification": "QUALIFIED",
+  "stable_reason": null,
+  "source_tree_digest": "sha256:c825d1937eed81c58c23e8f86ab048c072db917f896f59c69741cc503d4e74c5",
+  "working_tree_status_digest": "sha256:e21dd5307dc26df94c2b5128f736f3fb7a11345f8dd9ec2bb86396a9ee96d0d7",
+  "log": {
+    "path": "oci-smoke.log",
+    "sha256": "sha256:b09ce8e39cf60b02037adbdaf26c4bd513a4baed8d814463f3ad54b02c08502b",
+    "bytes": 11936,
+    "media_type": "text/plain"
+  }
+}

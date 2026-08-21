@@ -1,0 +1,37 @@
+{
+  "valid": true,
+  "checks": [
+    "analysis_direct_only",
+    "closed_managed_kinds",
+    "closed_runtimes",
+    "component_registry_closed",
+    "display_is_declarative",
+    "host_proto_digest",
+    "host_resource_profile_exact",
+    "manifest_required_surface",
+    "no_wasm_imports",
+    "runtime_download_forbidden",
+    "service_no_retry",
+    "service_proto_digest",
+    "statistics_resource_profile_exact",
+    "toolchain_exact",
+    "wasi_02_exact",
+    "wasi_03_rejected",
+    "wit_digest"
+  ],
+  "schemas": [
+    "contracts/plugin/manifest/v1/schema.json",
+    "contracts/plugin/config/v1/schema.json",
+    "contracts/plugin/host/v1/config.schema.json",
+    "contracts/plugin/host/v1/verification-bundle.schema.json",
+    "contracts/plugin/statistics/v1/schema.json",
+    "contracts/evidence/plugin-runtime-host-oci/v1/schema.json",
+    "contracts/evidence/plugin-runtime-host-supply/v1/schema.json",
+    "contracts/evidence/plugin-runtime-host-performance/v1/schema.json",
+    "contracts/evidence/plugin-runtime-host-soak/v1/schema.json",
+    "contracts/evidence/plugin-runtime-host-deep/v1/schema.json",
+    "contracts/evidence/plugin-runtime-host-fault/v1/schema.json",
+    "contracts/evidence/plugin-runtime-host-module/v1/schema.json",
+    "contracts/supply-chain/v1/schema.json"
+  ]
+}

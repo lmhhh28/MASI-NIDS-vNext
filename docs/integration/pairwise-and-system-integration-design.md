@@ -379,4 +379,4 @@ Pairwise/System aggregate只包含release scope列明的required、`APPLICABLE`�
 
 ## 12. 当前状态
 
-截至 2026-08-21，运行面五模块（P4/Switch、Rust Edge、Central Inference、Go Control、PostgreSQL State）已实现并取得 operational Module Complete，P4/Switch 进一步取得 `QUALIFIED`。但九模块独立完成是正式 pairwise 的入口条件，目前仍有四模块（Plugin Host、Python Analysis、Web、Offline ML）未开始实现，因此所有正式 pairwise、系统波次和 Full E2E 当前仍不具备入口条件，状态保持 `result=HOLD|NOT_RUN`、`qualification=NOT_QUALIFIED`。已实现模块的 qualification-only HOLD（`DEC-001` 绝对门槛、受保护发布基线、dirty tree；PostgreSQL 的 single-domain/manual-promotion scope）不改写其 operational 完成结论，也不得被当作 pairwise/system PASS。
+截至 2026-08-21，六个独立模块（P4/Switch、Rust Edge、Central Inference、Go Control、PostgreSQL State、Plugin Runtime Host）已实现并取得 operational Module Complete，P4/Switch 进一步取得 `QUALIFIED`。但九模块独立完成是正式pairwise的入口条件，目前仍有三个模块（Python Analysis、Web、Offline ML）未开始实现，因此所有正式pairwise、系统波次和Full E2E仍不具备入口条件，状态保持`result=HOLD|NOT_RUN`、`qualification=NOT_QUALIFIED`。已实现模块的qualification-only HOLD（受保护发布基线/dirty tree；PostgreSQL的single-domain/manual-promotion scope；Plugin Host的single-domain、Go/DB pairwise与core相对退化门禁）不改写其operational完成结论，也不得被当作pairwise/system PASS。

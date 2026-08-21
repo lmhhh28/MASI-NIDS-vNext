@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://masi-nids.example/contracts/plugin/config/v1/schema.json",
+  "title": "Bounded Plugin Configuration V1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "config_id", "values", "secret_refs"],
+  "properties": {
+    "schema_version": {"const": "masi-plugin-config/v1"},
+    "config_id": {"type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"},
+    "values": {
+      "type": "object", "maxProperties": 64,
+      "additionalProperties": {"type": ["string", "integer", "number", "boolean", "null"]}
+    },
+    "secret_refs": {
+      "type": "array", "maxItems": 16, "uniqueItems": true,
+      "items": {"type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"}
+    }
+  },
+  "x-masi-semantic-constraints": [
+    {"constraint_id": "PLUGIN-CONFIG-NO-ENDPOINT", "operator": "config-no-url-endpoint-path"},
+    {"constraint_id": "PLUGIN-CONFIG-SECRET-REFERENCE-ONLY", "fields": ["/secret_refs"], "operator": "secret-reference-only"},
+    {"constraint_id": "PLUGIN-CONFIG-BOUNDED", "operator": "encoded-bytes-at-most-65536"}
+  ]
+}

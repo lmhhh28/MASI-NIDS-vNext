@@ -1,0 +1,3 @@
+2026-08-21T07:04:48Z	INFO	[misconfig] Misconfiguration scanning is enabled
+2026-08-21T07:04:48Z	INFO	[checks-client] No downloadable checks were loaded as --skip-check-update is enabled, loading from existing cache...
+2026-08-21T07:04:49Z	INFO	Detected config files	num=1

@@ -25,7 +25,8 @@
         "rust-edge-agent-traceability-evidence/v1",
         "central-inference-traceability-evidence/v1",
         "control-core-requirement-traceability/v1",
-        "postgresql-state-requirement-traceability/v1"
+        "postgresql-state-requirement-traceability/v1",
+        "plugin-runtime-host-requirement-traceability/v1"
       ]
     },
     "module_id": {
@@ -33,7 +34,8 @@
         "MOD-EDGE-001",
         "MOD-INF-001",
         "MOD-CTRL-001",
-        "MOD-DB-001"
+        "MOD-DB-001",
+        "MOD-PLUGIN-001"
       ]
     },
     "manifest": {
@@ -83,7 +85,7 @@
     "conditional_applicability": {
       "type": "array",
       "minItems": 4,
-      "maxItems": 4,
+      "maxItems": 8,
       "uniqueItems": true,
       "items": {
         "$ref": "#/$defs/conditional"
@@ -338,6 +340,68 @@
                   "applicability": "NOT_APPLICABLE",
                   "result": "NOT_RUN",
                   "stable_reason": "NOT_OPERATIONAL_SINGLE_DOMAIN_PROFILE"
+                }
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "module_id": {
+            "const": "MOD-PLUGIN-001"
+          }
+        },
+        "required": [
+          "module_id"
+        ]
+      },
+      "then": {
+        "properties": {
+          "conditional_applicability": {
+            "type": "array",
+            "minItems": 6,
+            "maxItems": 6,
+            "uniqueItems": true,
+            "items": {
+              "enum": [
+                {
+                  "profile": "analysis-agent-host-proxy/v1",
+                  "applicability": "NOT_APPLICABLE",
+                  "result": "NOT_RUN",
+                  "stable_reason": "DIRECT_TYPED_ADAPTER_REQUIRED"
+                },
+                {
+                  "profile": "wasi-0-3/v1",
+                  "applicability": "NOT_APPLICABLE",
+                  "result": "NOT_RUN",
+                  "stable_reason": "WASI_0_2_FIRST_RELEASE_PROFILE"
+                },
+                {
+                  "profile": "cross-host-service-mtls/v1",
+                  "applicability": "NOT_APPLICABLE",
+                  "result": "NOT_RUN",
+                  "stable_reason": "SAME_HOST_UDS_ACCEPTANCE_PROFILE"
+                },
+                {
+                  "profile": "production-ha/v1",
+                  "applicability": "NOT_APPLICABLE",
+                  "result": "NOT_RUN",
+                  "stable_reason": "SINGLE_FAILURE_DOMAIN_HOST"
+                },
+                {
+                  "profile": "external-source-readonly/v1",
+                  "applicability": "NOT_APPLICABLE",
+                  "result": "NOT_RUN",
+                  "stable_reason": "PURE_TRANSFORM_CONFORMANCE_BINDING"
+                },
+                {
+                  "profile": "effectful-plugin/v1",
+                  "applicability": "NOT_APPLICABLE",
+                  "result": "NOT_RUN",
+                  "stable_reason": "FIRST_RELEASE_KINDS_HAVE_NO_EFFECTS"
                 }
               ]
             }

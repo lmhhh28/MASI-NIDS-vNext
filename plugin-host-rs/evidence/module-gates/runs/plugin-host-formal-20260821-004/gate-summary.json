@@ -1,0 +1,244 @@
+{
+  "applicability": "APPLICABLE",
+  "artifact_digests": {
+    "cargo_lock": "sha256:02e447e845c368fd8b9fa3b4068e2e93c17a6ee1fb41751e16fe1c3fc2c914fd",
+    "command_clippy": "sha256:b18918fa4324bd774a9578e5f4ac6486f6e00cd08ff893d15c6c822662d07fac",
+    "command_contract-schema": "sha256:8c94b7a9c84f329c5f801aca957d62a1e0870c8e22d067acaf0f375ff79024ee",
+    "command_control-contract-consumer": "sha256:bfc575db0c4f6141397bb42cfe34e82b30edf2abd539a3e0669d1126b5a98115",
+    "command_control-statistics-adapter": "sha256:acb86b93d4c73c1663466b336779657680d7f80eefbc3318af665cd31daab5ee",
+    "command_deep-checks": "sha256:506c5e578a8576b79ae736a0784af7f08fa9253198086e750ec112afd4fe91c6",
+    "command_evidence-integrity": "sha256:32fadac4219d0696091464f779b76f972cc1c028dc546ce58ce8bbb158639cc5",
+    "command_findings": "sha256:8ee501db75fb439dc892cd38152e57820c2f3eaddcf5c8975a3206de0087e21a",
+    "command_formal-soak": "sha256:82ceaa022574658787ba9e416239d0019236bf6a900a4d299f35ef2b711f904c",
+    "command_format": "sha256:101be6e87438a0753eff59b8a7a5e7a7fde15390ff3a0de6878853af269a2555",
+    "command_oci-smoke": "sha256:745a1ad42f078e3ce1976a56e717109fa1d587894d3496961d543d700f8c0660",
+    "command_performance": "sha256:0d97a8ee3d7e6d9d5b1a15a95330cd93a96c265a15884802f4849414d51665f4",
+    "command_release-blackbox": "sha256:787fa227bd2f718a632b691f2b49f5578e53ea7f4f26b7b40bbde0faf16b00d4",
+    "command_release-build": "sha256:ca872143eec8c54b2562e184111b933301d8f14171776b2d08f803eefc8b8dd3",
+    "command_rustdoc": "sha256:154ae6b7cdaf440b21bf3dce0471651ba62f73000e0bceb7f1c3b9ca836a577d",
+    "command_source-sentinels": "sha256:fbfe6a3c3806617899deb925d3b51dab4c63b9a5778312d8cd0090bb7a09b273",
+    "command_supply-chain": "sha256:4c4c21b20a3be472383295f8cb4d424382f5dd3701d0fe3b5a25e7e3308079f3",
+    "command_traceability": "sha256:47b2760b99172da982019876addc9cbb267e76a6fac342192625f10aa7ed123a",
+    "command_unit-property-contract": "sha256:6b4d2b292ffe1f4a96515b9687aa1fa5c15e51678dff8041b0bdc137455257fe",
+    "command_wasm-fault-matrix": "sha256:5009f8c167733c1a1de7ba81e300fc5f5b4bd31749bce571c7e8b41773658c8d",
+    "control_contract_consumer": "sha256:e22ac27d0a73da92bfba8b1be6b5df163624c7842bd5044f5dc2913225f30457",
+    "deep_checks_evidence": "sha256:6042f37027a7b17df02a24819f6909ca62270ba7f0945458dcc98057eee85340",
+    "fault_recovery_evidence": "sha256:68f30822a6b73bdbc1adae96a41dc6e136f8348d7a2f4c724d407e42dbb70061",
+    "formal_soak_evidence": "sha256:31fe582d75d0037874d880354a38fe07cf38d1a5a4f6d22db0677dbe4845fd84",
+    "host_binary": "sha256:7148a599113691c642dfee11cca4b45881a951881d3f0a7e1856977cc1aecc2d",
+    "host_proto": "sha256:a6261fb506c523d0265134057b66caf9b1193387289afc4996857576cd20e80b",
+    "hostctl_binary": "sha256:235f4fd280182039eddbee80c28cea70a04342013313669d3b87b62c3ebb46cf",
+    "log_clippy": "sha256:e95dc808ea9673c9913b2e23f3a28976e5d8191d5f29fcd1d63e3c26b7bdd3f2",
+    "log_contract-schema": "sha256:d59a963e7552685e291c89fa6e9dfc1c08ce3b272ff036b713c363657b98ec29",
+    "log_control-contract-consumer": "sha256:85f5268e6ed10139b11143f4566abb413a18c16e17e33f98a443d52a57501211",
+    "log_control-statistics-adapter": "sha256:5ca513805d9e985148d9d9a662c23cb2592bde7783700da473cc1bc39150091b",
+    "log_deep-checks": "sha256:71b1bfdcfd37117e22b281d48e96bc6654091cca23c04a1b24ea9767616b90bd",
+    "log_evidence-integrity": "sha256:610305916214fd5642cbba399cef4ead1b195ad4ef0f49d4b459e67229f87143",
+    "log_findings": "sha256:f8e6327f605486763bfc52156b77bb4e967cb50d91a552151709b7eff3d6fa9f",
+    "log_formal-soak": "sha256:d223455f5859346282ec11dbfa3f39d59a42abeedac3daef86cd49a2e1cde57c",
+    "log_format": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "log_oci-smoke": "sha256:460b6c8399eb37dc91dba4e56217e03c37e67db74bab1bc630a96acb24fc6f1d",
+    "log_performance": "sha256:87091c5c38201aca03c0fa6806b52d9c755b524a57c1b36d3f4f7173f0e4a30d",
+    "log_release-blackbox": "sha256:4fe7ce92f29c2cdbfe5bcf3e861f2320ded68073552d2fdb5f102a722e7f7042",
+    "log_release-build": "sha256:a04c9c5313de067d12aa638a2418d3749e8723920acde380c0084669eafdf8d2",
+    "log_rustdoc": "sha256:67312a9a57e1357c6f24a7026b84bdd0c0fe7cbcf5d1edbaf22a62687782588a",
+    "log_source-sentinels": "sha256:45e0ba22d78f3354778483816315c0bc8c58412f60675423626d7dd53be77e12",
+    "log_supply-chain": "sha256:49f7c8375da4679bdb79a2bbb072f29097152dc76484c620a29bb06c4302b981",
+    "log_traceability": "sha256:dd7170a449a69c7d87609e5b20da7d5d7b5ada8f7398d3ac50325cd9e7b69f78",
+    "log_unit-property-contract": "sha256:ce4f00352dbe81a5b758b38944ab3e352cda05d5843bdff8233542d605e91bdf",
+    "log_wasm-fault-matrix": "sha256:f3e36385d7ab083e5af7b7fa991ec8462cdbb0b5dfa3b5e031c7d9fa46e8d8af",
+    "module_findings": "sha256:609a3b87418a1aed0378264e7492b253c7530bb829fe8ae006b34ef70d340f8d",
+    "oci_evidence": "sha256:9cbbad2aae2f96e4ef66c50ab8f221f4a3216d7b7e091ad7f82f6fdd8c4b862d",
+    "performance_evidence": "sha256:82485b72a94e57202e4fd2ad31e210eef787a6e57f68676195ee3f026e331e94",
+    "requirements_baseline": "sha256:89007ff7623741da78940df9019fd30acc97deb2ea4c21807f404f6418ae7268",
+    "requirements_traceability_manifest": "sha256:554215868ba8f3d4faaadbeaab3319a780e9d5541c7693295c789e41f3f058f4",
+    "service_fixture_binary": "sha256:43ab7bdabccf8403efc8725d0716516569e61ea09b52143c80ff95453c9585c9",
+    "service_proto": "sha256:d64a04a8d9c1f0e0d58d4259f5c8c1342aec640ec31699e5f05ace7c50f6bf3e",
+    "supply_chain_evidence": "sha256:b9e88425bc6235e21097acfbe421c6fb66e0fdd8010653cd18755dcf6bad07df",
+    "traceability_evidence": "sha256:416311fc39407818f51d12c0fa6a2e9dd06ccb43af90a164b0d296cd413acf3c",
+    "wit_source": "sha256:43e8eac37b165c4cfd84280cfe0e17cd6ca203abb2aa55b41c921890cef0567b"
+  },
+  "blackbox_e2e": {
+    "digest": "sha256:4fe7ce92f29c2cdbfe5bcf3e861f2320ded68073552d2fdb5f102a722e7f7042",
+    "evidence": "release-blackbox.log",
+    "result": "PASS"
+  },
+  "completion": {
+    "formal_soak_executed": true,
+    "no_required_not_run": true,
+    "open_p0_zero": true,
+    "operational_gates_pass": true,
+    "real_runtime_started": true
+  },
+  "conditional_applicability": [
+    {
+      "applicability": "NOT_APPLICABLE",
+      "profile": "analysis-agent-host-proxy/v1",
+      "result": "NOT_RUN",
+      "stable_reason": "DIRECT_TYPED_ADAPTER_REQUIRED"
+    },
+    {
+      "applicability": "NOT_APPLICABLE",
+      "profile": "wasi-0-3/v1",
+      "result": "NOT_RUN",
+      "stable_reason": "WASI_0_2_FIRST_RELEASE_PROFILE"
+    },
+    {
+      "applicability": "NOT_APPLICABLE",
+      "profile": "cross-host-service-mtls/v1",
+      "result": "NOT_RUN",
+      "stable_reason": "SAME_HOST_UDS_ACCEPTANCE_PROFILE"
+    },
+    {
+      "applicability": "NOT_APPLICABLE",
+      "profile": "production-ha/v1",
+      "result": "NOT_RUN",
+      "stable_reason": "SINGLE_FAILURE_DOMAIN_HOST"
+    },
+    {
+      "applicability": "NOT_APPLICABLE",
+      "profile": "external-source-readonly/v1",
+      "result": "NOT_RUN",
+      "stable_reason": "PURE_TRANSFORM_CONFORMANCE_BINDING"
+    },
+    {
+      "applicability": "NOT_APPLICABLE",
+      "profile": "effectful-plugin/v1",
+      "result": "NOT_RUN",
+      "stable_reason": "FIRST_RELEASE_KINDS_HAVE_NO_EFFECTS"
+    }
+  ],
+  "deep_checks": {
+    "digest": "sha256:6042f37027a7b17df02a24819f6909ca62270ba7f0945458dcc98057eee85340",
+    "evidence": "deep/deep-checks-evidence.json",
+    "result": "PASS"
+  },
+  "executed_gates": {
+    "clippy": "PASS",
+    "contract-schema": "PASS",
+    "control-contract-consumer": "PASS",
+    "control-statistics-adapter": "PASS",
+    "deep-checks": "PASS",
+    "evidence-integrity": "PASS",
+    "findings": "PASS",
+    "formal-soak": "PASS",
+    "format": "PASS",
+    "oci-smoke": "PASS",
+    "performance": "PASS",
+    "release-blackbox": "PASS",
+    "release-build": "PASS",
+    "rustdoc": "PASS",
+    "source-sentinels": "PASS",
+    "supply-chain": "PASS",
+    "traceability": "PASS",
+    "unit-property-contract": "PASS",
+    "wasm-fault-matrix": "PASS"
+  },
+  "fault_recovery": {
+    "digest": "sha256:68f30822a6b73bdbc1adae96a41dc6e136f8348d7a2f4c724d407e42dbb70061",
+    "evidence": "fault/fault-evidence.json",
+    "result": "PASS"
+  },
+  "findings": {
+    "open_p0": 0,
+    "open_total": 0
+  },
+  "formal_soak": {
+    "digest": "sha256:31fe582d75d0037874d880354a38fe07cf38d1a5a4f6d22db0677dbe4845fd84",
+    "evidence": "formal-soak/soak-evidence.json",
+    "result": "PASS"
+  },
+  "generated_at": "2026-08-21T08:05:58.755534Z",
+  "level": "MODULE",
+  "module_id": "MOD-PLUGIN-001",
+  "oci": {
+    "digest": "sha256:9cbbad2aae2f96e4ef66c50ab8f221f4a3216d7b7e091ad7f82f6fdd8c4b862d",
+    "evidence": "oci/oci-smoke-evidence.json",
+    "result": "PASS"
+  },
+  "overall_module_complete": true,
+  "performance": {
+    "digest": "sha256:82485b72a94e57202e4fd2ad31e210eef787a6e57f68676195ee3f026e331e94",
+    "evidence": "performance/performance-evidence.json",
+    "result": "PASS"
+  },
+  "qualification": "NOT_QUALIFIED",
+  "qualification_gates": {
+    "core_relative_degradation_pairwise": "HOLD",
+    "formal_soak_3600_seconds": "PASS",
+    "host_boundary_performance": "PASS",
+    "nine_module_global_gate": "HOLD",
+    "production_ha_multi_failure_domain": "HOLD",
+    "protected_release_baseline": "HOLD"
+  },
+  "remaining_holds": [
+    "Formal Go Plugin Manager and PostgreSQL pairwise integration has not started because the nine-module gate remains HOLD.",
+    "The current Go statistics producer has not yet been pairwise-qualified against the expanded strict Host input bundle; only public schema and adapter compilation are checked in this module run.",
+    "Relative core p99/RSS degradation requires the later Plugin Platform and core peak-load qualification scope.",
+    "The acceptance host is one failure domain and cannot claim production-ha qualification.",
+    "A protected release commit/tag and its release-baseline digest are not established by this working-tree module run.",
+    "Official Analysis business A2A/MCP qualification belongs to the independent Analysis module and does not pass through this Host."
+  ],
+  "requirement_ids": [
+    "MOD-PLUGIN-001",
+    "ARCH-003",
+    "ARCH-005",
+    "ARCH-PLUGIN-001",
+    "ARCH-REUSE-001",
+    "CONTRACT-001",
+    "CONTRACT-PROFILE-001",
+    "CONTRACT-PLUGIN-001",
+    "CONTRACT-PLUGIN-002",
+    "CONTRACT-PLUGIN-STAT-001",
+    "PLUGIN-STAT-001",
+    "PLUGIN-PLAT-001",
+    "PLUGIN-PLAT-002",
+    "PLUGIN-PLAT-003",
+    "PLUGIN-PLAT-004",
+    "PLUGIN-PLAT-005",
+    "PLUGIN-PLAT-006",
+    "PERF-PLUGIN-001",
+    "PERF-PLUGIN-STAT-001",
+    "REL-PLUGIN-001",
+    "REL-PLUGIN-STAT-001",
+    "SEC-001",
+    "SEC-004",
+    "SEC-005",
+    "SEC-PLUGIN-001",
+    "SEC-PLUGIN-002",
+    "SEC-PLUGIN-STAT-001",
+    "SEC-SUPPLY-001",
+    "DEP-PLUGIN-001",
+    "MIG-PLUGIN-001",
+    "TEST-003",
+    "TEST-007",
+    "TEST-008",
+    "TEST-009",
+    "TEST-010",
+    "TEST-GATE-001",
+    "TEST-REAL-E2E-001",
+    "TEST-REUSE-001",
+    "TEST-PLUGIN-001",
+    "TEST-PLUGIN-STAT-001"
+  ],
+  "schema_version": "plugin-runtime-host-module-gates/v1",
+  "source_revision": "78536cbd1e7df2710385aed0ab0063f1e0509d0d",
+  "source_tree_digest": "sha256:965eae8ee05abed795deb0c6f8b5820e00bc12559fea18260e4776ec533eb868",
+  "supply_chain": {
+    "digest": "sha256:b9e88425bc6235e21097acfbe421c6fb66e0fdd8010653cd18755dcf6bad07df",
+    "evidence": "supply/supply-chain-evidence.json",
+    "result": "PASS"
+  },
+  "traceability": {
+    "digest": "sha256:416311fc39407818f51d12c0fa6a2e9dd06ccb43af90a164b0d296cd413acf3c",
+    "evidence": "traceability.json",
+    "result": "PASS"
+  },
+  "wasm_faults": {
+    "digest": "sha256:f3e36385d7ab083e5af7b7fa991ec8462cdbb0b5dfa3b5e031c7d9fa46e8d8af",
+    "evidence": "wasm-fault-matrix.log",
+    "result": "PASS"
+  },
+  "working_tree_dirty": true,
+  "working_tree_status_digest": "sha256:119a13e9821b5dc1d4ba400f94ba007cb31048c3f68e381ef4e40b037956d16b"
+}

@@ -1,0 +1,25 @@
+{
+  "schema_version": "edge-command-execution/v1",
+  "run_id": "plugin-host-formal-20260821-003",
+  "command_id": "source-sentinels",
+  "started_at": "2026-08-21T06:59:49Z",
+  "finished_at": "2026-08-21T06:59:49Z",
+  "duration_ms": 429,
+  "working_directory": "plugin-host-rs",
+  "argv": [
+    "python3",
+    "/home/lmhhh/MASI-NIDS-vNext/plugin-host-rs/scripts/check-source-sentinels.py"
+  ],
+  "exit_code": 0,
+  "result": "PASS",
+  "qualification": "QUALIFIED",
+  "stable_reason": null,
+  "source_tree_digest": "sha256:9b1b93be5b85e11bcffddbd79f51849b21cd061ca6d86336b7882309dd1f0355",
+  "working_tree_status_digest": "sha256:2f3ddc112e072c7ce1f71536607ad31c91ba0974784dfb667f358da1658b5558",
+  "log": {
+    "path": "source-sentinels.log",
+    "sha256": "sha256:45e0ba22d78f3354778483816315c0bc8c58412f60675423626d7dd53be77e12",
+    "bytes": 35,
+    "media_type": "text/plain"
+  }
+}

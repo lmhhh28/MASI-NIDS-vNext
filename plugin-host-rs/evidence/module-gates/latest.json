@@ -1,0 +1,7 @@
+{
+  "schema_version": "plugin-runtime-host-module-latest/v1",
+  "run_id": "plugin-host-formal-20260821-004",
+  "evidence": "runs/plugin-host-formal-20260821-004/gate-summary.json",
+  "digest": "sha256:bef1a250afdd7cceef6f56065f7fdae627f2795f49db970e7e74801a34de8d50",
+  "overall_module_complete": true
+}

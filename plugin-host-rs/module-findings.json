@@ -1,0 +1,152 @@
+{
+  "schema_version": "module-findings/v1",
+  "module_id": "MOD-PLUGIN-001",
+  "decision_id": "DEC-044",
+  "reviewed_at": "2026-08-21T14:44:06+08:00",
+  "review_scope": "Plugin Host public contracts, exact admission and trust closure, Wasmtime/WIT isolation, Host-managed service UDS identity, lifecycle/fencing, statistics finalization, bounded resources, TLS, process/OCI boundary, supply chain, performance and formal-soak evidence",
+  "findings": [
+    {
+      "finding_id": "PLUGIN-P0-INDEPENDENT-HOST-IMPLEMENTATION",
+      "severity": "P0",
+      "status": "CLOSED",
+      "title": "The sixth independent deployable module and its Manager-facing boundary did not exist",
+      "requirement_ids": ["MOD-PLUGIN-001", "ARCH-PLUGIN-001", "TEST-PLUGIN-001"],
+      "evidence_refs": ["plugin-host-rs/src/lib.rs", "plugin-host-rs/src/server.rs", "contracts/plugin/host/v1/host.proto", "plugin-host-rs/Dockerfile"],
+      "opened_at": "2026-08-21T01:00:00+08:00",
+      "closed_at": "2026-08-21T12:00:00+08:00",
+      "resolution": "Implemented a deny-by-default Rust Host with exact Manager mTLS identity, immutable binding admission, Wasm Component and explicit service runtime registries, public lifecycle/readback APIs and a non-root immutable OCI image."
+    },
+    {
+      "finding_id": "PLUGIN-P1-LIFECYCLE-SIDE-BY-SIDE-FENCE",
+      "severity": "P1",
+      "status": "CLOSED",
+      "title": "Initial lifecycle state prevented safe same-generation transitions and side-by-side definition activation",
+      "requirement_ids": ["CONTRACT-PLUGIN-002", "PLUGIN-PLAT-005", "REL-PLUGIN-001"],
+      "evidence_refs": ["plugin-host-rs/src/state.rs", "plugin-host-rs/tests/module_blackbox.rs"],
+      "opened_at": "2026-08-21T03:00:00+08:00",
+      "closed_at": "2026-08-21T07:20:00+08:00",
+      "resolution": "Separated immutable admission subject from refreshable lifecycle/freshness control, added explicit shadow execution, active-only statistics definition routing, atomic new-generation activation, old-generation draining and late-result fencing."
+    },
+    {
+      "finding_id": "PLUGIN-P1-TLS13-LEAF-IDENTITY",
+      "severity": "P1",
+      "status": "CLOSED",
+      "title": "Default transport configuration did not prove TLS 1.3-only negotiation",
+      "requirement_ids": ["SEC-001", "SEC-PLUGIN-001", "DEP-PLUGIN-001"],
+      "evidence_refs": ["plugin-host-rs/src/server.rs", "plugin-host-rs/tests/module_blackbox.rs", "plugin-host-rs/scripts/run-oci-smoke.sh"],
+      "opened_at": "2026-08-21T04:00:00+08:00",
+      "closed_at": "2026-08-21T07:40:00+08:00",
+      "resolution": "Replaced implicit TLS defaults with an in-process Rustls TLS 1.3-only acceptor, mandatory client CA validation, exact leaf DER digest authorization, a two-second handshake bound and bounded connections/streams; plaintext, TLS 1.2 and wrong-leaf negatives are exercised."
+    },
+    {
+      "finding_id": "PLUGIN-P1-QUEUE-CANCELLATION-ACCOUNTING",
+      "severity": "P1",
+      "status": "CLOSED",
+      "title": "Cancelled queue wait could leak a per-binding queued counter",
+      "requirement_ids": ["ARCH-005", "PERF-PLUGIN-001", "REL-PLUGIN-001"],
+      "evidence_refs": ["plugin-host-rs/src/state.rs", "plugin-host-rs/tests/property.rs"],
+      "opened_at": "2026-08-21T05:00:00+08:00",
+      "closed_at": "2026-08-21T06:10:00+08:00",
+      "resolution": "Made queue admission an RAII guard so cancellation, timeout and early error all release the exact counter; total deadline now includes queue time and the manifest queue ceiling is enforced."
+    },
+    {
+      "finding_id": "PLUGIN-P1-STATISTICS-FINAL-IDEMPOTENCY",
+      "severity": "P1",
+      "status": "CLOSED",
+      "title": "Raw plugin output deduplication did not preserve the final statistics Artifact bytes",
+      "requirement_ids": ["PLUGIN-STAT-001", "REL-PLUGIN-STAT-001", "TEST-PLUGIN-STAT-001"],
+      "evidence_refs": ["plugin-host-rs/src/state.rs", "plugin-host-rs/src/statistics.rs", "plugin-host-rs/tests/module_blackbox.rs"],
+      "opened_at": "2026-08-21T06:00:00+08:00",
+      "closed_at": "2026-08-21T08:00:00+08:00",
+      "resolution": "Added a bounded final-reply idempotency cache keyed by the exact public request digest so an exact run replay returns byte-identical Artifact/provenance while changed input, fence or trace is a stable conflict."
+    },
+    {
+      "finding_id": "PLUGIN-P1-UTF8-ERROR-BOUNDARY",
+      "severity": "P1",
+      "status": "CLOSED",
+      "title": "A long multibyte diagnostic could panic while being truncated",
+      "requirement_ids": ["SEC-005", "TEST-007", "TEST-010"],
+      "evidence_refs": ["plugin-host-rs/src/error.rs", "plugin-host-rs/tests/property.rs", "plugin-host-rs/tests/property.proptest-regressions"],
+      "opened_at": "2026-08-21T08:10:00+08:00",
+      "closed_at": "2026-08-21T08:25:00+08:00",
+      "resolution": "Property testing exposed a non-character-boundary byte truncation; the public error constructor now walks to a valid UTF-8 boundary while preserving the 512-byte ceiling and the generated regression seed is retained."
+    },
+    {
+      "finding_id": "PLUGIN-P1-REVOCATION-FRESHNESS-RUNTIME",
+      "severity": "P1",
+      "status": "CLOSED",
+      "title": "Admission-time trust validation alone could outlive the five-minute freshness ceiling",
+      "requirement_ids": ["PLUGIN-PLAT-004", "PLUGIN-PLAT-005", "SEC-PLUGIN-002"],
+      "evidence_refs": ["plugin-host-rs/src/admission.rs", "plugin-host-rs/src/state.rs", "plugin-host-rs/tests/soak.rs"],
+      "opened_at": "2026-08-21T05:30:00+08:00",
+      "closed_at": "2026-08-21T08:15:00+08:00",
+      "resolution": "Every new invocation now checks current binding expiry and revocation observation age; monotonic same-generation refresh updates only bounded control freshness while immutable artifact/config/capability identity remains fixed."
+    },
+    {
+      "finding_id": "PLUGIN-P1-STALE-REFRESH-ROLLBACK-RACE",
+      "severity": "P1",
+      "status": "CLOSED",
+      "title": "A delayed refresh for an older generation could move the active pointer backward",
+      "requirement_ids": ["PLUGIN-PLAT-005", "REL-PLUGIN-001", "TEST-007"],
+      "evidence_refs": ["contracts/plugin/host/v1/host.proto", "plugin-host-rs/src/state.rs", "plugin-host-rs/src/server.rs", "plugin-host-rs/tests/module_blackbox.rs"],
+      "opened_at": "2026-08-21T12:08:00+08:00",
+      "closed_at": "2026-08-21T12:18:00+08:00",
+      "resolution": "Made ordinary activation generation-monotonic, rejected stale lower-generation refreshes before control mutation, and added an explicit authorized RollbackBinding request with exact current-generation CAS fencing. The release black box proves stale refresh rejection, controlled rollback, late-generation fencing and subsequent monotonic roll-forward."
+    },
+    {
+      "finding_id": "PLUGIN-P0-SEMANTIC-GATE-FALSE-COMPLETION",
+      "severity": "P0",
+      "status": "CLOSED",
+      "title": "The first passing runner summary accepted named scenarios without sufficient behavioral oracles",
+      "requirement_ids": ["TEST-008", "TEST-010", "TEST-PLUGIN-001"],
+      "evidence_refs": ["plugin-host-rs/scripts/run-module-gates.sh", "plugin-host-rs/scripts/build-module-summary.py", "plugin-host-rs/tests/performance.rs", "plugin-host-rs/tests/soak.rs"],
+      "opened_at": "2026-08-21T13:35:00+08:00",
+      "closed_at": "2026-08-21T14:44:06+08:00",
+      "resolution": "Independent post-run review withdrew the premature completion claim. The gates now require structured fault evidence, real over-capacity rejection, separate Wasm compile/cold/warm measurements, resource trends, service crash/restart recovery and exact Go contract-consumer checks; old runs remain immutable and a new full run is required."
+    },
+    {
+      "finding_id": "PLUGIN-P0-STATISTICS-DEFINITION-INPUT-FENCE",
+      "severity": "P0",
+      "status": "CLOSED",
+      "title": "Statistics routing bound only a definition ID and decoded a non-contract input subset",
+      "requirement_ids": ["CONTRACT-PLUGIN-STAT-001", "PLUGIN-STAT-001", "SEC-PLUGIN-STAT-001"],
+      "evidence_refs": ["contracts/plugin/host/v1/host.proto", "contracts/plugin/statistics/v1/schema.json", "contracts/plugin/statistics/v1/golden/input-bundle-v1.json", "plugin-host-rs/src/state.rs", "plugin-host-rs/src/statistics.rs", "plugin-host-rs/tests/module_blackbox.rs"],
+      "opened_at": "2026-08-21T13:36:00+08:00",
+      "closed_at": "2026-08-21T14:44:06+08:00",
+      "resolution": "Bindings and manifests now carry exact definition ID/revision/digest; active routing compares all three. Frozen input matches the strict public record, binds producer/source/scope/window/budgets, recomputes semantic and full-bundle digests, shares a golden, and rejects changed definition revision/digest before projection."
+    },
+    {
+      "finding_id": "PLUGIN-P0-FAULT-SATURATION-COLD-WARM-EVIDENCE",
+      "severity": "P0",
+      "status": "CLOSED",
+      "title": "Fault, queue saturation and cold/warm performance gates did not execute their claimed scope",
+      "requirement_ids": ["PERF-PLUGIN-001", "REL-PLUGIN-001", "TEST-007", "TEST-008"],
+      "evidence_refs": ["contracts/evidence/plugin-runtime-host-fault/v1/schema.json", "contracts/evidence/plugin-runtime-host-performance/v1/schema.json", "contracts/evidence/plugin-runtime-host-soak/v1/schema.json", "plugin-host-rs/tests/module_blackbox.rs", "plugin-host-rs/tests/performance.rs", "plugin-host-rs/tests/soak.rs"],
+      "opened_at": "2026-08-21T13:37:00+08:00",
+      "closed_at": "2026-08-21T14:44:06+08:00",
+      "resolution": "Added actual hang/trap/wrong-digest/oversize/cancel/crash/disable/drain/reconcile/quarantine tests, a structured fault matrix, 128-call slow-consumer saturation with typed rejection and zero-leak oracle, three benchmark trials with warmup, separate Wasm compile/cold instantiate/warm execution, and formal-soak service crash/restart plus queue/in-flight/connection trends."
+    },
+    {
+      "finding_id": "PLUGIN-P1-MANIFEST-CONTRACT-CLOSURE",
+      "severity": "P1",
+      "status": "CLOSED",
+      "title": "The strict manifest omitted mandatory artifact, contract, ambient capability, compatibility and lifecycle fields",
+      "requirement_ids": ["CONTRACT-PLUGIN-001", "SEC-PLUGIN-001", "PLUGIN-PLAT-004"],
+      "evidence_refs": ["contracts/plugin/manifest/v1/schema.json", "plugin-host-rs/src/admission.rs", "plugin-host-rs/tests/contract_golden.rs", "plugin-host-rs/tests/module_blackbox.rs", "control-go/scripts/validate-public-contracts.py"],
+      "opened_at": "2026-08-21T13:38:00+08:00",
+      "closed_at": "2026-08-21T14:44:06+08:00",
+      "resolution": "Manifest and Rust admission now bind plugin revision, artifact digest/media/entrypoint/platform, Host/kind/config contracts, skills/MCP/A2A/network/preopen/secret declarations, statistics definitions, extended resource budgets, verification/owner/support, rollback compatibility, lifecycle/fallback and observability. Missing/unknown fields and Host API drift fail closed."
+    },
+    {
+      "finding_id": "PLUGIN-P1-REVOKE-DISABLE-RECONCILE",
+      "severity": "P1",
+      "status": "CLOSED",
+      "title": "Lifecycle actions lacked full audit/CAS identity and revoke ignored service disable failure",
+      "requirement_ids": ["PLUGIN-PLAT-005", "REL-PLUGIN-001", "SEC-PLUGIN-002"],
+      "evidence_refs": ["contracts/plugin/host/v1/host.proto", "plugin-host-rs/src/state.rs", "plugin-host-rs/src/runtime/service.rs", "plugin-host-rs/src/main.rs", "plugin-host-rs/tests/module_blackbox.rs"],
+      "opened_at": "2026-08-21T13:39:00+08:00",
+      "closed_at": "2026-08-21T14:44:06+08:00",
+      "resolution": "Drain/revoke now require operation, actor, reason, authorization and expected-envelope CAS; revoke fences immediately but returns bounded disable failure instead of false success. Service drain/disable deadlines are enforced, and a fixed 30-second local trust reconciler stops stale staged/shadow/active bindings without inventing canonical facts."
+    }
+  ]
+}

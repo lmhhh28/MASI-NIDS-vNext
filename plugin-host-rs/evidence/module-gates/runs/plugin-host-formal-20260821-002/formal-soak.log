@@ -1,0 +1,10 @@
+    Finished `release` profile [optimized] target(s) in 0.10s
+   Compiling masi-plugin-host v0.1.0 (/home/lmhhh/MASI-NIDS-vNext/plugin-host-rs)
+    Finished `release` profile [optimized] target(s) in 4.49s
+     Running tests/soak.rs (target/release/deps/soak-e04eca96495c3e00)
+
+running 1 test
+test formal_four_stage_soak ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3660.68s
+

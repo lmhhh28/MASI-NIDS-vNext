@@ -1,0 +1,25 @@
+{
+  "schema_version": "plugin-host-deep-checks-evidence/v1",
+  "module_id": "MOD-PLUGIN-001",
+  "cargo_audit": "PASS",
+  "cargo_deny_advisories_licenses_sources": "PASS",
+  "line_coverage_percent": 52.397029034436194,
+  "line_coverage_minimum_percent": 50,
+  "valgrind_definite_leaks_and_errors": "PASS",
+  "sanitizer_profile": "Valgrind 3.18 definite leak/error gate over actual Wasmtime Component invocation",
+  "miri": {
+    "applicability": "NOT_APPLICABLE",
+    "result": "NOT_RUN",
+    "qualification": "NOT_QUALIFIED",
+    "stable_reason": "EXACT_STABLE_TOOLCHAIN_HAS_NO_MIRI_COMPONENT"
+  },
+  "stable_rust_sanitizer": {
+    "applicability": "NOT_APPLICABLE",
+    "result": "NOT_RUN",
+    "qualification": "NOT_QUALIFIED",
+    "stable_reason": "RUST_Z_SANITIZER_REQUIRES_NON_PROFILE_NIGHTLY_TOOLCHAIN"
+  },
+  "result": "PASS",
+  "qualification": "NOT_QUALIFIED",
+  "reason_code": "RUST_DEEP_CHECKS_PASS"
+}

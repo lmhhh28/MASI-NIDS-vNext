@@ -21,7 +21,8 @@
         "MOD-EDGE-001",
         "MOD-INF-001",
         "MOD-CTRL-001",
-        "MOD-DB-001"
+        "MOD-DB-001",
+        "MOD-PLUGIN-001"
       ]
     },
     "decision_id": {
@@ -63,7 +64,7 @@
       "properties": {
         "finding_id": {
           "type": "string",
-          "pattern": "^(EDGE|INF|CTRL|DB)-[A-Z0-9][A-Z0-9-]{2,126}$"
+          "pattern": "^(EDGE|INF|CTRL|DB|PLUGIN)-[A-Z0-9][A-Z0-9-]{2,126}$"
         },
         "severity": {
           "enum": [
@@ -102,7 +103,7 @@
             "type": "string",
             "minLength": 1,
             "maxLength": 512,
-            "pattern": "^(?:edge-rs|infer-cpp|control-go|contracts|db|deploy|docs|testkit)/[A-Za-z0-9._:/-]+$",
+            "pattern": "^(?:edge-rs|infer-cpp|control-go|contracts|db|plugin-host-rs|deploy|docs|testkit)/[A-Za-z0-9._:/-]+$",
             "not": {
               "pattern": "(?:^|/)\\.\\.(?:/|$)"
             }

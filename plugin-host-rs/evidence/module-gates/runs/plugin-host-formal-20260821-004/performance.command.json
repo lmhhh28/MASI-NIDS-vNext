@@ -1,0 +1,26 @@
+{
+  "schema_version": "edge-command-execution/v1",
+  "run_id": "plugin-host-formal-20260821-004",
+  "command_id": "performance",
+  "started_at": "2026-08-21T07:02:36Z",
+  "finished_at": "2026-08-21T07:02:46Z",
+  "duration_ms": 9898,
+  "working_directory": "plugin-host-rs",
+  "argv": [
+    "env",
+    "MASI_PLUGIN_HOST_PERFORMANCE_EVIDENCE_DIR=/home/lmhhh/MASI-NIDS-vNext/plugin-host-rs/evidence/module-gates/runs/plugin-host-formal-20260821-004/performance",
+    "/home/lmhhh/MASI-NIDS-vNext/plugin-host-rs/scripts/run-performance.sh"
+  ],
+  "exit_code": 0,
+  "result": "PASS",
+  "qualification": "QUALIFIED",
+  "stable_reason": null,
+  "source_tree_digest": "sha256:965eae8ee05abed795deb0c6f8b5820e00bc12559fea18260e4776ec533eb868",
+  "working_tree_status_digest": "sha256:119a13e9821b5dc1d4ba400f94ba007cb31048c3f68e381ef4e40b037956d16b",
+  "log": {
+    "path": "performance.log",
+    "sha256": "sha256:87091c5c38201aca03c0fa6806b52d9c755b524a57c1b36d3f4f7173f0e4a30d",
+    "bytes": 401,
+    "media_type": "text/plain"
+  }
+}

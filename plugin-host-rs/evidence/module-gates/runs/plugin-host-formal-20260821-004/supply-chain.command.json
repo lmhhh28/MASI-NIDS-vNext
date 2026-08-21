@@ -1,0 +1,27 @@
+{
+  "schema_version": "edge-command-execution/v1",
+  "run_id": "plugin-host-formal-20260821-004",
+  "command_id": "supply-chain",
+  "started_at": "2026-08-21T07:04:43Z",
+  "finished_at": "2026-08-21T07:04:51Z",
+  "duration_ms": 8111,
+  "working_directory": "plugin-host-rs",
+  "argv": [
+    "env",
+    "MASI_PLUGIN_HOST_SUPPLY_EVIDENCE_DIR=/home/lmhhh/MASI-NIDS-vNext/plugin-host-rs/evidence/module-gates/runs/plugin-host-formal-20260821-004/supply",
+    "MASI_PLUGIN_HOST_IMAGE_REF=masi-plugin-host:module-gates",
+    "/home/lmhhh/MASI-NIDS-vNext/plugin-host-rs/scripts/run-supply-chain.sh"
+  ],
+  "exit_code": 0,
+  "result": "PASS",
+  "qualification": "QUALIFIED",
+  "stable_reason": null,
+  "source_tree_digest": "sha256:965eae8ee05abed795deb0c6f8b5820e00bc12559fea18260e4776ec533eb868",
+  "working_tree_status_digest": "sha256:119a13e9821b5dc1d4ba400f94ba007cb31048c3f68e381ef4e40b037956d16b",
+  "log": {
+    "path": "supply-chain.log",
+    "sha256": "sha256:49f7c8375da4679bdb79a2bbb072f29097152dc76484c620a29bb06c4302b981",
+    "bytes": 3349,
+    "media_type": "text/plain"
+  }
+}

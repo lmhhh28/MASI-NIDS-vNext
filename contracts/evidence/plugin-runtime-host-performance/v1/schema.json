@@ -1,0 +1,129 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://masi-nids.example/contracts/evidence/plugin-runtime-host-performance/v1/schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "module_id", "runtime_profiles", "wasmtime_version", "wasm_matrix", "service_matrix",
+    "wasm_cold_warm", "saturation", "environment_profile_digest", "result_set_digest",
+    "resource_peak_observation", "steady_rejected_total", "maximum_p99_micros",
+    "absolute_deadline_micros", "result", "qualification", "reason_code",
+    "core_peak_relative_degradation"
+  ],
+  "properties": {
+    "schema_version": {"const": "plugin-host-performance-evidence/v1"},
+    "module_id": {"const": "MOD-PLUGIN-001"},
+    "runtime_profiles": {"const": ["wasm-component/v1", "grpc-service/v1"]},
+    "wasmtime_version": {"const": "47.0.3"},
+    "wasm_matrix": {
+      "type": "array", "minItems": 15, "maxItems": 15,
+      "items": {"$ref": "#/$defs/scenario"}
+    },
+    "service_matrix": {
+      "type": "array", "minItems": 15, "maxItems": 15,
+      "items": {"$ref": "#/$defs/scenario"}
+    },
+    "wasm_cold_warm": {"$ref": "#/$defs/cold_warm"},
+    "saturation": {"$ref": "#/$defs/saturation"},
+    "environment_profile_digest": {"$ref": "#/$defs/digest"},
+    "result_set_digest": {"$ref": "#/$defs/digest"},
+    "resource_peak_observation": {"type": "object", "minProperties": 8},
+    "steady_rejected_total": {"const": 0},
+    "maximum_p99_micros": {"type": "integer", "minimum": 0, "maximum": 10000000},
+    "absolute_deadline_micros": {"const": 10000000},
+    "result": {"const": "PASS"},
+    "qualification": {"const": "NOT_QUALIFIED"},
+    "reason_code": {"const": "HOST_BOUNDARY_PERFORMANCE_WITHIN_PROFILE"},
+    "core_peak_relative_degradation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["applicability", "reason_code"],
+      "properties": {
+        "applicability": {"const": "NOT_APPLICABLE"},
+        "reason_code": {"const": "REQUIRES_FORMAL_CORE_PLUGIN_PAIRWISE_NOT_STARTED"}
+      }
+    }
+  },
+  "$defs": {
+    "scenario": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "runtime_profile", "concurrency", "batch_class", "input_bytes", "calls", "trials", "warmup_calls",
+        "admission_queue_execute_e2e_micros", "throughput_per_second",
+        "rejected", "timeouts", "retries", "elapsed_millis"
+      ],
+      "properties": {
+        "runtime_profile": {"enum": ["wasm-component/v1", "grpc-service/v1"]},
+        "concurrency": {"enum": [1, 2, 4, 8, 32]},
+        "batch_class": {"enum": ["minimum", "typical", "maximum"]},
+        "input_bytes": {"enum": [128, 65536, 2097152]},
+        "calls": {"type": "integer", "minimum": 1},
+        "trials": {"const": 3},
+        "warmup_calls": {"const": 8},
+        "admission_queue_execute_e2e_micros": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["p50", "p95", "p99", "max"],
+          "properties": {
+            "p50": {"type": "integer", "minimum": 0},
+            "p95": {"type": "integer", "minimum": 0},
+            "p99": {"type": "integer", "minimum": 0, "maximum": 10000000},
+            "max": {"type": "integer", "minimum": 0}
+          }
+        },
+        "throughput_per_second": {"type": "number", "exclusiveMinimum": 0},
+        "rejected": {"const": 0},
+        "timeouts": {"const": 0},
+        "retries": {"const": 0},
+        "elapsed_millis": {"type": "integer", "minimum": 0}
+      }
+    },
+    "cold_warm": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["component_compile_and_admission_micros", "cold_first_instantiate_execute_micros", "warm_calls", "warm_execute_micros", "component_cache_state"],
+      "properties": {
+        "component_compile_and_admission_micros": {"type": "integer", "minimum": 1},
+        "cold_first_instantiate_execute_micros": {"type": "integer", "minimum": 1},
+        "warm_calls": {"const": 64},
+        "warm_execute_micros": {"$ref": "#/$defs/latency"},
+        "component_cache_state": {"const": "fresh-host-state-no-precompiled-entry"}
+      }
+    },
+    "latency": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["p50", "p95", "p99", "max"],
+      "properties": {
+        "p50": {"type": "integer", "minimum": 0},
+        "p95": {"type": "integer", "minimum": 0},
+        "p99": {"type": "integer", "minimum": 0, "maximum": 10000000},
+        "max": {"type": "integer", "minimum": 0, "maximum": 10000000}
+      }
+    },
+    "saturation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["submitted", "succeeded", "classified_rejections", "unclassified_failures", "stable_rejection_reasons", "peak_queued_observed", "peak_in_flight_observed", "per_binding_queue_limit", "global_queue_limit", "per_binding_in_flight_limit", "final_queued", "final_in_flight"],
+      "properties": {
+        "submitted": {"const": 128},
+        "succeeded": {"type": "integer", "minimum": 1},
+        "classified_rejections": {"type": "integer", "minimum": 1},
+        "unclassified_failures": {"const": 0},
+        "stable_rejection_reasons": {"const": ["RESOURCE_EXHAUSTED", "DEADLINE_EXCEEDED"]},
+        "peak_queued_observed": {"type": "integer", "minimum": 1, "maximum": 32},
+        "peak_in_flight_observed": {"type": "integer", "minimum": 1, "maximum": 2},
+        "per_binding_queue_limit": {"const": 32},
+        "global_queue_limit": {"const": 64},
+        "per_binding_in_flight_limit": {"const": 2},
+        "final_queued": {"const": 0},
+        "final_in_flight": {"const": 0}
+      }
+    },
+    "digest": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    }
+  }
+}

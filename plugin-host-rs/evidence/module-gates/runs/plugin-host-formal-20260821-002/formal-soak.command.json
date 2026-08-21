@@ -1,0 +1,26 @@
+{
+  "schema_version": "edge-command-execution/v1",
+  "run_id": "plugin-host-formal-20260821-002",
+  "command_id": "formal-soak",
+  "started_at": "2026-08-21T04:30:50Z",
+  "finished_at": "2026-08-21T05:31:56Z",
+  "duration_ms": 3665368,
+  "working_directory": "plugin-host-rs",
+  "argv": [
+    "env",
+    "MASI_PLUGIN_HOST_SOAK_EVIDENCE_DIR=/home/lmhhh/MASI-NIDS-vNext/plugin-host-rs/evidence/module-gates/runs/plugin-host-formal-20260821-002/formal-soak",
+    "/home/lmhhh/MASI-NIDS-vNext/plugin-host-rs/scripts/run-soak.sh"
+  ],
+  "exit_code": 0,
+  "result": "PASS",
+  "qualification": "QUALIFIED",
+  "stable_reason": null,
+  "source_tree_digest": "sha256:c825d1937eed81c58c23e8f86ab048c072db917f896f59c69741cc503d4e74c5",
+  "working_tree_status_digest": "sha256:e21dd5307dc26df94c2b5128f736f3fb7a11345f8dd9ec2bb86396a9ee96d0d7",
+  "log": {
+    "path": "formal-soak.log",
+    "sha256": "sha256:6a085edb3913a40324841f2b5e96bdfa500d9c8a5b10d386b45cdec2c01e5efe",
+    "bytes": 427,
+    "media_type": "text/plain"
+  }
+}

@@ -1,0 +1,676 @@
+{
+  "absolute_deadline_micros": 10000000,
+  "core_peak_relative_degradation": {
+    "applicability": "NOT_APPLICABLE",
+    "reason_code": "REQUIRES_FORMAL_CORE_PLUGIN_PAIRWISE_NOT_STARTED"
+  },
+  "environment_profile_digest": "sha256:14c31f59db8358dac33e014f960f8516cb833fd11bb8a0a4d912a00774293894",
+  "maximum_p99_micros": 67454,
+  "module_id": "MOD-PLUGIN-001",
+  "qualification": "NOT_QUALIFIED",
+  "reason_code": "HOST_BOUNDARY_PERFORMANCE_WITHIN_PROFILE",
+  "resource_peak_observation": {
+    "copy_model": {
+      "public_request_owned_copies": 1,
+      "typed_runtime_owned_copies": 1
+    },
+    "global_queue_limit": 64,
+    "host_process": {
+      "fd_count": 11,
+      "rss_bytes": 122990592,
+      "threads": 17
+    },
+    "instances_in_flight_limit": 2,
+    "queue_depth_limit": 32,
+    "request_bytes_measured": 1259274240,
+    "restart_limit_per_10_minutes": 5,
+    "service_process": {
+      "fd_count": 11,
+      "rss_bytes": 16154624,
+      "threads": 9
+    },
+    "wasm_fuel_budget_per_call": 50000000
+  },
+  "result": "PASS",
+  "result_set_digest": "sha256:dc499bf73a77219a4243fcba80e4973338c5d079f743492dc387ac88c75325cd",
+  "runtime_profiles": [
+    "wasm-component/v1",
+    "grpc-service/v1"
+  ],
+  "saturation": {
+    "classified_rejections": 110,
+    "final_in_flight": 0,
+    "final_queued": 0,
+    "global_queue_limit": 64,
+    "peak_in_flight_observed": 2,
+    "peak_queued_observed": 32,
+    "per_binding_in_flight_limit": 2,
+    "per_binding_queue_limit": 32,
+    "stable_rejection_reasons": [
+      "RESOURCE_EXHAUSTED",
+      "DEADLINE_EXCEEDED"
+    ],
+    "submitted": 128,
+    "succeeded": 18,
+    "unclassified_failures": 0
+  },
+  "schema_version": "plugin-host-performance-evidence/v1",
+  "service_matrix": [
+    {
+      "admission_queue_execute_e2e_micros": {
+        "max": 518,
+        "p50": 122,
+        "p95": 187,
+        "p99": 256
+      },
+      "batch_class": "minimum",
+      "calls": 768,
+      "concurrency": 1,
+      "elapsed_millis": 101,
+      "input_bytes": 128,
+      "rejected": 0,
+      "retries": 0,
+      "runtime_profile": "grpc-service/v1",
+      "throughput_per_second": 7547.895450679972,
+      "timeouts": 0,
+      "trials": 3,
+      "warmup_calls": 8
+    },
+    {
+      "admission_queue_execute_e2e_micros": {
+        "max": 1322,
+        "p50": 365,
+        "p95": 587,
+        "p99": 650
+      },
+      "batch_class": "typical",
+      "calls": 384,
+      "concurrency": 1,
+      "elapsed_millis": 167,
+      "input_bytes": 65536,
+      "rejected": 0,
+      "retries": 0,
+      "runtime_profile": "grpc-service/v1",
+      "throughput_per_second": 2297.9805777554047,
+      "timeouts": 0,
+      "trials": 3,
+      "warmup_calls": 8
+    },
+    {
+      "admission_queue_execute_e2e_micros": {
+        "max": 10352,
+        "p50": 7455,
+        "p95": 9497,
+        "p99": 10020
+      },
+      "batch_class": "maximum",
+      "calls": 48,
+      "concurrency": 1,
+      "elapsed_millis": 421,
+      "input_bytes": 2097152,
+      "rejected": 0,
+      "retries": 0,
+      "runtime_profile": "grpc-service/v1",
+      "throughput_per_second": 113.87407982181553,
+      "timeouts": 0,
+      "trials": 3,
+      "warmup_calls": 8
+    },
+    {
+      "admission_queue_execute_e2e_micros": {
+        "max": 1182,
+        "p50": 154,
+        "p95": 259,
+        "p99": 416
+      },
+      "batch_class": "minimum",
+      "calls": 768,
+      "concurrency": 2,
+      "elapsed_millis": 66,
+      "input_bytes": 128,
+      "rejected": 0,
+      "retries": 0,
+      "runtime_profile": "grpc-service/v1",
+      "throughput_per_second": 11609.710379901922,
+      "timeouts": 0,
+      "trials": 3,
+      "warmup_calls": 8
+    },
+    {
+      "admission_queue_execute_e2e_micros": {
+        "max": 1348,
+        "p50": 577,
+        "p95": 863,
+        "p99": 1211
+      },
+      "batch_class": "typical",
+      "calls": 384,
+      "concurrency": 2,
+      "elapsed_millis": 128,
+      "input_bytes": 65536,
+      "rejected": 0,
+      "retries": 0,
+      "runtime_profile": "grpc-service/v1",
+      "throughput_per_second": 2996.078086970436,
+      "timeouts": 0,
+      "trials": 3,
+      "warmup_calls": 8
+    },
+    {
+      "admission_queue_execute_e2e_micros": {
+        "max": 23597,
+        "p50": 12343,
+        "p95": 22331,
+        "p99": 23383
+      },
+      "batch_class": "maximum",
+      "calls": 48,
+      "concurrency": 2,
+      "elapsed_millis": 378,
+      "input_bytes": 2097152,
+      "rejected": 0,
+      "retries": 0,
+      "runtime_profile": "grpc-service/v1",
+      "throughput_per_second": 126.98124370366479,
+      "timeouts": 0,
+      "trials": 3,
+      "warmup_calls": 8
+    },
+    {
+      "admission_queue_execute_e2e_micros": {
+        "max": 1186,
+        "p50": 296,
+        "p95": 454,
+        "p99": 898
+      },
+      "batch_class": "minimum",
+      "calls": 768,
+      "concurrency": 4,
+      "elapsed_millis": 62,
+      "input_bytes": 128,
+      "rejected": 0,
+      "retries": 0,
+      "runtime_profile": "grpc-service/v1",
+      "throughput_per_second": 12280.148367857151,
+      "timeouts": 0,
+      "trials": 3,
+      "warmup_calls": 8
+    },
+    {
+      "admission_queue_execute_e2e_micros": {
+        "max": 1422,
+        "p50": 955,
+        "p95": 1212,
+        "p99": 1338
+      },
+      "batch_class": "typical",
+      "calls": 384,
+      "concurrency": 4,
+      "elapsed_millis": 99,
+      "input_bytes": 65536,
+      "rejected": 0,
+      "retries": 0,
+      "runtime_profile": "grpc-service/v1",
+      "throughput_per_second": 3874.7382293953806,
+      "timeouts": 0,
+      "trials": 3,
+      "warmup_calls": 8
+    },
+    {
+      "admission_queue_execute_e2e_micros": {
+        "max": 29309,
+        "p50": 18609,
+        "p95": 25219,
+        "p99": 27590
+      },
+      "batch_class": "maximum",
+      "calls": 48,
+      "concurrency": 4,
+      "elapsed_millis": 251,
+      "input_bytes": 2097152,
+      "rejected": 0,
+      "retries": 0,
+      "runtime_profile": "grpc-service/v1",
+      "throughput_per_second": 190.50046719048953,
+      "timeouts": 0,
+      "trials": 3,
+      "warmup_calls": 8
+    },
+    {
+      "admission_queue_execute_e2e_micros": {
+        "max": 2003,
+        "p50": 574,
+        "p95": 884,
+        "p99": 1381
+      },
+      "batch_class": "minimum",
+      "calls": 768,
+      "concurrency": 8,
+      "elapsed_millis": 60,
+      "input_bytes": 128,
+      "rejected": 0,
+      "retries": 0,
+      "runtime_profile": "grpc-service/v1",
+      "throughput_per_second": 12689.704891990288,
+      "timeouts": 0,
+      "trials": 3,
+      "warmup_calls": 8
+    },
+    {
+      "admission_queue_execute_e2e_micros": {
+        "max": 2605,
+        "p50": 1874,
+        "p95": 2215,
+        "p99": 2384
+      },
+      "batch_class": "typical",
+      "calls": 384,
+      "concurrency": 8,
+      "elapsed_millis": 93,
+      "input_bytes": 65536,
+      "rejected": 0,
+      "retries": 0,
+      "runtime_profile": "grpc-service/v1",
+      "throughput_per_second": 4093.745754337899,
+      "timeouts": 0,
+      "trials": 3,
+      "warmup_calls": 8
+    },
+    {
+      "admission_queue_execute_e2e_micros": {
+        "max": 51936,
+        "p50": 33596,
+        "p95": 49032,
+        "p99": 51263
+      },
+      "batch_class": "maximum",
+      "calls": 48,
+      "concurrency": 8,
+      "elapsed_millis": 243,
+      "input_bytes": 2097152,
+      "rejected": 0,
+      "retries": 0,
+      "runtime_profile": "grpc-service/v1",
+      "throughput_per_second": 197.31078715584715,
+      "timeouts": 0,
+      "trials": 3,
+      "warmup_calls": 8
+    },
+    {
+      "admission_queue_execute_e2e_micros": {
+        "max": 4594,
+        "p50": 2513,
+        "p95": 3694,
+        "p99": 4303
+      },
+      "batch_class": "minimum",
+      "calls": 768,
+      "concurrency": 32,
+      "elapsed_millis": 65,
+      "input_bytes": 128,
+      "rejected": 0,
+      "retries": 0,
+      "runtime_profile": "grpc-service/v1",
+      "throughput_per_second": 11715.856253583119,
+      "timeouts": 0,
+      "trials": 3,
+      "warmup_calls": 8
+    },
+    {
+      "admission_queue_execute_e2e_micros": {
+        "max": 8708,
+        "p50": 7643,
+        "p95": 8452,
+        "p99": 8631
+      },
+      "batch_class": "typical",
+      "calls": 384,
+      "concurrency": 32,
+      "elapsed_millis": 93,
+      "input_bytes": 65536,
+      "rejected": 0,
+      "retries": 0,
+      "runtime_profile": "grpc-service/v1",
+      "throughput_per_second": 4085.279963916765,
+      "timeouts": 0,
+      "trials": 3,
+      "warmup_calls": 8
+    },
+    {
+      "admission_queue_execute_e2e_micros": {
+        "max": 70653,
+        "p50": 39992,
+        "p95": 63065,
+        "p99": 67454
+      },
+      "batch_class": "maximum",
+      "calls": 48,
+      "concurrency": 32,
+      "elapsed_millis": 221,
+      "input_bytes": 2097152,
+      "rejected": 0,
+      "retries": 0,
+      "runtime_profile": "grpc-service/v1",
+      "throughput_per_second": 217.1625155727579,
+      "timeouts": 0,
+      "trials": 3,
+      "warmup_calls": 8
+    }
+  ],
+  "steady_rejected_total": 0,
+  "wasm_cold_warm": {
+    "cold_first_instantiate_execute_micros": 122,
+    "component_cache_state": "fresh-host-state-no-precompiled-entry",
+    "component_compile_and_admission_micros": 1430,
+    "warm_calls": 64,
+    "warm_execute_micros": {
+      "max": 185,
+      "p50": 57,
+      "p95": 89,
+      "p99": 120
+    }
+  },
+  "wasm_matrix": [
+    {
+      "admission_queue_execute_e2e_micros": {
+        "max": 434,
+        "p50": 70,
+        "p95": 97,
+        "p99": 146
+      },
+      "batch_class": "minimum",
+      "calls": 768,
+      "concurrency": 1,
+      "elapsed_millis": 56,
+      "input_bytes": 128,
+      "rejected": 0,
+      "retries": 0,
+      "runtime_profile": "wasm-component/v1",
+      "throughput_per_second": 13496.40600197828,
+      "timeouts": 0,
+      "trials": 3,
+      "warmup_calls": 8
+    },
+    {
+      "admission_queue_execute_e2e_micros": {
+        "max": 623,
+        "p50": 188,
+        "p95": 264,
+        "p99": 345
+      },
+      "batch_class": "typical",
+      "calls": 384,
+      "concurrency": 1,
+      "elapsed_millis": 91,
+      "input_bytes": 65536,
+      "rejected": 0,
+      "retries": 0,
+      "runtime_profile": "wasm-component/v1",
+      "throughput_per_second": 4196.364735127699,
+      "timeouts": 0,
+      "trials": 3,
+      "warmup_calls": 8
+    },
+    {
+      "admission_queue_execute_e2e_micros": {
+        "max": 4716,
+        "p50": 4025,
+        "p95": 4388,
+        "p99": 4564
+      },
+      "batch_class": "maximum",
+      "calls": 48,
+      "concurrency": 1,
+      "elapsed_millis": 263,
+      "input_bytes": 2097152,
+      "rejected": 0,
+      "retries": 0,
+      "runtime_profile": "wasm-component/v1",
+      "throughput_per_second": 182.06825808788548,
+      "timeouts": 0,
+      "trials": 3,
+      "warmup_calls": 8
+    },
+    {
+      "admission_queue_execute_e2e_micros": {
+        "max": 324,
+        "p50": 66,
+        "p95": 103,
+        "p99": 162
+      },
+      "batch_class": "minimum",
+      "calls": 768,
+      "concurrency": 2,
+      "elapsed_millis": 27,
+      "input_bytes": 128,
+      "rejected": 0,
+      "retries": 0,
+      "runtime_profile": "wasm-component/v1",
+      "throughput_per_second": 27640.84422768296,
+      "timeouts": 0,
+      "trials": 3,
+      "warmup_calls": 8
+    },
+    {
+      "admission_queue_execute_e2e_micros": {
+        "max": 612,
+        "p50": 188,
+        "p95": 239,
+        "p99": 313
+      },
+      "batch_class": "typical",
+      "calls": 384,
+      "concurrency": 2,
+      "elapsed_millis": 45,
+      "input_bytes": 65536,
+      "rejected": 0,
+      "retries": 0,
+      "runtime_profile": "wasm-component/v1",
+      "throughput_per_second": 8361.616573978292,
+      "timeouts": 0,
+      "trials": 3,
+      "warmup_calls": 8
+    },
+    {
+      "admission_queue_execute_e2e_micros": {
+        "max": 5166,
+        "p50": 4359,
+        "p95": 4974,
+        "p99": 5141
+      },
+      "batch_class": "maximum",
+      "calls": 48,
+      "concurrency": 2,
+      "elapsed_millis": 145,
+      "input_bytes": 2097152,
+      "rejected": 0,
+      "retries": 0,
+      "runtime_profile": "wasm-component/v1",
+      "throughput_per_second": 329.3044737570096,
+      "timeouts": 0,
+      "trials": 3,
+      "warmup_calls": 8
+    },
+    {
+      "admission_queue_execute_e2e_micros": {
+        "max": 455,
+        "p50": 139,
+        "p95": 217,
+        "p99": 316
+      },
+      "batch_class": "minimum",
+      "calls": 768,
+      "concurrency": 4,
+      "elapsed_millis": 28,
+      "input_bytes": 128,
+      "rejected": 0,
+      "retries": 0,
+      "runtime_profile": "wasm-component/v1",
+      "throughput_per_second": 26805.82145654527,
+      "timeouts": 0,
+      "trials": 3,
+      "warmup_calls": 8
+    },
+    {
+      "admission_queue_execute_e2e_micros": {
+        "max": 572,
+        "p50": 375,
+        "p95": 446,
+        "p99": 498
+      },
+      "batch_class": "typical",
+      "calls": 384,
+      "concurrency": 4,
+      "elapsed_millis": 40,
+      "input_bytes": 65536,
+      "rejected": 0,
+      "retries": 0,
+      "runtime_profile": "wasm-component/v1",
+      "throughput_per_second": 9498.974370505566,
+      "timeouts": 0,
+      "trials": 3,
+      "warmup_calls": 8
+    },
+    {
+      "admission_queue_execute_e2e_micros": {
+        "max": 10518,
+        "p50": 8076,
+        "p95": 10221,
+        "p99": 10351
+      },
+      "batch_class": "maximum",
+      "calls": 48,
+      "concurrency": 4,
+      "elapsed_millis": 114,
+      "input_bytes": 2097152,
+      "rejected": 0,
+      "retries": 0,
+      "runtime_profile": "wasm-component/v1",
+      "throughput_per_second": 418.1821777551301,
+      "timeouts": 0,
+      "trials": 3,
+      "warmup_calls": 8
+    },
+    {
+      "admission_queue_execute_e2e_micros": {
+        "max": 1110,
+        "p50": 301,
+        "p95": 392,
+        "p99": 602
+      },
+      "batch_class": "minimum",
+      "calls": 768,
+      "concurrency": 8,
+      "elapsed_millis": 30,
+      "input_bytes": 128,
+      "rejected": 0,
+      "retries": 0,
+      "runtime_profile": "wasm-component/v1",
+      "throughput_per_second": 24901.39388470402,
+      "timeouts": 0,
+      "trials": 3,
+      "warmup_calls": 8
+    },
+    {
+      "admission_queue_execute_e2e_micros": {
+        "max": 1384,
+        "p50": 822,
+        "p95": 1118,
+        "p99": 1201
+      },
+      "batch_class": "typical",
+      "calls": 384,
+      "concurrency": 8,
+      "elapsed_millis": 42,
+      "input_bytes": 65536,
+      "rejected": 0,
+      "retries": 0,
+      "runtime_profile": "wasm-component/v1",
+      "throughput_per_second": 8986.304170389314,
+      "timeouts": 0,
+      "trials": 3,
+      "warmup_calls": 8
+    },
+    {
+      "admission_queue_execute_e2e_micros": {
+        "max": 23312,
+        "p50": 14547,
+        "p95": 21962,
+        "p99": 22467
+      },
+      "batch_class": "maximum",
+      "calls": 48,
+      "concurrency": 8,
+      "elapsed_millis": 103,
+      "input_bytes": 2097152,
+      "rejected": 0,
+      "retries": 0,
+      "runtime_profile": "wasm-component/v1",
+      "throughput_per_second": 464.1801733910224,
+      "timeouts": 0,
+      "trials": 3,
+      "warmup_calls": 8
+    },
+    {
+      "admission_queue_execute_e2e_micros": {
+        "max": 1692,
+        "p50": 1245,
+        "p95": 1533,
+        "p99": 1609
+      },
+      "batch_class": "minimum",
+      "calls": 768,
+      "concurrency": 32,
+      "elapsed_millis": 31,
+      "input_bytes": 128,
+      "rejected": 0,
+      "retries": 0,
+      "runtime_profile": "wasm-component/v1",
+      "throughput_per_second": 24520.27346107268,
+      "timeouts": 0,
+      "trials": 3,
+      "warmup_calls": 8
+    },
+    {
+      "admission_queue_execute_e2e_micros": {
+        "max": 4662,
+        "p50": 3203,
+        "p95": 4196,
+        "p99": 4549
+      },
+      "batch_class": "typical",
+      "calls": 384,
+      "concurrency": 32,
+      "elapsed_millis": 38,
+      "input_bytes": 65536,
+      "rejected": 0,
+      "retries": 0,
+      "runtime_profile": "wasm-component/v1",
+      "throughput_per_second": 9889.187533195736,
+      "timeouts": 0,
+      "trials": 3,
+      "warmup_calls": 8
+    },
+    {
+      "admission_queue_execute_e2e_micros": {
+        "max": 15961,
+        "p50": 11539,
+        "p95": 14557,
+        "p99": 14954
+      },
+      "batch_class": "maximum",
+      "calls": 48,
+      "concurrency": 32,
+      "elapsed_millis": 68,
+      "input_bytes": 2097152,
+      "rejected": 0,
+      "retries": 0,
+      "runtime_profile": "wasm-component/v1",
+      "throughput_per_second": 695.7091716514109,
+      "timeouts": 0,
+      "trials": 3,
+      "warmup_calls": 8
+    }
+  ],
+  "wasmtime_version": "47.0.3"
+}

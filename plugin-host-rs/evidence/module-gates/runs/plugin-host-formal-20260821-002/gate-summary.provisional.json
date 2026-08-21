@@ -1,0 +1,219 @@
+{
+  "applicability": "APPLICABLE",
+  "artifact_digests": {
+    "cargo_lock": "sha256:02e447e845c368fd8b9fa3b4068e2e93c17a6ee1fb41751e16fe1c3fc2c914fd",
+    "command_clippy": "sha256:fe55a56ef1ad8adfc2f3d546c959f4615e13a9075497c01feaa6e1c52e9c6ed4",
+    "command_contract-schema": "sha256:296ac1958f5e9a48b965e12d37dc89cbf5098ee82add48aa07de58f1dcba4123",
+    "command_deep-checks": "sha256:acd551ad7b2c49cf78ccd2ae482c22f2d1817e77e0fbe03fc43235120b99b164",
+    "command_findings": "sha256:4b042a790e29293a81febc0e5c09ee90ea23450862e8db9035e61203f9117f68",
+    "command_formal-soak": "sha256:d9f2782f5e7cd878d5721d22ce1364a6e6f9a70cd94faf7c21d08671dccd2360",
+    "command_format": "sha256:707f6908bb5cce014c162069c6b5313ba3def760b46f3ed870603cc063e111fa",
+    "command_oci-smoke": "sha256:5e6dd378b816a1b45cef2ad7057743ba3f1e889469a07a4a9d404f006dfdbadb",
+    "command_performance": "sha256:c3388e0b61430cddd4f11b1f3358bb8caa2f9a7e3651f5db8d2f8fa16f44b2af",
+    "command_release-blackbox": "sha256:03fb23df8e4b59dfd36eb15e0d74cad9fafde1560f2f111d77d83afb82901c45",
+    "command_release-build": "sha256:11e6dd8738850428761a373a7fb617830094f2dcbdfd7c2329699444b23dc695",
+    "command_rustdoc": "sha256:7e08ecde5108553e20b698e307960cf56ed4749f7b91a5bb1084b35a7ab19494",
+    "command_source-sentinels": "sha256:fcbb51ab39bafc2640627606b9735973f5a217d98258d4123b5beff00f7f3997",
+    "command_supply-chain": "sha256:d71397527549b186d3147df648dd9271e30867df0ba079e63e34943b7a14ef1c",
+    "command_traceability": "sha256:e2952bea2d68a5117bb89f132bd99e5db350ec17902322d0e98f606712dec975",
+    "command_unit-property-contract": "sha256:09f37a8615d327540776a38ac9927964e13faf7e34b55c45e2ddc85986d0a698",
+    "deep_checks_evidence": "sha256:28fcbcb3843c3aac9dcc13a721a0d9cbd09eac7d11e96e5081e8df54e3e62833",
+    "formal_soak_evidence": "sha256:14bd64b2f326baebf6169e2722b201931c5ae30203faa0b93c1f64dd884c7c22",
+    "host_binary": "sha256:c588446e8f491372529971374167f817dc6c6168ff4be2bf59b85904c7af8311",
+    "host_proto": "sha256:2087688ba5986bf69cdab2684da4a8e16a38b25ac647482c52c3ffefb0a42213",
+    "hostctl_binary": "sha256:94056430ae5cbcc6e11e1abc6507a2b1152b83d646f2ed8ccf95a4e198065319",
+    "log_clippy": "sha256:a5f4c585ee974ca44916ac30a98bbc189e067a7e0a6bc6d2e8d6bc525be724af",
+    "log_contract-schema": "sha256:225e4ee3788ed8d0f1959c15f6b26c39b6465a37f66b8aa726c36b4127b57b0a",
+    "log_deep-checks": "sha256:c54bca583a9d23820c9d8858904516dd7eb17cd03743eb3e3647853cac574a31",
+    "log_findings": "sha256:f8e6327f605486763bfc52156b77bb4e967cb50d91a552151709b7eff3d6fa9f",
+    "log_formal-soak": "sha256:6a085edb3913a40324841f2b5e96bdfa500d9c8a5b10d386b45cdec2c01e5efe",
+    "log_format": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "log_oci-smoke": "sha256:b09ce8e39cf60b02037adbdaf26c4bd513a4baed8d814463f3ad54b02c08502b",
+    "log_performance": "sha256:4b591a8d9827ef103cee30741b7b412d3bc2eff9f3b2fe63ba45ab1951c5169e",
+    "log_release-blackbox": "sha256:526f1d1bdbbc1573a8c0719f6734e57c0ee163cb04681de62634bae634557734",
+    "log_release-build": "sha256:765f1396d07f30f3a451cd3f9d9cad4e83c92c8e0aecf955ffc09061a6cf1e02",
+    "log_rustdoc": "sha256:de8ed866606baeea6546127a903b08bf473928511ab6d5b45b443e595ed9b1b5",
+    "log_source-sentinels": "sha256:45e0ba22d78f3354778483816315c0bc8c58412f60675423626d7dd53be77e12",
+    "log_supply-chain": "sha256:e6e04c71dc97a9fdd31b5927deb4f176abb5db114ea940568212cc286e626ede",
+    "log_traceability": "sha256:dd7170a449a69c7d87609e5b20da7d5d7b5ada8f7398d3ac50325cd9e7b69f78",
+    "log_unit-property-contract": "sha256:9d2c60cf232540ac9f73a57944457a38d6d2f141d14c7b71546ce19caefbe688",
+    "module_findings": "sha256:0c73c75128b78e2271113d128b5125fd83c12a276ded205b82566fd539ca8d1c",
+    "oci_evidence": "sha256:32d28c2b7cd4d4c5161d59e5425dbca04be005ecde4d40268095eb3fe282c64a",
+    "performance_evidence": "sha256:69de559cca49aeb42e6407f506c5aa51163c8cc0014701ec5a722e8fc862c6d7",
+    "requirements_baseline": "sha256:89007ff7623741da78940df9019fd30acc97deb2ea4c21807f404f6418ae7268",
+    "requirements_traceability_manifest": "sha256:04eb8ff8b2d784a21a84aed5e63a65b601a61d9ccca78c5448fead42e1aa8d28",
+    "service_fixture_binary": "sha256:4cb9399d29a324b6afc20bca5e8322f3b9bbdeb1fd806730adc00249e99b3076",
+    "service_proto": "sha256:d64a04a8d9c1f0e0d58d4259f5c8c1342aec640ec31699e5f05ace7c50f6bf3e",
+    "supply_chain_evidence": "sha256:955204606cc728a30ccc48a299a19b954a9b41b65aade81f7f21342a0647f041",
+    "traceability_evidence": "sha256:0dbe69dbafd65ad73addaec65ff03f99573bb936a3ee023bd8d73546e633da71",
+    "wit_source": "sha256:43e8eac37b165c4cfd84280cfe0e17cd6ca203abb2aa55b41c921890cef0567b"
+  },
+  "blackbox_e2e": {
+    "digest": "sha256:526f1d1bdbbc1573a8c0719f6734e57c0ee163cb04681de62634bae634557734",
+    "evidence": "release-blackbox.log",
+    "result": "PASS"
+  },
+  "completion": {
+    "formal_soak_executed": true,
+    "no_required_not_run": true,
+    "open_p0_zero": true,
+    "operational_gates_pass": true,
+    "real_runtime_started": true
+  },
+  "conditional_applicability": [
+    {
+      "applicability": "NOT_APPLICABLE",
+      "profile": "analysis-agent-host-proxy/v1",
+      "result": "NOT_RUN",
+      "stable_reason": "DIRECT_TYPED_ADAPTER_REQUIRED"
+    },
+    {
+      "applicability": "NOT_APPLICABLE",
+      "profile": "wasi-0-3/v1",
+      "result": "NOT_RUN",
+      "stable_reason": "WASI_0_2_FIRST_RELEASE_PROFILE"
+    },
+    {
+      "applicability": "NOT_APPLICABLE",
+      "profile": "cross-host-service-mtls/v1",
+      "result": "NOT_RUN",
+      "stable_reason": "SAME_HOST_UDS_ACCEPTANCE_PROFILE"
+    },
+    {
+      "applicability": "NOT_APPLICABLE",
+      "profile": "production-ha/v1",
+      "result": "NOT_RUN",
+      "stable_reason": "SINGLE_FAILURE_DOMAIN_HOST"
+    },
+    {
+      "applicability": "NOT_APPLICABLE",
+      "profile": "external-source-readonly/v1",
+      "result": "NOT_RUN",
+      "stable_reason": "PURE_TRANSFORM_CONFORMANCE_BINDING"
+    },
+    {
+      "applicability": "NOT_APPLICABLE",
+      "profile": "effectful-plugin/v1",
+      "result": "NOT_RUN",
+      "stable_reason": "FIRST_RELEASE_KINDS_HAVE_NO_EFFECTS"
+    }
+  ],
+  "deep_checks": {
+    "digest": "sha256:28fcbcb3843c3aac9dcc13a721a0d9cbd09eac7d11e96e5081e8df54e3e62833",
+    "evidence": "deep/deep-checks-evidence.json",
+    "result": "PASS"
+  },
+  "executed_gates": {
+    "clippy": "PASS",
+    "contract-schema": "PASS",
+    "deep-checks": "PASS",
+    "findings": "PASS",
+    "formal-soak": "PASS",
+    "format": "PASS",
+    "oci-smoke": "PASS",
+    "performance": "PASS",
+    "release-blackbox": "PASS",
+    "release-build": "PASS",
+    "rustdoc": "PASS",
+    "source-sentinels": "PASS",
+    "supply-chain": "PASS",
+    "traceability": "PASS",
+    "unit-property-contract": "PASS"
+  },
+  "findings": {
+    "open_p0": 0,
+    "open_total": 0
+  },
+  "formal_soak": {
+    "digest": "sha256:14bd64b2f326baebf6169e2722b201931c5ae30203faa0b93c1f64dd884c7c22",
+    "evidence": "formal-soak/soak-evidence.json",
+    "result": "PASS"
+  },
+  "generated_at": "2026-08-21T05:31:56.873856Z",
+  "level": "MODULE",
+  "module_id": "MOD-PLUGIN-001",
+  "oci": {
+    "digest": "sha256:32d28c2b7cd4d4c5161d59e5425dbca04be005ecde4d40268095eb3fe282c64a",
+    "evidence": "oci/oci-smoke-evidence.json",
+    "result": "PASS"
+  },
+  "overall_module_complete": true,
+  "performance": {
+    "digest": "sha256:69de559cca49aeb42e6407f506c5aa51163c8cc0014701ec5a722e8fc862c6d7",
+    "evidence": "performance/performance-evidence.json",
+    "result": "PASS"
+  },
+  "qualification": "NOT_QUALIFIED",
+  "qualification_gates": {
+    "core_relative_degradation_pairwise": "HOLD",
+    "formal_soak_3600_seconds": "PASS",
+    "host_boundary_performance": "PASS",
+    "nine_module_global_gate": "HOLD",
+    "production_ha_multi_failure_domain": "HOLD",
+    "protected_release_baseline": "HOLD"
+  },
+  "remaining_holds": [
+    "Formal Go Plugin Manager and PostgreSQL pairwise integration has not started because the nine-module gate remains HOLD.",
+    "Relative core p99/RSS degradation requires the later Plugin Platform and core peak-load qualification scope.",
+    "The acceptance host is one failure domain and cannot claim production-ha qualification.",
+    "A protected release commit/tag and its release-baseline digest are not established by this working-tree module run.",
+    "Official Analysis business A2A/MCP qualification belongs to the independent Analysis module and does not pass through this Host."
+  ],
+  "requirement_ids": [
+    "MOD-PLUGIN-001",
+    "ARCH-003",
+    "ARCH-005",
+    "ARCH-PLUGIN-001",
+    "ARCH-REUSE-001",
+    "CONTRACT-001",
+    "CONTRACT-PROFILE-001",
+    "CONTRACT-PLUGIN-001",
+    "CONTRACT-PLUGIN-002",
+    "CONTRACT-PLUGIN-STAT-001",
+    "PLUGIN-STAT-001",
+    "PLUGIN-PLAT-001",
+    "PLUGIN-PLAT-002",
+    "PLUGIN-PLAT-003",
+    "PLUGIN-PLAT-004",
+    "PLUGIN-PLAT-005",
+    "PLUGIN-PLAT-006",
+    "PERF-PLUGIN-001",
+    "PERF-PLUGIN-STAT-001",
+    "REL-PLUGIN-001",
+    "REL-PLUGIN-STAT-001",
+    "SEC-001",
+    "SEC-004",
+    "SEC-005",
+    "SEC-PLUGIN-001",
+    "SEC-PLUGIN-002",
+    "SEC-PLUGIN-STAT-001",
+    "SEC-SUPPLY-001",
+    "DEP-PLUGIN-001",
+    "MIG-PLUGIN-001",
+    "TEST-003",
+    "TEST-007",
+    "TEST-008",
+    "TEST-009",
+    "TEST-010",
+    "TEST-GATE-001",
+    "TEST-REAL-E2E-001",
+    "TEST-REUSE-001",
+    "TEST-PLUGIN-001",
+    "TEST-PLUGIN-STAT-001"
+  ],
+  "schema_version": "plugin-runtime-host-module-gates/v1",
+  "source_revision": "78536cbd1e7df2710385aed0ab0063f1e0509d0d",
+  "source_tree_digest": "sha256:c825d1937eed81c58c23e8f86ab048c072db917f896f59c69741cc503d4e74c5",
+  "supply_chain": {
+    "digest": "sha256:955204606cc728a30ccc48a299a19b954a9b41b65aade81f7f21342a0647f041",
+    "evidence": "supply/supply-chain-evidence.json",
+    "result": "PASS"
+  },
+  "traceability": {
+    "digest": "sha256:0dbe69dbafd65ad73addaec65ff03f99573bb936a3ee023bd8d73546e633da71",
+    "evidence": "traceability.json",
+    "result": "PASS"
+  },
+  "working_tree_dirty": true,
+  "working_tree_status_digest": "sha256:e21dd5307dc26df94c2b5128f736f3fb7a11345f8dd9ec2bb86396a9ee96d0d7"
+}

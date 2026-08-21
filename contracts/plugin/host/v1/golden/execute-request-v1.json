@@ -1,0 +1,19 @@
+{
+  "schema_version": "plugin-host-golden/v1",
+  "message_type": "masi.plugin.host.v1.ExecuteRequest",
+  "message": {
+    "schema_version": "plugin-host-execute/v1",
+    "invocation_id": "invocation-golden-1",
+    "plugin_id": "plugin.golden",
+    "binding_generation": 7,
+    "binding_epoch": "epoch-golden-7",
+    "capability_id": "plugin.transform.execute",
+    "input_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "input": [1, 2, 3, 4],
+    "deadline_ms": 5000,
+    "result_fence": "fence-golden-1",
+    "trace_id": "trace-golden-1",
+    "execution_mode": "shadow"
+  },
+  "protobuf_hex": "0a16706c7567696e2d686f73742d657865637574652f76311213696e766f636174696f6e2d676f6c64656e2d311a0d706c7567696e2e676f6c64656e20072a0e65706f63682d676f6c64656e2d373218706c7567696e2e7472616e73666f726d2e657865637574653a477368613235363a61616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161420401020304488827520e66656e63652d676f6c64656e2d315a0e74726163652d676f6c64656e2d316206736861646f77"
+}

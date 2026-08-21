@@ -1,0 +1,163 @@
+{
+  "schema_version": "supply-chain-component-registry/v1",
+  "module": "plugin-runtime-host",
+  "components": [
+    {
+      "name": "Rust stable toolchain",
+      "decision": "ADOPT",
+      "version": "1.97.1",
+      "license": "Apache-2.0 OR MIT",
+      "authority": "build-time compiler only; no runtime lifecycle or fact authority",
+      "runtime_download": false,
+      "failure": "build and Rust qualification stop",
+      "rollback": "rebuild with the prior exact qualified toolchain",
+      "exit": "replace only through a new toolchain profile and complete Host requalification"
+    },
+    {
+      "name": "Rust builder OCI image",
+      "decision": "ADOPT",
+      "digest": "sha256:408fe88047cef61a2087653b0c5255fa51c0f2d6d94ddedd7a2562a9b91a46f6",
+      "license": "aggregate-see-SPDX-and-third-party-notices",
+      "authority": "offline build stage only and absent from the runtime image",
+      "runtime_download": false,
+      "failure": "offline image build is unavailable",
+      "rollback": "restore the prior digest-pinned builder bundle",
+      "exit": "replace the digest and regenerate SBOM, provenance and all language gates"
+    },
+    {
+      "name": "Distroless cc Debian 12 runtime OCI base",
+      "decision": "ADOPT",
+      "digest": "sha256:adcd20c7b4c988b73cbfbddb26d2eee574571e6d7c9ffea29b3821e0690efb77",
+      "license": "aggregate-see-SPDX-and-third-party-notices",
+      "authority": "minimal runtime userspace only; no shell, package manager, scheduler, database or device authority",
+      "runtime_download": false,
+      "failure": "Plugin Host container cannot start",
+      "rollback": "restore the prior qualified runtime base digest",
+      "exit": "replace after OCI, security, compatibility, performance and soak requalification"
+    },
+    {
+      "name": "Cargo.lock dependency closure",
+      "decision": "ADOPT",
+      "digest": "sha256:02e447e845c368fd8b9fa3b4068e2e93c17a6ee1fb41751e16fe1c3fc2c914fd",
+      "license": "per-package SPDX license in source/image SBOM and cargo-deny evidence",
+      "authority": "library code only within Host execution isolation; cannot own canonical plugin facts",
+      "runtime_download": false,
+      "failure": "build or the affected public boundary fails closed",
+      "rollback": "restore Cargo.lock and its matching source revision",
+      "exit": "remove or replace crates through lock review, SBOM diff and full Host gates"
+    },
+    {
+      "name": "Wasmtime Component Model",
+      "decision": "ADOPT",
+      "version": "47.0.3",
+      "license": "Apache-2.0 WITH LLVM-exception",
+      "authority": "WASI 0.2 pure-transform compilation/execution only; no imports, ambient capability, business state or scheduler authority",
+      "runtime_download": false,
+      "failure": "the exact binding fails admission/readiness or execution with a stable error",
+      "rollback": "restore the prior profile-pinned Wasmtime and recompile exact component digests",
+      "exit": "replace after WIT, Canonical ABI, numeric, fault, performance and old/new qualification"
+    },
+    {
+      "name": "Tokio",
+      "decision": "ADOPT",
+      "version": "1.53.1",
+      "license": "MIT",
+      "authority": "bounded asynchronous execution only; HostState retains admission/lifecycle ownership",
+      "runtime_download": false,
+      "failure": "Host readiness/liveness or a bounded invocation fails",
+      "rollback": "restore the Cargo.lock-pinned prior Tokio version",
+      "exit": "replace after complete concurrency, cancellation, resource and soak qualification"
+    },
+    {
+      "name": "Tonic and Prost",
+      "decision": "ADOPT",
+      "version": "0.14.6/0.14.4",
+      "license": "MIT/Apache-2.0",
+      "authority": "versioned protobuf/gRPC transport only; no plugin lifecycle or statistics-current authority",
+      "runtime_download": false,
+      "failure": "public RPC boundary fails closed within total deadline",
+      "rollback": "restore the pinned transport closure and golden protobuf bytes",
+      "exit": "replace after mTLS, framing, retry-disabled, deadline and old/new wire qualification"
+    },
+    {
+      "name": "Rustls and ring",
+      "decision": "ADOPT",
+      "version": "0.23.43/0.17.14",
+      "license": "Apache-2.0 OR ISC OR MIT",
+      "authority": "TLS 1.3 mTLS and Ed25519 verification primitives only; configured policy and exact identity remain Host-owned",
+      "runtime_download": false,
+      "failure": "transport or publisher admission fails closed without plaintext/unsigned fallback",
+      "rollback": "restore prior Cargo.lock, trust policy and signed artifact closure",
+      "exit": "replace after TLS/identity/signature/tamper/revocation qualification"
+    },
+    {
+      "name": "Serde and serde_json",
+      "decision": "ADOPT",
+      "version": "1.0.229/1.0.151",
+      "license": "MIT OR Apache-2.0",
+      "authority": "bounded strict startup, manifest, configuration and statistics JSON only",
+      "runtime_download": false,
+      "failure": "unknown, malformed, unsafe or oversized JSON is rejected",
+      "rollback": "restore pinned serialization versions and canonical golden",
+      "exit": "replace after schema, canonical digest and negative-security regression"
+    },
+    {
+      "name": "Axum health surface",
+      "decision": "ADOPT",
+      "version": "0.8.9",
+      "license": "MIT",
+      "authority": "startup/readiness/liveness and low-cardinality metrics HTTP only",
+      "runtime_download": false,
+      "failure": "deployment probe fails and stops new work without changing plugin facts",
+      "rollback": "restore the prior pinned Axum closure",
+      "exit": "replace after probe, shutdown, framing and resource qualification"
+    },
+    {
+      "name": "Vendored protoc",
+      "decision": "ADOPT",
+      "version": "3.2.0",
+      "license": "MIT",
+      "authority": "build-time protobuf generation only",
+      "runtime_download": false,
+      "failure": "build stops before an artifact is emitted",
+      "rollback": "restore the Cargo.lock-pinned protoc bundle",
+      "exit": "replace after protobuf breaking and cross-language golden qualification"
+    },
+    {
+      "name": "Syft",
+      "decision": "ADOPT",
+      "digest": "sha256:5145aaf0384ca6db481c95e093e5c3b31a3b3f3af3dd3aadfb7529df88578019",
+      "version": "1.50.0",
+      "license": "Apache-2.0",
+      "authority": "offline source/image SBOM generation only",
+      "runtime_download": false,
+      "failure": "supply-chain gate fails",
+      "rollback": "restore the frozen tool image bundle",
+      "exit": "replace after SBOM equivalence and verifier regression"
+    },
+    {
+      "name": "Trivy",
+      "decision": "ADOPT",
+      "digest": "sha256:c6e969c5662a546ad5de4a73c2a6b7a7c627f86d916903e175aa623af5b97ada",
+      "version": "0.72.0",
+      "license": "Apache-2.0",
+      "authority": "offline vulnerability, secret and configuration scanning only",
+      "runtime_download": false,
+      "failure": "supply-chain gate fails or becomes HOLD when database freshness is invalid",
+      "rollback": "restore the frozen scanner/database/checks bundle",
+      "exit": "replace after policy-equivalent scan and tamper-negative regression"
+    },
+    {
+      "name": "Cosign",
+      "decision": "ADOPT",
+      "digest": "sha256:cdb23f652a55fef7b4b3c0f02fe0742e5a7017709c76c574e05be9febcf5d86e",
+      "version": "3.0.6",
+      "license": "Apache-2.0",
+      "authority": "offline release-manifest signature and verification only",
+      "runtime_download": false,
+      "failure": "unsigned, untrusted, revoked or tampered evidence is rejected",
+      "rollback": "restore the prior trusted signed manifest and exact artifact digest",
+      "exit": "rotate through the public trust contract without granting runtime authority"
+    }
+  ]
+}

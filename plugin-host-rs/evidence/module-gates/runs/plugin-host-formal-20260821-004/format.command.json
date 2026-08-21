@@ -1,0 +1,30 @@
+{
+  "schema_version": "edge-command-execution/v1",
+  "run_id": "plugin-host-formal-20260821-004",
+  "command_id": "format",
+  "started_at": "2026-08-21T07:00:57Z",
+  "finished_at": "2026-08-21T07:00:58Z",
+  "duration_ms": 128,
+  "working_directory": "plugin-host-rs",
+  "argv": [
+    "cargo",
+    "fmt",
+    "--manifest-path",
+    "/home/lmhhh/MASI-NIDS-vNext/plugin-host-rs/Cargo.toml",
+    "--all",
+    "--",
+    "--check"
+  ],
+  "exit_code": 0,
+  "result": "PASS",
+  "qualification": "QUALIFIED",
+  "stable_reason": null,
+  "source_tree_digest": "sha256:965eae8ee05abed795deb0c6f8b5820e00bc12559fea18260e4776ec533eb868",
+  "working_tree_status_digest": "sha256:119a13e9821b5dc1d4ba400f94ba007cb31048c3f68e381ef4e40b037956d16b",
+  "log": {
+    "path": "format.log",
+    "sha256": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "bytes": 0,
+    "media_type": "text/plain"
+  }
+}

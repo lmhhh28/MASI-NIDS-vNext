@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://masi-nids.example/contracts/plugin/host/v1/verification-bundle.schema.json",
+  "title": "Offline Plugin Artifact Verification Bundle V1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "artifact_digest", "manifest_digest", "publisher_identity",
+    "sbom_digest", "provenance_digest", "trust_policy_digest", "verified_at_unix_ms",
+    "expires_at_unix_ms", "revoked", "verifier", "signature_base64"
+  ],
+  "properties": {
+    "schema_version": {"const": "plugin-verification-bundle/v1"},
+    "artifact_digest": {"$ref": "#/$defs/digest"},
+    "manifest_digest": {"$ref": "#/$defs/digest"},
+    "publisher_identity": {"$ref": "#/$defs/identity"},
+    "sbom_digest": {"$ref": "#/$defs/digest"},
+    "provenance_digest": {"$ref": "#/$defs/digest"},
+    "trust_policy_digest": {"$ref": "#/$defs/digest"},
+    "verified_at_unix_ms": {"type": "integer", "minimum": 1},
+    "expires_at_unix_ms": {"type": "integer", "minimum": 1},
+    "revoked": {"type": "boolean"},
+    "verifier": {"enum": ["organization-ed25519/v1", "cosign-offline/v1"]},
+    "signature_base64": {"type": "string", "pattern": "^[A-Za-z0-9+/]{84,88}={0,2}$"}
+  },
+  "$defs": {
+    "identity": {"type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"},
+    "digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}
+  }
+}

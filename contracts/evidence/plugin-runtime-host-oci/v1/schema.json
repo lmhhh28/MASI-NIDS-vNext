@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://masi-nids.example/contracts/evidence/plugin-runtime-host-oci/v1/schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "module_id", "image_ref", "image_id", "source_revision",
+    "source_tree_digest", "image_binary_digest", "local_release_binary_digest", "release_binaries_share_exact_source_tree", "manager_leaf_digest",
+    "runtime_profile", "wasmtime_version", "non_root_user", "read_only_rootfs",
+    "capability_drop_all", "no_new_privileges", "tls13_only", "plaintext_rejected",
+    "unauthorized_leaf_rejected", "startup_ready_live_metrics", "docker_semantic_healthcheck", "graceful_stop_seconds",
+    "actual_oci_started", "result", "qualification", "reason_code"
+  ],
+  "properties": {
+    "schema_version": {"const": "plugin-host-oci-smoke-evidence/v1"},
+    "module_id": {"const": "MOD-PLUGIN-001"},
+    "image_ref": {"type": "string", "minLength": 1, "maxLength": 256},
+    "image_id": {"$ref": "#/$defs/digest"},
+    "source_revision": {"type": "string", "pattern": "^[0-9a-f]{40,64}$"},
+    "source_tree_digest": {"$ref": "#/$defs/digest"},
+    "image_binary_digest": {"$ref": "#/$defs/digest"},
+    "local_release_binary_digest": {"$ref": "#/$defs/digest"},
+    "release_binaries_share_exact_source_tree": {"const": true},
+    "manager_leaf_digest": {"$ref": "#/$defs/digest"},
+    "runtime_profile": {"const": "plugin-runtime-host/v1"},
+    "wasmtime_version": {"const": "47.0.3"},
+    "non_root_user": {"const": "65532:65532"},
+    "read_only_rootfs": {"const": true},
+    "capability_drop_all": {"const": true},
+    "no_new_privileges": {"const": true},
+    "tls13_only": {"const": true},
+    "plaintext_rejected": {"const": true},
+    "unauthorized_leaf_rejected": {"const": true},
+    "startup_ready_live_metrics": {"const": true},
+    "docker_semantic_healthcheck": {"const": true},
+    "graceful_stop_seconds": {"type": "integer", "minimum": 0, "maximum": 10},
+    "actual_oci_started": {"const": true},
+    "result": {"const": "PASS"},
+    "qualification": {"const": "NOT_QUALIFIED"},
+    "reason_code": {"const": "MODULE_OCI_BOUNDARY_VERIFIED"}
+  },
+  "$defs": {
+    "digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}
+  }
+}

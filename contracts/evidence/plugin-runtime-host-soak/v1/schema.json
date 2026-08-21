@@ -1,0 +1,128 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://masi-nids.example/contracts/evidence/plugin-runtime-host-soak/v1/schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "module_id", "runtime_profiles", "wasmtime_version",
+    "warmup_seconds", "formal_seconds", "stages", "resource_samples", "max_rss_bytes",
+    "max_threads", "max_fds", "max_queued", "max_in_flight", "max_manager_connections", "resource_growth",
+    "revocation_refresh_failures", "unclassified_failures",
+    "candidate_processes_remained_live", "cleanup_succeeded", "formal_soak_executed",
+    "result", "qualification", "reason_code"
+  ],
+  "properties": {
+    "schema_version": {"const": "plugin-host-soak-evidence/v1"},
+    "module_id": {"const": "MOD-PLUGIN-001"},
+    "runtime_profiles": {"const": ["wasm-component/v1", "grpc-service/v1"]},
+    "wasmtime_version": {"const": "47.0.3"},
+    "warmup_seconds": {"const": 60},
+    "formal_seconds": {"const": 3600},
+    "stages": {
+      "type": "array", "minItems": 5, "maxItems": 5,
+      "items": {"$ref": "#/$defs/stage"}
+    },
+    "resource_samples": {
+      "type": "array", "minItems": 300, "maxItems": 500,
+      "items": {"$ref": "#/$defs/sample"}
+    },
+    "max_rss_bytes": {"type": "integer", "minimum": 1, "maximum": 402653184},
+    "max_threads": {"type": "integer", "minimum": 1, "maximum": 64},
+    "max_fds": {"type": "integer", "minimum": 1, "maximum": 128},
+    "max_queued": {"type": "integer", "minimum": 1, "maximum": 64},
+    "max_in_flight": {"type": "integer", "minimum": 1, "maximum": 4},
+    "max_manager_connections": {"type": "integer", "minimum": 1, "maximum": 64},
+    "resource_growth": {"$ref": "#/$defs/resource_growth"},
+    "revocation_refresh_failures": {"const": 0},
+    "unclassified_failures": {"const": 0},
+    "candidate_processes_remained_live": {"const": true},
+    "cleanup_succeeded": {"const": true},
+    "formal_soak_executed": {"const": true},
+    "result": {"const": "PASS"},
+    "qualification": {"const": "NOT_QUALIFIED"},
+    "reason_code": {"const": "FORMAL_PLUGIN_HOST_SOAK_COMPLETE"}
+  },
+  "allOf": [
+    {
+      "properties": {
+        "stages": {
+          "contains": {
+            "type": "object",
+            "required": ["name", "classified_rejections"],
+            "properties": {
+              "name": {"const": "saturation"},
+              "classified_rejections": {"type": "integer", "minimum": 1}
+            }
+          }
+        }
+      }
+    },
+    {
+      "properties": {
+        "stages": {
+          "contains": {
+            "type": "object",
+            "required": ["name", "service_crash_classified", "service_restart_recovered"],
+            "properties": {
+              "name": {"const": "recovery_activation"},
+              "service_crash_classified": {"const": true},
+              "service_restart_recovered": {"const": true}
+            }
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "stage": {
+      "type": "object",
+      "required": [
+        "name", "requested_seconds", "actual_millis", "successes",
+        "classified_rejections", "unclassified_failures"
+      ],
+      "properties": {
+        "name": {"type": "string", "minLength": 1, "maxLength": 64},
+        "requested_seconds": {"type": "integer", "minimum": 0, "maximum": 900},
+        "actual_millis": {"type": "integer", "minimum": 0},
+        "successes": {"type": "integer", "minimum": 1},
+        "classified_rejections": {"type": "integer", "minimum": 0},
+        "unclassified_failures": {"const": 0},
+        "completed": {"type": "boolean"},
+        "activation_sequence": {"type": "array", "maxItems": 8},
+        "children": {"type": "array", "maxItems": 4},
+        "service_crash_classified": {"type": "boolean"},
+        "service_restart_recovered": {"type": "boolean"}
+      },
+      "additionalProperties": false
+    },
+    "sample": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["elapsed_unix_ms", "rss_bytes", "threads", "fds", "queued", "in_flight", "manager_connections", "manager_connections_peak"],
+      "properties": {
+        "elapsed_unix_ms": {"type": "integer", "minimum": 1},
+        "rss_bytes": {"type": "integer", "minimum": 1, "maximum": 402653184},
+        "threads": {"type": "integer", "minimum": 1, "maximum": 64},
+        "fds": {"type": "integer", "minimum": 1, "maximum": 128},
+        "queued": {"type": "integer", "minimum": 0, "maximum": 64},
+        "in_flight": {"type": "integer", "minimum": 0, "maximum": 4},
+        "manager_connections": {"type": "integer", "minimum": 0, "maximum": 64},
+        "manager_connections_peak": {"type": "integer", "minimum": 1, "maximum": 64}
+      }
+    },
+    "resource_growth": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["rss_bytes_delta", "threads_delta", "fds_delta", "queued_final", "in_flight_final", "sample_count", "leak_thresholds_passed"],
+      "properties": {
+        "rss_bytes_delta": {"type": "integer", "maximum": 67108864},
+        "threads_delta": {"type": "integer", "maximum": 8},
+        "fds_delta": {"type": "integer", "maximum": 8},
+        "queued_final": {"const": 0},
+        "in_flight_final": {"const": 0},
+        "sample_count": {"type": "integer", "minimum": 300, "maximum": 500},
+        "leak_thresholds_passed": {"const": true}
+      }
+    }
+  }
+}

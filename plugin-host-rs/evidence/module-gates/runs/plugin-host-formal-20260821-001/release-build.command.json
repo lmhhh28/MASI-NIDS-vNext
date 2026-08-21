@@ -1,0 +1,30 @@
+{
+  "schema_version": "edge-command-execution/v1",
+  "run_id": "plugin-host-formal-20260821-001",
+  "command_id": "release-build",
+  "started_at": "2026-08-21T04:22:36Z",
+  "finished_at": "2026-08-21T04:22:54Z",
+  "duration_ms": 18601,
+  "working_directory": "plugin-host-rs",
+  "argv": [
+    "cargo",
+    "build",
+    "--manifest-path",
+    "/home/lmhhh/MASI-NIDS-vNext/plugin-host-rs/Cargo.toml",
+    "--locked",
+    "--release",
+    "--bins"
+  ],
+  "exit_code": 0,
+  "result": "PASS",
+  "qualification": "QUALIFIED",
+  "stable_reason": null,
+  "source_tree_digest": "sha256:1568be4734aab4c7cc1f84b30ef942dc3eb506b3d4b32185fd04c3845750fa9f",
+  "working_tree_status_digest": "sha256:50f56d3f9c91e7cc2405761c29db85a0b20e507ac369493b3050e9c2e302118d",
+  "log": {
+    "path": "release-build.log",
+    "sha256": "sha256:15f4987d688b3d9ddb2296b6ea20175f48bf01284041b58b09af514fdbc0cf6e",
+    "bytes": 145,
+    "media_type": "text/plain"
+  }
+}

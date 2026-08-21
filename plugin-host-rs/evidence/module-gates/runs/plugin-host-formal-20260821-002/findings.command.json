@@ -1,0 +1,29 @@
+{
+  "schema_version": "edge-command-execution/v1",
+  "run_id": "plugin-host-formal-20260821-002",
+  "command_id": "findings",
+  "started_at": "2026-08-21T04:28:00Z",
+  "finished_at": "2026-08-21T04:28:00Z",
+  "duration_ms": 76,
+  "working_directory": "plugin-host-rs",
+  "argv": [
+    "python3",
+    "/home/lmhhh/MASI-NIDS-vNext/plugin-host-rs/scripts/validate-static-evidence.py",
+    "--repo",
+    "/home/lmhhh/MASI-NIDS-vNext",
+    "--scope",
+    "findings"
+  ],
+  "exit_code": 0,
+  "result": "PASS",
+  "qualification": "QUALIFIED",
+  "stable_reason": null,
+  "source_tree_digest": "sha256:c825d1937eed81c58c23e8f86ab048c072db917f896f59c69741cc503d4e74c5",
+  "working_tree_status_digest": "sha256:e21dd5307dc26df94c2b5128f736f3fb7a11345f8dd9ec2bb86396a9ee96d0d7",
+  "log": {
+    "path": "findings.log",
+    "sha256": "sha256:f8e6327f605486763bfc52156b77bb4e967cb50d91a552151709b7eff3d6fa9f",
+    "bytes": 43,
+    "media_type": "text/plain"
+  }
+}

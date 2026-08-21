@@ -1,0 +1,22 @@
+{
+  "schema_version": "qualification-profile/v1",
+  "profile_id": "plugin-runtime-host/v1",
+  "module_id": "MOD-PLUGIN-001",
+  "rust_toolchain": "1.97.1",
+  "tokio": "1.53.1",
+  "tonic": "0.14.6",
+  "prost": "0.14.4",
+  "wasmtime": "47.0.3",
+  "host_proto": "contracts/plugin/host/v1/host.proto",
+  "host_proto_digest": "sha256:a6261fb506c523d0265134057b66caf9b1193387289afc4996857576cd20e80b",
+  "runtime_profiles": ["wasm-component/v1", "grpc-service/v1"],
+  "managed_kinds": ["pure-transform", "read-only-tool"],
+  "direct_not_proxied_kinds": ["analysis-agent"],
+  "limits": {"bindings": 32, "global_queue": 64, "per_binding_queue": 32, "per_binding_in_flight": 2, "control_message_bytes": 4194304, "input_bytes": 2097152, "output_bytes": 1048576, "deadline_ms": 10000},
+  "revocation": {"host_reconcile_seconds": 30, "propagation_seconds": 60, "trust_cache_seconds": 300},
+  "probes": {"startup_deadline_seconds": 120, "readiness_period_seconds": 5, "readiness_failures": 3, "liveness_period_seconds": 10, "liveness_failures": 3, "probe_timeout_seconds": 2},
+  "restart": {"initial_backoff_seconds": 1, "max_backoff_seconds": 60, "window_seconds": 600, "max_restarts": 5, "quarantine_seconds": 900},
+  "network": {"manager_to_host": "TLS1.3 mTLS with exact client leaf digest allowlist", "plaintext_fallback": false, "browser_access": false},
+  "durability": "no Host durable task ledger; bounded memory execution queue is rebuilt only from Go durable runs",
+  "runtime_download": false
+}

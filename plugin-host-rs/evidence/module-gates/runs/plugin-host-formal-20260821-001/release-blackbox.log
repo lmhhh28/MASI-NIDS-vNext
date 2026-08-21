@@ -1,0 +1,10 @@
+   Compiling masi-plugin-host v0.1.0 (/home/lmhhh/MASI-NIDS-vNext/plugin-host-rs)
+    Finished `release` profile [optimized] target(s) in 21.60s
+     Running tests/module_blackbox.rs (target/release/deps/module_blackbox-90f4e411ba7f38d9)
+
+running 2 tests
+test admission_negative_matrix_and_restart_quarantine ... ok
+test real_process_mtls_lifecycle_service_statistics_and_isolation ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.51s
+

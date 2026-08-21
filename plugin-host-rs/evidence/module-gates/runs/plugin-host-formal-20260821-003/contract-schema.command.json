@@ -1,0 +1,25 @@
+{
+  "schema_version": "edge-command-execution/v1",
+  "run_id": "plugin-host-formal-20260821-003",
+  "command_id": "contract-schema",
+  "started_at": "2026-08-21T06:59:47Z",
+  "finished_at": "2026-08-21T06:59:48Z",
+  "duration_ms": 193,
+  "working_directory": "plugin-host-rs",
+  "argv": [
+    "python3",
+    "/home/lmhhh/MASI-NIDS-vNext/plugin-host-rs/scripts/validate-contracts.py"
+  ],
+  "exit_code": 0,
+  "result": "PASS",
+  "qualification": "QUALIFIED",
+  "stable_reason": null,
+  "source_tree_digest": "sha256:9b1b93be5b85e11bcffddbd79f51849b21cd061ca6d86336b7882309dd1f0355",
+  "working_tree_status_digest": "sha256:2f3ddc112e072c7ce1f71536607ad31c91ba0974784dfb667f358da1658b5558",
+  "log": {
+    "path": "contract-schema.log",
+    "sha256": "sha256:d59a963e7552685e291c89fa6e9dfc1c08ce3b272ff036b713c363657b98ec29",
+    "bytes": 1305,
+    "media_type": "text/plain"
+  }
+}

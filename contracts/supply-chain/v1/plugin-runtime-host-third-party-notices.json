@@ -1,0 +1,20 @@
+{
+  "schema_version": "third-party-notices/v1",
+  "module": "plugin-runtime-host",
+  "notices": [
+    {"component": "Rust stable toolchain", "license": "Apache-2.0 OR MIT", "source": "https://github.com/rust-lang/rust"},
+    {"component": "Rust builder OCI image", "license": "aggregate-see-SPDX-and-third-party-notices", "source": "https://hub.docker.com/_/rust"},
+    {"component": "Distroless cc Debian 12 runtime OCI base", "license": "aggregate-see-SPDX-and-third-party-notices", "source": "https://github.com/GoogleContainerTools/distroless"},
+    {"component": "Cargo.lock dependency closure", "license": "per-package SPDX license in generated SBOM", "source": "plugin-host-rs/Cargo.lock"},
+    {"component": "Wasmtime Component Model", "license": "Apache-2.0 WITH LLVM-exception", "source": "https://github.com/bytecodealliance/wasmtime"},
+    {"component": "Tokio", "license": "MIT", "source": "https://github.com/tokio-rs/tokio"},
+    {"component": "Tonic and Prost", "license": "MIT/Apache-2.0", "source": "https://github.com/hyperium/tonic and https://github.com/tokio-rs/prost"},
+    {"component": "Rustls and ring", "license": "Apache-2.0 OR ISC OR MIT", "source": "https://github.com/rustls/rustls and https://github.com/briansmith/ring"},
+    {"component": "Serde and serde_json", "license": "MIT OR Apache-2.0", "source": "https://github.com/serde-rs/serde and https://github.com/serde-rs/json"},
+    {"component": "Axum health surface", "license": "MIT", "source": "https://github.com/tokio-rs/axum"},
+    {"component": "Vendored protoc", "license": "MIT", "source": "https://crates.io/crates/protoc-bin-vendored"},
+    {"component": "Syft", "license": "Apache-2.0", "source": "https://github.com/anchore/syft"},
+    {"component": "Trivy", "license": "Apache-2.0", "source": "https://github.com/aquasecurity/trivy"},
+    {"component": "Cosign", "license": "Apache-2.0", "source": "https://github.com/sigstore/cosign"}
+  ]
+}

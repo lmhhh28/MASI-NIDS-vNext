@@ -1,0 +1,21 @@
+{
+  "schema_version": "qualification-profile/v1",
+  "profile_id": "grpc-service/v1",
+  "protocol": "Protobuf/gRPC",
+  "service_source": "contracts/plugin/service/v1/service.proto",
+  "service_proto_digest": "sha256:d64a04a8d9c1f0e0d58d4259f5c8c1342aec640ec31699e5f05ace7c50f6bf3e",
+  "same_host_transport": "absolute filesystem Unix-domain socket",
+  "cross_host_transport": "mTLS only under a separately triggered deployment profile",
+  "uds": {"directory_mode": "0750", "socket_mode": "0660", "no_symlink": true, "abstract_namespace": false, "so_peercred": true, "per_binding_generation_path": true, "exact_workload_identity_readback": true},
+  "limits": {"request_bytes": 2097152, "response_bytes": 1048576, "in_flight_per_binding": 2, "queue_depth": 32, "total_deadline_ms": 10000, "max_attempts": 1},
+  "transport_frame_bytes": {"request": 4194304, "response": 2097152, "purpose": "protobuf identity and framing overhead above bounded application payload"},
+  "retry": {"retryable_statuses": [], "max_attempts": 1, "initial_backoff_ms": 0, "max_backoff_ms": 0, "backoff_multiplier": 1, "throttling": {"enabled": false, "max_tokens": 0, "token_ratio": 0}, "transparent_retry": false, "application_retry": false, "hedging": false, "wait_for_ready": false},
+  "methods": {
+    "Handshake": {"idempotent": false, "connect_deadline_ms": 2000, "queue_deadline_ms": 0, "execution_deadline_ms": 2000, "total_deadline_ms": 2000, "retry": false},
+    "Execute": {"idempotent": true, "connect_deadline_ms": 2000, "queue_deadline_ms": 1000, "execution_deadline_ms": 10000, "total_deadline_ms": 10000, "retry": false},
+    "Health": {"idempotent": true, "connect_deadline_ms": 2000, "queue_deadline_ms": 0, "execution_deadline_ms": 2000, "total_deadline_ms": 2000, "retry": false},
+    "Drain": {"idempotent": true, "connect_deadline_ms": 2000, "queue_deadline_ms": 0, "execution_deadline_ms": 10000, "total_deadline_ms": 10000, "retry": false},
+    "Disable": {"idempotent": true, "connect_deadline_ms": 2000, "queue_deadline_ms": 0, "execution_deadline_ms": 10000, "total_deadline_ms": 10000, "retry": false}
+  },
+  "runtime_download": false
+}

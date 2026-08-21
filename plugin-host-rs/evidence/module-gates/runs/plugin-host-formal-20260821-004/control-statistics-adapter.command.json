@@ -1,0 +1,29 @@
+{
+  "schema_version": "edge-command-execution/v1",
+  "run_id": "plugin-host-formal-20260821-004",
+  "command_id": "control-statistics-adapter",
+  "started_at": "2026-08-21T07:00:57Z",
+  "finished_at": "2026-08-21T07:00:57Z",
+  "duration_ms": 246,
+  "working_directory": "plugin-host-rs",
+  "argv": [
+    "go",
+    "-C",
+    "/home/lmhhh/MASI-NIDS-vNext/control-go",
+    "test",
+    "./internal/pluginstat",
+    "./internal/grpc"
+  ],
+  "exit_code": 0,
+  "result": "PASS",
+  "qualification": "QUALIFIED",
+  "stable_reason": null,
+  "source_tree_digest": "sha256:965eae8ee05abed795deb0c6f8b5820e00bc12559fea18260e4776ec533eb868",
+  "working_tree_status_digest": "sha256:119a13e9821b5dc1d4ba400f94ba007cb31048c3f68e381ef4e40b037956d16b",
+  "log": {
+    "path": "control-statistics-adapter.log",
+    "sha256": "sha256:5ca513805d9e985148d9d9a662c23cb2592bde7783700da473cc1bc39150091b",
+    "bytes": 104,
+    "media_type": "text/plain"
+  }
+}

@@ -1,0 +1,14 @@
+    Checking masi-plugin-host v0.1.0 (/home/lmhhh/MASI-NIDS-vNext/plugin-host-rs)
+ Documenting masi-plugin-host v0.1.0 (/home/lmhhh/MASI-NIDS-vNext/plugin-host-rs)
+error: unresolved link to `0,1`
+  --> src/statistics.rs:53:28
+   |
+53 |     /// Input coverage in [0,1].
+   |                            ^^^ no item named `0,1` in scope
+   |
+   = help: to escape `[` and `]` characters, add '\' before them like `\[` or `\]`
+   = note: `-D rustdoc::broken-intra-doc-links` implied by `-D warnings`
+   = help: to override `-D warnings` add `#[allow(rustdoc::broken_intra_doc_links)]`
+
+error: could not document `masi-plugin-host`
+warning: build failed, waiting for other jobs to finish...

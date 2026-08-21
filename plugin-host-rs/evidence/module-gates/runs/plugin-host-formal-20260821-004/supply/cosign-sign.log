@@ -1,0 +1,4 @@
+WARNING: Could not fetch trusted_root.json from the TUF repository. Continuing with individual targets. Error from TUF: error getting live trusted root: failed to create TUF client failed to create initial TUF updater: mkdir /root/.sigstore: read-only file system
+Using payload from: /supply/release-manifest.json
+Signing artifact...
+Wrote bundle to file /supply/release-manifest.sigstore.json

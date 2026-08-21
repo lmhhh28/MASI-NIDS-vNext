@@ -459,18 +459,39 @@ def main() -> int:
 
     # plugin/manifest
     manifest_good = {"schema_version": "masi-plugin-manifest/v1", "manifest_id": "man-1",
-                     "manifest_revision": 1, "manifest_digest": D, "plugin_id": "plug-1",
-                     "kind": "analysis-agent", "publisher": "pub-1", "version": "1.0.0",
+                     "manifest_revision": 1, "manifest_digest": D, "plugin_id": "plug-1", "plugin_revision": "revision-1",
+                     "kind": "pure-transform", "publisher": "pub-1", "version": "1.0.0", "scope": "tenant-1",
+                     "artifact_digest": D, "artifact_media_type": "application/wasm",
+                     "entrypoint": "masi:plugin-transform@1.0.0#transform", "supported_platforms": ["wasm32-wasip2"],
+                     "host_api_version": "plugin-host-control/v1", "input_contract_digest": D, "output_contract_digest": D,
+                     "config_schema_id": "plugin-config/v1", "config_schema_version": "masi-plugin-config/v1", "config_schema_digest": D,
                      "capabilities": [{"capability_id": "cap-1", "capability_kind": "host-projection", "declared": True}],
+                     "skill_ids": [], "mcp_tool_ids": [], "mcp_resource_ids": [], "a2a_peer_ids": [],
+                     "network_egress_capability_ids": [], "filesystem_preopens": [], "secret_ref_ids": [],
+                     "statistics_definitions": [],
                      "resource_limits": {"cpu_milli": 100, "memory_bytes": 1048576, "pid_count": 32,
-                                         "fd_count": 64, "disk_bytes": 1048576, "deadline_ms": 5000,
+                                         "fd_count": 64, "disk_bytes": 1048576, "linear_memory_bytes": 1048576,
+                                         "table_elements": 1000, "instance_count": 2, "batch_records": 100,
+                                         "in_flight_bytes": 2097152, "concurrency": 2, "deadline_ms": 5000,
+                                         "retry_max_attempts": 1,
                                          "output_bytes": 65536, "queue_depth": 100},
                      "runtime_profile": "wasm-component/v1", "wit_digest": D, "service_proto_digest": None,
                      "sbom_digest": D, "provenance_digest": D, "signature_status": "signed",
+                     "verification_policy_digest": D, "verification_bundle_profile": "plugin-verification-bundle/v1",
+                     "owner_ref": "owner-1", "support_level": "first-party",
+                     "compatibility": {"host_api_min": "plugin-host-control/v1", "host_api_max": "plugin-host-control/v1",
+                                       "runtime_profile": "wasm-component/v1", "migration_required": False,
+                                       "rollback_compatible_revisions": []},
+                     "lifecycle_contract": {"startup": "plugin-startup/fail-closed-v1",
+                                            "readiness": "plugin-readiness/exact-binding-v1",
+                                            "liveness": "plugin-liveness/progress-v1", "drain": "plugin-drain/bounded-v1",
+                                            "failure": "plugin-failure/stable-reason-v1", "fallback": "plugin-fallback/none-v1"},
+                     "observability_contract_digest": D,
                      "actor_ref": "iss-x:sub-a", "reason_code": "MANIFEST", "trace_id": "tr-1", "created_at_unix_ms": 1000}
     pos_neg("contracts/plugin/manifest/v1/schema.json", manifest_good,
             extras=[("wasm-wit-null", lambda i: i.update(wit_digest=None)),
-                    ("grpc-no-proto", lambda i: i.update(runtime_profile="grpc-service/v1", service_proto_digest=None, wit_digest=None))])
+                    ("grpc-no-proto", lambda i: i.update(runtime_profile="grpc-service/v1", service_proto_digest=None, wit_digest=None,
+                                                          artifact_media_type="application/vnd.oci.image.manifest.v1+json"))])
 
     # plugin/wit
     wit_good = {"schema_version": "masi-plugin-wit/v1", "world_name": "world-1", "wit_digest": D,

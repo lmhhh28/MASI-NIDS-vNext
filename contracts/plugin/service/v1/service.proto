@@ -1,0 +1,130 @@
+syntax = "proto3";
+
+package masi.plugin.service.v1;
+
+// Public boundary for an explicitly Host-managed, already-deployed service
+// plugin. The Host never starts a process or container and never receives
+// arbitrary argv, environment, path or endpoint input from the plugin.
+service HostManagedPlugin {
+  rpc Handshake(HandshakeRequest) returns (HandshakeReply);
+  rpc Execute(ServiceExecuteRequest) returns (ServiceExecuteReply);
+  rpc Health(HealthRequest) returns (HealthReply);
+  rpc Drain(ServiceDrainRequest) returns (ServiceDrainReply);
+  rpc Disable(ServiceDisableRequest) returns (ServiceDisableReply);
+}
+
+message HandshakeRequest {
+  string schema_version = 1;
+  string plugin_id = 2;
+  string plugin_revision = 3;
+  string artifact_digest = 4;
+  string config_digest = 5;
+  string capability_digest = 6;
+  uint64 binding_generation = 7;
+  string binding_epoch = 8;
+  string service_proto_digest = 9;
+  string challenge_nonce = 10;
+  string trace_id = 11;
+}
+
+message HandshakeReply {
+  string schema_version = 1;
+  string plugin_id = 2;
+  string plugin_revision = 3;
+  string artifact_digest = 4;
+  string config_digest = 5;
+  string capability_digest = 6;
+  uint64 binding_generation = 7;
+  string binding_epoch = 8;
+  string service_proto_digest = 9;
+  string challenge_nonce = 10;
+  string workload_identity = 11;
+  string status = 12;
+  string reason_code = 13;
+  string trace_id = 14;
+}
+
+message ServiceExecuteRequest {
+  string schema_version = 1;
+  string invocation_id = 2;
+  string plugin_id = 3;
+  uint64 binding_generation = 4;
+  string binding_epoch = 5;
+  string capability_id = 6;
+  string input_digest = 7;
+  bytes input = 8;
+  uint32 deadline_ms = 9;
+  string result_fence = 10;
+  string trace_id = 11;
+  string execution_mode = 12;
+}
+
+message ServiceExecuteReply {
+  string schema_version = 1;
+  string invocation_id = 2;
+  string plugin_id = 3;
+  uint64 binding_generation = 4;
+  string binding_epoch = 5;
+  string input_digest = 6;
+  string output_digest = 7;
+  bytes output = 8;
+  string result_fence = 9;
+  string status = 10;
+  string reason_code = 11;
+  string trace_id = 12;
+  string execution_mode = 13;
+}
+
+message HealthRequest {
+  string schema_version = 1;
+  string plugin_id = 2;
+  uint64 binding_generation = 3;
+  string trace_id = 4;
+}
+
+message HealthReply {
+  string schema_version = 1;
+  string plugin_id = 2;
+  uint64 binding_generation = 3;
+  bool ready = 4;
+  bool live = 5;
+  string status = 6;
+  string reason_code = 7;
+  string trace_id = 8;
+}
+
+message ServiceDrainRequest {
+  string schema_version = 1;
+  string plugin_id = 2;
+  uint64 binding_generation = 3;
+  uint32 deadline_ms = 4;
+  string trace_id = 5;
+}
+
+message ServiceDrainReply {
+  string schema_version = 1;
+  string plugin_id = 2;
+  uint64 binding_generation = 3;
+  bool drained = 4;
+  string status = 5;
+  string reason_code = 6;
+  string trace_id = 7;
+}
+
+message ServiceDisableRequest {
+  string schema_version = 1;
+  string plugin_id = 2;
+  uint64 binding_generation = 3;
+  string revocation_digest = 4;
+  string trace_id = 5;
+}
+
+message ServiceDisableReply {
+  string schema_version = 1;
+  string plugin_id = 2;
+  uint64 binding_generation = 3;
+  bool disabled = 4;
+  string status = 5;
+  string reason_code = 6;
+  string trace_id = 7;
+}

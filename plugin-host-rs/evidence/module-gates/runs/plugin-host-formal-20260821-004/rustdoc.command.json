@@ -1,0 +1,32 @@
+{
+  "schema_version": "edge-command-execution/v1",
+  "run_id": "plugin-host-formal-20260821-004",
+  "command_id": "rustdoc",
+  "started_at": "2026-08-21T07:01:09Z",
+  "finished_at": "2026-08-21T07:01:11Z",
+  "duration_ms": 2445,
+  "working_directory": "plugin-host-rs",
+  "argv": [
+    "env",
+    "RUSTDOCFLAGS=-Dwarnings",
+    "cargo",
+    "doc",
+    "--manifest-path",
+    "/home/lmhhh/MASI-NIDS-vNext/plugin-host-rs/Cargo.toml",
+    "--locked",
+    "--all-features",
+    "--no-deps"
+  ],
+  "exit_code": 0,
+  "result": "PASS",
+  "qualification": "QUALIFIED",
+  "stable_reason": null,
+  "source_tree_digest": "sha256:965eae8ee05abed795deb0c6f8b5820e00bc12559fea18260e4776ec533eb868",
+  "working_tree_status_digest": "sha256:119a13e9821b5dc1d4ba400f94ba007cb31048c3f68e381ef4e40b037956d16b",
+  "log": {
+    "path": "rustdoc.log",
+    "sha256": "sha256:67312a9a57e1357c6f24a7026b84bdd0c0fe7cbcf5d1edbaf22a62687782588a",
+    "bytes": 267,
+    "media_type": "text/plain"
+  }
+}

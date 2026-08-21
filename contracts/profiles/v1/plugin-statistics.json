@@ -1,0 +1,22 @@
+{
+  "schema_version": "qualification-profile/v1",
+  "profile_id": "plugin-statistics/v1",
+  "contract": "contracts/plugin/statistics/v1/schema.json",
+  "limits": {
+    "definitions_per_revision": 32, "definition_block_bytes": 131072,
+    "input_field_refs": 64, "external_source_refs": 1, "definition_text_bytes": 65536,
+    "input_bytes": 2097152, "artifact_bytes": 1048576, "metric_definitions": 32,
+    "series": 64, "numeric_points": 10000, "points_per_view": 2000,
+    "histogram_buckets_per_point": 64, "tables": 8, "columns_per_table": 32,
+    "total_rows": 2000, "display_hints": 16, "evidence_refs": 200,
+    "json_depth": 8, "scalar_string_bytes": 4096, "artifact_text_bytes": 65536,
+    "dimension_keys": 8, "dimension_key_bytes": 64, "dimension_value_bytes": 128,
+    "in_flight_per_binding": 2, "queue_depth": 32, "deadline_ms": 10000,
+    "retention_days": 30
+  },
+  "finite_numbers_only": true,
+  "input_digest_profile": {"frozen": "canonical-scalar-ieee754-bits-sha256", "bundle": "canonical-json-excluding-self-sha256", "golden": "contracts/plugin/statistics/v1/golden/input-bundle-v1.json"},
+  "runtime_registration": false,
+  "forbidden_definition_content": ["endpoint", "credential", "SQL", "PromQL", "JSONPath", "MCP prompt", "URL", "expression", "code"],
+  "runtime_download": false
+}

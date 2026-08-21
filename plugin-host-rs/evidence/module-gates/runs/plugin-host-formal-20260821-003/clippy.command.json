@@ -1,0 +1,32 @@
+{
+  "schema_version": "edge-command-execution/v1",
+  "run_id": "plugin-host-formal-20260821-003",
+  "command_id": "clippy",
+  "started_at": "2026-08-21T06:59:50Z",
+  "finished_at": "2026-08-21T06:59:50Z",
+  "duration_ms": 215,
+  "working_directory": "plugin-host-rs",
+  "argv": [
+    "cargo",
+    "clippy",
+    "--manifest-path",
+    "/home/lmhhh/MASI-NIDS-vNext/plugin-host-rs/Cargo.toml",
+    "--all-targets",
+    "--all-features",
+    "--",
+    "-D",
+    "warnings"
+  ],
+  "exit_code": 0,
+  "result": "PASS",
+  "qualification": "QUALIFIED",
+  "stable_reason": null,
+  "source_tree_digest": "sha256:9b1b93be5b85e11bcffddbd79f51849b21cd061ca6d86336b7882309dd1f0355",
+  "working_tree_status_digest": "sha256:2f3ddc112e072c7ce1f71536607ad31c91ba0974784dfb667f358da1658b5558",
+  "log": {
+    "path": "clippy.log",
+    "sha256": "sha256:4f27ac380b22e1d975eee20ce727fa8cbc09061177f6253af0777fd4de7b7506",
+    "bytes": 72,
+    "media_type": "text/plain"
+  }
+}

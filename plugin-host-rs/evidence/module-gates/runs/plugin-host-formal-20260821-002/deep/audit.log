@@ -1,0 +1,2 @@
+      Loaded 1225 security advisories (from /root/.cargo/advisory-db)
+    Scanning /home/lmhhh/MASI-NIDS-vNext/plugin-host-rs/Cargo.lock for vulnerabilities (285 crate dependencies)

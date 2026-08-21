@@ -1,0 +1,1 @@
+Error: Status { code: PermissionDenied, message: "PUBLISHER_UNTRUSTED: manager leaf certificate is not allowlisted", metadata: MetadataMap { headers: {"content-type": "application/grpc", "date": "Fri, 21 Aug 2026 04:30:39 GMT"} }, source: None }

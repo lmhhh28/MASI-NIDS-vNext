@@ -1,0 +1,210 @@
+syntax = "proto3";
+
+package masi.plugin.host.v1;
+
+// The Manager-facing lifecycle and invocation boundary of the independent
+// Rust Plugin Runtime Host. Go remains the canonical lifecycle owner; this
+// service only applies and reports exact observed bindings.
+service PluginHostControl {
+  rpc ApplyBinding(ApplyBindingRequest) returns (BindingObservation);
+  rpc GetBinding(GetBindingRequest) returns (BindingObservation);
+  rpc ListBindings(ListBindingsRequest) returns (ListBindingsReply);
+  rpc Execute(ExecuteRequest) returns (ExecuteReply);
+  rpc CancelInvocation(CancelInvocationRequest) returns (CancelInvocationReply);
+  rpc DrainBinding(DrainBindingRequest) returns (BindingObservation);
+  rpc RevokeBinding(RevokeBindingRequest) returns (BindingObservation);
+  rpc RollbackBinding(RollbackBindingRequest) returns (BindingObservation);
+}
+
+message BindingEnvelope {
+  string schema_version = 1;
+  string operation_id = 2;
+  string plugin_id = 3;
+  string plugin_revision = 4;
+  string manifest_digest = 5;
+  bytes manifest_json = 6;
+  string artifact_digest = 7;
+  uint64 artifact_bytes = 8;
+  string artifact_name = 9;
+  string config_digest = 10;
+  string capability_digest = 11;
+  repeated string granted_capabilities = 12;
+  string resource_profile_digest = 13;
+  string qualification_digest = 14;
+  string trust_policy_digest = 15;
+  string verification_bundle_digest = 16;
+  bytes verification_bundle_json = 17;
+  string revocation_snapshot_digest = 18;
+  int64 revocation_checked_at_unix_ms = 19;
+  uint64 binding_generation = 20;
+  string binding_epoch = 21;
+  string scope = 22;
+  string kind = 23;
+  string runtime_profile = 24;
+  string desired_state = 25;
+  string wit_digest = 26;
+  string service_proto_digest = 27;
+  string service_endpoint_ref = 28;
+  int64 issued_at_unix_ms = 30;
+  int64 expires_at_unix_ms = 31;
+  string actor_ref = 32;
+  string trace_id = 33;
+  string envelope_digest = 34;
+  bytes config_json = 35;
+  string config_schema_id = 36;
+  // Deprecated compatibility carrier. Production admission requires the exact
+  // identity+digest records below and rejects ID-only statistics bindings.
+  repeated string statistics_definition_ids = 29;
+  repeated StatisticsDefinitionBinding statistics_definitions = 37;
+}
+
+message StatisticsDefinitionBinding {
+  string definition_id = 1;
+  string definition_revision = 2;
+  string definition_digest = 3;
+}
+
+message ApplyBindingRequest {
+  string schema_version = 1;
+  BindingEnvelope binding = 2;
+}
+
+message GetBindingRequest {
+  string schema_version = 1;
+  string plugin_id = 2;
+  uint64 binding_generation = 3;
+  string trace_id = 4;
+}
+
+message ListBindingsRequest {
+  string schema_version = 1;
+  uint32 page_size = 2;
+  string page_token = 3;
+  string trace_id = 4;
+}
+
+message ListBindingsReply {
+  string schema_version = 1;
+  repeated BindingObservation bindings = 2;
+  string next_page_token = 3;
+  string trace_id = 4;
+}
+
+message BindingObservation {
+  string schema_version = 1;
+  string plugin_id = 2;
+  string plugin_revision = 3;
+  uint64 binding_generation = 4;
+  string binding_epoch = 5;
+  string envelope_digest = 6;
+  string artifact_digest = 7;
+  string config_digest = 8;
+  string capability_digest = 9;
+  string resource_profile_digest = 10;
+  string runtime_profile = 11;
+  string observed_state = 12;
+  bool ready = 13;
+  uint32 in_flight = 14;
+  uint32 queued = 15;
+  uint32 consecutive_failures = 16;
+  int64 circuit_open_until_unix_ms = 17;
+  int64 observed_at_unix_ms = 18;
+  string observation_digest = 19;
+  string status = 20;
+  string reason_code = 21;
+  string trace_id = 22;
+}
+
+message ExecuteRequest {
+  string schema_version = 1;
+  string invocation_id = 2;
+  string plugin_id = 3;
+  uint64 binding_generation = 4;
+  string binding_epoch = 5;
+  string capability_id = 6;
+  string input_digest = 7;
+  bytes input = 8;
+  uint32 deadline_ms = 9;
+  string result_fence = 10;
+  string trace_id = 11;
+  // Closed route namespace: active or shadow. Shadow output is never eligible
+  // for Host statistics finalization or any canonical projection.
+  string execution_mode = 12;
+}
+
+message ExecuteReply {
+  string schema_version = 1;
+  string invocation_id = 2;
+  string plugin_id = 3;
+  uint64 binding_generation = 4;
+  string binding_epoch = 5;
+  string input_digest = 6;
+  string output_digest = 7;
+  bytes output = 8;
+  string result_fence = 9;
+  string status = 10;
+  string reason_code = 11;
+  string trace_id = 12;
+  string execution_mode = 13;
+}
+
+message CancelInvocationRequest {
+  string schema_version = 1;
+  string invocation_id = 2;
+  string plugin_id = 3;
+  uint64 binding_generation = 4;
+  string reason_code = 5;
+  string trace_id = 6;
+}
+
+message CancelInvocationReply {
+  string schema_version = 1;
+  string invocation_id = 2;
+  bool cancellation_requested = 3;
+  string status = 4;
+  string reason_code = 5;
+  string trace_id = 6;
+}
+
+message DrainBindingRequest {
+  string schema_version = 1;
+  string operation_id = 2;
+  string plugin_id = 3;
+  uint64 binding_generation = 4;
+  uint32 deadline_ms = 5;
+  string trace_id = 6;
+  string actor_ref = 7;
+  string reason_code = 8;
+  string expected_envelope_digest = 9;
+  string authorization_digest = 10;
+}
+
+message RevokeBindingRequest {
+  string schema_version = 1;
+  string operation_id = 2;
+  string plugin_id = 3;
+  uint64 binding_generation = 4;
+  string revocation_digest = 5;
+  uint32 deadline_ms = 6;
+  string trace_id = 7;
+  string actor_ref = 8;
+  string reason_code = 9;
+  string expected_envelope_digest = 10;
+  string authorization_digest = 11;
+}
+
+// Rollback is the only control operation allowed to move an active pointer to a
+// lower generation. from_generation is an exact CAS fence; target_binding must
+// be an already observed, previously active draining generation with a fresh
+// exact envelope. authorization_digest identifies the separate Go-owned
+// rollback authorization fact and is not interpreted as Host-owned policy.
+message RollbackBindingRequest {
+  string schema_version = 1;
+  string operation_id = 2;
+  uint64 from_generation = 3;
+  BindingEnvelope target_binding = 4;
+  string authorization_digest = 5;
+  string trace_id = 6;
+  string actor_ref = 7;
+  string reason_code = 8;
+}

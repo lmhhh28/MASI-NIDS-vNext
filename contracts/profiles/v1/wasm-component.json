@@ -1,0 +1,25 @@
+{
+  "schema_version": "qualification-profile/v1",
+  "profile_id": "wasm-component/v1",
+  "runtime": "Wasmtime",
+  "runtime_version": "47.0.3",
+  "runtime_release_policy": "exact supported release; upgrade requires a new profile and old/new matrix",
+  "wasi_profile": "WASI 0.2 Preview 2 Component Model",
+  "wasi_0_3_admission": "reject",
+  "wit_package": "masi:plugin-transform@1.0.0",
+  "wit_world": "pure-transform",
+  "wit_source": "contracts/plugin/wit/v1/pure-transform.wit",
+  "wit_digest": "sha256:43e8eac37b165c4cfd84280cfe0e17cd6ca203abb2aa55b41c921890cef0567b",
+  "imports": [],
+  "ambient_capabilities": {"filesystem": false, "network": false, "clock": false, "random": false, "process": false, "environment": false, "secret": false},
+  "limits": {
+    "input_bytes": 2097152, "output_bytes": 1048576, "linear_memory_bytes": 67108864,
+    "table_elements": 10000, "instances": 32, "memories": 2, "tables": 4,
+    "stack_bytes": 2097152, "fuel": 50000000, "epoch_tick_ms": 10,
+    "total_deadline_ms": 10000, "per_binding_in_flight": 2, "queue_depth": 32,
+    "compiled_cache_bytes": 268435456
+  },
+  "error_mapping": ["WASM_FUEL_EXHAUSTED", "WASM_EPOCH_INTERRUPTED", "DEADLINE_EXCEEDED", "CANCELLED", "RESOURCE_EXHAUSTED", "PLUGIN_TRAP"],
+  "cache_key": ["component_digest", "wit_digest", "wasmtime_version", "target", "cpu_features", "engine_config_digest"],
+  "runtime_download": false
+}

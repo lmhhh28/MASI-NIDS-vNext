@@ -1,0 +1,8 @@
+    Checking regex-syntax v0.8.11
+   Compiling masi-plugin-host v0.1.0 (/home/lmhhh/MASI-NIDS-vNext/plugin-host-rs)
+    Checking regex-automata v0.4.18
+    Checking matchers v0.2.0
+    Checking tracing-subscriber v0.3.23
+ Documenting masi-plugin-host v0.1.0 (/home/lmhhh/MASI-NIDS-vNext/plugin-host-rs)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 5.19s
+   Generated /home/lmhhh/MASI-NIDS-vNext/plugin-host-rs/target/doc/masi_plugin_host/index.html and 2 other files

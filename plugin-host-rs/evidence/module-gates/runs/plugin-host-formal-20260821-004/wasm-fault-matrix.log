@@ -1,0 +1,13 @@
+   Compiling masi-plugin-host v0.1.0 (/home/lmhhh/MASI-NIDS-vNext/plugin-host-rs)
+    Finished `release` profile [optimized] target(s) in 9.30s
+     Running unittests src/lib.rs (target/release/deps/masi_plugin_host-afc2be1768229cf3)
+
+running 5 tests
+test runtime::wasm::tests::enforces_linear_memory_limit_without_process_oom ... ok
+test runtime::wasm::tests::enforces_output_limit ... ok
+test runtime::wasm::tests::executes_component_without_imports ... ok
+test runtime::wasm::tests::maps_fuel_deadline_cancel_and_epoch_distinctly ... ok
+test runtime::wasm::tests::rejects_any_host_import ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 10 filtered out; finished in 0.02s
+

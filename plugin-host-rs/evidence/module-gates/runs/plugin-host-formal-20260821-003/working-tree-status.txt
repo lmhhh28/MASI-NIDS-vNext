@@ -1,0 +1,140 @@
+ M contracts/evidence/command/v1/schema.json
+ M contracts/evidence/module-findings/v1/schema.json
+ M contracts/evidence/traceability/v1/schema.json
+ M contracts/plugin/manifest/v1/schema.json
+ M contracts/plugin/statistics/v1/schema.json
+ M contracts/plugin/v1/schema.json
+ M control-go/scripts/validate-public-contracts.py
+ M docs/architecture/masi-nids-vnext-overall-architecture-2026-08-11.md
+ M docs/design/00-system-decomposition-and-delivery-design.md
+ M docs/design/modules/plugin-runtime-host-design.md
+ M docs/integration/pairwise-and-system-integration-design.md
+ M docs/testing/module-e2e-acceptance-design.md
+ M docs/traceability/design-requirement-matrix.md
+?? contracts/evidence/plugin-runtime-host-deep/v1/schema.json
+?? contracts/evidence/plugin-runtime-host-fault/v1/schema.json
+?? contracts/evidence/plugin-runtime-host-module/v1/schema.json
+?? contracts/evidence/plugin-runtime-host-oci/v1/schema.json
+?? contracts/evidence/plugin-runtime-host-performance/v1/schema.json
+?? contracts/evidence/plugin-runtime-host-soak/v1/schema.json
+?? contracts/evidence/plugin-runtime-host-supply/v1/schema.json
+?? contracts/plugin/config/v1/schema.json
+?? contracts/plugin/host/v1/config.schema.json
+?? contracts/plugin/host/v1/golden/execute-request-v1.json
+?? contracts/plugin/host/v1/host.proto
+?? contracts/plugin/host/v1/verification-bundle.schema.json
+?? contracts/plugin/service/v1/golden/handshake-v1.json
+?? contracts/plugin/service/v1/service.proto
+?? contracts/plugin/statistics/v1/golden/input-bundle-v1.json
+?? contracts/plugin/wit/v1/pure-transform.wit
+?? contracts/profiles/v1/grpc-service.json
+?? contracts/profiles/v1/plugin-runtime-host.json
+?? contracts/profiles/v1/plugin-statistics-display.json
+?? contracts/profiles/v1/plugin-statistics.json
+?? contracts/profiles/v1/wasm-component.json
+?? contracts/supply-chain/v1/plugin-runtime-host-components.json
+?? contracts/supply-chain/v1/plugin-runtime-host-third-party-notices.json
+?? deploy/plugin-host/compose.acceptance.yaml
+?? plugin-host-rs/.gitignore
+?? plugin-host-rs/Cargo.lock
+?? plugin-host-rs/Cargo.toml
+?? plugin-host-rs/Dockerfile
+?? plugin-host-rs/README.md
+?? plugin-host-rs/build.rs
+?? plugin-host-rs/deny.toml
+?? plugin-host-rs/evidence/module-gates/gate-summary.json
+?? plugin-host-rs/evidence/module-gates/latest.json
+?? plugin-host-rs/evidence/module-gates/runs/plugin-host-formal-20260821-001/clippy.command.json
+?? plugin-host-rs/evidence/module-gates/runs/plugin-host-formal-20260821-001/contract-schema.command.json
+?? plugin-host-rs/evidence/module-gates/runs/plugin-host-formal-20260821-001/deep-checks.command.json
+?? plugin-host-rs/evidence/module-gates/runs/plugin-host-formal-20260821-001/deep/coverage.json
+?? plugin-host-rs/evidence/module-gates/runs/plugin-host-formal-20260821-001/findings.command.json
+?? plugin-host-rs/evidence/module-gates/runs/plugin-host-formal-20260821-001/format.command.json
+?? plugin-host-rs/evidence/module-gates/runs/plugin-host-formal-20260821-001/release-blackbox.command.json
+?? plugin-host-rs/evidence/module-gates/runs/plugin-host-formal-20260821-001/release-build.command.json
+?? plugin-host-rs/evidence/module-gates/runs/plugin-host-formal-20260821-001/rustdoc.command.json
+?? plugin-host-rs/evidence/module-gates/runs/plugin-host-formal-20260821-001/source-sentinels.command.json
+?? plugin-host-rs/evidence/module-gates/runs/plugin-host-formal-20260821-001/unit-property-contract.command.json
+?? plugin-host-rs/evidence/module-gates/runs/plugin-host-formal-20260821-001/working-tree-status.txt
+?? plugin-host-rs/evidence/module-gates/runs/plugin-host-formal-20260821-002/clippy.command.json
+?? plugin-host-rs/evidence/module-gates/runs/plugin-host-formal-20260821-002/contract-schema.command.json
+?? plugin-host-rs/evidence/module-gates/runs/plugin-host-formal-20260821-002/deep-checks.command.json
+?? plugin-host-rs/evidence/module-gates/runs/plugin-host-formal-20260821-002/deep/coverage.json
+?? plugin-host-rs/evidence/module-gates/runs/plugin-host-formal-20260821-002/deep/deep-checks-evidence.json
+?? plugin-host-rs/evidence/module-gates/runs/plugin-host-formal-20260821-002/evidence-integrity.command.json
+?? plugin-host-rs/evidence/module-gates/runs/plugin-host-formal-20260821-002/findings.command.json
+?? plugin-host-rs/evidence/module-gates/runs/plugin-host-formal-20260821-002/formal-soak.command.json
+?? plugin-host-rs/evidence/module-gates/runs/plugin-host-formal-20260821-002/formal-soak/soak-evidence.json
+?? plugin-host-rs/evidence/module-gates/runs/plugin-host-formal-20260821-002/format.command.json
+?? plugin-host-rs/evidence/module-gates/runs/plugin-host-formal-20260821-002/gate-summary.json
+?? plugin-host-rs/evidence/module-gates/runs/plugin-host-formal-20260821-002/gate-summary.provisional.json
+?? plugin-host-rs/evidence/module-gates/runs/plugin-host-formal-20260821-002/oci-smoke.command.json
+?? plugin-host-rs/evidence/module-gates/runs/plugin-host-formal-20260821-002/oci/authorized-list.json
+?? plugin-host-rs/evidence/module-gates/runs/plugin-host-formal-20260821-002/oci/cargo-vendor-config.toml
+?? plugin-host-rs/evidence/module-gates/runs/plugin-host-formal-20260821-002/oci/livez.json
+?? plugin-host-rs/evidence/module-gates/runs/plugin-host-formal-20260821-002/oci/metrics.txt
+?? plugin-host-rs/evidence/module-gates/runs/plugin-host-formal-20260821-002/oci/oci-smoke-evidence.json
+?? plugin-host-rs/evidence/module-gates/runs/plugin-host-formal-20260821-002/oci/readyz.json
+?? plugin-host-rs/evidence/module-gates/runs/plugin-host-formal-20260821-002/oci/startupz.json
+?? plugin-host-rs/evidence/module-gates/runs/plugin-host-formal-20260821-002/performance.command.json
+?? plugin-host-rs/evidence/module-gates/runs/plugin-host-formal-20260821-002/performance/performance-evidence.json
+?? plugin-host-rs/evidence/module-gates/runs/plugin-host-formal-20260821-002/release-blackbox.command.json
+?? plugin-host-rs/evidence/module-gates/runs/plugin-host-formal-20260821-002/release-build.command.json
+?? plugin-host-rs/evidence/module-gates/runs/plugin-host-formal-20260821-002/rustdoc.command.json
+?? plugin-host-rs/evidence/module-gates/runs/plugin-host-formal-20260821-002/source-sentinels.command.json
+?? plugin-host-rs/evidence/module-gates/runs/plugin-host-formal-20260821-002/supply-chain.command.json
+?? plugin-host-rs/evidence/module-gates/runs/plugin-host-formal-20260821-002/supply/image.spdx.json
+?? plugin-host-rs/evidence/module-gates/runs/plugin-host-formal-20260821-002/supply/release-manifest.json
+?? plugin-host-rs/evidence/module-gates/runs/plugin-host-formal-20260821-002/supply/release-manifest.sigstore.json
+?? plugin-host-rs/evidence/module-gates/runs/plugin-host-formal-20260821-002/supply/signature-checks.json
+?? plugin-host-rs/evidence/module-gates/runs/plugin-host-formal-20260821-002/supply/source.spdx.json
+?? plugin-host-rs/evidence/module-gates/runs/plugin-host-formal-20260821-002/supply/supply-chain-evidence.json
+?? plugin-host-rs/evidence/module-gates/runs/plugin-host-formal-20260821-002/supply/trivy-config.json
+?? plugin-host-rs/evidence/module-gates/runs/plugin-host-formal-20260821-002/supply/trivy-image.json
+?? plugin-host-rs/evidence/module-gates/runs/plugin-host-formal-20260821-002/supply/trivy-source-secret.json
+?? plugin-host-rs/evidence/module-gates/runs/plugin-host-formal-20260821-002/traceability.command.json
+?? plugin-host-rs/evidence/module-gates/runs/plugin-host-formal-20260821-002/traceability.json
+?? plugin-host-rs/evidence/module-gates/runs/plugin-host-formal-20260821-002/unit-property-contract.command.json
+?? plugin-host-rs/evidence/module-gates/runs/plugin-host-formal-20260821-002/working-tree-status.txt
+?? plugin-host-rs/module-findings.json
+?? plugin-host-rs/requirements-traceability.json
+?? plugin-host-rs/rust-toolchain.toml
+?? plugin-host-rs/scripts/build-module-summary.py
+?? plugin-host-rs/scripts/build-traceability.py
+?? plugin-host-rs/scripts/check-source-sentinels.py
+?? plugin-host-rs/scripts/run-deep-checks.sh
+?? plugin-host-rs/scripts/run-evidence-integrity.sh
+?? plugin-host-rs/scripts/run-module-gates.sh
+?? plugin-host-rs/scripts/run-oci-smoke.sh
+?? plugin-host-rs/scripts/run-performance.sh
+?? plugin-host-rs/scripts/run-soak.sh
+?? plugin-host-rs/scripts/run-supply-chain.sh
+?? plugin-host-rs/scripts/test-evidence-tools.py
+?? plugin-host-rs/scripts/validate-contracts.py
+?? plugin-host-rs/scripts/validate-json.py
+?? plugin-host-rs/scripts/validate-module-evidence.py
+?? plugin-host-rs/scripts/validate-static-evidence.py
+?? plugin-host-rs/scripts/verify-supply-chain.py
+?? plugin-host-rs/src/admission.rs
+?? plugin-host-rs/src/bin/hostctl.rs
+?? plugin-host-rs/src/bin/service_fixture.rs
+?? plugin-host-rs/src/config.rs
+?? plugin-host-rs/src/contract.rs
+?? plugin-host-rs/src/error.rs
+?? plugin-host-rs/src/health.rs
+?? plugin-host-rs/src/lib.rs
+?? plugin-host-rs/src/main.rs
+?? plugin-host-rs/src/metrics.rs
+?? plugin-host-rs/src/runtime/mod.rs
+?? plugin-host-rs/src/runtime/service.rs
+?? plugin-host-rs/src/runtime/wasm.rs
+?? plugin-host-rs/src/server.rs
+?? plugin-host-rs/src/state.rs
+?? plugin-host-rs/src/statistics.rs
+?? plugin-host-rs/tests/contract_golden.rs
+?? plugin-host-rs/tests/module_blackbox.rs
+?? plugin-host-rs/tests/performance.rs
+?? plugin-host-rs/tests/property.proptest-regressions
+?? plugin-host-rs/tests/property.rs
+?? plugin-host-rs/tests/soak.rs
+?? plugin-host-rs/tests/support/mod.rs

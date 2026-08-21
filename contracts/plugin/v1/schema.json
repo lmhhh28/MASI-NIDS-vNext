@@ -37,7 +37,11 @@
     "resource_profile_digest": {"$ref": "#/$defs/digest"},
     "binding_generation": {"type": "integer", "minimum": 1},
     "activation_state": {
-      "enum": ["active", "drain", "revoked", "stale", "unqualified"]
+      "enum": [
+        "registered", "verified", "staged", "shadow", "active", "draining",
+        "disabled", "revoked", "failed", "quarantined", "stale", "unqualified",
+        "drain"
+      ]
     },
     "qualification_status": {"enum": ["qualified", "unqualified", "hold"]},
     "qualification_digest": {"$ref": "#/$defs/digest"},

@@ -1,0 +1,89 @@
+info: cargo-llvm-cov currently setting cfg(coverage); you can opt-out it by passing --no-cfg-coverage
+   Compiling masi-plugin-host v0.1.0 (/home/lmhhh/MASI-NIDS-vNext/plugin-host-rs)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 17.12s
+     Running unittests src/lib.rs (target/llvm-cov-target/debug/deps/masi_plugin_host-6e439d1c13cc3ee8)
+
+running 15 tests
+test admission::tests::capability_digest_is_order_independent ... ok
+test admission::tests::envelope_digest_excludes_only_claimed_digest ... ok
+test config::tests::digest_is_strict ... ok
+test config::tests::rejects_symlink_boundary ... ok
+test metrics::tests::labels_are_closed_and_low_cardinality ... ok
+test runtime::service::tests::regular_file_is_not_a_socket ... ok
+test runtime::wasm::tests::enforces_linear_memory_limit_without_process_oom ... ok
+test runtime::wasm::tests::enforces_output_limit ... ok
+test runtime::wasm::tests::executes_component_without_imports ... ok
+test runtime::wasm::tests::maps_fuel_deadline_cancel_and_epoch_distinctly ... ok
+test runtime::wasm::tests::rejects_any_host_import ... ok
+test state::tests::lifecycle_is_monotonic ... ok
+test state::tests::queue_counter_is_bounded ... ok
+test statistics::tests::rejects_duplicate_or_out_of_order_points ... ok
+test statistics::tests::rejects_nan_and_browser_code ... ok
+
+test result: ok. 15 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s
+
+     Running unittests src/main.rs (target/llvm-cov-target/debug/deps/masi_plugin_host-a95c4464d065e611)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/bin/hostctl.rs (target/llvm-cov-target/debug/deps/masi_plugin_hostctl-e2d99ae2fbc6d159)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/bin/service_fixture.rs (target/llvm-cov-target/debug/deps/masi_plugin_service_fixture-d5955f70ff936ce1)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/contract_golden.rs (target/llvm-cov-target/debug/deps/contract_golden-01e562e77846d046)
+
+running 5 tests
+test host_execute_protobuf_golden_is_exact ... ok
+test public_profiles_pin_current_contract_digests ... ok
+test rust_manifest_surface_exactly_matches_strict_required_schema ... ok
+test service_handshake_protobuf_golden_is_exact ... ok
+test statistics_input_bundle_golden_is_exact_and_schema_complete ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+     Running tests/module_blackbox.rs (target/llvm-cov-target/debug/deps/module_blackbox-d70437b8fb61b51e)
+
+running 4 tests
+test admission_negative_matrix_and_restart_quarantine ... ok
+test in_process_generation_monotonicity_and_explicit_rollback ... ok
+test real_process_mtls_lifecycle_service_statistics_and_isolation ... ok
+test service_faults_cancellation_quarantine_and_trust_reconcile_are_bounded ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.65s
+
+     Running tests/performance.rs (target/llvm-cov-target/debug/deps/performance-b416f03c22373cd6)
+
+running 1 test
+test bounded_concurrency_batch_and_saturation_matrix ... ignored, formal bounded performance gate
+
+test result: ok. 0 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/property.rs (target/llvm-cov-target/debug/deps/property-b30de462292dbbfd)
+
+running 4 tests
+test capability_digest_is_permutation_stable ... ok
+test error_messages_are_bounded ... ok
+test sha256_text_is_always_canonical ... ok
+test stable_reason_codes_are_unique_and_closed ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.68s
+
+     Running tests/soak.rs (target/llvm-cov-target/debug/deps/soak-09154dda2b71b540)
+
+running 1 test
+test formal_four_stage_soak ... ignored, formal 60-second warmup plus four 900-second stages
+
+test result: ok. 0 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+    Finished report saved to /home/lmhhh/MASI-NIDS-vNext/plugin-host-rs/evidence/module-gates/runs/plugin-host-formal-20260821-004/deep/coverage.json

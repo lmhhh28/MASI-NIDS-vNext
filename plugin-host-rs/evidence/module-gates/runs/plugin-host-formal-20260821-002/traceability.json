@@ -1,0 +1,5109 @@
+{
+  "artifacts": [
+    {
+      "bytes": 15586,
+      "media_type": "application/json",
+      "path": "plugin-host-rs/requirements-traceability.json",
+      "sha256": "sha256:04eb8ff8b2d784a21a84aed5e63a65b601a61d9ccca78c5448fead42e1aa8d28"
+    },
+    {
+      "bytes": 6801,
+      "media_type": "application/json",
+      "path": "plugin-host-rs/module-findings.json",
+      "sha256": "sha256:0c73c75128b78e2271113d128b5125fd83c12a276ded205b82566fd539ca8d1c"
+    },
+    {
+      "bytes": 955,
+      "media_type": "application/json",
+      "path": "clippy.command.json",
+      "sha256": "sha256:fe55a56ef1ad8adfc2f3d546c959f4615e13a9075497c01feaa6e1c52e9c6ed4"
+    },
+    {
+      "bytes": 72,
+      "media_type": "text/plain",
+      "path": "clippy.log",
+      "sha256": "sha256:a5f4c585ee974ca44916ac30a98bbc189e067a7e0a6bc6d2e8d6bc525be724af"
+    },
+    {
+      "bytes": 880,
+      "media_type": "application/json",
+      "path": "contract-schema.command.json",
+      "sha256": "sha256:296ac1958f5e9a48b965e12d37dc89cbf5098ee82add48aa07de58f1dcba4123"
+    },
+    {
+      "bytes": 1205,
+      "media_type": "text/plain",
+      "path": "contract-schema.log",
+      "sha256": "sha256:225e4ee3788ed8d0f1959c15f6b26c39b6465a37f66b8aa726c36b4127b57b0a"
+    },
+    {
+      "bytes": 1014,
+      "media_type": "application/json",
+      "path": "deep-checks.command.json",
+      "sha256": "sha256:acd551ad7b2c49cf78ccd2ae482c22f2d1817e77e0fbe03fc43235120b99b164"
+    },
+    {
+      "bytes": 73,
+      "media_type": "text/plain",
+      "path": "deep-checks.log",
+      "sha256": "sha256:c54bca583a9d23820c9d8858904516dd7eb17cd03743eb3e3647853cac574a31"
+    },
+    {
+      "bytes": 949,
+      "media_type": "application/json",
+      "path": "findings.command.json",
+      "sha256": "sha256:4b042a790e29293a81febc0e5c09ee90ea23450862e8db9035e61203f9117f68"
+    },
+    {
+      "bytes": 43,
+      "media_type": "text/plain",
+      "path": "findings.log",
+      "sha256": "sha256:f8e6327f605486763bfc52156b77bb4e967cb50d91a552151709b7eff3d6fa9f"
+    },
+    {
+      "bytes": 1017,
+      "media_type": "application/json",
+      "path": "formal-soak.command.json",
+      "sha256": "sha256:d9f2782f5e7cd878d5721d22ce1364a6e6f9a70cd94faf7c21d08671dccd2360"
+    },
+    {
+      "bytes": 427,
+      "media_type": "text/plain",
+      "path": "formal-soak.log",
+      "sha256": "sha256:6a085edb3913a40324841f2b5e96bdfa500d9c8a5b10d386b45cdec2c01e5efe"
+    },
+    {
+      "bytes": 910,
+      "media_type": "application/json",
+      "path": "format.command.json",
+      "sha256": "sha256:707f6908bb5cce014c162069c6b5313ba3def760b46f3ed870603cc063e111fa"
+    },
+    {
+      "bytes": 0,
+      "media_type": "text/plain",
+      "path": "format.log",
+      "sha256": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 1074,
+      "media_type": "application/json",
+      "path": "oci-smoke.command.json",
+      "sha256": "sha256:5e6dd378b816a1b45cef2ad7057743ba3f1e889469a07a4a9d404f006dfdbadb"
+    },
+    {
+      "bytes": 11936,
+      "media_type": "text/plain",
+      "path": "oci-smoke.log",
+      "sha256": "sha256:b09ce8e39cf60b02037adbdaf26c4bd513a4baed8d814463f3ad54b02c08502b"
+    },
+    {
+      "bytes": 1028,
+      "media_type": "application/json",
+      "path": "performance.command.json",
+      "sha256": "sha256:c3388e0b61430cddd4f11b1f3358bb8caa2f9a7e3651f5db8d2f8fa16f44b2af"
+    },
+    {
+      "bytes": 401,
+      "media_type": "text/plain",
+      "path": "performance.log",
+      "sha256": "sha256:4b591a8d9827ef103cee30741b7b412d3bc2eff9f3b2fe63ba45ab1951c5169e"
+    },
+    {
+      "bytes": 1264,
+      "media_type": "application/json",
+      "path": "release-blackbox.command.json",
+      "sha256": "sha256:03fb23df8e4b59dfd36eb15e0d74cad9fafde1560f2f111d77d83afb82901c45"
+    },
+    {
+      "bytes": 553,
+      "media_type": "text/plain",
+      "path": "release-blackbox.log",
+      "sha256": "sha256:526f1d1bdbbc1573a8c0719f6734e57c0ee163cb04681de62634bae634557734"
+    },
+    {
+      "bytes": 936,
+      "media_type": "application/json",
+      "path": "release-build.command.json",
+      "sha256": "sha256:11e6dd8738850428761a373a7fb617830094f2dcbdfd7c2329699444b23dc695"
+    },
+    {
+      "bytes": 62,
+      "media_type": "text/plain",
+      "path": "release-build.log",
+      "sha256": "sha256:765f1396d07f30f3a451cd3f9d9cad4e83c92c8e0aecf955ffc09061a6cf1e02"
+    },
+    {
+      "bytes": 974,
+      "media_type": "application/json",
+      "path": "rustdoc.command.json",
+      "sha256": "sha256:7e08ecde5108553e20b698e307960cf56ed4749f7b91a5bb1084b35a7ab19494"
+    },
+    {
+      "bytes": 267,
+      "media_type": "text/plain",
+      "path": "rustdoc.log",
+      "sha256": "sha256:de8ed866606baeea6546127a903b08bf473928511ab6d5b45b443e595ed9b1b5"
+    },
+    {
+      "bytes": 884,
+      "media_type": "application/json",
+      "path": "source-sentinels.command.json",
+      "sha256": "sha256:fcbb51ab39bafc2640627606b9735973f5a217d98258d4123b5beff00f7f3997"
+    },
+    {
+      "bytes": 35,
+      "media_type": "text/plain",
+      "path": "source-sentinels.log",
+      "sha256": "sha256:45e0ba22d78f3354778483816315c0bc8c58412f60675423626d7dd53be77e12"
+    },
+    {
+      "bytes": 1086,
+      "media_type": "application/json",
+      "path": "supply-chain.command.json",
+      "sha256": "sha256:d71397527549b186d3147df648dd9271e30867df0ba079e63e34943b7a14ef1c"
+    },
+    {
+      "bytes": 3349,
+      "media_type": "text/plain",
+      "path": "supply-chain.log",
+      "sha256": "sha256:e6e04c71dc97a9fdd31b5927deb4f176abb5db114ea940568212cc286e626ede"
+    },
+    {
+      "bytes": 961,
+      "media_type": "application/json",
+      "path": "traceability.command.json",
+      "sha256": "sha256:e2952bea2d68a5117bb89f132bd99e5db350ec17902322d0e98f606712dec975"
+    },
+    {
+      "bytes": 47,
+      "media_type": "text/plain",
+      "path": "traceability.log",
+      "sha256": "sha256:dd7170a449a69c7d87609e5b20da7d5d7b5ada8f7398d3ac50325cd9e7b69f78"
+    },
+    {
+      "bytes": 1002,
+      "media_type": "application/json",
+      "path": "unit-property-contract.command.json",
+      "sha256": "sha256:09f37a8615d327540776a38ac9927964e13faf7e34b55c45e2ddc85986d0a698"
+    },
+    {
+      "bytes": 3505,
+      "media_type": "text/plain",
+      "path": "unit-property-contract.log",
+      "sha256": "sha256:9d2c60cf232540ac9f73a57944457a38d6d2f141d14c7b71546ce19caefbe688"
+    }
+  ],
+  "conditional_applicability": [
+    {
+      "applicability": "NOT_APPLICABLE",
+      "profile": "analysis-agent-host-proxy/v1",
+      "result": "NOT_RUN",
+      "stable_reason": "DIRECT_TYPED_ADAPTER_REQUIRED"
+    },
+    {
+      "applicability": "NOT_APPLICABLE",
+      "profile": "wasi-0-3/v1",
+      "result": "NOT_RUN",
+      "stable_reason": "WASI_0_2_FIRST_RELEASE_PROFILE"
+    },
+    {
+      "applicability": "NOT_APPLICABLE",
+      "profile": "cross-host-service-mtls/v1",
+      "result": "NOT_RUN",
+      "stable_reason": "SAME_HOST_UDS_ACCEPTANCE_PROFILE"
+    },
+    {
+      "applicability": "NOT_APPLICABLE",
+      "profile": "production-ha/v1",
+      "result": "NOT_RUN",
+      "stable_reason": "SINGLE_FAILURE_DOMAIN_HOST"
+    },
+    {
+      "applicability": "NOT_APPLICABLE",
+      "profile": "external-source-readonly/v1",
+      "result": "NOT_RUN",
+      "stable_reason": "PURE_TRANSFORM_CONFORMANCE_BINDING"
+    },
+    {
+      "applicability": "NOT_APPLICABLE",
+      "profile": "effectful-plugin/v1",
+      "result": "NOT_RUN",
+      "stable_reason": "FIRST_RELEASE_KINDS_HAVE_NO_EFFECTS"
+    }
+  ],
+  "evidence_root": "plugin-host-rs/evidence/module-gates/runs/plugin-host-formal-20260821-002",
+  "failures": [],
+  "manifest": "plugin-host-rs/requirements-traceability.json",
+  "manifest_digest": "sha256:04eb8ff8b2d784a21a84aed5e63a65b601a61d9ccca78c5448fead42e1aa8d28",
+  "module_id": "MOD-PLUGIN-001",
+  "qualification": "NOT_QUALIFIED",
+  "requirement_ids": [
+    "MOD-PLUGIN-001",
+    "ARCH-003",
+    "ARCH-005",
+    "ARCH-PLUGIN-001",
+    "ARCH-REUSE-001",
+    "CONTRACT-001",
+    "CONTRACT-PROFILE-001",
+    "CONTRACT-PLUGIN-001",
+    "CONTRACT-PLUGIN-002",
+    "CONTRACT-PLUGIN-STAT-001",
+    "PLUGIN-STAT-001",
+    "PLUGIN-PLAT-001",
+    "PLUGIN-PLAT-002",
+    "PLUGIN-PLAT-003",
+    "PLUGIN-PLAT-004",
+    "PLUGIN-PLAT-005",
+    "PLUGIN-PLAT-006",
+    "PERF-PLUGIN-001",
+    "PERF-PLUGIN-STAT-001",
+    "REL-PLUGIN-001",
+    "REL-PLUGIN-STAT-001",
+    "SEC-001",
+    "SEC-004",
+    "SEC-005",
+    "SEC-PLUGIN-001",
+    "SEC-PLUGIN-002",
+    "SEC-PLUGIN-STAT-001",
+    "SEC-SUPPLY-001",
+    "DEP-PLUGIN-001",
+    "MIG-PLUGIN-001",
+    "TEST-003",
+    "TEST-007",
+    "TEST-008",
+    "TEST-009",
+    "TEST-010",
+    "TEST-GATE-001",
+    "TEST-REAL-E2E-001",
+    "TEST-REUSE-001",
+    "TEST-PLUGIN-001",
+    "TEST-PLUGIN-STAT-001"
+  ],
+  "requirements": [
+    {
+      "evidence": [
+        {
+          "command_evidence_digest": "sha256:296ac1958f5e9a48b965e12d37dc89cbf5098ee82add48aa07de58f1dcba4123",
+          "command_evidence_path": "contract-schema.command.json",
+          "command_id": "contract-schema",
+          "exit_code": 0,
+          "kind": "execution-log",
+          "log_digest": "sha256:225e4ee3788ed8d0f1959c15f6b26c39b6465a37f66b8aa726c36b4127b57b0a",
+          "path": "contract-schema.log",
+          "qualification": "QUALIFIED",
+          "requirement_ids": [
+            "MOD-PLUGIN-001"
+          ],
+          "result": "PASS",
+          "schema_version": null,
+          "test_id": "TEST-HOST-MODULE-GATES-001"
+        },
+        {
+          "command_evidence_digest": "sha256:03fb23df8e4b59dfd36eb15e0d74cad9fafde1560f2f111d77d83afb82901c45",
+          "command_evidence_path": "release-blackbox.command.json",
+          "command_id": "release-blackbox",
+          "exit_code": 0,
+          "kind": "execution-log",
+          "log_digest": "sha256:526f1d1bdbbc1573a8c0719f6734e57c0ee163cb04681de62634bae634557734",
+          "path": "release-blackbox.log",
+          "qualification": "QUALIFIED",
+          "requirement_ids": [
+            "MOD-PLUGIN-001"
+          ],
+          "result": "PASS",
+          "schema_version": null,
+          "test_id": "TEST-HOST-MODULE-GATES-001"
+        },
+        {
+          "command_evidence_digest": "sha256:c3388e0b61430cddd4f11b1f3358bb8caa2f9a7e3651f5db8d2f8fa16f44b2af",
+          "command_evidence_path": "performance.command.json",
+          "command_id": "performance",
+          "exit_code": 0,
+          "kind": "execution-log",
+          "log_digest": "sha256:4b591a8d9827ef103cee30741b7b412d3bc2eff9f3b2fe63ba45ab1951c5169e",
+          "path": "performance.log",
+          "qualification": "QUALIFIED",
+          "requirement_ids": [
+            "MOD-PLUGIN-001"
+          ],
+          "result": "PASS",
+          "schema_version": null,
+          "test_id": "TEST-HOST-MODULE-GATES-001"
+        },
+        {
+          "command_evidence_digest": "sha256:5e6dd378b816a1b45cef2ad7057743ba3f1e889469a07a4a9d404f006dfdbadb",
+          "command_evidence_path": "oci-smoke.command.json",
+          "command_id": "oci-smoke",
+          "exit_code": 0,
+          "kind": "execution-log",
+          "log_digest": "sha256:b09ce8e39cf60b02037adbdaf26c4bd513a4baed8d814463f3ad54b02c08502b",
+          "path": "oci-smoke.log",
+          "qualification": "QUALIFIED",
+          "requirement_ids": [
+            "MOD-PLUGIN-001"
+          ],
+          "result": "PASS",
+          "schema_version": null,
+          "test_id": "TEST-HOST-MODULE-GATES-001"
+        },
+        {
+          "command_evidence_digest": "sha256:d9f2782f5e7cd878d5721d22ce1364a6e6f9a70cd94faf7c21d08671dccd2360",
+          "command_evidence_path": "formal-soak.command.json",
+          "command_id": "formal-soak",
+          "exit_code": 0,
+          "kind": "execution-log",
+          "log_digest": "sha256:6a085edb3913a40324841f2b5e96bdfa500d9c8a5b10d386b45cdec2c01e5efe",
+          "path": "formal-soak.log",
+          "qualification": "QUALIFIED",
+          "requirement_ids": [
+            "MOD-PLUGIN-001"
+          ],
+          "result": "PASS",
+          "schema_version": null,
+          "test_id": "TEST-HOST-MODULE-GATES-001"
+        }
+      ],
+      "evidence_result": "PASS",
+      "qualification": "QUALIFIED",
+      "qualification_limit": "independent Plugin Runtime Host operational completion; Go Manager, Analysis and formal pairwise/system qualification remain separate",
+      "requirement_id": "MOD-PLUGIN-001",
+      "scenario_ids": [
+        "TEST-HOST-MODULE-GATES-001"
+      ],
+      "test_targets": [
+        {
+          "command_id": "contract-schema",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "JSON-Schema-2020-12"
+        },
+        {
+          "command_id": "contract-schema",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "Protobuf"
+        },
+        {
+          "command_id": "contract-schema",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "WIT"
+        },
+        {
+          "command_id": "contract-schema",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "profile-digest"
+        },
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "real-release-Host"
+        },
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "real-service-fixture"
+        },
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "TLS1.3"
+        },
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "generation-monotonic-lifecycle"
+        },
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "authorized-rollback"
+        },
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "statistics"
+        },
+        {
+          "command_id": "performance",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "concurrency-1-2-4-8-32"
+        },
+        {
+          "command_id": "performance",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "minimum-typical-maximum"
+        },
+        {
+          "command_id": "performance",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "queue-saturation"
+        },
+        {
+          "command_id": "oci-smoke",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "non-root"
+        },
+        {
+          "command_id": "oci-smoke",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "read-only-rootfs"
+        },
+        {
+          "command_id": "oci-smoke",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "mTLS"
+        },
+        {
+          "command_id": "oci-smoke",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "graceful-stop"
+        },
+        {
+          "command_id": "formal-soak",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "60-second-warmup"
+        },
+        {
+          "command_id": "formal-soak",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "four-times-900-seconds"
+        }
+      ]
+    },
+    {
+      "evidence": [
+        {
+          "command_evidence_digest": "sha256:03fb23df8e4b59dfd36eb15e0d74cad9fafde1560f2f111d77d83afb82901c45",
+          "command_evidence_path": "release-blackbox.command.json",
+          "command_id": "release-blackbox",
+          "exit_code": 0,
+          "kind": "execution-log",
+          "log_digest": "sha256:526f1d1bdbbc1573a8c0719f6734e57c0ee163cb04681de62634bae634557734",
+          "path": "release-blackbox.log",
+          "qualification": "QUALIFIED",
+          "requirement_ids": [
+            "ARCH-003"
+          ],
+          "result": "PASS",
+          "schema_version": null,
+          "test_id": "TEST-HOST-OWNERSHIP-001"
+        },
+        {
+          "command_evidence_digest": "sha256:fcbb51ab39bafc2640627606b9735973f5a217d98258d4123b5beff00f7f3997",
+          "command_evidence_path": "source-sentinels.command.json",
+          "command_id": "source-sentinels",
+          "exit_code": 0,
+          "kind": "execution-log",
+          "log_digest": "sha256:45e0ba22d78f3354778483816315c0bc8c58412f60675423626d7dd53be77e12",
+          "path": "source-sentinels.log",
+          "qualification": "QUALIFIED",
+          "requirement_ids": [
+            "ARCH-003"
+          ],
+          "result": "PASS",
+          "schema_version": null,
+          "test_id": "TEST-HOST-OWNERSHIP-001"
+        }
+      ],
+      "evidence_result": "PASS",
+      "qualification": "QUALIFIED",
+      "qualification_limit": "Host executes admitted plugins only and owns no core PostgreSQL, P4, effect or business fact",
+      "requirement_id": "ARCH-003",
+      "scenario_ids": [
+        "TEST-HOST-OWNERSHIP-001"
+      ],
+      "test_targets": [
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "real-release-Host"
+        },
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "real-service-fixture"
+        },
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "TLS1.3"
+        },
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "generation-monotonic-lifecycle"
+        },
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "authorized-rollback"
+        },
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "statistics"
+        },
+        {
+          "command_id": "source-sentinels",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "no-unfinished-implementation"
+        }
+      ]
+    },
+    {
+      "evidence": [
+        {
+          "command_evidence_digest": "sha256:09f37a8615d327540776a38ac9927964e13faf7e34b55c45e2ddc85986d0a698",
+          "command_evidence_path": "unit-property-contract.command.json",
+          "command_id": "unit-property-contract",
+          "exit_code": 0,
+          "kind": "execution-log",
+          "log_digest": "sha256:9d2c60cf232540ac9f73a57944457a38d6d2f141d14c7b71546ce19caefbe688",
+          "path": "unit-property-contract.log",
+          "qualification": "QUALIFIED",
+          "requirement_ids": [
+            "ARCH-005"
+          ],
+          "result": "PASS",
+          "schema_version": null,
+          "test_id": "TEST-HOST-BOUNDS-001"
+        },
+        {
+          "command_evidence_digest": "sha256:03fb23df8e4b59dfd36eb15e0d74cad9fafde1560f2f111d77d83afb82901c45",
+          "command_evidence_path": "release-blackbox.command.json",
+          "command_id": "release-blackbox",
+          "exit_code": 0,
+          "kind": "execution-log",
+          "log_digest": "sha256:526f1d1bdbbc1573a8c0719f6734e57c0ee163cb04681de62634bae634557734",
+          "path": "release-blackbox.log",
+          "qualification": "QUALIFIED",
+          "requirement_ids": [
+            "ARCH-005"
+          ],
+          "result": "PASS",
+          "schema_version": null,
+          "test_id": "TEST-HOST-BOUNDS-001"
+        },
+        {
+          "command_evidence_digest": "sha256:c3388e0b61430cddd4f11b1f3358bb8caa2f9a7e3651f5db8d2f8fa16f44b2af",
+          "command_evidence_path": "performance.command.json",
+          "command_id": "performance",
+          "exit_code": 0,
+          "kind": "execution-log",
+          "log_digest": "sha256:4b591a8d9827ef103cee30741b7b412d3bc2eff9f3b2fe63ba45ab1951c5169e",
+          "path": "performance.log",
+          "qualification": "QUALIFIED",
+          "requirement_ids": [
+            "ARCH-005"
+          ],
+          "result": "PASS",
+          "schema_version": null,
+          "test_id": "TEST-HOST-BOUNDS-001"
+        },
+        {
+          "command_evidence_digest": "sha256:d9f2782f5e7cd878d5721d22ce1364a6e6f9a70cd94faf7c21d08671dccd2360",
+          "command_evidence_path": "formal-soak.command.json",
+          "command_id": "formal-soak",
+          "exit_code": 0,
+          "kind": "execution-log",
+          "log_digest": "sha256:6a085edb3913a40324841f2b5e96bdfa500d9c8a5b10d386b45cdec2c01e5efe",
+          "path": "formal-soak.log",
+          "qualification": "QUALIFIED",
+          "requirement_ids": [
+            "ARCH-005"
+          ],
+          "result": "PASS",
+          "schema_version": null,
+          "test_id": "TEST-HOST-BOUNDS-001"
+        }
+      ],
+      "evidence_result": "PASS",
+      "qualification": "QUALIFIED",
+      "qualification_limit": "Host-local connection, queue, in-flight, input, output, deadline, cache and observation bounds",
+      "requirement_id": "ARCH-005",
+      "scenario_ids": [
+        "TEST-HOST-BOUNDS-001"
+      ],
+      "test_targets": [
+        {
+          "command_id": "unit-property-contract",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "unit"
+        },
+        {
+          "command_id": "unit-property-contract",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "property"
+        },
+        {
+          "command_id": "unit-property-contract",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "protobuf-golden"
+        },
+        {
+          "command_id": "unit-property-contract",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "Wasm-error-mapping"
+        },
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "real-release-Host"
+        },
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "real-service-fixture"
+        },
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "TLS1.3"
+        },
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "generation-monotonic-lifecycle"
+        },
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "authorized-rollback"
+        },
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "statistics"
+        },
+        {
+          "command_id": "performance",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "concurrency-1-2-4-8-32"
+        },
+        {
+          "command_id": "performance",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "minimum-typical-maximum"
+        },
+        {
+          "command_id": "performance",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "queue-saturation"
+        },
+        {
+          "command_id": "formal-soak",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "60-second-warmup"
+        },
+        {
+          "command_id": "formal-soak",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "four-times-900-seconds"
+        }
+      ]
+    },
+    {
+      "evidence": [
+        {
+          "command_evidence_digest": "sha256:296ac1958f5e9a48b965e12d37dc89cbf5098ee82add48aa07de58f1dcba4123",
+          "command_evidence_path": "contract-schema.command.json",
+          "command_id": "contract-schema",
+          "exit_code": 0,
+          "kind": "execution-log",
+          "log_digest": "sha256:225e4ee3788ed8d0f1959c15f6b26c39b6465a37f66b8aa726c36b4127b57b0a",
+          "path": "contract-schema.log",
+          "qualification": "QUALIFIED",
+          "requirement_ids": [
+            "ARCH-PLUGIN-001"
+          ],
+          "result": "PASS",
+          "schema_version": null,
+          "test_id": "TEST-HOST-OWNERSHIP-001"
+        },
+        {
+          "command_evidence_digest": "sha256:03fb23df8e4b59dfd36eb15e0d74cad9fafde1560f2f111d77d83afb82901c45",
+          "command_evidence_path": "release-blackbox.command.json",
+          "command_id": "release-blackbox",
+          "exit_code": 0,
+          "kind": "execution-log",
+          "log_digest": "sha256:526f1d1bdbbc1573a8c0719f6734e57c0ee163cb04681de62634bae634557734",
+          "path": "release-blackbox.log",
+          "qualification": "QUALIFIED",
+          "requirement_ids": [
+            "ARCH-PLUGIN-001"
+          ],
+          "result": "PASS",
+          "schema_version": null,
+          "test_id": "TEST-HOST-OWNERSHIP-001"
+        }
+      ],
+      "evidence_result": "PASS",
+      "qualification": "QUALIFIED",
+      "qualification_limit": "Wasm and explicit Host-managed service execution isolation; independent Agent business traffic is not proxied",
+      "requirement_id": "ARCH-PLUGIN-001",
+      "scenario_ids": [
+        "TEST-HOST-OWNERSHIP-001"
+      ],
+      "test_targets": [
+        {
+          "command_id": "contract-schema",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "JSON-Schema-2020-12"
+        },
+        {
+          "command_id": "contract-schema",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "Protobuf"
+        },
+        {
+          "command_id": "contract-schema",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "WIT"
+        },
+        {
+          "command_id": "contract-schema",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "profile-digest"
+        },
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "real-release-Host"
+        },
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "real-service-fixture"
+        },
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "TLS1.3"
+        },
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "generation-monotonic-lifecycle"
+        },
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "authorized-rollback"
+        },
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "statistics"
+        }
+      ]
+    },
+    {
+      "evidence": [
+        {
+          "command_evidence_digest": "sha256:acd551ad7b2c49cf78ccd2ae482c22f2d1817e77e0fbe03fc43235120b99b164",
+          "command_evidence_path": "deep-checks.command.json",
+          "command_id": "deep-checks",
+          "exit_code": 0,
+          "kind": "execution-log",
+          "log_digest": "sha256:c54bca583a9d23820c9d8858904516dd7eb17cd03743eb3e3647853cac574a31",
+          "path": "deep-checks.log",
+          "qualification": "QUALIFIED",
+          "requirement_ids": [
+            "ARCH-REUSE-001"
+          ],
+          "result": "PASS",
+          "schema_version": null,
+          "test_id": "TEST-HOST-SUPPLY-001"
+        },
+        {
+          "command_evidence_digest": "sha256:d71397527549b186d3147df648dd9271e30867df0ba079e63e34943b7a14ef1c",
+          "command_evidence_path": "supply-chain.command.json",
+          "command_id": "supply-chain",
+          "exit_code": 0,
+          "kind": "execution-log",
+          "log_digest": "sha256:e6e04c71dc97a9fdd31b5927deb4f176abb5db114ea940568212cc286e626ede",
+          "path": "supply-chain.log",
+          "qualification": "QUALIFIED",
+          "requirement_ids": [
+            "ARCH-REUSE-001"
+          ],
+          "result": "PASS",
+          "schema_version": null,
+          "test_id": "TEST-HOST-SUPPLY-001"
+        }
+      ],
+      "evidence_result": "PASS",
+      "qualification": "QUALIFIED",
+      "qualification_limit": "exact Wasmtime/Tokio/Tonic/Rust adoption without transfer of canonical ownership",
+      "requirement_id": "ARCH-REUSE-001",
+      "scenario_ids": [
+        "TEST-HOST-SUPPLY-001"
+      ],
+      "test_targets": [
+        {
+          "command_id": "deep-checks",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "audit"
+        },
+        {
+          "command_id": "deep-checks",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "license"
+        },
+        {
+          "command_id": "deep-checks",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "coverage"
+        },
+        {
+          "command_id": "deep-checks",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "Valgrind"
+        },
+        {
+          "command_id": "supply-chain",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "SBOM"
+        },
+        {
+          "command_id": "supply-chain",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "Trivy"
+        },
+        {
+          "command_id": "supply-chain",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "Cosign"
+        },
+        {
+          "command_id": "supply-chain",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "offline-verification"
+        }
+      ]
+    },
+    {
+      "evidence": [
+        {
+          "command_evidence_digest": "sha256:296ac1958f5e9a48b965e12d37dc89cbf5098ee82add48aa07de58f1dcba4123",
+          "command_evidence_path": "contract-schema.command.json",
+          "command_id": "contract-schema",
+          "exit_code": 0,
+          "kind": "execution-log",
+          "log_digest": "sha256:225e4ee3788ed8d0f1959c15f6b26c39b6465a37f66b8aa726c36b4127b57b0a",
+          "path": "contract-schema.log",
+          "qualification": "QUALIFIED",
+          "requirement_ids": [
+            "CONTRACT-001"
+          ],
+          "result": "PASS",
+          "schema_version": null,
+          "test_id": "TEST-HOST-CONTRACT-GOLDEN-001"
+        },
+        {
+          "command_evidence_digest": "sha256:09f37a8615d327540776a38ac9927964e13faf7e34b55c45e2ddc85986d0a698",
+          "command_evidence_path": "unit-property-contract.command.json",
+          "command_id": "unit-property-contract",
+          "exit_code": 0,
+          "kind": "execution-log",
+          "log_digest": "sha256:9d2c60cf232540ac9f73a57944457a38d6d2f141d14c7b71546ce19caefbe688",
+          "path": "unit-property-contract.log",
+          "qualification": "QUALIFIED",
+          "requirement_ids": [
+            "CONTRACT-001"
+          ],
+          "result": "PASS",
+          "schema_version": null,
+          "test_id": "TEST-HOST-CONTRACT-GOLDEN-001"
+        }
+      ],
+      "evidence_result": "PASS",
+      "qualification": "QUALIFIED",
+      "qualification_limit": "public Protobuf, JSON Schema and WIT sources with explicit adapters",
+      "requirement_id": "CONTRACT-001",
+      "scenario_ids": [
+        "TEST-HOST-CONTRACT-GOLDEN-001"
+      ],
+      "test_targets": [
+        {
+          "command_id": "contract-schema",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "JSON-Schema-2020-12"
+        },
+        {
+          "command_id": "contract-schema",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "Protobuf"
+        },
+        {
+          "command_id": "contract-schema",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "WIT"
+        },
+        {
+          "command_id": "contract-schema",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "profile-digest"
+        },
+        {
+          "command_id": "unit-property-contract",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "unit"
+        },
+        {
+          "command_id": "unit-property-contract",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "property"
+        },
+        {
+          "command_id": "unit-property-contract",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "protobuf-golden"
+        },
+        {
+          "command_id": "unit-property-contract",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "Wasm-error-mapping"
+        }
+      ]
+    },
+    {
+      "evidence": [
+        {
+          "command_evidence_digest": "sha256:296ac1958f5e9a48b965e12d37dc89cbf5098ee82add48aa07de58f1dcba4123",
+          "command_evidence_path": "contract-schema.command.json",
+          "command_id": "contract-schema",
+          "exit_code": 0,
+          "kind": "execution-log",
+          "log_digest": "sha256:225e4ee3788ed8d0f1959c15f6b26c39b6465a37f66b8aa726c36b4127b57b0a",
+          "path": "contract-schema.log",
+          "qualification": "QUALIFIED",
+          "requirement_ids": [
+            "CONTRACT-PROFILE-001"
+          ],
+          "result": "PASS",
+          "schema_version": null,
+          "test_id": "TEST-HOST-CONTRACT-GOLDEN-001"
+        },
+        {
+          "command_evidence_digest": "sha256:09f37a8615d327540776a38ac9927964e13faf7e34b55c45e2ddc85986d0a698",
+          "command_evidence_path": "unit-property-contract.command.json",
+          "command_id": "unit-property-contract",
+          "exit_code": 0,
+          "kind": "execution-log",
+          "log_digest": "sha256:9d2c60cf232540ac9f73a57944457a38d6d2f141d14c7b71546ce19caefbe688",
+          "path": "unit-property-contract.log",
+          "qualification": "QUALIFIED",
+          "requirement_ids": [
+            "CONTRACT-PROFILE-001"
+          ],
+          "result": "PASS",
+          "schema_version": null,
+          "test_id": "TEST-HOST-CONTRACT-GOLDEN-001"
+        }
+      ],
+      "evidence_result": "PASS",
+      "qualification": "QUALIFIED",
+      "qualification_limit": "exact runtime, service, statistics and display profiles; unknown major fails closed",
+      "requirement_id": "CONTRACT-PROFILE-001",
+      "scenario_ids": [
+        "TEST-HOST-CONTRACT-GOLDEN-001"
+      ],
+      "test_targets": [
+        {
+          "command_id": "contract-schema",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "JSON-Schema-2020-12"
+        },
+        {
+          "command_id": "contract-schema",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "Protobuf"
+        },
+        {
+          "command_id": "contract-schema",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "WIT"
+        },
+        {
+          "command_id": "contract-schema",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "profile-digest"
+        },
+        {
+          "command_id": "unit-property-contract",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "unit"
+        },
+        {
+          "command_id": "unit-property-contract",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "property"
+        },
+        {
+          "command_id": "unit-property-contract",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "protobuf-golden"
+        },
+        {
+          "command_id": "unit-property-contract",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "Wasm-error-mapping"
+        }
+      ]
+    },
+    {
+      "evidence": [
+        {
+          "command_evidence_digest": "sha256:296ac1958f5e9a48b965e12d37dc89cbf5098ee82add48aa07de58f1dcba4123",
+          "command_evidence_path": "contract-schema.command.json",
+          "command_id": "contract-schema",
+          "exit_code": 0,
+          "kind": "execution-log",
+          "log_digest": "sha256:225e4ee3788ed8d0f1959c15f6b26c39b6465a37f66b8aa726c36b4127b57b0a",
+          "path": "contract-schema.log",
+          "qualification": "QUALIFIED",
+          "requirement_ids": [
+            "CONTRACT-PLUGIN-001"
+          ],
+          "result": "PASS",
+          "schema_version": null,
+          "test_id": "TEST-HOST-ADMISSION-REJECT-001"
+        },
+        {
+          "command_evidence_digest": "sha256:03fb23df8e4b59dfd36eb15e0d74cad9fafde1560f2f111d77d83afb82901c45",
+          "command_evidence_path": "release-blackbox.command.json",
+          "command_id": "release-blackbox",
+          "exit_code": 0,
+          "kind": "execution-log",
+          "log_digest": "sha256:526f1d1bdbbc1573a8c0719f6734e57c0ee163cb04681de62634bae634557734",
+          "path": "release-blackbox.log",
+          "qualification": "QUALIFIED",
+          "requirement_ids": [
+            "CONTRACT-PLUGIN-001"
+          ],
+          "result": "PASS",
+          "schema_version": null,
+          "test_id": "TEST-HOST-ADMISSION-REJECT-001"
+        }
+      ],
+      "evidence_result": "PASS",
+      "qualification": "QUALIFIED",
+      "qualification_limit": "Host admission subset of manifest/config/artifact/trust/capability closure",
+      "requirement_id": "CONTRACT-PLUGIN-001",
+      "scenario_ids": [
+        "TEST-HOST-ADMISSION-REJECT-001"
+      ],
+      "test_targets": [
+        {
+          "command_id": "contract-schema",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "JSON-Schema-2020-12"
+        },
+        {
+          "command_id": "contract-schema",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "Protobuf"
+        },
+        {
+          "command_id": "contract-schema",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "WIT"
+        },
+        {
+          "command_id": "contract-schema",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "profile-digest"
+        },
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "real-release-Host"
+        },
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "real-service-fixture"
+        },
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "TLS1.3"
+        },
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "generation-monotonic-lifecycle"
+        },
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "authorized-rollback"
+        },
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "statistics"
+        }
+      ]
+    },
+    {
+      "evidence": [
+        {
+          "command_evidence_digest": "sha256:296ac1958f5e9a48b965e12d37dc89cbf5098ee82add48aa07de58f1dcba4123",
+          "command_evidence_path": "contract-schema.command.json",
+          "command_id": "contract-schema",
+          "exit_code": 0,
+          "kind": "execution-log",
+          "log_digest": "sha256:225e4ee3788ed8d0f1959c15f6b26c39b6465a37f66b8aa726c36b4127b57b0a",
+          "path": "contract-schema.log",
+          "qualification": "QUALIFIED",
+          "requirement_ids": [
+            "CONTRACT-PLUGIN-002"
+          ],
+          "result": "PASS",
+          "schema_version": null,
+          "test_id": "TEST-HOST-WASM-SERVICE-001"
+        },
+        {
+          "command_evidence_digest": "sha256:09f37a8615d327540776a38ac9927964e13faf7e34b55c45e2ddc85986d0a698",
+          "command_evidence_path": "unit-property-contract.command.json",
+          "command_id": "unit-property-contract",
+          "exit_code": 0,
+          "kind": "execution-log",
+          "log_digest": "sha256:9d2c60cf232540ac9f73a57944457a38d6d2f141d14c7b71546ce19caefbe688",
+          "path": "unit-property-contract.log",
+          "qualification": "QUALIFIED",
+          "requirement_ids": [
+            "CONTRACT-PLUGIN-002"
+          ],
+          "result": "PASS",
+          "schema_version": null,
+          "test_id": "TEST-HOST-WASM-SERVICE-001"
+        },
+        {
+          "command_evidence_digest": "sha256:03fb23df8e4b59dfd36eb15e0d74cad9fafde1560f2f111d77d83afb82901c45",
+          "command_evidence_path": "release-blackbox.command.json",
+          "command_id": "release-blackbox",
+          "exit_code": 0,
+          "kind": "execution-log",
+          "log_digest": "sha256:526f1d1bdbbc1573a8c0719f6734e57c0ee163cb04681de62634bae634557734",
+          "path": "release-blackbox.log",
+          "qualification": "QUALIFIED",
+          "requirement_ids": [
+            "CONTRACT-PLUGIN-002"
+          ],
+          "result": "PASS",
+          "schema_version": null,
+          "test_id": "TEST-HOST-WASM-SERVICE-001"
+        }
+      ],
+      "evidence_result": "PASS",
+      "qualification": "QUALIFIED",
+      "qualification_limit": "Host runtime/lifecycle/errors for wasm-component/v1 and grpc-service/v1",
+      "requirement_id": "CONTRACT-PLUGIN-002",
+      "scenario_ids": [
+        "TEST-HOST-WASM-SERVICE-001"
+      ],
+      "test_targets": [
+        {
+          "command_id": "contract-schema",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "JSON-Schema-2020-12"
+        },
+        {
+          "command_id": "contract-schema",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "Protobuf"
+        },
+        {
+          "command_id": "contract-schema",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "WIT"
+        },
+        {
+          "command_id": "contract-schema",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "profile-digest"
+        },
+        {
+          "command_id": "unit-property-contract",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "unit"
+        },
+        {
+          "command_id": "unit-property-contract",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "property"
+        },
+        {
+          "command_id": "unit-property-contract",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "protobuf-golden"
+        },
+        {
+          "command_id": "unit-property-contract",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "Wasm-error-mapping"
+        },
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "real-release-Host"
+        },
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "real-service-fixture"
+        },
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "TLS1.3"
+        },
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "generation-monotonic-lifecycle"
+        },
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "authorized-rollback"
+        },
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "statistics"
+        }
+      ]
+    },
+    {
+      "evidence": [
+        {
+          "command_evidence_digest": "sha256:296ac1958f5e9a48b965e12d37dc89cbf5098ee82add48aa07de58f1dcba4123",
+          "command_evidence_path": "contract-schema.command.json",
+          "command_id": "contract-schema",
+          "exit_code": 0,
+          "kind": "execution-log",
+          "log_digest": "sha256:225e4ee3788ed8d0f1959c15f6b26c39b6465a37f66b8aa726c36b4127b57b0a",
+          "path": "contract-schema.log",
+          "qualification": "QUALIFIED",
+          "requirement_ids": [
+            "CONTRACT-PLUGIN-STAT-001"
+          ],
+          "result": "PASS",
+          "schema_version": null,
+          "test_id": "TEST-HOST-STATISTICS-CONFORMANCE-001"
+        },
+        {
+          "command_evidence_digest": "sha256:03fb23df8e4b59dfd36eb15e0d74cad9fafde1560f2f111d77d83afb82901c45",
+          "command_evidence_path": "release-blackbox.command.json",
+          "command_id": "release-blackbox",
+          "exit_code": 0,
+          "kind": "execution-log",
+          "log_digest": "sha256:526f1d1bdbbc1573a8c0719f6734e57c0ee163cb04681de62634bae634557734",
+          "path": "release-blackbox.log",
+          "qualification": "QUALIFIED",
+          "requirement_ids": [
+            "CONTRACT-PLUGIN-STAT-001"
+          ],
+          "result": "PASS",
+          "schema_version": null,
+          "test_id": "TEST-HOST-STATISTICS-CONFORMANCE-001"
+        },
+        {
+          "command_evidence_digest": "sha256:c3388e0b61430cddd4f11b1f3358bb8caa2f9a7e3651f5db8d2f8fa16f44b2af",
+          "command_evidence_path": "performance.command.json",
+          "command_id": "performance",
+          "exit_code": 0,
+          "kind": "execution-log",
+          "log_digest": "sha256:4b591a8d9827ef103cee30741b7b412d3bc2eff9f3b2fe63ba45ab1951c5169e",
+          "path": "performance.log",
+          "qualification": "QUALIFIED",
+          "requirement_ids": [
+            "CONTRACT-PLUGIN-STAT-001"
+          ],
+          "result": "PASS",
+          "schema_version": null,
+          "test_id": "TEST-HOST-STATISTICS-CONFORMANCE-001"
+        }
+      ],
+      "evidence_result": "PASS",
+      "qualification": "QUALIFIED",
+      "qualification_limit": "Host frozen-input, execution and bounded Artifact finalization slice; Go persistence and Web display are separate",
+      "requirement_id": "CONTRACT-PLUGIN-STAT-001",
+      "scenario_ids": [
+        "TEST-HOST-STATISTICS-CONFORMANCE-001"
+      ],
+      "test_targets": [
+        {
+          "command_id": "contract-schema",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "JSON-Schema-2020-12"
+        },
+        {
+          "command_id": "contract-schema",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "Protobuf"
+        },
+        {
+          "command_id": "contract-schema",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "WIT"
+        },
+        {
+          "command_id": "contract-schema",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "profile-digest"
+        },
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "real-release-Host"
+        },
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "real-service-fixture"
+        },
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "TLS1.3"
+        },
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "generation-monotonic-lifecycle"
+        },
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "authorized-rollback"
+        },
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "statistics"
+        },
+        {
+          "command_id": "performance",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "concurrency-1-2-4-8-32"
+        },
+        {
+          "command_id": "performance",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "minimum-typical-maximum"
+        },
+        {
+          "command_id": "performance",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "queue-saturation"
+        }
+      ]
+    },
+    {
+      "evidence": [
+        {
+          "command_evidence_digest": "sha256:03fb23df8e4b59dfd36eb15e0d74cad9fafde1560f2f111d77d83afb82901c45",
+          "command_evidence_path": "release-blackbox.command.json",
+          "command_id": "release-blackbox",
+          "exit_code": 0,
+          "kind": "execution-log",
+          "log_digest": "sha256:526f1d1bdbbc1573a8c0719f6734e57c0ee163cb04681de62634bae634557734",
+          "path": "release-blackbox.log",
+          "qualification": "QUALIFIED",
+          "requirement_ids": [
+            "PLUGIN-STAT-001"
+          ],
+          "result": "PASS",
+          "schema_version": null,
+          "test_id": "TEST-HOST-STATISTICS-CONFORMANCE-001"
+        },
+        {
+          "command_evidence_digest": "sha256:d9f2782f5e7cd878d5721d22ce1364a6e6f9a70cd94faf7c21d08671dccd2360",
+          "command_evidence_path": "formal-soak.command.json",
+          "command_id": "formal-soak",
+          "exit_code": 0,
+          "kind": "execution-log",
+          "log_digest": "sha256:6a085edb3913a40324841f2b5e96bdfa500d9c8a5b10d386b45cdec2c01e5efe",
+          "path": "formal-soak.log",
+          "qualification": "QUALIFIED",
+          "requirement_ids": [
+            "PLUGIN-STAT-001"
+          ],
+          "result": "PASS",
+          "schema_version": null,
+          "test_id": "TEST-HOST-STATISTICS-CONFORMANCE-001"
+        }
+      ],
+      "evidence_result": "PASS",
+      "qualification": "QUALIFIED",
+      "qualification_limit": "Host-side deterministic statistics execution, validation, provenance and idempotency only",
+      "requirement_id": "PLUGIN-STAT-001",
+      "scenario_ids": [
+        "TEST-HOST-STATISTICS-CONFORMANCE-001"
+      ],
+      "test_targets": [
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "real-release-Host"
+        },
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "real-service-fixture"
+        },
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "TLS1.3"
+        },
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "generation-monotonic-lifecycle"
+        },
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "authorized-rollback"
+        },
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "statistics"
+        },
+        {
+          "command_id": "formal-soak",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "60-second-warmup"
+        },
+        {
+          "command_id": "formal-soak",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "four-times-900-seconds"
+        }
+      ]
+    },
+    {
+      "evidence": [
+        {
+          "command_evidence_digest": "sha256:03fb23df8e4b59dfd36eb15e0d74cad9fafde1560f2f111d77d83afb82901c45",
+          "command_evidence_path": "release-blackbox.command.json",
+          "command_id": "release-blackbox",
+          "exit_code": 0,
+          "kind": "execution-log",
+          "log_digest": "sha256:526f1d1bdbbc1573a8c0719f6734e57c0ee163cb04681de62634bae634557734",
+          "path": "release-blackbox.log",
+          "qualification": "QUALIFIED",
+          "requirement_ids": [
+            "PLUGIN-PLAT-001"
+          ],
+          "result": "PASS",
+          "schema_version": null,
+          "test_id": "TEST-HOST-OWNERSHIP-001"
+        },
+        {
+          "command_evidence_digest": "sha256:5e6dd378b816a1b45cef2ad7057743ba3f1e889469a07a4a9d404f006dfdbadb",
+          "command_evidence_path": "oci-smoke.command.json",
+          "command_id": "oci-smoke",
+          "exit_code": 0,
+          "kind": "execution-log",
+          "log_digest": "sha256:b09ce8e39cf60b02037adbdaf26c4bd513a4baed8d814463f3ad54b02c08502b",
+          "path": "oci-smoke.log",
+          "qualification": "QUALIFIED",
+          "requirement_ids": [
+            "PLUGIN-PLAT-001"
+          ],
+          "result": "PASS",
+          "schema_version": null,
+          "test_id": "TEST-HOST-OWNERSHIP-001"
+        }
+      ],
+      "evidence_result": "PASS",
+      "qualification": "QUALIFIED",
+      "qualification_limit": "independent execution isolation with core continuing outside this process",
+      "requirement_id": "PLUGIN-PLAT-001",
+      "scenario_ids": [
+        "TEST-HOST-OWNERSHIP-001"
+      ],
+      "test_targets": [
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "real-release-Host"
+        },
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "real-service-fixture"
+        },
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "TLS1.3"
+        },
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "generation-monotonic-lifecycle"
+        },
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "authorized-rollback"
+        },
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "statistics"
+        },
+        {
+          "command_id": "oci-smoke",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "non-root"
+        },
+        {
+          "command_id": "oci-smoke",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "read-only-rootfs"
+        },
+        {
+          "command_id": "oci-smoke",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "mTLS"
+        },
+        {
+          "command_id": "oci-smoke",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "graceful-stop"
+        }
+      ]
+    },
+    {
+      "evidence": [
+        {
+          "command_evidence_digest": "sha256:296ac1958f5e9a48b965e12d37dc89cbf5098ee82add48aa07de58f1dcba4123",
+          "command_evidence_path": "contract-schema.command.json",
+          "command_id": "contract-schema",
+          "exit_code": 0,
+          "kind": "execution-log",
+          "log_digest": "sha256:225e4ee3788ed8d0f1959c15f6b26c39b6465a37f66b8aa726c36b4127b57b0a",
+          "path": "contract-schema.log",
+          "qualification": "QUALIFIED",
+          "requirement_ids": [
+            "PLUGIN-PLAT-002"
+          ],
+          "result": "PASS",
+          "schema_version": null,
+          "test_id": "TEST-HOST-KIND-RUNTIME-001"
+        },
+        {
+          "command_evidence_digest": "sha256:03fb23df8e4b59dfd36eb15e0d74cad9fafde1560f2f111d77d83afb82901c45",
+          "command_evidence_path": "release-blackbox.command.json",
+          "command_id": "release-blackbox",
+          "exit_code": 0,
+          "kind": "execution-log",
+          "log_digest": "sha256:526f1d1bdbbc1573a8c0719f6734e57c0ee163cb04681de62634bae634557734",
+          "path": "release-blackbox.log",
+          "qualification": "QUALIFIED",
+          "requirement_ids": [
+            "PLUGIN-PLAT-002"
+          ],
+          "result": "PASS",
+          "schema_version": null,
+          "test_id": "TEST-HOST-KIND-RUNTIME-001"
+        }
+      ],
+      "evidence_result": "PASS",
+      "qualification": "QUALIFIED",
+      "qualification_limit": "closed Host-managed pure-transform/read-only-tool and two exact runtime profiles; Analysis is direct",
+      "requirement_id": "PLUGIN-PLAT-002",
+      "scenario_ids": [
+        "TEST-HOST-KIND-RUNTIME-001"
+      ],
+      "test_targets": [
+        {
+          "command_id": "contract-schema",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "JSON-Schema-2020-12"
+        },
+        {
+          "command_id": "contract-schema",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "Protobuf"
+        },
+        {
+          "command_id": "contract-schema",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "WIT"
+        },
+        {
+          "command_id": "contract-schema",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "profile-digest"
+        },
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "real-release-Host"
+        },
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "real-service-fixture"
+        },
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "TLS1.3"
+        },
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "generation-monotonic-lifecycle"
+        },
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "authorized-rollback"
+        },
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "statistics"
+        }
+      ]
+    },
+    {
+      "evidence": [
+        {
+          "command_evidence_digest": "sha256:09f37a8615d327540776a38ac9927964e13faf7e34b55c45e2ddc85986d0a698",
+          "command_evidence_path": "unit-property-contract.command.json",
+          "command_id": "unit-property-contract",
+          "exit_code": 0,
+          "kind": "execution-log",
+          "log_digest": "sha256:9d2c60cf232540ac9f73a57944457a38d6d2f141d14c7b71546ce19caefbe688",
+          "path": "unit-property-contract.log",
+          "qualification": "QUALIFIED",
+          "requirement_ids": [
+            "PLUGIN-PLAT-003"
+          ],
+          "result": "PASS",
+          "schema_version": null,
+          "test_id": "TEST-HOST-CAPABILITY-DENY-001"
+        },
+        {
+          "command_evidence_digest": "sha256:03fb23df8e4b59dfd36eb15e0d74cad9fafde1560f2f111d77d83afb82901c45",
+          "command_evidence_path": "release-blackbox.command.json",
+          "command_id": "release-blackbox",
+          "exit_code": 0,
+          "kind": "execution-log",
+          "log_digest": "sha256:526f1d1bdbbc1573a8c0719f6734e57c0ee163cb04681de62634bae634557734",
+          "path": "release-blackbox.log",
+          "qualification": "QUALIFIED",
+          "requirement_ids": [
+            "PLUGIN-PLAT-003"
+          ],
+          "result": "PASS",
+          "schema_version": null,
+          "test_id": "TEST-HOST-CAPABILITY-DENY-001"
+        }
+      ],
+      "evidence_result": "PASS",
+      "qualification": "QUALIFIED",
+      "qualification_limit": "default-deny capability, frozen bytes and no DB/P4/effect credentials in Host",
+      "requirement_id": "PLUGIN-PLAT-003",
+      "scenario_ids": [
+        "TEST-HOST-CAPABILITY-DENY-001"
+      ],
+      "test_targets": [
+        {
+          "command_id": "unit-property-contract",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "unit"
+        },
+        {
+          "command_id": "unit-property-contract",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "property"
+        },
+        {
+          "command_id": "unit-property-contract",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "protobuf-golden"
+        },
+        {
+          "command_id": "unit-property-contract",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "Wasm-error-mapping"
+        },
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "real-release-Host"
+        },
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "real-service-fixture"
+        },
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "TLS1.3"
+        },
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "generation-monotonic-lifecycle"
+        },
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "authorized-rollback"
+        },
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "statistics"
+        }
+      ]
+    },
+    {
+      "evidence": [
+        {
+          "command_evidence_digest": "sha256:03fb23df8e4b59dfd36eb15e0d74cad9fafde1560f2f111d77d83afb82901c45",
+          "command_evidence_path": "release-blackbox.command.json",
+          "command_id": "release-blackbox",
+          "exit_code": 0,
+          "kind": "execution-log",
+          "log_digest": "sha256:526f1d1bdbbc1573a8c0719f6734e57c0ee163cb04681de62634bae634557734",
+          "path": "release-blackbox.log",
+          "qualification": "QUALIFIED",
+          "requirement_ids": [
+            "PLUGIN-PLAT-004"
+          ],
+          "result": "PASS",
+          "schema_version": null,
+          "test_id": "TEST-HOST-SUPPLY-001"
+        },
+        {
+          "command_evidence_digest": "sha256:d71397527549b186d3147df648dd9271e30867df0ba079e63e34943b7a14ef1c",
+          "command_evidence_path": "supply-chain.command.json",
+          "command_id": "supply-chain",
+          "exit_code": 0,
+          "kind": "execution-log",
+          "log_digest": "sha256:e6e04c71dc97a9fdd31b5927deb4f176abb5db114ea940568212cc286e626ede",
+          "path": "supply-chain.log",
+          "qualification": "QUALIFIED",
+          "requirement_ids": [
+            "PLUGIN-PLAT-004"
+          ],
+          "result": "PASS",
+          "schema_version": null,
+          "test_id": "TEST-HOST-SUPPLY-001"
+        }
+      ],
+      "evidence_result": "PASS",
+      "qualification": "QUALIFIED",
+      "qualification_limit": "offline signed artifact admission and runtime revocation freshness; Manager authorization is separate",
+      "requirement_id": "PLUGIN-PLAT-004",
+      "scenario_ids": [
+        "TEST-HOST-SUPPLY-001"
+      ],
+      "test_targets": [
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "real-release-Host"
+        },
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "real-service-fixture"
+        },
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "TLS1.3"
+        },
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "generation-monotonic-lifecycle"
+        },
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "authorized-rollback"
+        },
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "statistics"
+        },
+        {
+          "command_id": "supply-chain",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "SBOM"
+        },
+        {
+          "command_id": "supply-chain",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "Trivy"
+        },
+        {
+          "command_id": "supply-chain",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "Cosign"
+        },
+        {
+          "command_id": "supply-chain",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "offline-verification"
+        }
+      ]
+    },
+    {
+      "evidence": [
+        {
+          "command_evidence_digest": "sha256:03fb23df8e4b59dfd36eb15e0d74cad9fafde1560f2f111d77d83afb82901c45",
+          "command_evidence_path": "release-blackbox.command.json",
+          "command_id": "release-blackbox",
+          "exit_code": 0,
+          "kind": "execution-log",
+          "log_digest": "sha256:526f1d1bdbbc1573a8c0719f6734e57c0ee163cb04681de62634bae634557734",
+          "path": "release-blackbox.log",
+          "qualification": "QUALIFIED",
+          "requirement_ids": [
+            "PLUGIN-PLAT-005"
+          ],
+          "result": "PASS",
+          "schema_version": null,
+          "test_id": "TEST-HOST-LIFECYCLE-001"
+        },
+        {
+          "command_evidence_digest": "sha256:d9f2782f5e7cd878d5721d22ce1364a6e6f9a70cd94faf7c21d08671dccd2360",
+          "command_evidence_path": "formal-soak.command.json",
+          "command_id": "formal-soak",
+          "exit_code": 0,
+          "kind": "execution-log",
+          "log_digest": "sha256:6a085edb3913a40324841f2b5e96bdfa500d9c8a5b10d386b45cdec2c01e5efe",
+          "path": "formal-soak.log",
+          "qualification": "QUALIFIED",
+          "requirement_ids": [
+            "PLUGIN-PLAT-005"
+          ],
+          "result": "PASS",
+          "schema_version": null,
+          "test_id": "TEST-HOST-LIFECYCLE-001"
+        }
+      ],
+      "evidence_result": "PASS",
+      "qualification": "QUALIFIED",
+      "qualification_limit": "Host observed staged/shadow/active/draining/stopped/revoked, generation-monotonic ordinary activation and explicitly authorized rollback with exact source-generation fencing",
+      "requirement_id": "PLUGIN-PLAT-005",
+      "scenario_ids": [
+        "TEST-HOST-LIFECYCLE-001"
+      ],
+      "test_targets": [
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "real-release-Host"
+        },
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "real-service-fixture"
+        },
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "TLS1.3"
+        },
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "generation-monotonic-lifecycle"
+        },
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "authorized-rollback"
+        },
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "statistics"
+        },
+        {
+          "command_id": "formal-soak",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "60-second-warmup"
+        },
+        {
+          "command_id": "formal-soak",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "four-times-900-seconds"
+        }
+      ]
+    },
+    {
+      "evidence": [
+        {
+          "command_evidence_digest": "sha256:09f37a8615d327540776a38ac9927964e13faf7e34b55c45e2ddc85986d0a698",
+          "command_evidence_path": "unit-property-contract.command.json",
+          "command_id": "unit-property-contract",
+          "exit_code": 0,
+          "kind": "execution-log",
+          "log_digest": "sha256:9d2c60cf232540ac9f73a57944457a38d6d2f141d14c7b71546ce19caefbe688",
+          "path": "unit-property-contract.log",
+          "qualification": "QUALIFIED",
+          "requirement_ids": [
+            "PLUGIN-PLAT-006"
+          ],
+          "result": "PASS",
+          "schema_version": null,
+          "test_id": "TEST-HOST-CONFORMANCE-001"
+        },
+        {
+          "command_evidence_digest": "sha256:03fb23df8e4b59dfd36eb15e0d74cad9fafde1560f2f111d77d83afb82901c45",
+          "command_evidence_path": "release-blackbox.command.json",
+          "command_id": "release-blackbox",
+          "exit_code": 0,
+          "kind": "execution-log",
+          "log_digest": "sha256:526f1d1bdbbc1573a8c0719f6734e57c0ee163cb04681de62634bae634557734",
+          "path": "release-blackbox.log",
+          "qualification": "QUALIFIED",
+          "requirement_ids": [
+            "PLUGIN-PLAT-006"
+          ],
+          "result": "PASS",
+          "schema_version": null,
+          "test_id": "TEST-HOST-CONFORMANCE-001"
+        }
+      ],
+      "evidence_result": "PASS",
+      "qualification": "QUALIFIED",
+      "qualification_limit": "real service and Wasm conformance fixtures; official Analysis Module is not implemented by Host",
+      "requirement_id": "PLUGIN-PLAT-006",
+      "scenario_ids": [
+        "TEST-HOST-CONFORMANCE-001"
+      ],
+      "test_targets": [
+        {
+          "command_id": "unit-property-contract",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "unit"
+        },
+        {
+          "command_id": "unit-property-contract",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "property"
+        },
+        {
+          "command_id": "unit-property-contract",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "protobuf-golden"
+        },
+        {
+          "command_id": "unit-property-contract",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "Wasm-error-mapping"
+        },
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "real-release-Host"
+        },
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "real-service-fixture"
+        },
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "TLS1.3"
+        },
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "generation-monotonic-lifecycle"
+        },
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "authorized-rollback"
+        },
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "statistics"
+        }
+      ]
+    },
+    {
+      "evidence": [
+        {
+          "command_evidence_digest": "sha256:c3388e0b61430cddd4f11b1f3358bb8caa2f9a7e3651f5db8d2f8fa16f44b2af",
+          "command_evidence_path": "performance.command.json",
+          "command_id": "performance",
+          "exit_code": 0,
+          "kind": "execution-log",
+          "log_digest": "sha256:4b591a8d9827ef103cee30741b7b412d3bc2eff9f3b2fe63ba45ab1951c5169e",
+          "path": "performance.log",
+          "qualification": "QUALIFIED",
+          "requirement_ids": [
+            "PERF-PLUGIN-001"
+          ],
+          "result": "PASS",
+          "schema_version": null,
+          "test_id": "TEST-HOST-PERF-CONCURRENCY-SATURATION-001"
+        },
+        {
+          "command_evidence_digest": "sha256:d9f2782f5e7cd878d5721d22ce1364a6e6f9a70cd94faf7c21d08671dccd2360",
+          "command_evidence_path": "formal-soak.command.json",
+          "command_id": "formal-soak",
+          "exit_code": 0,
+          "kind": "execution-log",
+          "log_digest": "sha256:6a085edb3913a40324841f2b5e96bdfa500d9c8a5b10d386b45cdec2c01e5efe",
+          "path": "formal-soak.log",
+          "qualification": "QUALIFIED",
+          "requirement_ids": [
+            "PERF-PLUGIN-001"
+          ],
+          "result": "PASS",
+          "schema_version": null,
+          "test_id": "TEST-HOST-PERF-CONCURRENCY-SATURATION-001"
+        }
+      ],
+      "evidence_result": "PASS",
+      "qualification": "QUALIFIED",
+      "qualification_limit": "Host boundary concurrency/batch/queue/runtime/resource evidence; relative core degradation requires later formal platform/core scope",
+      "requirement_id": "PERF-PLUGIN-001",
+      "scenario_ids": [
+        "TEST-HOST-PERF-CONCURRENCY-SATURATION-001"
+      ],
+      "test_targets": [
+        {
+          "command_id": "performance",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "concurrency-1-2-4-8-32"
+        },
+        {
+          "command_id": "performance",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "minimum-typical-maximum"
+        },
+        {
+          "command_id": "performance",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "queue-saturation"
+        },
+        {
+          "command_id": "formal-soak",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "60-second-warmup"
+        },
+        {
+          "command_id": "formal-soak",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "four-times-900-seconds"
+        }
+      ]
+    },
+    {
+      "evidence": [
+        {
+          "command_evidence_digest": "sha256:c3388e0b61430cddd4f11b1f3358bb8caa2f9a7e3651f5db8d2f8fa16f44b2af",
+          "command_evidence_path": "performance.command.json",
+          "command_id": "performance",
+          "exit_code": 0,
+          "kind": "execution-log",
+          "log_digest": "sha256:4b591a8d9827ef103cee30741b7b412d3bc2eff9f3b2fe63ba45ab1951c5169e",
+          "path": "performance.log",
+          "qualification": "QUALIFIED",
+          "requirement_ids": [
+            "PERF-PLUGIN-STAT-001"
+          ],
+          "result": "PASS",
+          "schema_version": null,
+          "test_id": "TEST-HOST-STATISTICS-CONFORMANCE-001"
+        },
+        {
+          "command_evidence_digest": "sha256:d9f2782f5e7cd878d5721d22ce1364a6e6f9a70cd94faf7c21d08671dccd2360",
+          "command_evidence_path": "formal-soak.command.json",
+          "command_id": "formal-soak",
+          "exit_code": 0,
+          "kind": "execution-log",
+          "log_digest": "sha256:6a085edb3913a40324841f2b5e96bdfa500d9c8a5b10d386b45cdec2c01e5efe",
+          "path": "formal-soak.log",
+          "qualification": "QUALIFIED",
+          "requirement_ids": [
+            "PERF-PLUGIN-STAT-001"
+          ],
+          "result": "PASS",
+          "schema_version": null,
+          "test_id": "TEST-HOST-STATISTICS-CONFORMANCE-001"
+        }
+      ],
+      "evidence_result": "PASS",
+      "qualification": "QUALIFIED",
+      "qualification_limit": "Host dispatch/execute/validate resource slice; schedule/freeze/DB/API/browser metrics are later module/pairwise scope",
+      "requirement_id": "PERF-PLUGIN-STAT-001",
+      "scenario_ids": [
+        "TEST-HOST-STATISTICS-CONFORMANCE-001"
+      ],
+      "test_targets": [
+        {
+          "command_id": "performance",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "concurrency-1-2-4-8-32"
+        },
+        {
+          "command_id": "performance",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "minimum-typical-maximum"
+        },
+        {
+          "command_id": "performance",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "queue-saturation"
+        },
+        {
+          "command_id": "formal-soak",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "60-second-warmup"
+        },
+        {
+          "command_id": "formal-soak",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "four-times-900-seconds"
+        }
+      ]
+    },
+    {
+      "evidence": [
+        {
+          "command_evidence_digest": "sha256:03fb23df8e4b59dfd36eb15e0d74cad9fafde1560f2f111d77d83afb82901c45",
+          "command_evidence_path": "release-blackbox.command.json",
+          "command_id": "release-blackbox",
+          "exit_code": 0,
+          "kind": "execution-log",
+          "log_digest": "sha256:526f1d1bdbbc1573a8c0719f6734e57c0ee163cb04681de62634bae634557734",
+          "path": "release-blackbox.log",
+          "qualification": "QUALIFIED",
+          "requirement_ids": [
+            "REL-PLUGIN-001"
+          ],
+          "result": "PASS",
+          "schema_version": null,
+          "test_id": "TEST-HOST-CRASH-QUARANTINE-001"
+        },
+        {
+          "command_evidence_digest": "sha256:d9f2782f5e7cd878d5721d22ce1364a6e6f9a70cd94faf7c21d08671dccd2360",
+          "command_evidence_path": "formal-soak.command.json",
+          "command_id": "formal-soak",
+          "exit_code": 0,
+          "kind": "execution-log",
+          "log_digest": "sha256:6a085edb3913a40324841f2b5e96bdfa500d9c8a5b10d386b45cdec2c01e5efe",
+          "path": "formal-soak.log",
+          "qualification": "QUALIFIED",
+          "requirement_ids": [
+            "REL-PLUGIN-001"
+          ],
+          "result": "PASS",
+          "schema_version": null,
+          "test_id": "TEST-HOST-CRASH-QUARANTINE-001"
+        }
+      ],
+      "evidence_result": "PASS",
+      "qualification": "QUALIFIED",
+      "qualification_limit": "Host generation recovery, bounded backoff/circuit/quarantine, restart queue rebuild and freshness fence",
+      "requirement_id": "REL-PLUGIN-001",
+      "scenario_ids": [
+        "TEST-HOST-CRASH-QUARANTINE-001"
+      ],
+      "test_targets": [
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "real-release-Host"
+        },
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "real-service-fixture"
+        },
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "TLS1.3"
+        },
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "generation-monotonic-lifecycle"
+        },
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "authorized-rollback"
+        },
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "statistics"
+        },
+        {
+          "command_id": "formal-soak",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "60-second-warmup"
+        },
+        {
+          "command_id": "formal-soak",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "four-times-900-seconds"
+        }
+      ]
+    },
+    {
+      "evidence": [
+        {
+          "command_evidence_digest": "sha256:03fb23df8e4b59dfd36eb15e0d74cad9fafde1560f2f111d77d83afb82901c45",
+          "command_evidence_path": "release-blackbox.command.json",
+          "command_id": "release-blackbox",
+          "exit_code": 0,
+          "kind": "execution-log",
+          "log_digest": "sha256:526f1d1bdbbc1573a8c0719f6734e57c0ee163cb04681de62634bae634557734",
+          "path": "release-blackbox.log",
+          "qualification": "QUALIFIED",
+          "requirement_ids": [
+            "REL-PLUGIN-STAT-001"
+          ],
+          "result": "PASS",
+          "schema_version": null,
+          "test_id": "TEST-HOST-STATISTICS-CONFORMANCE-001"
+        }
+      ],
+      "evidence_result": "PASS",
+      "qualification": "QUALIFIED",
+      "qualification_limit": "Host cancellation, final-result idempotency, generation/revoke fence; Go durable run recovery is separate",
+      "requirement_id": "REL-PLUGIN-STAT-001",
+      "scenario_ids": [
+        "TEST-HOST-STATISTICS-CONFORMANCE-001"
+      ],
+      "test_targets": [
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "real-release-Host"
+        },
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "real-service-fixture"
+        },
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "TLS1.3"
+        },
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "generation-monotonic-lifecycle"
+        },
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "authorized-rollback"
+        },
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "statistics"
+        }
+      ]
+    },
+    {
+      "evidence": [
+        {
+          "command_evidence_digest": "sha256:03fb23df8e4b59dfd36eb15e0d74cad9fafde1560f2f111d77d83afb82901c45",
+          "command_evidence_path": "release-blackbox.command.json",
+          "command_id": "release-blackbox",
+          "exit_code": 0,
+          "kind": "execution-log",
+          "log_digest": "sha256:526f1d1bdbbc1573a8c0719f6734e57c0ee163cb04681de62634bae634557734",
+          "path": "release-blackbox.log",
+          "qualification": "QUALIFIED",
+          "requirement_ids": [
+            "SEC-001"
+          ],
+          "result": "PASS",
+          "schema_version": null,
+          "test_id": "TEST-HOST-TLS-UDS-001"
+        },
+        {
+          "command_evidence_digest": "sha256:5e6dd378b816a1b45cef2ad7057743ba3f1e889469a07a4a9d404f006dfdbadb",
+          "command_evidence_path": "oci-smoke.command.json",
+          "command_id": "oci-smoke",
+          "exit_code": 0,
+          "kind": "execution-log",
+          "log_digest": "sha256:b09ce8e39cf60b02037adbdaf26c4bd513a4baed8d814463f3ad54b02c08502b",
+          "path": "oci-smoke.log",
+          "qualification": "QUALIFIED",
+          "requirement_ids": [
+            "SEC-001"
+          ],
+          "result": "PASS",
+          "schema_version": null,
+          "test_id": "TEST-HOST-TLS-UDS-001"
+        }
+      ],
+      "evidence_result": "PASS",
+      "qualification": "QUALIFIED",
+      "qualification_limit": "TLS1.3 exact manager leaf plus UDS owner/group/mode/no-symlink/SO_PEERCRED",
+      "requirement_id": "SEC-001",
+      "scenario_ids": [
+        "TEST-HOST-TLS-UDS-001"
+      ],
+      "test_targets": [
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "real-release-Host"
+        },
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "real-service-fixture"
+        },
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "TLS1.3"
+        },
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "generation-monotonic-lifecycle"
+        },
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "authorized-rollback"
+        },
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "statistics"
+        },
+        {
+          "command_id": "oci-smoke",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "non-root"
+        },
+        {
+          "command_id": "oci-smoke",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "read-only-rootfs"
+        },
+        {
+          "command_id": "oci-smoke",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "mTLS"
+        },
+        {
+          "command_id": "oci-smoke",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "graceful-stop"
+        }
+      ]
+    },
+    {
+      "evidence": [
+        {
+          "command_evidence_digest": "sha256:296ac1958f5e9a48b965e12d37dc89cbf5098ee82add48aa07de58f1dcba4123",
+          "command_evidence_path": "contract-schema.command.json",
+          "command_id": "contract-schema",
+          "exit_code": 0,
+          "kind": "execution-log",
+          "log_digest": "sha256:225e4ee3788ed8d0f1959c15f6b26c39b6465a37f66b8aa726c36b4127b57b0a",
+          "path": "contract-schema.log",
+          "qualification": "QUALIFIED",
+          "requirement_ids": [
+            "SEC-004"
+          ],
+          "result": "PASS",
+          "schema_version": null,
+          "test_id": "TEST-HOST-ADMISSION-REJECT-001"
+        },
+        {
+          "command_evidence_digest": "sha256:03fb23df8e4b59dfd36eb15e0d74cad9fafde1560f2f111d77d83afb82901c45",
+          "command_evidence_path": "release-blackbox.command.json",
+          "command_id": "release-blackbox",
+          "exit_code": 0,
+          "kind": "execution-log",
+          "log_digest": "sha256:526f1d1bdbbc1573a8c0719f6734e57c0ee163cb04681de62634bae634557734",
+          "path": "release-blackbox.log",
+          "qualification": "QUALIFIED",
+          "requirement_ids": [
+            "SEC-004"
+          ],
+          "result": "PASS",
+          "schema_version": null,
+          "test_id": "TEST-HOST-ADMISSION-REJECT-001"
+        },
+        {
+          "command_evidence_digest": "sha256:d71397527549b186d3147df648dd9271e30867df0ba079e63e34943b7a14ef1c",
+          "command_evidence_path": "supply-chain.command.json",
+          "command_id": "supply-chain",
+          "exit_code": 0,
+          "kind": "execution-log",
+          "log_digest": "sha256:e6e04c71dc97a9fdd31b5927deb4f176abb5db114ea940568212cc286e626ede",
+          "path": "supply-chain.log",
+          "qualification": "QUALIFIED",
+          "requirement_ids": [
+            "SEC-004"
+          ],
+          "result": "PASS",
+          "schema_version": null,
+          "test_id": "TEST-HOST-ADMISSION-REJECT-001"
+        }
+      ],
+      "evidence_result": "PASS",
+      "qualification": "QUALIFIED",
+      "qualification_limit": "ordinary-file, no-symlink, size and digest closure with signed publisher bundle",
+      "requirement_id": "SEC-004",
+      "scenario_ids": [
+        "TEST-HOST-ADMISSION-REJECT-001"
+      ],
+      "test_targets": [
+        {
+          "command_id": "contract-schema",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "JSON-Schema-2020-12"
+        },
+        {
+          "command_id": "contract-schema",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "Protobuf"
+        },
+        {
+          "command_id": "contract-schema",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "WIT"
+        },
+        {
+          "command_id": "contract-schema",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "profile-digest"
+        },
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "real-release-Host"
+        },
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "real-service-fixture"
+        },
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "TLS1.3"
+        },
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "generation-monotonic-lifecycle"
+        },
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "authorized-rollback"
+        },
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "statistics"
+        },
+        {
+          "command_id": "supply-chain",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "SBOM"
+        },
+        {
+          "command_id": "supply-chain",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "Trivy"
+        },
+        {
+          "command_id": "supply-chain",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "Cosign"
+        },
+        {
+          "command_id": "supply-chain",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "offline-verification"
+        }
+      ]
+    },
+    {
+      "evidence": [
+        {
+          "command_evidence_digest": "sha256:09f37a8615d327540776a38ac9927964e13faf7e34b55c45e2ddc85986d0a698",
+          "command_evidence_path": "unit-property-contract.command.json",
+          "command_id": "unit-property-contract",
+          "exit_code": 0,
+          "kind": "execution-log",
+          "log_digest": "sha256:9d2c60cf232540ac9f73a57944457a38d6d2f141d14c7b71546ce19caefbe688",
+          "path": "unit-property-contract.log",
+          "qualification": "QUALIFIED",
+          "requirement_ids": [
+            "SEC-005"
+          ],
+          "result": "PASS",
+          "schema_version": null,
+          "test_id": "TEST-HOST-RESOURCE-LIMITS-001"
+        },
+        {
+          "command_evidence_digest": "sha256:03fb23df8e4b59dfd36eb15e0d74cad9fafde1560f2f111d77d83afb82901c45",
+          "command_evidence_path": "release-blackbox.command.json",
+          "command_id": "release-blackbox",
+          "exit_code": 0,
+          "kind": "execution-log",
+          "log_digest": "sha256:526f1d1bdbbc1573a8c0719f6734e57c0ee163cb04681de62634bae634557734",
+          "path": "release-blackbox.log",
+          "qualification": "QUALIFIED",
+          "requirement_ids": [
+            "SEC-005"
+          ],
+          "result": "PASS",
+          "schema_version": null,
+          "test_id": "TEST-HOST-RESOURCE-LIMITS-001"
+        },
+        {
+          "command_evidence_digest": "sha256:fcbb51ab39bafc2640627606b9735973f5a217d98258d4123b5beff00f7f3997",
+          "command_evidence_path": "source-sentinels.command.json",
+          "command_id": "source-sentinels",
+          "exit_code": 0,
+          "kind": "execution-log",
+          "log_digest": "sha256:45e0ba22d78f3354778483816315c0bc8c58412f60675423626d7dd53be77e12",
+          "path": "source-sentinels.log",
+          "qualification": "QUALIFIED",
+          "requirement_ids": [
+            "SEC-005"
+          ],
+          "result": "PASS",
+          "schema_version": null,
+          "test_id": "TEST-HOST-RESOURCE-LIMITS-001"
+        }
+      ],
+      "evidence_result": "PASS",
+      "qualification": "QUALIFIED",
+      "qualification_limit": "framing/schema/identity/diagnostic/output bounds and exact cleanup",
+      "requirement_id": "SEC-005",
+      "scenario_ids": [
+        "TEST-HOST-RESOURCE-LIMITS-001"
+      ],
+      "test_targets": [
+        {
+          "command_id": "unit-property-contract",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "unit"
+        },
+        {
+          "command_id": "unit-property-contract",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "property"
+        },
+        {
+          "command_id": "unit-property-contract",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "protobuf-golden"
+        },
+        {
+          "command_id": "unit-property-contract",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "Wasm-error-mapping"
+        },
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "real-release-Host"
+        },
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "real-service-fixture"
+        },
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "TLS1.3"
+        },
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "generation-monotonic-lifecycle"
+        },
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "authorized-rollback"
+        },
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "statistics"
+        },
+        {
+          "command_id": "source-sentinels",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "no-unfinished-implementation"
+        }
+      ]
+    },
+    {
+      "evidence": [
+        {
+          "command_evidence_digest": "sha256:09f37a8615d327540776a38ac9927964e13faf7e34b55c45e2ddc85986d0a698",
+          "command_evidence_path": "unit-property-contract.command.json",
+          "command_id": "unit-property-contract",
+          "exit_code": 0,
+          "kind": "execution-log",
+          "log_digest": "sha256:9d2c60cf232540ac9f73a57944457a38d6d2f141d14c7b71546ce19caefbe688",
+          "path": "unit-property-contract.log",
+          "qualification": "QUALIFIED",
+          "requirement_ids": [
+            "SEC-PLUGIN-001"
+          ],
+          "result": "PASS",
+          "schema_version": null,
+          "test_id": "TEST-HOST-WASM-WASI02-CAPABILITY-DENY-001"
+        },
+        {
+          "command_evidence_digest": "sha256:03fb23df8e4b59dfd36eb15e0d74cad9fafde1560f2f111d77d83afb82901c45",
+          "command_evidence_path": "release-blackbox.command.json",
+          "command_id": "release-blackbox",
+          "exit_code": 0,
+          "kind": "execution-log",
+          "log_digest": "sha256:526f1d1bdbbc1573a8c0719f6734e57c0ee163cb04681de62634bae634557734",
+          "path": "release-blackbox.log",
+          "qualification": "QUALIFIED",
+          "requirement_ids": [
+            "SEC-PLUGIN-001"
+          ],
+          "result": "PASS",
+          "schema_version": null,
+          "test_id": "TEST-HOST-WASM-WASI02-CAPABILITY-DENY-001"
+        },
+        {
+          "command_evidence_digest": "sha256:5e6dd378b816a1b45cef2ad7057743ba3f1e889469a07a4a9d404f006dfdbadb",
+          "command_evidence_path": "oci-smoke.command.json",
+          "command_id": "oci-smoke",
+          "exit_code": 0,
+          "kind": "execution-log",
+          "log_digest": "sha256:b09ce8e39cf60b02037adbdaf26c4bd513a4baed8d814463f3ad54b02c08502b",
+          "path": "oci-smoke.log",
+          "qualification": "QUALIFIED",
+          "requirement_ids": [
+            "SEC-PLUGIN-001"
+          ],
+          "result": "PASS",
+          "schema_version": null,
+          "test_id": "TEST-HOST-WASM-WASI02-CAPABILITY-DENY-001"
+        }
+      ],
+      "evidence_result": "PASS",
+      "qualification": "QUALIFIED",
+      "qualification_limit": "no Wasm imports/ambient capability, exact service identity and hardened Host OCI boundary",
+      "requirement_id": "SEC-PLUGIN-001",
+      "scenario_ids": [
+        "TEST-HOST-WASM-WASI02-CAPABILITY-DENY-001"
+      ],
+      "test_targets": [
+        {
+          "command_id": "unit-property-contract",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "unit"
+        },
+        {
+          "command_id": "unit-property-contract",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "property"
+        },
+        {
+          "command_id": "unit-property-contract",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "protobuf-golden"
+        },
+        {
+          "command_id": "unit-property-contract",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "Wasm-error-mapping"
+        },
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "real-release-Host"
+        },
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "real-service-fixture"
+        },
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "TLS1.3"
+        },
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "generation-monotonic-lifecycle"
+        },
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "authorized-rollback"
+        },
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "statistics"
+        },
+        {
+          "command_id": "oci-smoke",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "non-root"
+        },
+        {
+          "command_id": "oci-smoke",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "read-only-rootfs"
+        },
+        {
+          "command_id": "oci-smoke",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "mTLS"
+        },
+        {
+          "command_id": "oci-smoke",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "graceful-stop"
+        }
+      ]
+    },
+    {
+      "evidence": [
+        {
+          "command_evidence_digest": "sha256:d71397527549b186d3147df648dd9271e30867df0ba079e63e34943b7a14ef1c",
+          "command_evidence_path": "supply-chain.command.json",
+          "command_id": "supply-chain",
+          "exit_code": 0,
+          "kind": "execution-log",
+          "log_digest": "sha256:e6e04c71dc97a9fdd31b5927deb4f176abb5db114ea940568212cc286e626ede",
+          "path": "supply-chain.log",
+          "qualification": "QUALIFIED",
+          "requirement_ids": [
+            "SEC-PLUGIN-002"
+          ],
+          "result": "PASS",
+          "schema_version": null,
+          "test_id": "TEST-HOST-SUPPLY-001"
+        },
+        {
+          "command_evidence_digest": "sha256:03fb23df8e4b59dfd36eb15e0d74cad9fafde1560f2f111d77d83afb82901c45",
+          "command_evidence_path": "release-blackbox.command.json",
+          "command_id": "release-blackbox",
+          "exit_code": 0,
+          "kind": "execution-log",
+          "log_digest": "sha256:526f1d1bdbbc1573a8c0719f6734e57c0ee163cb04681de62634bae634557734",
+          "path": "release-blackbox.log",
+          "qualification": "QUALIFIED",
+          "requirement_ids": [
+            "SEC-PLUGIN-002"
+          ],
+          "result": "PASS",
+          "schema_version": null,
+          "test_id": "TEST-HOST-SUPPLY-001"
+        }
+      ],
+      "evidence_result": "PASS",
+      "qualification": "QUALIFIED",
+      "qualification_limit": "Host artifact publisher/SBOM/provenance/offline verification/revocation slice",
+      "requirement_id": "SEC-PLUGIN-002",
+      "scenario_ids": [
+        "TEST-HOST-SUPPLY-001"
+      ],
+      "test_targets": [
+        {
+          "command_id": "supply-chain",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "SBOM"
+        },
+        {
+          "command_id": "supply-chain",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "Trivy"
+        },
+        {
+          "command_id": "supply-chain",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "Cosign"
+        },
+        {
+          "command_id": "supply-chain",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "offline-verification"
+        },
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "real-release-Host"
+        },
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "real-service-fixture"
+        },
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "TLS1.3"
+        },
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "generation-monotonic-lifecycle"
+        },
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "authorized-rollback"
+        },
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "statistics"
+        }
+      ]
+    },
+    {
+      "evidence": [
+        {
+          "command_evidence_digest": "sha256:03fb23df8e4b59dfd36eb15e0d74cad9fafde1560f2f111d77d83afb82901c45",
+          "command_evidence_path": "release-blackbox.command.json",
+          "command_id": "release-blackbox",
+          "exit_code": 0,
+          "kind": "execution-log",
+          "log_digest": "sha256:526f1d1bdbbc1573a8c0719f6734e57c0ee163cb04681de62634bae634557734",
+          "path": "release-blackbox.log",
+          "qualification": "QUALIFIED",
+          "requirement_ids": [
+            "SEC-PLUGIN-STAT-001"
+          ],
+          "result": "PASS",
+          "schema_version": null,
+          "test_id": "TEST-HOST-STATISTICS-CONFORMANCE-001"
+        },
+        {
+          "command_evidence_digest": "sha256:fcbb51ab39bafc2640627606b9735973f5a217d98258d4123b5beff00f7f3997",
+          "command_evidence_path": "source-sentinels.command.json",
+          "command_id": "source-sentinels",
+          "exit_code": 0,
+          "kind": "execution-log",
+          "log_digest": "sha256:45e0ba22d78f3354778483816315c0bc8c58412f60675423626d7dd53be77e12",
+          "path": "source-sentinels.log",
+          "qualification": "QUALIFIED",
+          "requirement_ids": [
+            "SEC-PLUGIN-STAT-001"
+          ],
+          "result": "PASS",
+          "schema_version": null,
+          "test_id": "TEST-HOST-STATISTICS-CONFORMANCE-001"
+        }
+      ],
+      "evidence_result": "PASS",
+      "qualification": "QUALIFIED",
+      "qualification_limit": "Host rejects unsafe/nested/display/code/network content and owns no core credential",
+      "requirement_id": "SEC-PLUGIN-STAT-001",
+      "scenario_ids": [
+        "TEST-HOST-STATISTICS-CONFORMANCE-001"
+      ],
+      "test_targets": [
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "real-release-Host"
+        },
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "real-service-fixture"
+        },
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "TLS1.3"
+        },
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "generation-monotonic-lifecycle"
+        },
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "authorized-rollback"
+        },
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "statistics"
+        },
+        {
+          "command_id": "source-sentinels",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "no-unfinished-implementation"
+        }
+      ]
+    },
+    {
+      "evidence": [
+        {
+          "command_evidence_digest": "sha256:acd551ad7b2c49cf78ccd2ae482c22f2d1817e77e0fbe03fc43235120b99b164",
+          "command_evidence_path": "deep-checks.command.json",
+          "command_id": "deep-checks",
+          "exit_code": 0,
+          "kind": "execution-log",
+          "log_digest": "sha256:c54bca583a9d23820c9d8858904516dd7eb17cd03743eb3e3647853cac574a31",
+          "path": "deep-checks.log",
+          "qualification": "QUALIFIED",
+          "requirement_ids": [
+            "SEC-SUPPLY-001"
+          ],
+          "result": "PASS",
+          "schema_version": null,
+          "test_id": "TEST-HOST-SUPPLY-001"
+        },
+        {
+          "command_evidence_digest": "sha256:d71397527549b186d3147df648dd9271e30867df0ba079e63e34943b7a14ef1c",
+          "command_evidence_path": "supply-chain.command.json",
+          "command_id": "supply-chain",
+          "exit_code": 0,
+          "kind": "execution-log",
+          "log_digest": "sha256:e6e04c71dc97a9fdd31b5927deb4f176abb5db114ea940568212cc286e626ede",
+          "path": "supply-chain.log",
+          "qualification": "QUALIFIED",
+          "requirement_ids": [
+            "SEC-SUPPLY-001"
+          ],
+          "result": "PASS",
+          "schema_version": null,
+          "test_id": "TEST-HOST-SUPPLY-001"
+        }
+      ],
+      "evidence_result": "PASS",
+      "qualification": "QUALIFIED",
+      "qualification_limit": "digest locks, SPDX SBOM, offline Trivy, Cosign positive/tamper/wrong-publisher and no runtime download",
+      "requirement_id": "SEC-SUPPLY-001",
+      "scenario_ids": [
+        "TEST-HOST-SUPPLY-001"
+      ],
+      "test_targets": [
+        {
+          "command_id": "deep-checks",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "audit"
+        },
+        {
+          "command_id": "deep-checks",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "license"
+        },
+        {
+          "command_id": "deep-checks",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "coverage"
+        },
+        {
+          "command_id": "deep-checks",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "Valgrind"
+        },
+        {
+          "command_id": "supply-chain",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "SBOM"
+        },
+        {
+          "command_id": "supply-chain",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "Trivy"
+        },
+        {
+          "command_id": "supply-chain",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "Cosign"
+        },
+        {
+          "command_id": "supply-chain",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "offline-verification"
+        }
+      ]
+    },
+    {
+      "evidence": [
+        {
+          "command_evidence_digest": "sha256:5e6dd378b816a1b45cef2ad7057743ba3f1e889469a07a4a9d404f006dfdbadb",
+          "command_evidence_path": "oci-smoke.command.json",
+          "command_id": "oci-smoke",
+          "exit_code": 0,
+          "kind": "execution-log",
+          "log_digest": "sha256:b09ce8e39cf60b02037adbdaf26c4bd513a4baed8d814463f3ad54b02c08502b",
+          "path": "oci-smoke.log",
+          "qualification": "QUALIFIED",
+          "requirement_ids": [
+            "DEP-PLUGIN-001"
+          ],
+          "result": "PASS",
+          "schema_version": null,
+          "test_id": "TEST-HOST-OCI-001"
+        },
+        {
+          "command_evidence_digest": "sha256:d9f2782f5e7cd878d5721d22ce1364a6e6f9a70cd94faf7c21d08671dccd2360",
+          "command_evidence_path": "formal-soak.command.json",
+          "command_id": "formal-soak",
+          "exit_code": 0,
+          "kind": "execution-log",
+          "log_digest": "sha256:6a085edb3913a40324841f2b5e96bdfa500d9c8a5b10d386b45cdec2c01e5efe",
+          "path": "formal-soak.log",
+          "qualification": "QUALIFIED",
+          "requirement_ids": [
+            "DEP-PLUGIN-001"
+          ],
+          "result": "PASS",
+          "schema_version": null,
+          "test_id": "TEST-HOST-OCI-001"
+        }
+      ],
+      "evidence_result": "PASS",
+      "qualification": "QUALIFIED",
+      "qualification_limit": "single-domain Host placement asset, external read-only cache/TLS mounts, Host has no Docker socket/orchestration",
+      "requirement_id": "DEP-PLUGIN-001",
+      "scenario_ids": [
+        "TEST-HOST-OCI-001"
+      ],
+      "test_targets": [
+        {
+          "command_id": "oci-smoke",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "non-root"
+        },
+        {
+          "command_id": "oci-smoke",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "read-only-rootfs"
+        },
+        {
+          "command_id": "oci-smoke",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "mTLS"
+        },
+        {
+          "command_id": "oci-smoke",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "graceful-stop"
+        },
+        {
+          "command_id": "formal-soak",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "60-second-warmup"
+        },
+        {
+          "command_id": "formal-soak",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "four-times-900-seconds"
+        }
+      ]
+    },
+    {
+      "evidence": [
+        {
+          "command_evidence_digest": "sha256:03fb23df8e4b59dfd36eb15e0d74cad9fafde1560f2f111d77d83afb82901c45",
+          "command_evidence_path": "release-blackbox.command.json",
+          "command_id": "release-blackbox",
+          "exit_code": 0,
+          "kind": "execution-log",
+          "log_digest": "sha256:526f1d1bdbbc1573a8c0719f6734e57c0ee163cb04681de62634bae634557734",
+          "path": "release-blackbox.log",
+          "qualification": "QUALIFIED",
+          "requirement_ids": [
+            "MIG-PLUGIN-001"
+          ],
+          "result": "PASS",
+          "schema_version": null,
+          "test_id": "TEST-HOST-LIFECYCLE-001"
+        }
+      ],
+      "evidence_result": "PASS",
+      "qualification": "QUALIFIED",
+      "qualification_limit": "deny-all clean start and side-by-side Host execution; Go/PostgreSQL schema migration is separate",
+      "requirement_id": "MIG-PLUGIN-001",
+      "scenario_ids": [
+        "TEST-HOST-LIFECYCLE-001"
+      ],
+      "test_targets": [
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "real-release-Host"
+        },
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "real-service-fixture"
+        },
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "TLS1.3"
+        },
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "generation-monotonic-lifecycle"
+        },
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "authorized-rollback"
+        },
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "statistics"
+        }
+      ]
+    },
+    {
+      "evidence": [
+        {
+          "command_evidence_digest": "sha256:03fb23df8e4b59dfd36eb15e0d74cad9fafde1560f2f111d77d83afb82901c45",
+          "command_evidence_path": "release-blackbox.command.json",
+          "command_id": "release-blackbox",
+          "exit_code": 0,
+          "kind": "execution-log",
+          "log_digest": "sha256:526f1d1bdbbc1573a8c0719f6734e57c0ee163cb04681de62634bae634557734",
+          "path": "release-blackbox.log",
+          "qualification": "QUALIFIED",
+          "requirement_ids": [
+            "TEST-003"
+          ],
+          "result": "PASS",
+          "schema_version": null,
+          "test_id": "TEST-HOST-MODULE-GATES-001"
+        },
+        {
+          "command_evidence_digest": "sha256:5e6dd378b816a1b45cef2ad7057743ba3f1e889469a07a4a9d404f006dfdbadb",
+          "command_evidence_path": "oci-smoke.command.json",
+          "command_id": "oci-smoke",
+          "exit_code": 0,
+          "kind": "execution-log",
+          "log_digest": "sha256:b09ce8e39cf60b02037adbdaf26c4bd513a4baed8d814463f3ad54b02c08502b",
+          "path": "oci-smoke.log",
+          "qualification": "QUALIFIED",
+          "requirement_ids": [
+            "TEST-003"
+          ],
+          "result": "PASS",
+          "schema_version": null,
+          "test_id": "TEST-HOST-MODULE-GATES-001"
+        },
+        {
+          "command_evidence_digest": "sha256:d9f2782f5e7cd878d5721d22ce1364a6e6f9a70cd94faf7c21d08671dccd2360",
+          "command_evidence_path": "formal-soak.command.json",
+          "command_id": "formal-soak",
+          "exit_code": 0,
+          "kind": "execution-log",
+          "log_digest": "sha256:6a085edb3913a40324841f2b5e96bdfa500d9c8a5b10d386b45cdec2c01e5efe",
+          "path": "formal-soak.log",
+          "qualification": "QUALIFIED",
+          "requirement_ids": [
+            "TEST-003"
+          ],
+          "result": "PASS",
+          "schema_version": null,
+          "test_id": "TEST-HOST-MODULE-GATES-001"
+        }
+      ],
+      "evidence_result": "PASS",
+      "qualification": "QUALIFIED",
+      "qualification_limit": "real release Host/OCI and actual Wasmtime/service runtime over public boundaries",
+      "requirement_id": "TEST-003",
+      "scenario_ids": [
+        "TEST-HOST-MODULE-GATES-001"
+      ],
+      "test_targets": [
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "real-release-Host"
+        },
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "real-service-fixture"
+        },
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "TLS1.3"
+        },
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "generation-monotonic-lifecycle"
+        },
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "authorized-rollback"
+        },
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "statistics"
+        },
+        {
+          "command_id": "oci-smoke",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "non-root"
+        },
+        {
+          "command_id": "oci-smoke",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "read-only-rootfs"
+        },
+        {
+          "command_id": "oci-smoke",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "mTLS"
+        },
+        {
+          "command_id": "oci-smoke",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "graceful-stop"
+        },
+        {
+          "command_id": "formal-soak",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "60-second-warmup"
+        },
+        {
+          "command_id": "formal-soak",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "four-times-900-seconds"
+        }
+      ]
+    },
+    {
+      "evidence": [
+        {
+          "command_evidence_digest": "sha256:09f37a8615d327540776a38ac9927964e13faf7e34b55c45e2ddc85986d0a698",
+          "command_evidence_path": "unit-property-contract.command.json",
+          "command_id": "unit-property-contract",
+          "exit_code": 0,
+          "kind": "execution-log",
+          "log_digest": "sha256:9d2c60cf232540ac9f73a57944457a38d6d2f141d14c7b71546ce19caefbe688",
+          "path": "unit-property-contract.log",
+          "qualification": "QUALIFIED",
+          "requirement_ids": [
+            "TEST-007"
+          ],
+          "result": "PASS",
+          "schema_version": null,
+          "test_id": "TEST-HOST-CRASH-QUARANTINE-001"
+        },
+        {
+          "command_evidence_digest": "sha256:03fb23df8e4b59dfd36eb15e0d74cad9fafde1560f2f111d77d83afb82901c45",
+          "command_evidence_path": "release-blackbox.command.json",
+          "command_id": "release-blackbox",
+          "exit_code": 0,
+          "kind": "execution-log",
+          "log_digest": "sha256:526f1d1bdbbc1573a8c0719f6734e57c0ee163cb04681de62634bae634557734",
+          "path": "release-blackbox.log",
+          "qualification": "QUALIFIED",
+          "requirement_ids": [
+            "TEST-007"
+          ],
+          "result": "PASS",
+          "schema_version": null,
+          "test_id": "TEST-HOST-CRASH-QUARANTINE-001"
+        },
+        {
+          "command_evidence_digest": "sha256:d9f2782f5e7cd878d5721d22ce1364a6e6f9a70cd94faf7c21d08671dccd2360",
+          "command_evidence_path": "formal-soak.command.json",
+          "command_id": "formal-soak",
+          "exit_code": 0,
+          "kind": "execution-log",
+          "log_digest": "sha256:6a085edb3913a40324841f2b5e96bdfa500d9c8a5b10d386b45cdec2c01e5efe",
+          "path": "formal-soak.log",
+          "qualification": "QUALIFIED",
+          "requirement_ids": [
+            "TEST-007"
+          ],
+          "result": "PASS",
+          "schema_version": null,
+          "test_id": "TEST-HOST-CRASH-QUARANTINE-001"
+        }
+      ],
+      "evidence_result": "PASS",
+      "qualification": "QUALIFIED",
+      "qualification_limit": "digest/version/capability, timeout/cancel/fuel/epoch, service crash/hang, restart and resource faults",
+      "requirement_id": "TEST-007",
+      "scenario_ids": [
+        "TEST-HOST-CRASH-QUARANTINE-001"
+      ],
+      "test_targets": [
+        {
+          "command_id": "unit-property-contract",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "unit"
+        },
+        {
+          "command_id": "unit-property-contract",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "property"
+        },
+        {
+          "command_id": "unit-property-contract",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "protobuf-golden"
+        },
+        {
+          "command_id": "unit-property-contract",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "Wasm-error-mapping"
+        },
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "real-release-Host"
+        },
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "real-service-fixture"
+        },
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "TLS1.3"
+        },
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "generation-monotonic-lifecycle"
+        },
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "authorized-rollback"
+        },
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "statistics"
+        },
+        {
+          "command_id": "formal-soak",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "60-second-warmup"
+        },
+        {
+          "command_id": "formal-soak",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "four-times-900-seconds"
+        }
+      ]
+    },
+    {
+      "evidence": [
+        {
+          "command_evidence_digest": "sha256:c3388e0b61430cddd4f11b1f3358bb8caa2f9a7e3651f5db8d2f8fa16f44b2af",
+          "command_evidence_path": "performance.command.json",
+          "command_id": "performance",
+          "exit_code": 0,
+          "kind": "execution-log",
+          "log_digest": "sha256:4b591a8d9827ef103cee30741b7b412d3bc2eff9f3b2fe63ba45ab1951c5169e",
+          "path": "performance.log",
+          "qualification": "QUALIFIED",
+          "requirement_ids": [
+            "TEST-008"
+          ],
+          "result": "PASS",
+          "schema_version": null,
+          "test_id": "TEST-HOST-SOAK-3600S-001"
+        },
+        {
+          "command_evidence_digest": "sha256:d9f2782f5e7cd878d5721d22ce1364a6e6f9a70cd94faf7c21d08671dccd2360",
+          "command_evidence_path": "formal-soak.command.json",
+          "command_id": "formal-soak",
+          "exit_code": 0,
+          "kind": "execution-log",
+          "log_digest": "sha256:6a085edb3913a40324841f2b5e96bdfa500d9c8a5b10d386b45cdec2c01e5efe",
+          "path": "formal-soak.log",
+          "qualification": "QUALIFIED",
+          "requirement_ids": [
+            "TEST-008"
+          ],
+          "result": "PASS",
+          "schema_version": null,
+          "test_id": "TEST-HOST-SOAK-3600S-001"
+        }
+      ],
+      "evidence_result": "PASS",
+      "qualification": "QUALIFIED",
+      "qualification_limit": "exact 60-second warmup plus steady/peak/saturation/recovery-activation 900-second stages",
+      "requirement_id": "TEST-008",
+      "scenario_ids": [
+        "TEST-HOST-SOAK-3600S-001"
+      ],
+      "test_targets": [
+        {
+          "command_id": "performance",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "concurrency-1-2-4-8-32"
+        },
+        {
+          "command_id": "performance",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "minimum-typical-maximum"
+        },
+        {
+          "command_id": "performance",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "queue-saturation"
+        },
+        {
+          "command_id": "formal-soak",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "60-second-warmup"
+        },
+        {
+          "command_id": "formal-soak",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "four-times-900-seconds"
+        }
+      ]
+    },
+    {
+      "evidence": [
+        {
+          "command_evidence_digest": "sha256:4b042a790e29293a81febc0e5c09ee90ea23450862e8db9035e61203f9117f68",
+          "command_evidence_path": "findings.command.json",
+          "command_id": "findings",
+          "exit_code": 0,
+          "kind": "execution-log",
+          "log_digest": "sha256:f8e6327f605486763bfc52156b77bb4e967cb50d91a552151709b7eff3d6fa9f",
+          "path": "findings.log",
+          "qualification": "QUALIFIED",
+          "requirement_ids": [
+            "TEST-009"
+          ],
+          "result": "PASS",
+          "schema_version": null,
+          "test_id": "TEST-HOST-EVIDENCE-001"
+        },
+        {
+          "command_evidence_digest": "sha256:e2952bea2d68a5117bb89f132bd99e5db350ec17902322d0e98f606712dec975",
+          "command_evidence_path": "traceability.command.json",
+          "command_id": "traceability",
+          "exit_code": 0,
+          "kind": "execution-log",
+          "log_digest": "sha256:dd7170a449a69c7d87609e5b20da7d5d7b5ada8f7398d3ac50325cd9e7b69f78",
+          "path": "traceability.log",
+          "qualification": "QUALIFIED",
+          "requirement_ids": [
+            "TEST-009"
+          ],
+          "result": "PASS",
+          "schema_version": null,
+          "test_id": "TEST-HOST-EVIDENCE-001"
+        },
+        {
+          "command_evidence_digest": "sha256:d9f2782f5e7cd878d5721d22ce1364a6e6f9a70cd94faf7c21d08671dccd2360",
+          "command_evidence_path": "formal-soak.command.json",
+          "command_id": "formal-soak",
+          "exit_code": 0,
+          "kind": "execution-log",
+          "log_digest": "sha256:6a085edb3913a40324841f2b5e96bdfa500d9c8a5b10d386b45cdec2c01e5efe",
+          "path": "formal-soak.log",
+          "qualification": "QUALIFIED",
+          "requirement_ids": [
+            "TEST-009"
+          ],
+          "result": "PASS",
+          "schema_version": null,
+          "test_id": "TEST-HOST-EVIDENCE-001"
+        },
+        {
+          "command_evidence_digest": "sha256:d71397527549b186d3147df648dd9271e30867df0ba079e63e34943b7a14ef1c",
+          "command_evidence_path": "supply-chain.command.json",
+          "command_id": "supply-chain",
+          "exit_code": 0,
+          "kind": "execution-log",
+          "log_digest": "sha256:e6e04c71dc97a9fdd31b5927deb4f176abb5db114ea940568212cc286e626ede",
+          "path": "supply-chain.log",
+          "qualification": "QUALIFIED",
+          "requirement_ids": [
+            "TEST-009"
+          ],
+          "result": "PASS",
+          "schema_version": null,
+          "test_id": "TEST-HOST-EVIDENCE-001"
+        }
+      ],
+      "evidence_result": "PASS",
+      "qualification": "QUALIFIED",
+      "qualification_limit": "immutable command/evidence digests and machine-derived completion summary",
+      "requirement_id": "TEST-009",
+      "scenario_ids": [
+        "TEST-HOST-EVIDENCE-001"
+      ],
+      "test_targets": [
+        {
+          "command_id": "findings",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "append-only-findings"
+        },
+        {
+          "command_id": "findings",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "open-P0-zero"
+        },
+        {
+          "command_id": "traceability",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "exact-requirement-evidence-map"
+        },
+        {
+          "command_id": "formal-soak",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "60-second-warmup"
+        },
+        {
+          "command_id": "formal-soak",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "four-times-900-seconds"
+        },
+        {
+          "command_id": "supply-chain",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "SBOM"
+        },
+        {
+          "command_id": "supply-chain",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "Trivy"
+        },
+        {
+          "command_id": "supply-chain",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "Cosign"
+        },
+        {
+          "command_id": "supply-chain",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "offline-verification"
+        }
+      ]
+    },
+    {
+      "evidence": [
+        {
+          "command_evidence_digest": "sha256:707f6908bb5cce014c162069c6b5313ba3def760b46f3ed870603cc063e111fa",
+          "command_evidence_path": "format.command.json",
+          "command_id": "format",
+          "exit_code": 0,
+          "kind": "execution-log",
+          "log_digest": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "path": "format.log",
+          "qualification": "QUALIFIED",
+          "requirement_ids": [
+            "TEST-010"
+          ],
+          "result": "PASS",
+          "schema_version": null,
+          "test_id": "TEST-HOST-MODULE-GATES-001"
+        },
+        {
+          "command_evidence_digest": "sha256:fe55a56ef1ad8adfc2f3d546c959f4615e13a9075497c01feaa6e1c52e9c6ed4",
+          "command_evidence_path": "clippy.command.json",
+          "command_id": "clippy",
+          "exit_code": 0,
+          "kind": "execution-log",
+          "log_digest": "sha256:a5f4c585ee974ca44916ac30a98bbc189e067a7e0a6bc6d2e8d6bc525be724af",
+          "path": "clippy.log",
+          "qualification": "QUALIFIED",
+          "requirement_ids": [
+            "TEST-010"
+          ],
+          "result": "PASS",
+          "schema_version": null,
+          "test_id": "TEST-HOST-MODULE-GATES-001"
+        },
+        {
+          "command_evidence_digest": "sha256:09f37a8615d327540776a38ac9927964e13faf7e34b55c45e2ddc85986d0a698",
+          "command_evidence_path": "unit-property-contract.command.json",
+          "command_id": "unit-property-contract",
+          "exit_code": 0,
+          "kind": "execution-log",
+          "log_digest": "sha256:9d2c60cf232540ac9f73a57944457a38d6d2f141d14c7b71546ce19caefbe688",
+          "path": "unit-property-contract.log",
+          "qualification": "QUALIFIED",
+          "requirement_ids": [
+            "TEST-010"
+          ],
+          "result": "PASS",
+          "schema_version": null,
+          "test_id": "TEST-HOST-MODULE-GATES-001"
+        },
+        {
+          "command_evidence_digest": "sha256:03fb23df8e4b59dfd36eb15e0d74cad9fafde1560f2f111d77d83afb82901c45",
+          "command_evidence_path": "release-blackbox.command.json",
+          "command_id": "release-blackbox",
+          "exit_code": 0,
+          "kind": "execution-log",
+          "log_digest": "sha256:526f1d1bdbbc1573a8c0719f6734e57c0ee163cb04681de62634bae634557734",
+          "path": "release-blackbox.log",
+          "qualification": "QUALIFIED",
+          "requirement_ids": [
+            "TEST-010"
+          ],
+          "result": "PASS",
+          "schema_version": null,
+          "test_id": "TEST-HOST-MODULE-GATES-001"
+        },
+        {
+          "command_evidence_digest": "sha256:c3388e0b61430cddd4f11b1f3358bb8caa2f9a7e3651f5db8d2f8fa16f44b2af",
+          "command_evidence_path": "performance.command.json",
+          "command_id": "performance",
+          "exit_code": 0,
+          "kind": "execution-log",
+          "log_digest": "sha256:4b591a8d9827ef103cee30741b7b412d3bc2eff9f3b2fe63ba45ab1951c5169e",
+          "path": "performance.log",
+          "qualification": "QUALIFIED",
+          "requirement_ids": [
+            "TEST-010"
+          ],
+          "result": "PASS",
+          "schema_version": null,
+          "test_id": "TEST-HOST-MODULE-GATES-001"
+        },
+        {
+          "command_evidence_digest": "sha256:5e6dd378b816a1b45cef2ad7057743ba3f1e889469a07a4a9d404f006dfdbadb",
+          "command_evidence_path": "oci-smoke.command.json",
+          "command_id": "oci-smoke",
+          "exit_code": 0,
+          "kind": "execution-log",
+          "log_digest": "sha256:b09ce8e39cf60b02037adbdaf26c4bd513a4baed8d814463f3ad54b02c08502b",
+          "path": "oci-smoke.log",
+          "qualification": "QUALIFIED",
+          "requirement_ids": [
+            "TEST-010"
+          ],
+          "result": "PASS",
+          "schema_version": null,
+          "test_id": "TEST-HOST-MODULE-GATES-001"
+        },
+        {
+          "command_evidence_digest": "sha256:d71397527549b186d3147df648dd9271e30867df0ba079e63e34943b7a14ef1c",
+          "command_evidence_path": "supply-chain.command.json",
+          "command_id": "supply-chain",
+          "exit_code": 0,
+          "kind": "execution-log",
+          "log_digest": "sha256:e6e04c71dc97a9fdd31b5927deb4f176abb5db114ea940568212cc286e626ede",
+          "path": "supply-chain.log",
+          "qualification": "QUALIFIED",
+          "requirement_ids": [
+            "TEST-010"
+          ],
+          "result": "PASS",
+          "schema_version": null,
+          "test_id": "TEST-HOST-MODULE-GATES-001"
+        },
+        {
+          "command_evidence_digest": "sha256:d9f2782f5e7cd878d5721d22ce1364a6e6f9a70cd94faf7c21d08671dccd2360",
+          "command_evidence_path": "formal-soak.command.json",
+          "command_id": "formal-soak",
+          "exit_code": 0,
+          "kind": "execution-log",
+          "log_digest": "sha256:6a085edb3913a40324841f2b5e96bdfa500d9c8a5b10d386b45cdec2c01e5efe",
+          "path": "formal-soak.log",
+          "qualification": "QUALIFIED",
+          "requirement_ids": [
+            "TEST-010"
+          ],
+          "result": "PASS",
+          "schema_version": null,
+          "test_id": "TEST-HOST-MODULE-GATES-001"
+        },
+        {
+          "command_evidence_digest": "sha256:4b042a790e29293a81febc0e5c09ee90ea23450862e8db9035e61203f9117f68",
+          "command_evidence_path": "findings.command.json",
+          "command_id": "findings",
+          "exit_code": 0,
+          "kind": "execution-log",
+          "log_digest": "sha256:f8e6327f605486763bfc52156b77bb4e967cb50d91a552151709b7eff3d6fa9f",
+          "path": "findings.log",
+          "qualification": "QUALIFIED",
+          "requirement_ids": [
+            "TEST-010"
+          ],
+          "result": "PASS",
+          "schema_version": null,
+          "test_id": "TEST-HOST-MODULE-GATES-001"
+        }
+      ],
+      "evidence_result": "PASS",
+      "qualification": "QUALIFIED",
+      "qualification_limit": "Host Definition of Done with no required implementation/test/resource blocker and open P0 zero",
+      "requirement_id": "TEST-010",
+      "scenario_ids": [
+        "TEST-HOST-MODULE-GATES-001"
+      ],
+      "test_targets": [
+        {
+          "command_id": "format",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "rustfmt"
+        },
+        {
+          "command_id": "clippy",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "all-targets"
+        },
+        {
+          "command_id": "clippy",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "all-features"
+        },
+        {
+          "command_id": "clippy",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "deny-warnings"
+        },
+        {
+          "command_id": "unit-property-contract",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "unit"
+        },
+        {
+          "command_id": "unit-property-contract",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "property"
+        },
+        {
+          "command_id": "unit-property-contract",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "protobuf-golden"
+        },
+        {
+          "command_id": "unit-property-contract",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "Wasm-error-mapping"
+        },
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "real-release-Host"
+        },
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "real-service-fixture"
+        },
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "TLS1.3"
+        },
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "generation-monotonic-lifecycle"
+        },
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "authorized-rollback"
+        },
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "statistics"
+        },
+        {
+          "command_id": "performance",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "concurrency-1-2-4-8-32"
+        },
+        {
+          "command_id": "performance",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "minimum-typical-maximum"
+        },
+        {
+          "command_id": "performance",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "queue-saturation"
+        },
+        {
+          "command_id": "oci-smoke",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "non-root"
+        },
+        {
+          "command_id": "oci-smoke",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "read-only-rootfs"
+        },
+        {
+          "command_id": "oci-smoke",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "mTLS"
+        },
+        {
+          "command_id": "oci-smoke",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "graceful-stop"
+        },
+        {
+          "command_id": "supply-chain",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "SBOM"
+        },
+        {
+          "command_id": "supply-chain",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "Trivy"
+        },
+        {
+          "command_id": "supply-chain",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "Cosign"
+        },
+        {
+          "command_id": "supply-chain",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "offline-verification"
+        },
+        {
+          "command_id": "formal-soak",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "60-second-warmup"
+        },
+        {
+          "command_id": "formal-soak",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "four-times-900-seconds"
+        },
+        {
+          "command_id": "findings",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "append-only-findings"
+        },
+        {
+          "command_id": "findings",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "open-P0-zero"
+        }
+      ]
+    },
+    {
+      "evidence": [
+        {
+          "command_evidence_digest": "sha256:e2952bea2d68a5117bb89f132bd99e5db350ec17902322d0e98f606712dec975",
+          "command_evidence_path": "traceability.command.json",
+          "command_id": "traceability",
+          "exit_code": 0,
+          "kind": "execution-log",
+          "log_digest": "sha256:dd7170a449a69c7d87609e5b20da7d5d7b5ada8f7398d3ac50325cd9e7b69f78",
+          "path": "traceability.log",
+          "qualification": "QUALIFIED",
+          "requirement_ids": [
+            "TEST-GATE-001"
+          ],
+          "result": "PASS",
+          "schema_version": null,
+          "test_id": "TEST-HOST-MODULE-GATES-001"
+        },
+        {
+          "command_evidence_digest": "sha256:03fb23df8e4b59dfd36eb15e0d74cad9fafde1560f2f111d77d83afb82901c45",
+          "command_evidence_path": "release-blackbox.command.json",
+          "command_id": "release-blackbox",
+          "exit_code": 0,
+          "kind": "execution-log",
+          "log_digest": "sha256:526f1d1bdbbc1573a8c0719f6734e57c0ee163cb04681de62634bae634557734",
+          "path": "release-blackbox.log",
+          "qualification": "QUALIFIED",
+          "requirement_ids": [
+            "TEST-GATE-001"
+          ],
+          "result": "PASS",
+          "schema_version": null,
+          "test_id": "TEST-HOST-MODULE-GATES-001"
+        },
+        {
+          "command_evidence_digest": "sha256:c3388e0b61430cddd4f11b1f3358bb8caa2f9a7e3651f5db8d2f8fa16f44b2af",
+          "command_evidence_path": "performance.command.json",
+          "command_id": "performance",
+          "exit_code": 0,
+          "kind": "execution-log",
+          "log_digest": "sha256:4b591a8d9827ef103cee30741b7b412d3bc2eff9f3b2fe63ba45ab1951c5169e",
+          "path": "performance.log",
+          "qualification": "QUALIFIED",
+          "requirement_ids": [
+            "TEST-GATE-001"
+          ],
+          "result": "PASS",
+          "schema_version": null,
+          "test_id": "TEST-HOST-MODULE-GATES-001"
+        },
+        {
+          "command_evidence_digest": "sha256:5e6dd378b816a1b45cef2ad7057743ba3f1e889469a07a4a9d404f006dfdbadb",
+          "command_evidence_path": "oci-smoke.command.json",
+          "command_id": "oci-smoke",
+          "exit_code": 0,
+          "kind": "execution-log",
+          "log_digest": "sha256:b09ce8e39cf60b02037adbdaf26c4bd513a4baed8d814463f3ad54b02c08502b",
+          "path": "oci-smoke.log",
+          "qualification": "QUALIFIED",
+          "requirement_ids": [
+            "TEST-GATE-001"
+          ],
+          "result": "PASS",
+          "schema_version": null,
+          "test_id": "TEST-HOST-MODULE-GATES-001"
+        },
+        {
+          "command_evidence_digest": "sha256:d71397527549b186d3147df648dd9271e30867df0ba079e63e34943b7a14ef1c",
+          "command_evidence_path": "supply-chain.command.json",
+          "command_id": "supply-chain",
+          "exit_code": 0,
+          "kind": "execution-log",
+          "log_digest": "sha256:e6e04c71dc97a9fdd31b5927deb4f176abb5db114ea940568212cc286e626ede",
+          "path": "supply-chain.log",
+          "qualification": "QUALIFIED",
+          "requirement_ids": [
+            "TEST-GATE-001"
+          ],
+          "result": "PASS",
+          "schema_version": null,
+          "test_id": "TEST-HOST-MODULE-GATES-001"
+        },
+        {
+          "command_evidence_digest": "sha256:d9f2782f5e7cd878d5721d22ce1364a6e6f9a70cd94faf7c21d08671dccd2360",
+          "command_evidence_path": "formal-soak.command.json",
+          "command_id": "formal-soak",
+          "exit_code": 0,
+          "kind": "execution-log",
+          "log_digest": "sha256:6a085edb3913a40324841f2b5e96bdfa500d9c8a5b10d386b45cdec2c01e5efe",
+          "path": "formal-soak.log",
+          "qualification": "QUALIFIED",
+          "requirement_ids": [
+            "TEST-GATE-001"
+          ],
+          "result": "PASS",
+          "schema_version": null,
+          "test_id": "TEST-HOST-MODULE-GATES-001"
+        }
+      ],
+      "evidence_result": "PASS",
+      "qualification": "QUALIFIED",
+      "qualification_limit": "digest-bound operational completion for module six; nine-module global gate remains HOLD",
+      "requirement_id": "TEST-GATE-001",
+      "scenario_ids": [
+        "TEST-HOST-MODULE-GATES-001"
+      ],
+      "test_targets": [
+        {
+          "command_id": "traceability",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "exact-requirement-evidence-map"
+        },
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "real-release-Host"
+        },
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "real-service-fixture"
+        },
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "TLS1.3"
+        },
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "generation-monotonic-lifecycle"
+        },
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "authorized-rollback"
+        },
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "statistics"
+        },
+        {
+          "command_id": "performance",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "concurrency-1-2-4-8-32"
+        },
+        {
+          "command_id": "performance",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "minimum-typical-maximum"
+        },
+        {
+          "command_id": "performance",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "queue-saturation"
+        },
+        {
+          "command_id": "oci-smoke",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "non-root"
+        },
+        {
+          "command_id": "oci-smoke",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "read-only-rootfs"
+        },
+        {
+          "command_id": "oci-smoke",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "mTLS"
+        },
+        {
+          "command_id": "oci-smoke",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "graceful-stop"
+        },
+        {
+          "command_id": "supply-chain",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "SBOM"
+        },
+        {
+          "command_id": "supply-chain",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "Trivy"
+        },
+        {
+          "command_id": "supply-chain",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "Cosign"
+        },
+        {
+          "command_id": "supply-chain",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "offline-verification"
+        },
+        {
+          "command_id": "formal-soak",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "60-second-warmup"
+        },
+        {
+          "command_id": "formal-soak",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "four-times-900-seconds"
+        }
+      ]
+    },
+    {
+      "evidence": [
+        {
+          "command_evidence_digest": "sha256:03fb23df8e4b59dfd36eb15e0d74cad9fafde1560f2f111d77d83afb82901c45",
+          "command_evidence_path": "release-blackbox.command.json",
+          "command_id": "release-blackbox",
+          "exit_code": 0,
+          "kind": "execution-log",
+          "log_digest": "sha256:526f1d1bdbbc1573a8c0719f6734e57c0ee163cb04681de62634bae634557734",
+          "path": "release-blackbox.log",
+          "qualification": "QUALIFIED",
+          "requirement_ids": [
+            "TEST-REAL-E2E-001"
+          ],
+          "result": "PASS",
+          "schema_version": null,
+          "test_id": "TEST-HOST-MODULE-GATES-001"
+        },
+        {
+          "command_evidence_digest": "sha256:5e6dd378b816a1b45cef2ad7057743ba3f1e889469a07a4a9d404f006dfdbadb",
+          "command_evidence_path": "oci-smoke.command.json",
+          "command_id": "oci-smoke",
+          "exit_code": 0,
+          "kind": "execution-log",
+          "log_digest": "sha256:b09ce8e39cf60b02037adbdaf26c4bd513a4baed8d814463f3ad54b02c08502b",
+          "path": "oci-smoke.log",
+          "qualification": "QUALIFIED",
+          "requirement_ids": [
+            "TEST-REAL-E2E-001"
+          ],
+          "result": "PASS",
+          "schema_version": null,
+          "test_id": "TEST-HOST-MODULE-GATES-001"
+        }
+      ],
+      "evidence_result": "PASS",
+      "qualification": "QUALIFIED",
+      "qualification_limit": "real candidate Host and runtime public boundaries; formal Go Manager pairwise/system remains NOT_RUN",
+      "requirement_id": "TEST-REAL-E2E-001",
+      "scenario_ids": [
+        "TEST-HOST-MODULE-GATES-001"
+      ],
+      "test_targets": [
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "real-release-Host"
+        },
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "real-service-fixture"
+        },
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "TLS1.3"
+        },
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "generation-monotonic-lifecycle"
+        },
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "authorized-rollback"
+        },
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "statistics"
+        },
+        {
+          "command_id": "oci-smoke",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "non-root"
+        },
+        {
+          "command_id": "oci-smoke",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "read-only-rootfs"
+        },
+        {
+          "command_id": "oci-smoke",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "mTLS"
+        },
+        {
+          "command_id": "oci-smoke",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "graceful-stop"
+        }
+      ]
+    },
+    {
+      "evidence": [
+        {
+          "command_evidence_digest": "sha256:acd551ad7b2c49cf78ccd2ae482c22f2d1817e77e0fbe03fc43235120b99b164",
+          "command_evidence_path": "deep-checks.command.json",
+          "command_id": "deep-checks",
+          "exit_code": 0,
+          "kind": "execution-log",
+          "log_digest": "sha256:c54bca583a9d23820c9d8858904516dd7eb17cd03743eb3e3647853cac574a31",
+          "path": "deep-checks.log",
+          "qualification": "QUALIFIED",
+          "requirement_ids": [
+            "TEST-REUSE-001"
+          ],
+          "result": "PASS",
+          "schema_version": null,
+          "test_id": "TEST-HOST-SUPPLY-001"
+        },
+        {
+          "command_evidence_digest": "sha256:d71397527549b186d3147df648dd9271e30867df0ba079e63e34943b7a14ef1c",
+          "command_evidence_path": "supply-chain.command.json",
+          "command_id": "supply-chain",
+          "exit_code": 0,
+          "kind": "execution-log",
+          "log_digest": "sha256:e6e04c71dc97a9fdd31b5927deb4f176abb5db114ea940568212cc286e626ede",
+          "path": "supply-chain.log",
+          "qualification": "QUALIFIED",
+          "requirement_ids": [
+            "TEST-REUSE-001"
+          ],
+          "result": "PASS",
+          "schema_version": null,
+          "test_id": "TEST-HOST-SUPPLY-001"
+        }
+      ],
+      "evidence_result": "PASS",
+      "qualification": "QUALIFIED",
+      "qualification_limit": "exact third-party lock/license/SBOM/security closure without ownership transfer",
+      "requirement_id": "TEST-REUSE-001",
+      "scenario_ids": [
+        "TEST-HOST-SUPPLY-001"
+      ],
+      "test_targets": [
+        {
+          "command_id": "deep-checks",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "audit"
+        },
+        {
+          "command_id": "deep-checks",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "license"
+        },
+        {
+          "command_id": "deep-checks",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "coverage"
+        },
+        {
+          "command_id": "deep-checks",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "Valgrind"
+        },
+        {
+          "command_id": "supply-chain",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "SBOM"
+        },
+        {
+          "command_id": "supply-chain",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "Trivy"
+        },
+        {
+          "command_id": "supply-chain",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "Cosign"
+        },
+        {
+          "command_id": "supply-chain",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "offline-verification"
+        }
+      ]
+    },
+    {
+      "evidence": [
+        {
+          "command_evidence_digest": "sha256:296ac1958f5e9a48b965e12d37dc89cbf5098ee82add48aa07de58f1dcba4123",
+          "command_evidence_path": "contract-schema.command.json",
+          "command_id": "contract-schema",
+          "exit_code": 0,
+          "kind": "execution-log",
+          "log_digest": "sha256:225e4ee3788ed8d0f1959c15f6b26c39b6465a37f66b8aa726c36b4127b57b0a",
+          "path": "contract-schema.log",
+          "qualification": "QUALIFIED",
+          "requirement_ids": [
+            "TEST-PLUGIN-001"
+          ],
+          "result": "PASS",
+          "schema_version": null,
+          "test_id": "TEST-HOST-MODULE-GATES-001"
+        },
+        {
+          "command_evidence_digest": "sha256:03fb23df8e4b59dfd36eb15e0d74cad9fafde1560f2f111d77d83afb82901c45",
+          "command_evidence_path": "release-blackbox.command.json",
+          "command_id": "release-blackbox",
+          "exit_code": 0,
+          "kind": "execution-log",
+          "log_digest": "sha256:526f1d1bdbbc1573a8c0719f6734e57c0ee163cb04681de62634bae634557734",
+          "path": "release-blackbox.log",
+          "qualification": "QUALIFIED",
+          "requirement_ids": [
+            "TEST-PLUGIN-001"
+          ],
+          "result": "PASS",
+          "schema_version": null,
+          "test_id": "TEST-HOST-MODULE-GATES-001"
+        },
+        {
+          "command_evidence_digest": "sha256:c3388e0b61430cddd4f11b1f3358bb8caa2f9a7e3651f5db8d2f8fa16f44b2af",
+          "command_evidence_path": "performance.command.json",
+          "command_id": "performance",
+          "exit_code": 0,
+          "kind": "execution-log",
+          "log_digest": "sha256:4b591a8d9827ef103cee30741b7b412d3bc2eff9f3b2fe63ba45ab1951c5169e",
+          "path": "performance.log",
+          "qualification": "QUALIFIED",
+          "requirement_ids": [
+            "TEST-PLUGIN-001"
+          ],
+          "result": "PASS",
+          "schema_version": null,
+          "test_id": "TEST-HOST-MODULE-GATES-001"
+        },
+        {
+          "command_evidence_digest": "sha256:5e6dd378b816a1b45cef2ad7057743ba3f1e889469a07a4a9d404f006dfdbadb",
+          "command_evidence_path": "oci-smoke.command.json",
+          "command_id": "oci-smoke",
+          "exit_code": 0,
+          "kind": "execution-log",
+          "log_digest": "sha256:b09ce8e39cf60b02037adbdaf26c4bd513a4baed8d814463f3ad54b02c08502b",
+          "path": "oci-smoke.log",
+          "qualification": "QUALIFIED",
+          "requirement_ids": [
+            "TEST-PLUGIN-001"
+          ],
+          "result": "PASS",
+          "schema_version": null,
+          "test_id": "TEST-HOST-MODULE-GATES-001"
+        },
+        {
+          "command_evidence_digest": "sha256:d71397527549b186d3147df648dd9271e30867df0ba079e63e34943b7a14ef1c",
+          "command_evidence_path": "supply-chain.command.json",
+          "command_id": "supply-chain",
+          "exit_code": 0,
+          "kind": "execution-log",
+          "log_digest": "sha256:e6e04c71dc97a9fdd31b5927deb4f176abb5db114ea940568212cc286e626ede",
+          "path": "supply-chain.log",
+          "qualification": "QUALIFIED",
+          "requirement_ids": [
+            "TEST-PLUGIN-001"
+          ],
+          "result": "PASS",
+          "schema_version": null,
+          "test_id": "TEST-HOST-MODULE-GATES-001"
+        },
+        {
+          "command_evidence_digest": "sha256:d9f2782f5e7cd878d5721d22ce1364a6e6f9a70cd94faf7c21d08671dccd2360",
+          "command_evidence_path": "formal-soak.command.json",
+          "command_id": "formal-soak",
+          "exit_code": 0,
+          "kind": "execution-log",
+          "log_digest": "sha256:6a085edb3913a40324841f2b5e96bdfa500d9c8a5b10d386b45cdec2c01e5efe",
+          "path": "formal-soak.log",
+          "qualification": "QUALIFIED",
+          "requirement_ids": [
+            "TEST-PLUGIN-001"
+          ],
+          "result": "PASS",
+          "schema_version": null,
+          "test_id": "TEST-HOST-MODULE-GATES-001"
+        }
+      ],
+      "evidence_result": "PASS",
+      "qualification": "QUALIFIED",
+      "qualification_limit": "Plugin Runtime Host portion; real Analysis, Go Manager/PostgreSQL failover and formal platform pairwise remain separate qualification scope",
+      "requirement_id": "TEST-PLUGIN-001",
+      "scenario_ids": [
+        "TEST-HOST-MODULE-GATES-001"
+      ],
+      "test_targets": [
+        {
+          "command_id": "contract-schema",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "JSON-Schema-2020-12"
+        },
+        {
+          "command_id": "contract-schema",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "Protobuf"
+        },
+        {
+          "command_id": "contract-schema",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "WIT"
+        },
+        {
+          "command_id": "contract-schema",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "profile-digest"
+        },
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "real-release-Host"
+        },
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "real-service-fixture"
+        },
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "TLS1.3"
+        },
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "generation-monotonic-lifecycle"
+        },
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "authorized-rollback"
+        },
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "statistics"
+        },
+        {
+          "command_id": "performance",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "concurrency-1-2-4-8-32"
+        },
+        {
+          "command_id": "performance",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "minimum-typical-maximum"
+        },
+        {
+          "command_id": "performance",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "queue-saturation"
+        },
+        {
+          "command_id": "oci-smoke",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "non-root"
+        },
+        {
+          "command_id": "oci-smoke",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "read-only-rootfs"
+        },
+        {
+          "command_id": "oci-smoke",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "mTLS"
+        },
+        {
+          "command_id": "oci-smoke",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "graceful-stop"
+        },
+        {
+          "command_id": "supply-chain",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "SBOM"
+        },
+        {
+          "command_id": "supply-chain",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "Trivy"
+        },
+        {
+          "command_id": "supply-chain",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "Cosign"
+        },
+        {
+          "command_id": "supply-chain",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "offline-verification"
+        },
+        {
+          "command_id": "formal-soak",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "60-second-warmup"
+        },
+        {
+          "command_id": "formal-soak",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "four-times-900-seconds"
+        }
+      ]
+    },
+    {
+      "evidence": [
+        {
+          "command_evidence_digest": "sha256:296ac1958f5e9a48b965e12d37dc89cbf5098ee82add48aa07de58f1dcba4123",
+          "command_evidence_path": "contract-schema.command.json",
+          "command_id": "contract-schema",
+          "exit_code": 0,
+          "kind": "execution-log",
+          "log_digest": "sha256:225e4ee3788ed8d0f1959c15f6b26c39b6465a37f66b8aa726c36b4127b57b0a",
+          "path": "contract-schema.log",
+          "qualification": "QUALIFIED",
+          "requirement_ids": [
+            "TEST-PLUGIN-STAT-001"
+          ],
+          "result": "PASS",
+          "schema_version": null,
+          "test_id": "TEST-HOST-STATISTICS-CONFORMANCE-001"
+        },
+        {
+          "command_evidence_digest": "sha256:03fb23df8e4b59dfd36eb15e0d74cad9fafde1560f2f111d77d83afb82901c45",
+          "command_evidence_path": "release-blackbox.command.json",
+          "command_id": "release-blackbox",
+          "exit_code": 0,
+          "kind": "execution-log",
+          "log_digest": "sha256:526f1d1bdbbc1573a8c0719f6734e57c0ee163cb04681de62634bae634557734",
+          "path": "release-blackbox.log",
+          "qualification": "QUALIFIED",
+          "requirement_ids": [
+            "TEST-PLUGIN-STAT-001"
+          ],
+          "result": "PASS",
+          "schema_version": null,
+          "test_id": "TEST-HOST-STATISTICS-CONFORMANCE-001"
+        },
+        {
+          "command_evidence_digest": "sha256:c3388e0b61430cddd4f11b1f3358bb8caa2f9a7e3651f5db8d2f8fa16f44b2af",
+          "command_evidence_path": "performance.command.json",
+          "command_id": "performance",
+          "exit_code": 0,
+          "kind": "execution-log",
+          "log_digest": "sha256:4b591a8d9827ef103cee30741b7b412d3bc2eff9f3b2fe63ba45ab1951c5169e",
+          "path": "performance.log",
+          "qualification": "QUALIFIED",
+          "requirement_ids": [
+            "TEST-PLUGIN-STAT-001"
+          ],
+          "result": "PASS",
+          "schema_version": null,
+          "test_id": "TEST-HOST-STATISTICS-CONFORMANCE-001"
+        }
+      ],
+      "evidence_result": "PASS",
+      "qualification": "QUALIFIED",
+      "qualification_limit": "Plugin Runtime Host statistics portion; Go/DB/Web/direct-adapter and System E2E remain separate",
+      "requirement_id": "TEST-PLUGIN-STAT-001",
+      "scenario_ids": [
+        "TEST-HOST-STATISTICS-CONFORMANCE-001"
+      ],
+      "test_targets": [
+        {
+          "command_id": "contract-schema",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "JSON-Schema-2020-12"
+        },
+        {
+          "command_id": "contract-schema",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "Protobuf"
+        },
+        {
+          "command_id": "contract-schema",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "WIT"
+        },
+        {
+          "command_id": "contract-schema",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "profile-digest"
+        },
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "real-release-Host"
+        },
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "real-service-fixture"
+        },
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "TLS1.3"
+        },
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "generation-monotonic-lifecycle"
+        },
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "authorized-rollback"
+        },
+        {
+          "command_id": "release-blackbox",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "statistics"
+        },
+        {
+          "command_id": "performance",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "concurrency-1-2-4-8-32"
+        },
+        {
+          "command_id": "performance",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "minimum-typical-maximum"
+        },
+        {
+          "command_id": "performance",
+          "qualification": "QUALIFIED",
+          "result": "PASS",
+          "target": "queue-saturation"
+        }
+      ]
+    }
+  ],
+  "result": "PASS",
+  "schema_version": "plugin-runtime-host-requirement-traceability/v1",
+  "valid": true
+}

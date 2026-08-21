@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://masi-nids.example/contracts/evidence/plugin-runtime-host-supply/v1/schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "module_id", "source_revision", "source_tree_digest",
+    "image_ref", "image_id", "manifest_digest", "signature_bundle_digest",
+    "public_key_digest", "scan_counts", "checks", "failure_reasons",
+    "result", "qualification", "reason_code"
+  ],
+  "properties": {
+    "schema_version": {"const": "plugin-host-supply-chain-evidence/v1"},
+    "module_id": {"const": "MOD-PLUGIN-001"},
+    "source_revision": {"type": "string", "pattern": "^[0-9a-f]{40,64}$"},
+    "source_tree_digest": {"$ref": "#/$defs/digest"},
+    "image_ref": {"type": "string", "minLength": 1, "maxLength": 256},
+    "image_id": {"$ref": "#/$defs/digest"},
+    "manifest_digest": {"$ref": "#/$defs/digest"},
+    "signature_bundle_digest": {"$ref": "#/$defs/digest"},
+    "public_key_digest": {"$ref": "#/$defs/digest"},
+    "scan_counts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "critical_vulnerabilities", "fixable_high_vulnerabilities", "image_secrets",
+        "source_secrets", "high_critical_misconfigurations"
+      ],
+      "properties": {
+        "critical_vulnerabilities": {"const": 0},
+        "fixable_high_vulnerabilities": {"const": 0},
+        "image_secrets": {"const": 0},
+        "source_secrets": {"const": 0},
+        "high_critical_misconfigurations": {"const": 0}
+      }
+    },
+    "checks": {
+      "type": "object",
+      "minProperties": 20,
+      "maxProperties": 32,
+      "additionalProperties": {"const": true}
+    },
+    "failure_reasons": {"type": "array", "maxItems": 0},
+    "result": {"const": "PASS"},
+    "qualification": {"const": "NOT_QUALIFIED"},
+    "reason_code": {"const": "PLUGIN_HOST_SUPPLY_CHAIN_VERIFIED"}
+  },
+  "$defs": {
+    "digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}
+  }
+}
