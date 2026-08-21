@@ -3,7 +3,7 @@
 - 日期：2026-08-12
 - 对应需求基线：`vNext-requirements-1.18`
 - 性质：非规范性架构说明；与需求冲突时，以 `../masi-nids-vnext-system-requirements-2026-08-09.md` 的稳定需求 ID 为准
-- 当前状态：架构已确认。截至 2026-08-20，契约/profile/golden 已冻结（Gate 0）；P4/Switch 已 `PASS/QUALIFIED`，Rust Edge / Central Inference / Go Control 已 operational Module Complete（qualification 仍 `HOLD/NOT_QUALIFIED`，`DEC-001` 门槛与受保护发布基线未冻结）；PostgreSQL、Plugin Host、Python Analysis、Web、Offline ML 尚未开始实现；正式 pairwise/system 与生产资格为 `HOLD/NOT RUN`
+- 当前状态：架构已确认。截至 2026-08-21，契约/profile/golden 已冻结（Gate 0）；P4/Switch 已 `PASS/QUALIFIED`，Rust Edge / Central Inference / Go Control / PostgreSQL State 已 operational Module Complete（qualification 仍 `HOLD/NOT_QUALIFIED`，`DEC-001` 门槛与受保护发布基线未冻结；PostgreSQL 只覆盖 single-domain/manual-promotion acceptance scope）；Plugin Host、Python Analysis、Web、Offline ML 尚未开始实现；正式 pairwise/system 与生产资格为 `HOLD/NOT RUN`
 - 关键 ADR：ADR-0001、0003、0004、0005、0006、0007、0008、0009、0012、0013、0014、0015、0017、0018（ADR-0010/0011只保留模型模块化与启动绑定的历史来源，ADR-0016保留v1.13 Central GPU历史）
 - 详细设计入口：[`../design/README.md`](../design/README.md)；模块验收：[`../testing/module-e2e-acceptance-design.md`](../testing/module-e2e-acceptance-design.md)；正式集成：[`../integration/pairwise-and-system-integration-design.md`](../integration/pairwise-and-system-integration-design.md)
 

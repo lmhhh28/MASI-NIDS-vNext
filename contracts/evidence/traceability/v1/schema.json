@@ -24,14 +24,16 @@
       "enum": [
         "rust-edge-agent-traceability-evidence/v1",
         "central-inference-traceability-evidence/v1",
-        "control-core-requirement-traceability/v1"
+        "control-core-requirement-traceability/v1",
+        "postgresql-state-requirement-traceability/v1"
       ]
     },
     "module_id": {
       "enum": [
         "MOD-EDGE-001",
         "MOD-INF-001",
-        "MOD-CTRL-001"
+        "MOD-CTRL-001",
+        "MOD-DB-001"
       ]
     },
     "manifest": {
@@ -64,7 +66,7 @@
     "requirements": {
       "type": "array",
       "minItems": 0,
-      "maxItems": 32,
+      "maxItems": 64,
       "items": {
         "$ref": "#/$defs/requirement"
       }
@@ -72,7 +74,7 @@
     "requirement_ids": {
       "type": "array",
       "minItems": 1,
-      "maxItems": 32,
+      "maxItems": 64,
       "uniqueItems": true,
       "items": {
         "$ref": "#/$defs/requirementId"
@@ -286,6 +288,56 @@
                   "applicability": "NOT_APPLICABLE",
                   "result": "NOT_RUN",
                   "stable_reason": "BMV2_SOFTWARE_ONLY_FIRST_RELEASE"
+                }
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "module_id": {
+            "const": "MOD-DB-001"
+          }
+        },
+        "required": [
+          "module_id"
+        ]
+      },
+      "then": {
+        "properties": {
+          "conditional_applicability": {
+            "type": "array",
+            "minItems": 4,
+            "maxItems": 4,
+            "uniqueItems": true,
+            "items": {
+              "enum": [
+                {
+                  "profile": "production-ha/v1",
+                  "applicability": "NOT_APPLICABLE",
+                  "result": "NOT_RUN",
+                  "stable_reason": "SINGLE_FAILURE_DOMAIN_HOST"
+                },
+                {
+                  "profile": "managed-postgresql/v1",
+                  "applicability": "NOT_APPLICABLE",
+                  "result": "NOT_RUN",
+                  "stable_reason": "SELF_HOSTED_SINGLE_DOMAIN_PROFILE"
+                },
+                {
+                  "profile": "cross-region-wal-archive/v1",
+                  "applicability": "NOT_APPLICABLE",
+                  "result": "NOT_RUN",
+                  "stable_reason": "CROSS_REGION_NOT_TRIGGERED_ACCEPTANCE_TIER"
+                },
+                {
+                  "profile": "automatic-failover/v1",
+                  "applicability": "NOT_APPLICABLE",
+                  "result": "NOT_RUN",
+                  "stable_reason": "NOT_OPERATIONAL_SINGLE_DOMAIN_PROFILE"
                 }
               ]
             }

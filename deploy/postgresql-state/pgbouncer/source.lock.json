@@ -1,0 +1,11 @@
+{
+  "schema_version": "source-lock/v1",
+  "component": "PgBouncer",
+  "version": "1.25.2",
+  "archive": "pgbouncer-1.25.2.tar.gz",
+  "archive_url": "https://www.pgbouncer.org/downloads/files/1.25.2/pgbouncer-1.25.2.tar.gz",
+  "archive_sha256": "sha256:924ad35113fd0a71c8e2dbe85b5d03445532e2b7b37a9f8a48983beea238b332",
+  "license": "ISC",
+  "build_network_only": true,
+  "runtime_download": false
+}

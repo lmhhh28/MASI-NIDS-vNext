@@ -1,0 +1,406 @@
+name: masi-postgresql-state-module
+
+services:
+  archive-init:
+    image: ${MASI_DB_POSTGRES_IMAGE:-masi-postgres:module}
+    restart: "no"
+    network_mode: none
+    user: "0:0"
+    entrypoint: ["/bin/sh", "-eu", "-c"]
+    command: ["install -d -o 70 -g 70 -m 0700 /archive"]
+    volumes:
+      - wal-archive:/archive
+    read_only: true
+    cap_drop: [ALL]
+    cap_add: [CHOWN, DAC_OVERRIDE, FOWNER]
+    security_opt:
+      - no-new-privileges:true
+
+  postgres:
+    image: ${MASI_DB_POSTGRES_IMAGE:-masi-postgres:module}
+    restart: "no"
+    cpus: 4.0
+    mem_limit: 1g
+    pids_limit: 256
+    ulimits:
+      nofile: {soft: 4096, hard: 4096}
+    depends_on:
+      archive-init:
+        condition: service_completed_successfully
+    environment:
+      POSTGRES_USER: masi_bootstrap
+      POSTGRES_PASSWORD_FILE: /run/masi-postgresql/secrets/bootstrap-password
+      POSTGRES_DB: masi_state_module_test
+      POSTGRES_INITDB_ARGS: --data-checksums --auth-host=scram-sha-256 --auth-local=scram-sha-256
+      PGDATA: /var/lib/postgresql/18/docker
+    command:
+      - postgres
+      - -c
+      - config_file=/etc/masi-postgresql/postgresql.conf
+      - -c
+      - hba_file=/etc/masi-postgresql/pg_hba.conf
+    ports:
+      - "127.0.0.1:${MASI_DB_PRIMARY_PORT:-55442}:5432"
+    volumes:
+      - primary-data:/var/lib/postgresql
+      - wal-archive:/var/lib/postgresql/wal-archive
+      - ./postgres/postgresql.conf:/etc/masi-postgresql/postgresql.conf:ro
+      - ./postgres/pg_hba.conf:/etc/masi-postgresql/pg_hba.conf:ro
+      - ./postgres/init:/docker-entrypoint-initdb.d:ro
+      - ${MASI_DB_RUNTIME_ROOT:?set MASI_DB_RUNTIME_ROOT}/secrets:/run/masi-postgresql/secrets:ro
+      - ${MASI_DB_RUNTIME_ROOT:?set MASI_DB_RUNTIME_ROOT}/tls/postgres:/run/masi-postgresql/tls:ro
+    healthcheck:
+      test: ["CMD-SHELL", "PGPASSFILE=/run/masi-postgresql/secrets/monitoring-passfile psql -h /var/run/postgresql -p 5432 -d masi_state_module_test -U masi_monitoring_login -Atqc 'SELECT 1'"]
+      interval: 1s
+      timeout: 3s
+      retries: 60
+      start_period: 3s
+    stop_grace_period: 30s
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      state:
+        aliases: [postgres]
+
+  postgres-disk-fault:
+    image: ${MASI_DB_POSTGRES_IMAGE:-masi-postgres:module}
+    profiles: [fault]
+    restart: "no"
+    cpus: 2.0
+    mem_limit: 512m
+    pids_limit: 128
+    ulimits:
+      nofile: {soft: 1024, hard: 1024}
+    environment:
+      POSTGRES_USER: masi_bootstrap
+      POSTGRES_PASSWORD_FILE: /run/masi-postgresql/secrets/bootstrap-password
+      POSTGRES_DB: masi_state_module_test
+      POSTGRES_INITDB_ARGS: --data-checksums --auth-host=scram-sha-256 --auth-local=scram-sha-256
+      PGDATA: /var/lib/postgresql/18/docker
+    command:
+      - postgres
+      - -c
+      - config_file=/etc/masi-postgresql/postgresql.conf
+      - -c
+      - hba_file=/etc/masi-postgresql/pg_hba.conf
+      - -c
+      - archive_mode=off
+      - -c
+      - wal_level=minimal
+      - -c
+      - max_wal_senders=0
+      - -c
+      - max_replication_slots=0
+      - -c
+      - max_wal_size=64MB
+      - -c
+      - min_wal_size=32MB
+    ports:
+      - "127.0.0.1:${MASI_DB_DISK_FAULT_PORT:-55445}:5432"
+    volumes:
+      - ./postgres/postgresql.conf:/etc/masi-postgresql/postgresql.conf:ro
+      - ./postgres/pg_hba.conf:/etc/masi-postgresql/pg_hba.conf:ro
+      - ./postgres/init:/docker-entrypoint-initdb.d:ro
+      - ${MASI_DB_RUNTIME_ROOT:?set MASI_DB_RUNTIME_ROOT}/secrets:/run/masi-postgresql/secrets:ro
+      - ${MASI_DB_RUNTIME_ROOT:?set MASI_DB_RUNTIME_ROOT}/tls/postgres:/run/masi-postgresql/tls:ro
+    tmpfs:
+      - /var/lib/postgresql:rw,nosuid,nodev,size=256m,mode=0700,uid=70,gid=70
+    healthcheck:
+      test: ["CMD-SHELL", "PGPASSFILE=/run/masi-postgresql/secrets/monitoring-passfile psql -h /var/run/postgresql -p 5432 -d masi_state_module_test -U masi_monitoring_login -Atqc 'SELECT 1'"]
+      interval: 1s
+      timeout: 3s
+      retries: 60
+      start_period: 3s
+    stop_grace_period: 10s
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      state:
+        aliases: [postgres-disk-fault]
+
+  pgbouncer:
+    image: ${MASI_DB_PGBOUNCER_IMAGE:-masi-pgbouncer:module}
+    restart: "no"
+    cpus: 1.0
+    mem_limit: 256m
+    pids_limit: 128
+    ulimits:
+      nofile: {soft: 1024, hard: 1024}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:${MASI_DB_PGBOUNCER_PORT:-56442}:6432"
+    volumes:
+      - ./pgbouncer/pgbouncer.ini:/etc/pgbouncer/pgbouncer.ini:ro
+      - ${MASI_DB_RUNTIME_ROOT:?set MASI_DB_RUNTIME_ROOT}/secrets:/run/masi-postgresql/secrets:ro
+      - ${MASI_DB_RUNTIME_ROOT:?set MASI_DB_RUNTIME_ROOT}/tls/pgbouncer:/run/masi-postgresql/tls:ro
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=8m,mode=1777
+      - /var/run/pgbouncer:rw,noexec,nosuid,nodev,size=4m,mode=0750,uid=10003,gid=10003
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD-SHELL", "nc -z 127.0.0.1 6432"]
+      interval: 1s
+      timeout: 2s
+      retries: 30
+    networks: [state]
+
+  standby-init:
+    image: ${MASI_DB_POSTGRES_IMAGE:-masi-postgres:module}
+    profiles: [standby]
+    restart: "no"
+    network_mode: none
+    user: "0:0"
+    entrypoint: ["/bin/sh", "-eu", "-c"]
+    command: ["install -d -o 70 -g 70 -m 0700 /standby"]
+    volumes:
+      - standby-data:/standby
+    read_only: true
+    cap_drop: [ALL]
+    cap_add: [CHOWN, DAC_OVERRIDE, FOWNER]
+    security_opt:
+      - no-new-privileges:true
+
+  standby-basebackup:
+    image: ${MASI_DB_POSTGRES_IMAGE:-masi-postgres:module}
+    profiles: [standby]
+    restart: "no"
+    cpus: 2.0
+    mem_limit: 512m
+    pids_limit: 128
+    user: "70:70"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      standby-init:
+        condition: service_completed_successfully
+    entrypoint: ["/bin/sh", "-eu", "-c"]
+    command:
+      - >-
+        if test -e /var/lib/postgresql/18/docker/PG_VERSION; then
+          pg_verifybackup /var/lib/postgresql/18/docker;
+        else
+          pg_basebackup --host=postgres --port=5432 --username=masi_replication_login \
+          --pgdata=/var/lib/postgresql/18/docker --format=plain --wal-method=stream \
+          --checkpoint=fast --write-recovery-conf --no-password --progress &&
+          pg_verifybackup /var/lib/postgresql/18/docker;
+        fi
+    environment:
+      PGPASSFILE: /run/masi-postgresql/secrets/replication-passfile
+      PGSSLMODE: verify-full
+      PGSSLROOTCERT: /run/masi-postgresql/tls/ca.crt
+      PGSSLCERT: /run/masi-postgresql/tls/replication.crt
+      PGSSLKEY: /run/masi-postgresql/tls/replication.key
+    volumes:
+      - standby-data:/var/lib/postgresql
+      - ${MASI_DB_RUNTIME_ROOT:?set MASI_DB_RUNTIME_ROOT}/secrets:/run/masi-postgresql/secrets:ro
+      - ${MASI_DB_RUNTIME_ROOT:?set MASI_DB_RUNTIME_ROOT}/tls/standby:/run/masi-postgresql/tls:ro
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=8m,mode=1777
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    networks: [state]
+
+  standby:
+    image: ${MASI_DB_POSTGRES_IMAGE:-masi-postgres:module}
+    profiles: [standby]
+    restart: "no"
+    cpus: 4.0
+    mem_limit: 1g
+    pids_limit: 256
+    ulimits:
+      nofile: {soft: 4096, hard: 4096}
+    depends_on:
+      standby-basebackup:
+        condition: service_completed_successfully
+    environment:
+      PGDATA: /var/lib/postgresql/18/docker
+    command:
+      - postgres
+      - -c
+      - config_file=/etc/masi-postgresql/postgresql.conf
+      - -c
+      - hba_file=/etc/masi-postgresql/pg_hba.conf
+      - -c
+      - archive_mode=off
+      - -c
+      - primary_conninfo=host=postgres port=5432 user=masi_replication_login sslmode=verify-full sslrootcert=/run/masi-postgresql/tls/ca.crt sslcert=/run/masi-postgresql/tls/replication.crt sslkey=/run/masi-postgresql/tls/replication.key passfile=/run/masi-postgresql/secrets/replication-passfile application_name=masi_state_standby connect_timeout=5
+    ports:
+      - "127.0.0.1:${MASI_DB_STANDBY_PORT:-55443}:5432"
+    volumes:
+      - standby-data:/var/lib/postgresql
+      - ./postgres/postgresql.conf:/etc/masi-postgresql/postgresql.conf:ro
+      - ./postgres/pg_hba.conf:/etc/masi-postgresql/pg_hba.conf:ro
+      - ${MASI_DB_RUNTIME_ROOT:?set MASI_DB_RUNTIME_ROOT}/secrets:/run/masi-postgresql/secrets:ro
+      - ${MASI_DB_RUNTIME_ROOT:?set MASI_DB_RUNTIME_ROOT}/tls/standby:/run/masi-postgresql/tls:ro
+    healthcheck:
+      test: ["CMD-SHELL", "PGPASSFILE=/run/masi-postgresql/secrets/monitoring-passfile psql -h /var/run/postgresql -p 5432 -d masi_state_module_test -U masi_monitoring_login -Atqc 'SELECT 1'"]
+      interval: 1s
+      timeout: 3s
+      retries: 60
+      start_period: 3s
+    stop_grace_period: 30s
+    security_opt:
+      - no-new-privileges:true
+    networks: [state]
+
+  pitr-basebackup-init:
+    image: ${MASI_DB_POSTGRES_IMAGE:-masi-postgres:module}
+    profiles: [restore]
+    restart: "no"
+    network_mode: none
+    user: "0:0"
+    entrypoint: ["/bin/sh", "-eu", "-c"]
+    command: ["install -d -o 70 -g 70 -m 0700 /backup"]
+    volumes:
+      - pitr-basebackup:/backup
+    read_only: true
+    cap_drop: [ALL]
+    cap_add: [CHOWN, DAC_OVERRIDE, FOWNER]
+    security_opt:
+      - no-new-privileges:true
+
+  pitr-basebackup:
+    image: ${MASI_DB_POSTGRES_IMAGE:-masi-postgres:module}
+    profiles: [restore]
+    restart: "no"
+    cpus: 2.0
+    mem_limit: 512m
+    pids_limit: 128
+    user: "70:70"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      pitr-basebackup-init:
+        condition: service_completed_successfully
+    entrypoint: ["/bin/sh", "-eu", "-c"]
+    command:
+      - >-
+        if test -e /var/lib/postgresql/18/docker/PG_VERSION; then
+          pg_verifybackup /var/lib/postgresql/18/docker;
+        else
+          pg_basebackup --host=postgres --port=5432 --username=masi_replication_login \
+          --pgdata=/var/lib/postgresql/18/docker --format=plain --wal-method=stream \
+          --checkpoint=fast --manifest-checksums=SHA256 --no-password --progress &&
+          pg_verifybackup /var/lib/postgresql/18/docker;
+        fi
+    environment:
+      PGPASSFILE: /run/masi-postgresql/secrets/replication-passfile
+      PGSSLMODE: verify-full
+      PGSSLROOTCERT: /run/masi-postgresql/tls/ca.crt
+      PGSSLCERT: /run/masi-postgresql/tls/replication.crt
+      PGSSLKEY: /run/masi-postgresql/tls/replication.key
+    volumes:
+      - pitr-basebackup:/var/lib/postgresql
+      - ${MASI_DB_RUNTIME_ROOT:?set MASI_DB_RUNTIME_ROOT}/secrets:/run/masi-postgresql/secrets:ro
+      - ${MASI_DB_RUNTIME_ROOT:?set MASI_DB_RUNTIME_ROOT}/tls/standby:/run/masi-postgresql/tls:ro
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=8m,mode=1777
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    networks: [state]
+
+  restore-init:
+    image: ${MASI_DB_POSTGRES_IMAGE:-masi-postgres:module}
+    profiles: [restore]
+    restart: "no"
+    network_mode: none
+    user: "0:0"
+    entrypoint: ["/bin/sh", "-eu", "-c"]
+    command: ["install -d -o 70 -g 70 -m 0700 /restore"]
+    volumes:
+      - restore-data:/restore
+    read_only: true
+    cap_drop: [ALL]
+    cap_add: [CHOWN, DAC_OVERRIDE, FOWNER]
+    security_opt:
+      - no-new-privileges:true
+
+  restore-prepare:
+    image: ${MASI_DB_POSTGRES_IMAGE:-masi-postgres:module}
+    profiles: [restore]
+    restart: "no"
+    user: "70:70"
+    depends_on:
+      pitr-basebackup:
+        condition: service_completed_successfully
+      restore-init:
+        condition: service_completed_successfully
+    entrypoint: ["/bin/sh", "-eu", "-c"]
+    command:
+      - >-
+        test ! -e /restore/18/docker/PG_VERSION &&
+        install -d -m 0700 /restore/18/docker &&
+        cp -a /base/18/docker/. /restore/18/docker/ &&
+        touch /restore/18/docker/recovery.signal &&
+        printf "restore_command = 'cp /var/lib/postgresql/wal-archive/%%f %%p'\nrecovery_target_name = 'masi_module_pitr_target'\nrecovery_target_action = 'promote'\nrecovery_target_inclusive = on\nrecovery_target_timeline = 'current'\n"
+        >>/restore/18/docker/postgresql.auto.conf
+    volumes:
+      - pitr-basebackup:/base:ro
+      - restore-data:/restore
+    read_only: true
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    network_mode: none
+
+  restore:
+    image: ${MASI_DB_POSTGRES_IMAGE:-masi-postgres:module}
+    profiles: [restore]
+    restart: "no"
+    cpus: 4.0
+    mem_limit: 1g
+    pids_limit: 256
+    ulimits:
+      nofile: {soft: 4096, hard: 4096}
+    depends_on:
+      restore-prepare:
+        condition: service_completed_successfully
+    environment:
+      PGDATA: /var/lib/postgresql/18/docker
+    command:
+      - postgres
+      - -c
+      - config_file=/etc/masi-postgresql/postgresql.conf
+      - -c
+      - hba_file=/etc/masi-postgresql/pg_hba.conf
+      - -c
+      - archive_mode=off
+    ports:
+      - "127.0.0.1:${MASI_DB_RESTORE_PORT:-55444}:5432"
+    volumes:
+      - restore-data:/var/lib/postgresql
+      - wal-archive:/var/lib/postgresql/wal-archive:ro
+      - ./postgres/postgresql.conf:/etc/masi-postgresql/postgresql.conf:ro
+      - ./postgres/pg_hba.conf:/etc/masi-postgresql/pg_hba.conf:ro
+      - ${MASI_DB_RUNTIME_ROOT:?set MASI_DB_RUNTIME_ROOT}/secrets:/run/masi-postgresql/secrets:ro
+      - ${MASI_DB_RUNTIME_ROOT:?set MASI_DB_RUNTIME_ROOT}/tls/restore:/run/masi-postgresql/tls:ro
+    healthcheck:
+      test: ["CMD-SHELL", "PGPASSFILE=/run/masi-postgresql/secrets/monitoring-passfile psql -h /var/run/postgresql -p 5432 -d masi_state_module_test -U masi_monitoring_login -Atqc 'SELECT 1'"]
+      interval: 1s
+      timeout: 3s
+      retries: 90
+      start_period: 3s
+    stop_grace_period: 30s
+    security_opt:
+      - no-new-privileges:true
+    networks: [state]
+
+networks:
+  state:
+    driver: bridge
+
+volumes:
+  primary-data:
+  standby-data:
+  restore-data:
+  pitr-basebackup:
+  wal-archive:

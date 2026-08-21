@@ -1,0 +1,122 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://masi-nids.example/contracts/evidence/v1/postgresql-state-module-schema.json",
+  "title": "PostgreSQL State operational module gate summary",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "test_id", "requirement_ids", "level", "applicability",
+    "result", "qualification", "module_id", "run_id", "generated_at",
+    "source_revision", "source_tree_digest", "working_tree_dirty",
+    "working_tree_status_digest", "overall_module_complete", "artifact_digests",
+    "executed_gates", "qualification_gates", "conditional_applicability",
+    "completion", "blackbox_e2e", "recovery", "performance", "formal_soak",
+    "findings", "remaining_holds"
+  ],
+  "properties": {
+    "schema_version": {"const": "postgresql-state-module-gate-summary/v1"},
+    "test_id": {"const": "TEST-DB-MODULE-GATES-001"},
+    "requirement_ids": {
+      "type": "array", "minItems": 1, "maxItems": 64, "uniqueItems": true,
+      "items": {"type": "string", "pattern": "^[A-Z][A-Z0-9-]+-[0-9]{3}$"}
+    },
+    "level": {"const": "MODULE"},
+    "applicability": {"const": "APPLICABLE"},
+    "result": {"enum": ["PASS", "HOLD", "FAIL", "NOT_RUN"]},
+    "qualification": {"enum": ["QUALIFIED", "NOT_QUALIFIED"]},
+    "module_id": {"const": "MOD-DB-001"},
+    "run_id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$"},
+    "generated_at": {"type": "string", "format": "date-time"},
+    "source_revision": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "source_tree_digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "working_tree_dirty": {"type": "boolean"},
+    "working_tree_status_digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "overall_module_complete": {"type": "boolean"},
+    "artifact_digests": {
+      "type": "object", "minProperties": 12, "maxProperties": 64,
+      "additionalProperties": {"type": ["string", "null"], "pattern": "^sha256:[0-9a-f]{64}$"}
+    },
+    "executed_gates": {
+      "type": "object", "minProperties": 20, "maxProperties": 64,
+      "additionalProperties": {"enum": ["PASS", "FAIL", "HOLD", "NOT_RUN"]}
+    },
+    "qualification_gates": {
+      "type": "object", "minProperties": 4, "maxProperties": 16,
+      "additionalProperties": {"enum": ["PASS", "FAIL", "HOLD", "NOT_RUN"]}
+    },
+    "conditional_applicability": {
+      "type": "array", "minItems": 4, "maxItems": 4, "uniqueItems": true,
+      "items": {"type": "object"}
+    },
+    "completion": {
+      "type": "object", "additionalProperties": false,
+      "required": ["operational_gates_pass", "open_p0_zero", "real_runtime_started", "formal_soak_executed", "no_required_not_run"],
+      "properties": {
+        "operational_gates_pass": {"type": "boolean"},
+        "open_p0_zero": {"type": "boolean"},
+        "real_runtime_started": {"type": "boolean"},
+        "formal_soak_executed": {"type": "boolean"},
+        "no_required_not_run": {"type": "boolean"}
+      }
+    },
+    "blackbox_e2e": {"$ref": "#/$defs/gateResult"},
+    "recovery": {"$ref": "#/$defs/gateResult"},
+    "performance": {"$ref": "#/$defs/gateResult"},
+    "formal_soak": {"$ref": "#/$defs/gateResult"},
+    "findings": {
+      "type": "object", "additionalProperties": false,
+      "required": ["open_total", "open_p0"],
+      "properties": {
+        "open_total": {"type": "integer", "minimum": 0},
+        "open_p0": {"type": "integer", "minimum": 0}
+      }
+    },
+    "remaining_holds": {
+      "type": "array", "minItems": 1, "maxItems": 16, "uniqueItems": true,
+      "items": {"type": "string", "minLength": 1, "maxLength": 512}
+    }
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"overall_module_complete": {"const": true}}, "required": ["overall_module_complete"]},
+      "then": {
+        "properties": {
+          "result": {"enum": ["PASS", "HOLD"]},
+          "completion": {
+            "properties": {
+              "operational_gates_pass": {"const": true},
+              "open_p0_zero": {"const": true},
+              "real_runtime_started": {"const": true},
+              "formal_soak_executed": {"const": true},
+              "no_required_not_run": {"const": true}
+            }
+          },
+          "blackbox_e2e": {"properties": {"result": {"const": "PASS"}}},
+          "recovery": {"properties": {"result": {"const": "PASS"}}},
+          "performance": {"properties": {"result": {"const": "PASS"}}},
+          "formal_soak": {"properties": {"result": {"const": "PASS"}}},
+          "findings": {"properties": {"open_p0": {"const": 0}}}
+        }
+      }
+    },
+    {
+      "if": {"properties": {"result": {"const": "PASS"}}, "required": ["result"]},
+      "then": {"properties": {"qualification": {"const": "QUALIFIED"}}}
+    },
+    {
+      "if": {"properties": {"result": {"const": "HOLD"}}, "required": ["result"]},
+      "then": {"properties": {"qualification": {"const": "NOT_QUALIFIED"}}}
+    }
+  ],
+  "$defs": {
+    "gateResult": {
+      "type": "object", "additionalProperties": false,
+      "required": ["result", "evidence", "digest"],
+      "properties": {
+        "result": {"enum": ["PASS", "FAIL", "HOLD", "NOT_RUN"]},
+        "evidence": {"type": "string", "minLength": 1, "maxLength": 512},
+        "digest": {"type": ["string", "null"], "pattern": "^sha256:[0-9a-f]{64}$"}
+      }
+    }
+  }
+}

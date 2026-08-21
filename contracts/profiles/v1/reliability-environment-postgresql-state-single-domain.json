@@ -1,0 +1,47 @@
+{
+  "schema_version": "reliability-environment/v1",
+  "profile_id": "reliability-environment-postgresql-state-single-domain/v1",
+  "module_id": "MOD-DB-001",
+  "availability_profile": "operational-single-domain/v1",
+  "deployment_tier": "acceptance",
+  "topology": "one physical host; primary, asynchronous physical standby, and isolated PITR restore containers",
+  "fault_domains": 1,
+  "replication": {
+    "mode": "physical-streaming-asynchronous",
+    "standby_count": 1,
+    "wal_level": "replica",
+    "wal_keep_bytes": 268435456,
+    "promotion": "explicit pg_ctl promote after primary crash injection",
+    "automatic_failover": false
+  },
+  "archive": {
+    "mode": "continuous-WAL-archive",
+    "archive_timeout_seconds": 5,
+    "basebackup": "PostgreSQL 18 pg_basebackup plain format with streamed WAL and SHA256 backup manifest",
+    "verification": "pg_verifybackup plus named-restore-point inclusion/exclusion oracle"
+  },
+  "restore": {
+    "network_scope": "isolated module test route; never a production writer route",
+    "target": "named restore point masi_module_pitr_target",
+    "before_writer_open": [
+      "target writer gate is false",
+      "model writer gate is false",
+      "new never-used target-control incarnation",
+      "new never-used model-control incarnation",
+      "append-only database recovery event",
+      "zero effect intent and plugin statistic run side effects"
+    ]
+  },
+  "numeric_production_rpo_seconds": null,
+  "numeric_automatic_failover_rto_seconds": null,
+  "numeric_isolated_pitr_restore_rto_seconds": null,
+  "owner_acceptance": "NOT_ACCEPTED_DEC_001",
+  "module_measurements": {
+    "rpo_oracle": "durable marker present after asynchronous replay and promotion",
+    "failover_rto": "measured from crash injection through promotion/readback",
+    "pitr_rto": "measured from restore start through exact target and incarnation rotation",
+    "measurement_claim": "observed-only; not an Owner-frozen production SLO"
+  },
+  "qualification_limit": "single failure domain and no automatic failover; never production-ha qualified",
+  "result_policy": "operational recovery gates may PASS while production qualification remains HOLD/NOT_QUALIFIED"
+}

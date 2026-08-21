@@ -1,0 +1,15 @@
+{
+  "schema_version": "postgresql-state-server-source-lock/v1",
+  "postgresql": {
+    "version": "18.6",
+    "base_image": "postgres@sha256:d3e1620b530c944afa6e887d22eb899824da68e19c52024bf98f5220c88a65b2"
+  },
+  "gosu": {
+    "version": "1.19",
+    "archive_url": "https://github.com/tianon/gosu/archive/refs/tags/1.19.tar.gz",
+    "archive_sha256": "sha256:cd9719b775dbfedae53923c9b0dc792b66d42c51e0b36652ed6f747fbadc0164",
+    "toolchain": "go1.26.6",
+    "license": "Apache-2.0"
+  },
+  "runtime_download": false
+}

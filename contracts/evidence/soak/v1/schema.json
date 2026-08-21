@@ -235,6 +235,17 @@
     {
       "if": {
         "properties": {
+          "module": {"const": "postgresql-state"},
+          "level": {"const": "MODULE"},
+          "result": {"enum": ["PASS", "HOLD"]}
+        },
+        "required": ["module", "level", "result"]
+      },
+      "then": {"properties": {"lease_renewals": {"maxItems": 0}}}
+    },
+    {
+      "if": {
+        "properties": {
           "module": {"const": "control-core"},
           "level": {"const": "MODULE"},
           "result": {"enum": ["PASS", "HOLD"]}
@@ -377,7 +388,8 @@
         {"$ref": "#/$defs/edgeClaimScope"},
         {"$ref": "#/$defs/p4ClaimScope"},
         {"$ref": "#/$defs/inferenceClaimScope"},
-        {"$ref": "#/$defs/controlClaimScope"}
+        {"$ref": "#/$defs/controlClaimScope"},
+        {"$ref": "#/$defs/postgresqlStateClaimScope"}
       ]
     },
     "edgeClaimScope": {
@@ -489,6 +501,38 @@
         "queue_depth": {"type": "integer", "minimum": 1, "maximum": 100000},
         "transaction_bytes": {"type": "integer", "minimum": 1, "maximum": 4194304},
         "wal_bytes": {"type": "integer", "minimum": 1, "maximum": 2147483648},
+        "rss_bytes": {"type": "null"},
+        "fd_count": {"type": "null"},
+        "thread_count": {"type": "null"},
+        "process_threshold_status": {"const": "OBSERVED_ONLY_OWNER_NOT_FROZEN_DEC_001"}
+      }
+    },
+    "postgresqlStateClaimScope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["module", "scope", "rule_counts", "connection_budget", "threshold_status", "resource_limits"],
+      "properties": {
+        "module": {"const": "postgresql-state"},
+        "scope": {"const": "independent-module-soak"},
+        "rule_counts": {
+          "type": "array",
+          "prefixItems": [{"const": 0}, {"const": 128}, {"const": 1024}, {"const": 4096}],
+          "items": false
+        },
+        "connection_budget": {"const": 32},
+        "threshold_status": {"type": "string", "minLength": 1, "maxLength": 128},
+        "resource_limits": {"$ref": "#/$defs/postgresqlStateResourceLimits"}
+      }
+    },
+    "postgresqlStateResourceLimits": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["postgres_max_connections", "pgbouncer_max_client_connections", "pgbouncer_max_database_connections", "max_wal_bytes", "rss_bytes", "fd_count", "thread_count", "process_threshold_status"],
+      "properties": {
+        "postgres_max_connections": {"const": 96},
+        "pgbouncer_max_client_connections": {"const": 256},
+        "pgbouncer_max_database_connections": {"const": 32},
+        "max_wal_bytes": {"const": 2147483648},
         "rss_bytes": {"type": "null"},
         "fd_count": {"type": "null"},
         "thread_count": {"type": "null"},

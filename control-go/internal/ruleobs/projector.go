@@ -292,29 +292,16 @@ func (p *Projector) RecordOutcome(ctx context.Context, targetID, entityID, ruleI
 }
 
 // SweepRetention deletes windows older than the bounded retention (5m: 7
-// days; 1h: 30 days). The sweep is bounded (LIMIT) so it can never hold a
+// days; 1h: 90 days). The sweep is bounded (LIMIT) so it can never hold a
 // transaction open unboundedly; callers repeat until below the budget.
 func (p *Projector) SweepRetention(ctx context.Context, nowUnixMS int64) (deleted5m, deleted1h int64, err error) {
 	cut5m := nowUnixMS - Retention5mWindows*Window5mUnixMS
 	cut1h := nowUnixMS - Retention1hWindows*Window1hUnixMS
 	err = p.pool.WithTx(ctx, []db.TxOption{db.ReadCommitted()}, func(tx *db.Tx) error {
-		tag, err := tx.Exec(ctx, `
-			DELETE FROM rule_rollups_5m
-			WHERE ctid IN (SELECT ctid FROM rule_rollups_5m
-				WHERE window_start_unix_ms < $1 LIMIT 1000)`, cut5m)
-		if err != nil {
-			return err
-		}
-		deleted5m = tag.RowsAffected()
-		tag, err = tx.Exec(ctx, `
-			DELETE FROM rule_rollups_1h
-			WHERE ctid IN (SELECT ctid FROM rule_rollups_1h
-				WHERE window_start_unix_ms < $1 LIMIT 1000)`, cut1h)
-		if err != nil {
-			return err
-		}
-		deleted1h = tag.RowsAffected()
-		return nil
+		return tx.QueryRow(ctx,
+			`SELECT rollups_5m_deleted,rollups_1h_deleted
+			 FROM masi_sweep_rule_rollup_retention($1,$2,1000)`, cut5m, cut1h).
+			Scan(&deleted5m, &deleted1h)
 	})
 	if err != nil {
 		return 0, 0, fmt.Errorf("ruleobs: sweep retention: %w", err)

@@ -47,6 +47,7 @@ func TestFleetProjectionPostgres(t *testing.T) {
 			`DELETE FROM effect_intents WHERE effect_intent_id LIKE 'fleet-projection-%-e2e%'`,
 			`DELETE FROM effect_decisions WHERE decision_id LIKE 'fleet-projection-decision-e2e%'`,
 			`DELETE FROM effect_proposals WHERE proposal_id LIKE 'fleet-projection-proposal-e2e%'`,
+			`DELETE FROM targets WHERE target_id LIKE 'fleet-projection-target-e2e-%'`,
 		} {
 			_, _ = pool.Exec(cleanCtx, statement)
 		}
@@ -63,21 +64,31 @@ func TestFleetProjectionPostgres(t *testing.T) {
 		parentID := "fleet-projection-parent-e2e-" + suffix
 		child0 := "fleet-projection-intent-e2e-" + suffix + "-0"
 		child1 := "fleet-projection-intent-e2e-" + suffix + "-1"
+		target0 := "fleet-projection-target-e2e-" + suffix + "-0"
+		target1 := "fleet-projection-target-e2e-" + suffix + "-1"
+		targets := []string{target0, target1}
 		d := "sha256:" + strings.Repeat("a", 64)
 		if suffix != "success" {
 			d = "sha256:" + strings.Repeat("b", 64)
 		}
 		nowMS := time.Now().UnixMilli()
 		waves, _ := json.Marshal([]Wave{
-			{WaveIndex: 0, TargetIDs: []string{"target-" + suffix + "-0"}, ParallelLimit: 1, FailurePolicy: failurePolicy, GateState: GateOpen},
-			{WaveIndex: 1, TargetIDs: []string{"target-" + suffix + "-1"}, ParallelLimit: 1, FailurePolicy: failurePolicy, GateState: GateClosed},
+			{WaveIndex: 0, TargetIDs: []string{target0}, ParallelLimit: 1, FailurePolicy: failurePolicy, GateState: GateOpen},
+			{WaveIndex: 1, TargetIDs: []string{target1}, ParallelLimit: 1, FailurePolicy: failurePolicy, GateState: GateClosed},
 		})
+		if _, err := pool.Exec(ctx, `INSERT INTO targets(target_id,display_name,p4runtime_endpoint,device_id,role,status,
+				desired_profile_digest,credential_ref,scope,actor_ref,trace_id)
+				VALUES($1,$1,'https://'||$1||'.example:9559',1,'masi','active',$3,'credential-e2e','scope-e2e','actor-e2e','trace-e2e'),
+				      ($2,$2,'https://'||$2||'.example:9559',2,'masi','active',$3,'credential-e2e','scope-e2e','actor-e2e','trace-e2e')`,
+			target0, target1, d); err != nil {
+			t.Fatal(err)
+		}
 		if _, err := pool.Exec(ctx, `INSERT INTO effect_proposals(proposal_id,proposal_digest,actor_ref,scope,risk_level,
 			effect_kind,target_set_digest,policy_digest,evidence_refs,expires_at_unix_ms,note,created_at_unix_ms,
 			trace_id,reason_code,actor_issuer,actor_subject,actor_level,target_ids,idempotency_key)
 			VALUES($1,$2,'actor-e2e','scope-e2e','R2','firewall-overlay',$2,$2,'[]',$3,'fleet e2e',$4,
 			'trace-e2e','CREATED','https://issuer.example','maker-e2e','analyst',$5,'idem-'||$1)`,
-			proposalID, d, nowMS+600000, nowMS, []string{"target-" + suffix + "-0", "target-" + suffix + "-1"}); err != nil {
+			proposalID, d, nowMS+600000, nowMS, targets); err != nil {
 			t.Fatal(err)
 		}
 		if _, err := pool.Exec(ctx, `INSERT INTO effect_decisions(decision_id,proposal_id,proposal_digest,actor_ref,
@@ -103,18 +114,18 @@ func TestFleetProjectionPostgres(t *testing.T) {
 			}
 		}
 		insertIntent(parentID, "fleet:"+opID, true, false)
-		insertIntent(child0, "target-"+suffix+"-0", false, true)
-		insertIntent(child1, "target-"+suffix+"-1", false, false)
+		insertIntent(child0, target0, false, true)
+		insertIntent(child1, target1, false, false)
 		if _, err := pool.Exec(ctx, `INSERT INTO fleet_operations(fleet_operation_id,target_set_digest,wave_count,waves,
 			parent_intent_id,aggregate_status,actor_ref,scope,reason_code,trace_id,created_at_unix_ms)
 			VALUES($1,$2,2,$3,$4,'planned','actor-e2e','scope-e2e','PLANNED','trace-e2e',$5)`,
-			opID, fleetTargetSetDigest([]string{"target-" + suffix + "-0", "target-" + suffix + "-1"}), waves, parentID, nowMS); err != nil {
+			opID, fleetTargetSetDigest(targets), waves, parentID, nowMS); err != nil {
 			t.Fatal(err)
 		}
 		for index, child := range []string{child0, child1} {
 			if _, err := pool.Exec(ctx, `INSERT INTO fleet_child_intents(fleet_operation_id,target_id,effect_digest,
 				child_intent_id,wave_index,status,reason_code,gate_open)
-				VALUES($1,$2,$3,$4,$5,'pending','PENDING',$6)`, opID, "target-"+suffix+"-"+string(rune('0'+index)), d, child, index, index == 0); err != nil {
+					VALUES($1,$2,$3,$4,$5,'pending','PENDING',$6)`, opID, targets[index], d, child, index, index == 0); err != nil {
 				t.Fatal(err)
 			}
 		}

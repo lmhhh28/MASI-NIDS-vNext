@@ -2,8 +2,8 @@
   "schema_version": "module-findings/v1",
   "module_id": "MOD-CTRL-001",
   "decision_id": "DEC-044",
-  "reviewed_at": "2026-08-20T09:59:35Z",
-  "review_scope": "MOD-CTRL-001 full independent-module re-review: public HTTP/SSE/MCP/A2A/metrics/capture boundaries, governance/firewall/model/target/plugin-statistics fences, PostgreSQL 18 schema and identity enforcement, generated TypeScript client, supply-chain/vulnerability controls, real process/OCI and fresh module-gate evidence",
+  "reviewed_at": "2026-08-20T22:18:11Z",
+  "review_scope": "MOD-CTRL-001 full independent-module re-review: public HTTP/SSE/MCP/A2A/metrics/capture boundaries, governance/firewall/model/target/plugin-statistics fences, PostgreSQL 18 schema and exact target-fleet identity enforcement, generated TypeScript client, supply-chain/vulnerability controls, real process/OCI and fresh module-gate evidence",
   "findings": [
     {
       "finding_id": "CTRL-E2E-0001",
@@ -205,6 +205,20 @@
       "opened_at": "2026-08-20T00:00:00Z",
       "closed_at": "2026-08-20T09:59:35Z",
       "resolution": "Added an exact-version OpenAPI TypeScript SDK generator and freshness/typecheck gate, a component adoption registry and lock validation, digest-pinned Go 1.26.6/Alpine OCI stages, patched chi/pgx/text dependencies, and a mandatory govulncheck gate with zero reachable vulnerabilities."
+    },
+    {
+      "finding_id": "CTRL-E2E-0005",
+      "severity": "P1",
+      "status": "CLOSED",
+      "title": "Fleet projection PostgreSQL fixture created child intents without stable target facts",
+      "requirement_ids": ["MOD-CTRL-001", "DB-TARGET-FLEET-001", "TEST-TARGET-FLEET-001", "TEST-GATE-001"],
+      "evidence_refs": [
+        "control-go/internal/target/fleet_postgres_e2e_test.go",
+        "db/migrations/0029_postgresql_state_hardening.sql"
+      ],
+      "opened_at": "2026-08-20T22:15:44Z",
+      "closed_at": "2026-08-20T22:18:11Z",
+      "resolution": "The real PostgreSQL fixture now inserts two namespaced stable target facts before the parent/child fleet vector, uses those exact target IDs throughout waves, proposals and intents, and deletes them only after dependent facts. The focused and full internal PostgreSQL E2E suites pass under fleet_child_target_fk_v21."
     }
   ]
 }

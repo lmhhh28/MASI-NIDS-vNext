@@ -1,0 +1,73 @@
+{
+  "schema_version": "performance-environment-postgresql-state/v1",
+  "profile_id": "performance-environment-postgresql-state/v1",
+  "module_id": "MOD-DB-001",
+  "runtime_profile": "postgresql-state-18-pgbouncer-transaction/v1",
+  "availability_profile": "operational-single-domain/v1",
+  "deployment_tier": "acceptance",
+  "topology": "single-host-loopback-primary-async-standby-isolated-pitr",
+  "requirement_ids": [
+    "MOD-DB-001",
+    "DB-001",
+    "DB-002",
+    "DB-RULE-001",
+    "DEC-001",
+    "DEC-044",
+    "PERF-001",
+    "PERF-002",
+    "TEST-GATE-001"
+  ],
+  "runtime": {
+    "postgresql_version": "18.6",
+    "postgresql_image_digest": "sha256:d3e1620b530c944afa6e887d22eb899824da68e19c52024bf98f5220c88a65b2",
+    "hardened_gosu_version": "1.19-go1.26.6",
+    "pgbouncer_version": "1.25.2",
+    "pgbouncer_source_sha256": "sha256:924ad35113fd0a71c8e2dbe85b5d03445532e2b7b37a9f8a48983beea238b332",
+    "go_toolchain": "1.26.6"
+  },
+  "host_reference": {
+    "architecture": "x86_64",
+    "logical_cpus": 8,
+    "memory_bytes": 16565002240,
+    "hypervisor": "Microsoft WSL2",
+    "container_runtime": "Docker Engine 29.5.0 / Compose 5.1.3",
+    "storage_driver": "overlayfs"
+  },
+  "hard_resource_bounds": {
+    "postgres_max_connections": 96,
+    "postgres_shared_buffers_bytes": 268435456,
+    "postgres_max_wal_bytes": 2147483648,
+    "pgbouncer_max_client_connections": 256,
+    "pgbouncer_max_database_connections": 32,
+    "pgbouncer_max_user_connections": 32,
+    "load_generator_max_connections": 32,
+    "load_generator_max_in_flight": 32,
+    "load_generator_idempotency_ring_rows": 1024,
+    "evidence_max_samples": 400,
+    "evidence_max_first_errors": 16
+  },
+  "capacity_matrix": {
+    "rule_counts": [0, 128, 1024, 4096],
+    "facts": [
+      "normalized-firewall-revision-json",
+      "rule-observation-epoch",
+      "current-rule-observation",
+      "5-minute-rollup",
+      "1-hour-rollup"
+    ],
+    "cleanup": "transaction-rollback",
+    "latency_policy": "record-observed-values-without-inventing-owner-slo"
+  },
+  "soak": {
+    "profile": "qualification-soak-3600s/v1",
+    "phases": ["steady", "peak", "saturation", "recovery-or-activation"],
+    "phase_duration_seconds": 900,
+    "sample_interval_seconds": 10,
+    "target_qps": [20, 80, 160, 40],
+    "formal_duration_override": "reject"
+  },
+  "owner_frozen_absolute_latency_or_throughput_slo": null,
+  "dec_001_status": "NOT_FROZEN",
+  "operational_gate_policy": "exact-capacity-and-zero-error-soak-must-pass",
+  "qualification_policy": "HOLD/NOT_QUALIFIED until Owner freezes absolute production thresholds"
+}

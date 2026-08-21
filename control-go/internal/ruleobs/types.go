@@ -176,5 +176,5 @@ const (
 // RetentionBounds are the bounded retention windows (requirement profile).
 const (
 	Retention5mWindows = 12 * 24 * 7 // 7 days of 5m windows
-	Retention1hWindows = 24 * 30     // 30 days of 1h windows
+	Retention1hWindows = 24 * 90     // DB-RULE-001: 90 days of 1h windows
 )

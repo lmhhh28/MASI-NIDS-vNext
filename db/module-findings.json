@@ -1,0 +1,141 @@
+{
+  "schema_version": "module-findings/v1",
+  "module_id": "MOD-DB-001",
+  "decision_id": "DEC-044",
+  "reviewed_at": "2026-08-20T20:07:20Z",
+  "review_scope": "PostgreSQL 18 schema, immutable migration chain and source sentinels, migration runner, public TLS/pooling boundary, effective monitoring privileges, roles, partitions, retention, capacity, bounded disk/connection faults, physical backup, streaming failover, PITR incarnation fencing, RFC3339Nano evidence conversion, OCI and supply raw-artifact identity/digest closure, and complete requirement-evidence traceability",
+  "findings": [
+    {
+      "finding_id": "DB-P0-MIGRATION-INDEPENDENCE",
+      "severity": "P0",
+      "status": "CLOSED",
+      "title": "Application-owned migration path lacked an independent fail-closed State target",
+      "requirement_ids": ["MOD-DB-001", "DB-001", "TEST-GATE-001"],
+      "evidence_refs": ["db/cmd/masi-dbctl/main.go", "db/internal/migrate/runner.go", "db/Dockerfile"],
+      "opened_at": "2026-08-20T08:00:00Z",
+      "closed_at": "2026-08-20T16:55:00Z",
+      "resolution": "Added a PostgreSQL-18-only one-shot migration image with exact database confirmation, TLS enforcement, advisory lock, per-migration transaction/history, checksum drift rejection and immutable chain digest."
+    },
+    {
+      "finding_id": "DB-P0-RELATIONAL-FENCES",
+      "severity": "P0",
+      "status": "CLOSED",
+      "title": "Cross-domain exact identity and generation relationships were incomplete",
+      "requirement_ids": ["DB-GOV-001", "DB-MODEL-001", "DB-PLUGIN-STAT-001", "DB-TARGET-FLEET-001"],
+      "evidence_refs": ["db/migrations/0029_postgresql_state_hardening.sql", "db/tests/blackbox/blackbox_test.go"],
+      "opened_at": "2026-08-20T08:00:00Z",
+      "closed_at": "2026-08-20T16:55:00Z",
+      "resolution": "Added exact composite foreign keys, monotonic target assignment enforcement, writer gates and negative blackbox oracles across model, firewall, fleet, plugin and statistics facts."
+    },
+    {
+      "finding_id": "DB-P0-PITR-INCARNATION-FENCE",
+      "severity": "P0",
+      "status": "CLOSED",
+      "title": "Restore had no atomic target/model incarnation rotation fact",
+      "requirement_ids": ["MOD-DB-001", "DB-MODEL-001", "DB-TARGET-FLEET-001"],
+      "evidence_refs": ["db/migrations/0029_postgresql_state_hardening.sql", "db/internal/state/inspect.go", "deploy/postgresql-state/compose.module-gates.yaml"],
+      "opened_at": "2026-08-20T08:00:00Z",
+      "closed_at": "2026-08-20T16:55:00Z",
+      "resolution": "Added isolated append-only recovery events and an atomic rotation function that leaves both writers disabled and creates no effect/statistics side effect; exercised at a named PITR restore point."
+    },
+    {
+      "finding_id": "DB-P0-TLS-POOL-BOUNDARY",
+      "severity": "P0",
+      "status": "CLOSED",
+      "title": "No production-shaped TLS and transaction-pooling boundary existed",
+      "requirement_ids": ["MOD-DB-001", "SEC-001", "ARCH-REUSE-001"],
+      "evidence_refs": ["deploy/postgresql-state/pgbouncer/pgbouncer.ini", "deploy/postgresql-state/postgres/pg_hba.conf", "db/internal/pool/inspect.go", "db/internal/state/application.go"],
+      "opened_at": "2026-08-20T08:00:00Z",
+      "closed_at": "2026-08-20T16:55:00Z",
+      "resolution": "Pinned PgBouncer 1.25.2 source/checksum, enforced TLS 1.3 mutual verification and SCRAM on both hops, fixed transaction pooling and connection budgets, and rejected plaintext fallback."
+    },
+    {
+      "finding_id": "DB-P1-RETENTION-PARTITIONS",
+      "severity": "P1",
+      "status": "CLOSED",
+      "title": "Catch-all partitions and retention paths lacked legal-hold-aware bounded maintenance",
+      "requirement_ids": ["DB-002", "DB-RULE-001", "DB-PLUGIN-STAT-001"],
+      "evidence_refs": ["db/migrations/0029_postgresql_state_hardening.sql", "control-go/internal/ruleobs/projector.go", "db/tests/blackbox/blackbox_test.go"],
+      "opened_at": "2026-08-20T08:00:00Z",
+      "closed_at": "2026-08-20T16:55:00Z",
+      "resolution": "Converted catch-alls to DEFAULT partitions, added ahead-of-time partition maintenance, legal holds and bounded security-definer retention for Event, rule rollup and plugin-statistics facts."
+    },
+    {
+      "finding_id": "DB-P1-RUNTIME-ROLES",
+      "severity": "P1",
+      "status": "CLOSED",
+      "title": "Runtime login, maintenance, backup, monitoring and private schema roles were not sealed",
+      "requirement_ids": ["MOD-DB-001", "SEC-001", "DB-002"],
+      "evidence_refs": ["deploy/postgresql-state/postgres/init/001-create-login-roles.sh", "deploy/postgresql-state/postgres/seal-runtime-roles.sql", "db/internal/state/roles.go"],
+      "opened_at": "2026-08-20T08:00:00Z",
+      "closed_at": "2026-08-20T16:55:00Z",
+      "resolution": "Provisioned password-free group roles and secret-backed logins, disabled bootstrap login after migration, removed migration cluster privileges and memberships, revoked PUBLIC database access and verified the exact role matrix."
+    },
+    {
+      "finding_id": "DB-P1-CAPACITY-RECOVERY",
+      "severity": "P1",
+      "status": "CLOSED",
+      "title": "No real 4,096-rule capacity, streaming failover or physical PITR workload existed",
+      "requirement_ids": ["MOD-DB-001", "DB-RULE-001", "PERF-001", "TEST-GATE-001"],
+      "evidence_refs": ["db/internal/workload/workload.go", "deploy/postgresql-state/compose.module-gates.yaml", "contracts/profiles/v1/performance-environment-postgresql-state.json", "contracts/profiles/v1/reliability-environment-postgresql-state-single-domain.json"],
+      "opened_at": "2026-08-20T08:00:00Z",
+      "closed_at": "2026-08-20T16:55:00Z",
+      "resolution": "Added exact-schema 0/128/1024/4096 rolled-back capacity trials, bounded four-phase soak, verified physical basebackup/WAL archive, async streaming replay, crash promotion and named-point PITR."
+    },
+    {
+      "finding_id": "DB-P1-MONITORING-EFFECTIVE-PRIVILEGE",
+      "severity": "P1",
+      "status": "CLOSED",
+      "title": "Monitoring login membership did not make pg_monitor observations effective",
+      "requirement_ids": ["DB-003", "DB-005", "OBS-001"],
+      "evidence_refs": ["deploy/postgresql-state/postgres/init/001-create-login-roles.sh", "deploy/postgresql-state/postgres/seal-runtime-roles.sql", "db/internal/state/roles.go", "db/scripts/run-module-gates.sh"],
+      "opened_at": "2026-08-20T17:54:27Z",
+      "closed_at": "2026-08-20T18:02:00Z",
+      "resolution": "Changed the dedicated monitoring login to INHERIT its no-login monitoring group, asserted that property in runtime role readback, and proved the same physical standby is visible as state=streaming before crash promotion."
+    },
+    {
+      "finding_id": "DB-P0-TRACEABILITY-MANIFEST-COVERAGE",
+      "severity": "P0",
+      "status": "CLOSED",
+      "title": "State completion manifest omitted explicit PostgreSQL design and common Module DoD requirement IDs",
+      "requirement_ids": ["MOD-DB-001", "TEST-GATE-001", "TEST-010", "DEC-044"],
+      "evidence_refs": ["db/requirements-traceability.json", "contracts/evidence/traceability/v1/schema.json", "db/scripts/build-traceability.py", "db/README.md"],
+      "opened_at": "2026-08-20T18:08:00Z",
+      "closed_at": "2026-08-20T18:15:24Z",
+      "resolution": "Expanded the manifest to the exact 64-item bounded State requirement set, mapped every item to existing real command evidence with explicit database-only qualification limits, and raised the shared traceability document bound from 32 to 64 without weakening any result semantics."
+    },
+    {
+      "finding_id": "DB-P1-IMMUTABLE-BOOTSTRAP-SENTINELS",
+      "severity": "P1",
+      "status": "CLOSED",
+      "title": "Immutable migration 0001 contains historical bootstrap sentinel words that could mask a live placeholder",
+      "requirement_ids": ["DB-001", "DB-004", "MIG-001", "TEST-010"],
+      "evidence_refs": ["db/migrations/0001_core_event.sql", "db/migrations/0014_event_outcome_incident_projection.sql", "db/internal/migrate/runner.go", "db/tests/blackbox/blackbox_test.go", "db/scripts/check-source-sentinels.py"],
+      "opened_at": "2026-08-20T18:35:30Z",
+      "closed_at": "2026-08-20T18:38:46Z",
+      "resolution": "Preserved the already-applied migration byte-for-byte, proved 0014 supersedes its bootstrap incident comment, proved the runner publishes the exact final chain digest before success, and added a fail-closed sentinel scan that allows only the two exact immutable lines while rejecting any new live TODO/FIXME/placeholder/stub token."
+    },
+    {
+      "finding_id": "DB-P1-OCI-SUPPLY-EVIDENCE-CLOSURE",
+      "severity": "P1",
+      "status": "CLOSED",
+      "title": "Final completion summary did not independently bind OCI and supply evidence to the exact run and images",
+      "requirement_ids": ["MOD-DB-001", "SEC-SUPPLY-001", "TEST-009", "TEST-GATE-001"],
+      "evidence_refs": ["contracts/evidence/postgresql-state-oci/v1/schema.json", "contracts/evidence/postgresql-state-supply/v1/schema.json", "db/scripts/build-module-summary.py", "db/scripts/run-oci-smoke.sh", "db/scripts/scan-supply-chain.sh", "db/scripts/test_evidence_tools.py"],
+      "opened_at": "2026-08-20T18:43:00Z",
+      "closed_at": "2026-08-20T18:55:47Z",
+      "resolution": "Added strict public schemas and final-summary revalidation of run identity, exact image IDs/tags, migration-chain identity, command-sidecar source and log digests, three non-empty SBOMs, four zero-finding scan policies, fresh Trivy metadata, and all eight raw artifact digests; negative tests now reject changed logs and scans."
+    },
+    {
+      "finding_id": "DB-P1-RFC3339NANO-EVIDENCE-CONVERSION",
+      "severity": "P1",
+      "status": "CLOSED",
+      "title": "Formal soak evidence conversion rejected Go RFC3339Nano timestamps after the workload completed",
+      "requirement_ids": ["PERF-002", "TEST-008", "TEST-009", "TEST-GATE-001"],
+      "evidence_refs": ["db/scripts/build-soak-evidence.py", "db/scripts/test_evidence_tools.py", "contracts/evidence/soak/v1/schema.json"],
+      "opened_at": "2026-08-20T20:05:47Z",
+      "closed_at": "2026-08-20T20:07:20Z",
+      "resolution": "Normalized nanosecond RFC3339 fractions to Python's six-digit datetime precision before arithmetic, added nine-digit timestamp regression coverage, and successfully converted and schema-validated the complete 3,600-second raw workload from the failed diagnostic run."
+    }
+  ]
+}

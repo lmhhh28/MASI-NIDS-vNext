@@ -1,0 +1,11 @@
+{
+  "schema_version": "go-toolchain-lock/v1",
+  "version": "1.26.6",
+  "archive": "go1.26.6.linux-amd64.tar.gz",
+  "archive_url": "https://go.dev/dl/go1.26.6.linux-amd64.tar.gz",
+  "archive_sha256": "sha256:708effb774be8237570d0add163225abbdfaf4fca28b2611df167beba4feef89",
+  "size_bytes": 66890545,
+  "platform": "linux-amd64",
+  "license": "BSD-3-Clause",
+  "runtime_download": false
+}

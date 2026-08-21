@@ -1,0 +1,78 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://masi-nids.example/contracts/evidence/postgresql-state-supply/v1/schema.json",
+  "title": "PostgreSQL State supply-chain evidence",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "test_id", "module_id", "run_id", "result", "qualification",
+    "network_during_scan", "images", "image_ids", "digests", "policy",
+    "observed_at", "trivy_database_age_seconds", "registry_no_redis_object_store"
+  ],
+  "properties": {
+    "schema_version": {"const": "postgresql-state-supply-evidence/v1"},
+    "test_id": {"const": "TEST-DB-SUPPLY-001"},
+    "module_id": {"const": "MOD-DB-001"},
+    "run_id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$"},
+    "result": {"const": "PASS"},
+    "qualification": {"const": "QUALIFIED"},
+    "network_during_scan": {"const": "none"},
+    "observed_at": {"type": "string", "format": "date-time"},
+    "images": {"$ref": "#/$defs/images"},
+    "image_ids": {"$ref": "#/$defs/image_ids"},
+    "digests": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "db_sbom", "pgbouncer_sbom", "postgres_sbom", "db_scan",
+        "pgbouncer_scan", "postgres_scan", "source_scan", "trivy_db_metadata"
+      ],
+      "properties": {
+        "db_sbom": {"$ref": "#/$defs/digest"},
+        "pgbouncer_sbom": {"$ref": "#/$defs/digest"},
+        "postgres_sbom": {"$ref": "#/$defs/digest"},
+        "db_scan": {"$ref": "#/$defs/digest"},
+        "pgbouncer_scan": {"$ref": "#/$defs/digest"},
+        "postgres_scan": {"$ref": "#/$defs/digest"},
+        "source_scan": {"$ref": "#/$defs/digest"},
+        "trivy_db_metadata": {"$ref": "#/$defs/digest"}
+      }
+    },
+    "policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["critical_vulnerabilities", "fixable_high_vulnerabilities", "image_secrets", "source_secrets"],
+      "properties": {
+        "critical_vulnerabilities": {"const": 0},
+        "fixable_high_vulnerabilities": {"const": 0},
+        "image_secrets": {"const": 0},
+        "source_secrets": {"const": 0}
+      }
+    },
+    "trivy_database_age_seconds": {"type": "number", "minimum": 0, "maximum": 86400},
+    "registry_no_redis_object_store": {"const": true}
+  },
+  "$defs": {
+    "digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "images": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["db", "pgbouncer", "postgres"],
+      "properties": {
+        "db": {"type": "string", "pattern": "^masi-dbctl:[a-z0-9][a-z0-9_.-]{0,127}$"},
+        "pgbouncer": {"type": "string", "pattern": "^masi-pgbouncer:[a-z0-9][a-z0-9_.-]{0,127}$"},
+        "postgres": {"type": "string", "pattern": "^masi-postgres:[a-z0-9][a-z0-9_.-]{0,127}$"}
+      }
+    },
+    "image_ids": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["db", "pgbouncer", "postgres"],
+      "properties": {
+        "db": {"$ref": "#/$defs/digest"},
+        "pgbouncer": {"$ref": "#/$defs/digest"},
+        "postgres": {"$ref": "#/$defs/digest"}
+      }
+    }
+  }
+}

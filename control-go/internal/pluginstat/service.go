@@ -162,7 +162,7 @@ func (s *Service) StartOnDemand(ctx context.Context, req OnDemandRequest, actor 
 		if tag.RowsAffected() != 1 {
 			return errors.New("pluginstat: on-demand insert failed")
 		}
-		if _, err := tx.Exec(ctx, `INSERT INTO plugin_statistic_input_bundles(run_id,definition_id,definition_digest,frozen_input_digest,bundle,bytes) VALUES($1,$2,$3,$4,$5,$6)`, req.RunID, req.DefinitionID, req.DefinitionDigest, frozen, bundleJSON, len(bundleJSON)); err != nil {
+		if _, err := tx.Exec(ctx, `INSERT INTO plugin_statistic_input_bundles(run_id,definition_id,definition_digest,binding_generation,frozen_input_digest,bundle,bytes) VALUES($1,$2,$3,$4,$5,$6,$7)`, req.RunID, req.DefinitionID, req.DefinitionDigest, bindingGen, frozen, bundleJSON, len(bundleJSON)); err != nil {
 			return err
 		}
 		resultID = req.RunID
@@ -523,7 +523,7 @@ func (s *Service) StartRun(ctx context.Context, runID, definitionID, definitionD
 			return err
 		}
 		if tag.RowsAffected() == 1 {
-			if _, err := tx.Exec(ctx, `INSERT INTO plugin_statistic_input_bundles(run_id,definition_id,definition_digest,frozen_input_digest,bundle,bytes) VALUES($1,$2,$3,$4,$5,$6)`, runID, definitionID, definitionDigest, frozenInputDigest, bundleJSON, len(bundleJSON)); err != nil {
+			if _, err := tx.Exec(ctx, `INSERT INTO plugin_statistic_input_bundles(run_id,definition_id,definition_digest,binding_generation,frozen_input_digest,bundle,bytes) VALUES($1,$2,$3,$4,$5,$6,$7)`, runID, definitionID, definitionDigest, bindingGeneration, frozenInputDigest, bundleJSON, len(bundleJSON)); err != nil {
 				return err
 			}
 			resultID = runID

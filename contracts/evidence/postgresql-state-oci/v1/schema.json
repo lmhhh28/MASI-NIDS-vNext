@@ -1,0 +1,62 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://masi-nids.example/contracts/evidence/postgresql-state-oci/v1/schema.json",
+  "title": "PostgreSQL State OCI smoke evidence",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "test_id", "module_id", "run_id", "result", "qualification",
+    "images", "image_ids", "users", "read_only_rootfs", "capabilities_dropped",
+    "migration_count", "migration_chain_digest", "pgbouncer_version",
+    "postgres_version", "gosu_version"
+  ],
+  "properties": {
+    "schema_version": {"const": "postgresql-state-oci-smoke/v1"},
+    "test_id": {"const": "TEST-DB-OCI-001"},
+    "module_id": {"const": "MOD-DB-001"},
+    "run_id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$"},
+    "result": {"const": "PASS"},
+    "qualification": {"const": "QUALIFIED"},
+    "images": {"$ref": "#/$defs/images"},
+    "image_ids": {"$ref": "#/$defs/image_ids"},
+    "users": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["db", "pgbouncer"],
+      "properties": {
+        "db": {"const": "70:70"},
+        "pgbouncer": {"const": "10003:10003"}
+      }
+    },
+    "read_only_rootfs": {"const": true},
+    "capabilities_dropped": {"const": true},
+    "migration_count": {"const": 29},
+    "migration_chain_digest": {"$ref": "#/$defs/digest"},
+    "pgbouncer_version": {"type": "string", "pattern": "^PgBouncer 1\\.25\\.2(?:\\n|$)", "maxLength": 2048},
+    "postgres_version": {"const": "postgres (PostgreSQL) 18.6"},
+    "gosu_version": {"type": "string", "pattern": "^1\\.19 \\(go1\\.26\\.6 on linux/amd64; gc\\)$"}
+  },
+  "$defs": {
+    "digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "images": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["db", "pgbouncer", "postgres"],
+      "properties": {
+        "db": {"type": "string", "pattern": "^masi-dbctl:[a-z0-9][a-z0-9_.-]{0,127}$"},
+        "pgbouncer": {"type": "string", "pattern": "^masi-pgbouncer:[a-z0-9][a-z0-9_.-]{0,127}$"},
+        "postgres": {"type": "string", "pattern": "^masi-postgres:[a-z0-9][a-z0-9_.-]{0,127}$"}
+      }
+    },
+    "image_ids": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["db", "pgbouncer", "postgres"],
+      "properties": {
+        "db": {"$ref": "#/$defs/digest"},
+        "pgbouncer": {"$ref": "#/$defs/digest"},
+        "postgres": {"$ref": "#/$defs/digest"}
+      }
+    }
+  }
+}

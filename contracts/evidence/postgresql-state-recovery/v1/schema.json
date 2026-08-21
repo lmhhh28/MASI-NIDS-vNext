@@ -1,0 +1,70 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://masi-nids.example/contracts/evidence/postgresql-state-recovery/v1/schema.json",
+  "title": "PostgreSQL State physical recovery evidence",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "run_id", "module_id", "level", "applicability", "result", "qualification", "pitr", "streaming_failover", "qualification_limit"],
+  "properties": {
+    "schema_version": {"const": "postgresql-state-recovery/v1"},
+    "run_id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$"},
+    "module_id": {"const": "MOD-DB-001"},
+    "level": {"const": "MODULE"},
+    "applicability": {"const": "APPLICABLE"},
+    "result": {"enum": ["PASS", "FAIL", "HOLD", "NOT_RUN"]},
+    "qualification": {"enum": ["QUALIFIED", "NOT_QUALIFIED"]},
+    "pitr": {
+      "type": "object", "additionalProperties": false,
+      "required": ["backup_manifest_digest", "basebackup_verified", "archive_failures", "included_marker_present", "excluded_marker_absent", "source_timeline", "restored_timeline", "target_incarnation_rotated", "model_incarnation_rotated", "writers_enabled", "effect_intents_created", "plugin_statistic_runs_created", "restore_rto_ms", "evidence_digests"],
+      "properties": {
+        "backup_manifest_digest": {"$ref": "#/$defs/digest"},
+        "basebackup_verified": {"type": "boolean"},
+        "archive_failures": {"type": "integer", "minimum": 0},
+        "included_marker_present": {"type": "boolean"},
+        "excluded_marker_absent": {"type": "boolean"},
+        "source_timeline": {"type": "integer", "minimum": 1},
+        "restored_timeline": {"type": "integer", "minimum": 1},
+        "target_incarnation_rotated": {"type": "boolean"},
+        "model_incarnation_rotated": {"type": "boolean"},
+        "writers_enabled": {"type": "boolean"},
+        "effect_intents_created": {"type": "integer", "minimum": 0},
+        "plugin_statistic_runs_created": {"type": "integer", "minimum": 0},
+        "restore_rto_ms": {"type": "integer", "minimum": 0, "maximum": 3600000},
+        "evidence_digests": {"type": "array", "minItems": 3, "maxItems": 8, "items": {"$ref": "#/$defs/digest"}}
+      }
+    },
+    "streaming_failover": {
+      "type": "object", "additionalProperties": false,
+      "required": ["replication_mode", "state_before", "state_after", "marker_present", "source_timeline", "promoted_timeline", "promotion_rto_ms", "primary_crash_injected", "evidence_digests"],
+      "properties": {
+        "replication_mode": {"const": "physical-streaming-asynchronous"},
+        "state_before": {"const": "in-recovery"},
+        "state_after": {"const": "promoted"},
+        "marker_present": {"type": "boolean"},
+        "source_timeline": {"type": "integer", "minimum": 1},
+        "promoted_timeline": {"type": "integer", "minimum": 1},
+        "promotion_rto_ms": {"type": "integer", "minimum": 0, "maximum": 600000},
+        "primary_crash_injected": {"type": "boolean"},
+        "evidence_digests": {"type": "array", "minItems": 2, "maxItems": 4, "items": {"$ref": "#/$defs/digest"}}
+      }
+    },
+    "qualification_limit": {"type": "string", "minLength": 1, "maxLength": 512}
+  },
+  "allOf": [{
+    "if": {"properties": {"result": {"const": "PASS"}}, "required": ["result"]},
+    "then": {"properties": {
+      "qualification": {"const": "QUALIFIED"},
+      "pitr": {"properties": {
+        "basebackup_verified": {"const": true}, "archive_failures": {"const": 0},
+        "included_marker_present": {"const": true}, "excluded_marker_absent": {"const": true},
+        "target_incarnation_rotated": {"const": true}, "model_incarnation_rotated": {"const": true},
+        "writers_enabled": {"const": false}, "effect_intents_created": {"const": 0},
+        "plugin_statistic_runs_created": {"const": 0}
+      }},
+      "streaming_failover": {"properties": {
+        "marker_present": {"const": true}, "primary_crash_injected": {"const": true}
+      }}
+    }}
+  }],
+  "$defs": {"digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}}
+}
