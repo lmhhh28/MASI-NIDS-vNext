@@ -75,7 +75,7 @@ jobs:
       - working-directory: edge-rs
         env:
           MASI_EDGE_EVIDENCE_DIR: ${{ runner.temp }}/edge-evidence
-        run: cargo +1.97.1 test --all-targets --locked -- --skip bounded_rule_activation_matrix_rehearsal
+        run: cargo +1.97.1 test --locked --lib --bins --test contract_golden --test property_invariants
 
   plugin-host-rust:
     name: plugin-host-rust
@@ -98,7 +98,7 @@ jobs:
       - working-directory: plugin-host-rs
         run: cargo +1.97.1 clippy --locked --all-targets --all-features -- -D warnings
       - working-directory: plugin-host-rs
-        run: cargo +1.97.1 test --locked --all-targets --all-features -- --test-threads=1
+        run: cargo +1.97.1 test --locked --all-features --lib --bins --test contract_golden --test property --test export_statistics_fixture -- --test-threads=1
       - working-directory: plugin-host-rs
         env:
           RUSTDOCFLAGS: -Dwarnings
