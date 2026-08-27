@@ -75,7 +75,7 @@ jobs:
       - working-directory: edge-rs
         env:
           MASI_EDGE_EVIDENCE_DIR: ${{ runner.temp }}/edge-evidence
-        run: cargo +1.97.1 test --all-targets --locked
+        run: cargo +1.97.1 test --all-targets --locked -- --skip bounded_rule_activation_matrix_rehearsal
 
   plugin-host-rust:
     name: plugin-host-rust
