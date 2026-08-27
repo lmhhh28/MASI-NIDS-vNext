@@ -44,6 +44,10 @@ jobs:
           python-version: "3.12.13"
       - run: python -m pip install --requirement testkit/p4_switch/requirements-e2e.txt
       - name: Contract, golden, and runner unit checks
+        env:
+          # p4runtime 1.4.1 still publishes legacy Python descriptors while the
+          # qualified test closure pins protobuf 6.33.5.
+          PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION: python
         run: |
           mapfile -t tests < <(
             find testkit/p4_switch/tests -maxdepth 1 -name 'test_*.py' \
@@ -81,6 +85,10 @@ jobs:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
       - name: Install exact Rust toolchain
         run: rustup toolchain install 1.97.1 --profile minimal --component clippy,rustfmt
+      - name: Install exact wasm-tools contract validator
+        run: |
+          cargo +1.97.1 install wasm-tools --version 1.256.0 --locked --root "${RUNNER_TEMP}/wasm-tools"
+          echo "${RUNNER_TEMP}/wasm-tools/bin" >>"${GITHUB_PATH}"
       - working-directory: plugin-host-rs
         run: cargo +1.97.1 fmt --all -- --check
       - working-directory: plugin-host-rs
@@ -109,7 +117,7 @@ jobs:
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: "3.12.13"
-      - run: python -m pip install jsonschema==4.26.0
+      - run: python -m pip install jsonschema==4.26.0 PyYAML==6.0.3
       - working-directory: control-go
         run: test -z "$(gofmt -l ./cmd ./internal ./tests)"
       - working-directory: control-go
@@ -134,7 +142,7 @@ jobs:
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: "3.12.13"
-      - run: python -m pip install ruff==0.15.17
+      - run: python -m pip install jsonschema==4.26.0 ruff==0.15.17
       - working-directory: db
         run: test -z "$(gofmt -l ./cmd ./internal ./tests)"
       - working-directory: db
@@ -217,7 +225,7 @@ jobs:
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: "3.12.13"
-      - run: python -m pip install jsonschema==4.26.0
+      - run: python -m pip install jsonschema==4.26.0 onnxruntime==1.19.0
       - working-directory: infer-cpp
         run: python scripts/validate-public-contracts.py --repo ..
       - working-directory: infer-cpp
