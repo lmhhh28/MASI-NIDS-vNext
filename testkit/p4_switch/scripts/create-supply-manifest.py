@@ -69,6 +69,7 @@ def main() -> int:
     parser.add_argument("--artifacts", type=Path, required=True)
     parser.add_argument("--supply-dir", type=Path, required=True)
     parser.add_argument("--source-archive", type=Path, required=True)
+    parser.add_argument("--pi-source-archive", type=Path, required=True)
     parser.add_argument("--runtime-digest", required=True)
     parser.add_argument("--runner-digest", required=True)
     parser.add_argument("--compiler-digest", required=True)
@@ -81,6 +82,11 @@ def main() -> int:
     args = parser.parse_args()
     source_lock = json.loads(
         (args.repo / "deploy/p4-switch/bmv2/source.lock.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    pi_source_lock = json.loads(
+        (args.repo / "deploy/p4-switch/pi/source.lock.json").read_text(
             encoding="utf-8"
         )
     )
@@ -113,9 +119,51 @@ def main() -> int:
             args.artifacts / "masi_switch.p4info.txtpb",
         ),
         file_subject(args.source_archive.name, args.source_archive),
+        file_subject(args.pi_source_archive.name, args.pi_source_archive),
     ]
     sboms = sorted(args.supply_dir.glob("*.spdx.json"))
     scans = sorted(args.supply_dir.glob("trivy-*.json"))
+    resolved_dependencies = [
+        {
+            "uri": source_lock["upstream"],
+            "digest": {"gitCommit": source_lock["source_commit"]},
+        },
+        {
+            "uri": source_lock["source_archive"]["filename"],
+            "digest": {"sha256": source_lock["source_archive"]["sha256"]},
+        },
+        {
+            "uri": source_lock["patch"]["path"],
+            "digest": {"sha256": source_lock["patch"]["sha256"]},
+        },
+        {
+            "uri": pi_source_lock["upstream"],
+            "digest": {"gitCommit": pi_source_lock["source_commit"]},
+        },
+        {
+            "uri": pi_source_lock["source_archive"]["filename"],
+            "digest": {"sha256": pi_source_lock["source_archive"]["sha256"]},
+        },
+        {
+            "uri": pi_source_lock["patch"]["path"],
+            "digest": {"sha256": pi_source_lock["patch"]["sha256"]},
+        },
+        *[
+            {
+                "uri": f'{component["upstream"]}#submodule={submodule_path}',
+                "digest": {"gitCommit": component["commit"]},
+            }
+            for submodule_path, component in sorted(
+                pi_source_lock["submodules"].items()
+            )
+        ],
+        {
+            "uri": "oci://" + source_lock["build_base"].split("@", 1)[0],
+            "digest": {
+                "sha256": source_lock["build_base"].split("sha256:", 1)[1]
+            },
+        },
+    ]
     provenance = {
         "_type": "https://in-toto.io/Statement/v1",
         "subject": subjects,
@@ -129,27 +177,11 @@ def main() -> int:
                     "network": "none",
                     "runtime_dockerfile": "deploy/p4-switch/bmv2/Dockerfile.runtime",
                     "runner_dockerfile": "deploy/p4-switch/Dockerfile.runner",
+                    "pi_generated_build_system": pi_source_lock[
+                        "generated_build_system"
+                    ],
                 },
-                "resolvedDependencies": [
-                    {
-                        "uri": source_lock["upstream"],
-                        "digest": {"gitCommit": source_lock["source_commit"]},
-                    },
-                    {
-                        "uri": source_lock["source_archive"]["filename"],
-                        "digest": {"sha256": source_lock["source_archive"]["sha256"]},
-                    },
-                    {
-                        "uri": source_lock["patch"]["path"],
-                        "digest": {"sha256": source_lock["patch"]["sha256"]},
-                    },
-                    {
-                        "uri": "oci://" + source_lock["build_base"].split("@", 1)[0],
-                        "digest": {
-                            "sha256": source_lock["build_base"].split("sha256:", 1)[1]
-                        },
-                    },
-                ],
+                "resolvedDependencies": resolved_dependencies,
             },
             "runDetails": {
                 "builder": {"id": "docker-buildx/local-owner-authorized-bootstrap"},

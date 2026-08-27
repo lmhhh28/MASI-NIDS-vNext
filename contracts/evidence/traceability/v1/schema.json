@@ -26,7 +26,10 @@
         "central-inference-traceability-evidence/v1",
         "control-core-requirement-traceability/v1",
         "postgresql-state-requirement-traceability/v1",
-        "plugin-runtime-host-requirement-traceability/v1"
+        "plugin-runtime-host-requirement-traceability/v1",
+        "analysis-plugin-requirement-traceability/v1",
+        "offline-ml-requirement-traceability/v1",
+        "web-spa-requirement-traceability/v1"
       ]
     },
     "module_id": {
@@ -35,7 +38,10 @@
         "MOD-INF-001",
         "MOD-CTRL-001",
         "MOD-DB-001",
-        "MOD-PLUGIN-001"
+        "MOD-PLUGIN-001",
+        "MOD-AGENT-001",
+        "MOD-ML-001",
+        "MOD-WEB-001"
       ]
     },
     "manifest": {
@@ -402,6 +408,62 @@
                   "applicability": "NOT_APPLICABLE",
                   "result": "NOT_RUN",
                   "stable_reason": "FIRST_RELEASE_KINDS_HAVE_NO_EFFECTS"
+                }
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "module_id": {
+            "const": "MOD-AGENT-001"
+          }
+        },
+        "required": [
+          "module_id"
+        ]
+      },
+      "then": {
+        "properties": {
+          "conditional_applicability": {
+            "type": "array",
+            "minItems": 5,
+            "maxItems": 5,
+            "uniqueItems": true,
+            "items": {
+              "enum": [
+                {
+                  "profile": "a2a-push-notification/v1",
+                  "applicability": "NOT_APPLICABLE",
+                  "result": "NOT_RUN",
+                  "stable_reason": "FIRST_RELEASE_POLLING_ONLY"
+                },
+                {
+                  "profile": "a2a-streaming/v1",
+                  "applicability": "NOT_APPLICABLE",
+                  "result": "NOT_RUN",
+                  "stable_reason": "FIRST_RELEASE_POLLING_ONLY"
+                },
+                {
+                  "profile": "public-agent-discovery/v1",
+                  "applicability": "NOT_APPLICABLE",
+                  "result": "NOT_RUN",
+                  "stable_reason": "STATIC_PROTECTED_AGENT_CARD_ONLY"
+                },
+                {
+                  "profile": "production-ha/v1",
+                  "applicability": "NOT_APPLICABLE",
+                  "result": "NOT_RUN",
+                  "stable_reason": "SINGLE_FAILURE_DOMAIN_MODULE_PROFILE"
+                },
+                {
+                  "profile": "legacy-workflow-checkpoint/v1",
+                  "applicability": "NOT_APPLICABLE",
+                  "result": "NOT_RUN",
+                  "stable_reason": "LEGACY_WORKFLOW_MIGRATION_REJECTED"
                 }
               ]
             }

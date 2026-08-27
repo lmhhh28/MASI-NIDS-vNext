@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://masi-nids.example/contracts/evidence/system-startup-rehearsal/v1/schema.json",
+  "title": "Full deployable-set startup rehearsal evidence",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "run_id", "started_at", "finished_at", "source_revision", "profile", "components", "real_connected_boundaries", "remaining_unintegrated_boundaries", "operational_startup_result", "level", "applicability", "result", "qualification", "qualification_scope", "full_system_e2e"],
+  "properties": {
+    "schema_version": {"const": "system-startup-rehearsal/v1"},
+    "run_id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$"},
+    "started_at": {"type": "string", "format": "date-time"},
+    "finished_at": {"type": "string", "format": "date-time"},
+    "source_revision": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "profile": {"const": "full-deployable-startup-rehearsal/v1"},
+    "components": {
+      "type": "array",
+      "minItems": 8,
+      "maxItems": 12,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["component_id", "actual_runtime", "boundary_scope", "neighbor_mode", "duration_ms", "exit_code", "result", "log_digest"],
+        "properties": {
+          "component_id": {"enum": ["p4-switch", "edge", "central-inference", "control-postgresql-web", "go-analysis-pairwise", "plugin-host", "plugin-statistics-wasm", "analysis-agent", "offline-ml"]},
+          "actual_runtime": {"const": true},
+          "boundary_scope": {"type": "string", "minLength": 1, "maxLength": 256},
+          "neighbor_mode": {"enum": ["real", "external-fixture", "isolated", "mixed"]},
+          "duration_ms": {"type": "integer", "minimum": 0, "maximum": 21600000},
+          "exit_code": {"type": "integer", "minimum": 0, "maximum": 255},
+          "result": {"enum": ["PASS", "FAIL", "HOLD"]},
+          "log_digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}
+        }
+      }
+    },
+    "real_connected_boundaries": {"type": "array", "minItems": 2, "maxItems": 32, "uniqueItems": true, "items": {"type": "string", "minLength": 1, "maxLength": 128}},
+    "remaining_unintegrated_boundaries": {"type": "array", "minItems": 1, "maxItems": 32, "uniqueItems": true, "items": {"type": "string", "minLength": 1, "maxLength": 256}},
+    "operational_startup_result": {"enum": ["PASS", "FAIL"]},
+    "level": {"const": "REHEARSAL"},
+    "applicability": {"const": "APPLICABLE"},
+    "result": {"enum": ["HOLD", "FAIL"]},
+    "qualification": {"const": "NOT_QUALIFIED"},
+    "qualification_scope": {"type": "string", "minLength": 1, "maxLength": 512},
+    "full_system_e2e": {"const": false}
+  }
+}

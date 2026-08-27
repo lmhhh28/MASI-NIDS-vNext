@@ -18,7 +18,10 @@
     "environment",
     "tests",
     "performance",
-    "remaining_holds"
+    "remaining_holds",
+    "findings",
+    "completion",
+    "overall_module_complete"
   ],
   "properties": {
     "schema_version": {"const": "qualification-evidence/v1"},
@@ -106,6 +109,72 @@
         }
       }
     },
-    "remaining_holds": {"type": "array", "items": {"type": "string", "minLength": 1}}
-  }
+    "remaining_holds": {"type": "array", "items": {"type": "string", "minLength": 1}},
+    "findings": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["open_total", "open_p0", "registry_digest"],
+      "properties": {
+        "open_total": {"type": "integer", "minimum": 0, "maximum": 4096},
+        "open_p0": {"type": "integer", "minimum": 0, "maximum": 4096},
+        "registry_digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}
+      }
+    },
+    "completion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "contracts_frozen",
+        "mandatory_tests_executed",
+        "formal_soak_executed",
+        "no_required_not_run",
+        "open_p0_zero",
+        "operational_gates_pass",
+        "real_runtime_started"
+      ],
+      "properties": {
+        "contracts_frozen": {"type": "boolean"},
+        "mandatory_tests_executed": {"type": "boolean"},
+        "formal_soak_executed": {"type": "boolean"},
+        "no_required_not_run": {"type": "boolean"},
+        "open_p0_zero": {"type": "boolean"},
+        "operational_gates_pass": {"type": "boolean"},
+        "real_runtime_started": {"type": "boolean"}
+      }
+    },
+    "overall_module_complete": {"type": "boolean"}
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {"overall_module_complete": {"const": true}},
+        "required": ["overall_module_complete"]
+      },
+      "then": {
+        "properties": {
+          "findings": {"properties": {"open_p0": {"const": 0}}},
+          "completion": {
+            "properties": {
+              "contracts_frozen": {"const": true},
+              "mandatory_tests_executed": {"const": true},
+              "formal_soak_executed": {"const": true},
+              "no_required_not_run": {"const": true},
+              "open_p0_zero": {"const": true},
+              "operational_gates_pass": {"const": true},
+              "real_runtime_started": {"const": true}
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {"result": {"const": "PASS"}},
+        "required": ["result"]
+      },
+      "then": {
+        "properties": {"overall_module_complete": {"const": true}}
+      }
+    }
+  ]
 }

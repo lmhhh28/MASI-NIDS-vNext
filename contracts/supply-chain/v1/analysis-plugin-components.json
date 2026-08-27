@@ -1,0 +1,210 @@
+{
+  "schema_version": "supply-chain-component-registry/v1",
+  "module": "analysis-plugin",
+  "components": [
+    {
+      "name": "CPython runtime",
+      "decision": "ADOPT",
+      "version": "3.12.13",
+      "license": "PSF-2.0",
+      "authority": "Python execution only; owns no Go, PostgreSQL, P4, model, plugin-binding, or effect fact",
+      "runtime_download": false,
+      "failure": "Analysis startup fails closed and core operation remains independent",
+      "rollback": "restore the prior security-supported digest-pinned Python image and wheel closure",
+      "exit": "replace only through a new Python runtime profile and complete module requalification"
+    },
+    {
+      "name": "Python 3.12.13 slim-bookworm offline builder",
+      "decision": "ADOPT",
+      "digest": "sha256:4766d8b510c428e595d74b9cc5bbb2fae8e26316fffb4adc89908d79aacd58a2",
+      "license": "aggregate-see-generated-SPDX",
+      "authority": "offline wheel installation and exact CPython/OpenSSL source stage only; absent as a complete final runtime layer",
+      "runtime_download": false,
+      "failure": "the image build fails before final image publication",
+      "rollback": "restore the prior digest-pinned offline builder and exact wheelhouse",
+      "exit": "replace after reproducible wheelhouse, image, ABI, security, and supply-chain requalification"
+    },
+    {
+      "name": "Chainguard Wolfi Python OCI runtime base",
+      "decision": "ADOPT",
+      "version": "Wolfi 20230201 / Python 3.14.7 image",
+      "digest": "sha256:d812438658b47b73cb4c089f4cca09bca1ba50f6cd1843133864ee074d9ec49b",
+      "license": "aggregate-see-generated-SPDX",
+      "authority": "final minimal glibc and shared-library userspace only; the packaged interpreter is not a fallback and owns no scheduling, database, device, or lifecycle authority",
+      "runtime_download": false,
+      "failure": "Analysis OCI cannot start or an effective runtime ABI probe fails",
+      "rollback": "restore the prior digest-pinned runtime base and exact selected libraries",
+      "exit": "replace after OCI, security, ABI, compatibility, performance, supply-chain, and soak requalification"
+    },
+    {
+      "name": "Debian libcrypto runtime library",
+      "decision": "ADOPT",
+      "version": "libssl3 3.0.20-1~deb12u2",
+      "digest": "sha256:72db1b3de8b7dfbaba4c056135f408da555f9d5e137c82129478e07e769f8070",
+      "license": "Apache-2.0",
+      "authority": "CPython 3.12 TLS cryptographic primitives only; no trust-policy or identity authority",
+      "runtime_download": false,
+      "failure": "TLS import/startup or an authenticated boundary fails closed",
+      "rollback": "restore the prior exact source image and library digest",
+      "exit": "replace after ABI, TLS, vulnerability, image, and full module requalification"
+    },
+    {
+      "name": "Debian libssl runtime library",
+      "decision": "ADOPT",
+      "version": "libssl3 3.0.20-1~deb12u2",
+      "digest": "sha256:9aec161fdbc82d3e4280f5084843118939f1f4acc53c98ec963de03cfe812fad",
+      "license": "Apache-2.0",
+      "authority": "CPython 3.12 TLS protocol implementation only; project adapters retain TLS 1.3, SAN, CA, and allowlist policy",
+      "runtime_download": false,
+      "failure": "TLS import/startup or an authenticated boundary fails closed",
+      "rollback": "restore the prior exact source image and library digest",
+      "exit": "replace after ABI, TLS, vulnerability, image, and full module requalification"
+    },
+    {
+      "name": "uv build and lock tool",
+      "decision": "ADOPT",
+      "version": "0.12.3",
+      "license": "Apache-2.0 OR MIT",
+      "authority": "offline dependency resolution, lock export, environment sync, and wheel build only",
+      "runtime_download": false,
+      "failure": "build stops before an image or release wheel is emitted",
+      "rollback": "restore the prior uv binary and uv.lock",
+      "exit": "replace after lock, wheel, SBOM, offline build, and reproducibility qualification"
+    },
+    {
+      "name": "uv.lock Python dependency closure",
+      "decision": "ADOPT",
+      "digest": "sha256:df4a09e1ba8a8d3ce14081725b0daa6fea69c416b21263f5f66905bc7fa6a54b",
+      "license": "per-package SPDX license in generated source/image SBOM and notices",
+      "authority": "library closure only inside the Analysis process; cannot expand manifest capability or own canonical facts",
+      "runtime_download": false,
+      "failure": "offline build or an affected bounded boundary fails closed",
+      "rollback": "restore exact pyproject.toml and uv.lock with matching wheelhouse",
+      "exit": "remove or replace packages through lock review, SBOM diff, license review, and full Analysis gates"
+    },
+    {
+      "name": "LangGraph",
+      "decision": "ADOPT",
+      "version": "1.1.10",
+      "license": "MIT",
+      "authority": "in-process fixed analysis graph execution only; no system workflow, checkpoint, database, binding, or effect authority",
+      "runtime_download": false,
+      "failure": "the task returns a stable failed/limited outcome without affecting core",
+      "rollback": "restore the prior lock and graph topology digest",
+      "exit": "replace with an equivalent internal graph runner after capability-matrix, topology, fault, and performance requalification"
+    },
+    {
+      "name": "MCP Python SDK",
+      "decision": "ADOPT",
+      "version": "2.0.0",
+      "license": "MIT",
+      "authority": "MCP JSON-RPC type validation only; project-owned restricted transport retains TLS, DNS/IP pin, allowlist, budget, and session policy",
+      "runtime_download": false,
+      "failure": "MCP envelope is rejected and Analysis degrades without changing core",
+      "rollback": "restore the prior locked MCP SDK and wire golden",
+      "exit": "replace after protocol-version, JSON/SSE, error, timeout, and compatibility qualification"
+    },
+    {
+      "name": "A2A 1.0 project protocol adapter",
+      "decision": "ADOPT",
+      "version": "1.0",
+      "license": "Apache-2.0 specification; MASI adapter is first-party source",
+      "authority": "typed Task/Message/Artifact transport only; no plugin lifecycle, Go workflow, MCP tool, or effect authority",
+      "runtime_download": false,
+      "failure": "version, identity, framing, task, or digest mismatch is rejected",
+      "rollback": "restore the prior project adapter and exact A2A goldens",
+      "exit": "replace with a qualified SDK only after wire-byte, polling, identity, SSRF, and old/new compatibility tests"
+    },
+    {
+      "name": "aiohttp server",
+      "decision": "ADOPT",
+      "version": "3.14.3",
+      "license": "Apache-2.0",
+      "authority": "bounded A2A HTTP server and TLS connection surface only",
+      "runtime_download": false,
+      "failure": "startup/readiness or the affected request fails closed",
+      "rollback": "restore the prior uv.lock and release wheel",
+      "exit": "replace after mTLS identity, framing, cancellation, drain, resource, and soak qualification"
+    },
+    {
+      "name": "httpx restricted outbound client",
+      "decision": "ADOPT",
+      "version": "0.28.1",
+      "license": "BSD-3-Clause",
+      "authority": "bounded HTTP connection reuse only; project adapter pins IP/SNI, disables proxy/redirect, and owns all capability decisions",
+      "runtime_download": false,
+      "failure": "provider/MCP/A2A call times out or becomes unavailable and Analysis degrades",
+      "rollback": "restore the prior lock and transport adapter",
+      "exit": "replace after TLS, DNS rebinding, timeout, size, SSE, cancellation, and connection-leak qualification"
+    },
+    {
+      "name": "Pydantic",
+      "decision": "ADOPT",
+      "version": "2.13.4",
+      "license": "MIT",
+      "authority": "strict bounded in-process data validation only",
+      "runtime_download": false,
+      "failure": "unknown, malformed, or oversized record is rejected",
+      "rollback": "restore the prior lock and generated contract goldens",
+      "exit": "replace after strict-field, canonicalization, error, and performance qualification"
+    },
+    {
+      "name": "jsonschema",
+      "decision": "ADOPT",
+      "version": "4.26.0",
+      "license": "MIT",
+      "authority": "JSON Schema 2020-12 startup and contract-test validation only",
+      "runtime_download": false,
+      "failure": "config/manifest/binding startup fails closed or a contract gate fails",
+      "rollback": "restore the prior lock and schema validator profile",
+      "exit": "replace after dialect, format, reference, negative-vector, and old/new schema qualification"
+    },
+    {
+      "name": "SQLite private task store",
+      "decision": "ADOPT",
+      "version": "CPython-3.12.13-bundled",
+      "license": "Public-Domain",
+      "authority": "Analysis-private bounded Task/Artifact/Trace persistence only; never canonical Go/plugin/core state",
+      "runtime_download": false,
+      "failure": "Analysis admission/readiness fails or an incomplete private task is fenced failed after restart",
+      "rollback": "discard only expired private cache after audit export; never modify Go-owned facts",
+      "exit": "replace with an isolated analysis_private store after ownership, retention, crash, and migration qualification"
+    },
+    {
+      "name": "Syft",
+      "decision": "ADOPT",
+      "digest": "sha256:5145aaf0384ca6db481c95e093e5c3b31a3b3f3af3dd3aadfb7529df88578019",
+      "version": "1.50.0",
+      "license": "Apache-2.0",
+      "authority": "offline source/image SBOM generation only",
+      "runtime_download": false,
+      "failure": "supply-chain gate fails",
+      "rollback": "restore the frozen tool image bundle",
+      "exit": "replace after SBOM equivalence and verifier regression"
+    },
+    {
+      "name": "Trivy",
+      "decision": "ADOPT",
+      "digest": "sha256:c6e969c5662a546ad5de4a73c2a6b7a7c627f86d916903e175aa623af5b97ada",
+      "version": "0.72.0",
+      "license": "Apache-2.0",
+      "authority": "offline vulnerability, secret, and configuration scanning only",
+      "runtime_download": false,
+      "failure": "supply-chain gate fails or is HOLD when the database is unavailable/stale",
+      "rollback": "restore the frozen scanner/database/check bundle",
+      "exit": "replace after policy-equivalent scan and tamper-negative regression"
+    },
+    {
+      "name": "Cosign",
+      "decision": "ADOPT",
+      "digest": "sha256:cdb23f652a55fef7b4b3c0f02fe0742e5a7017709c76c574e05be9febcf5d86e",
+      "version": "3.0.6",
+      "license": "Apache-2.0",
+      "authority": "offline release-manifest signature and verification only",
+      "runtime_download": false,
+      "failure": "unsigned, untrusted, revoked, wrong-publisher, or tampered evidence is rejected",
+      "rollback": "restore the prior trusted signed manifest and exact image/source digest",
+      "exit": "rotate through the public trust contract without granting runtime authority"
+    }
+  ]
+}

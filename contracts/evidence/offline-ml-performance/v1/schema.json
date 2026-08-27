@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://masi-nids.example/contracts/evidence/offline-ml-performance/v1/schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "module_id", "level", "applicability", "result", "qualification", "profile_digest", "entrypoint", "runs", "summary", "checks"],
+  "properties": {
+    "schema_version": {"const": "offline-ml-performance-evidence/v1"},
+    "module_id": {"const": "MOD-ML-001"},
+    "level": {"const": "MODULE"},
+    "applicability": {"const": "APPLICABLE"},
+    "result": {"const": "PASS"},
+    "qualification": {"const": "NOT_QUALIFIED"},
+    "profile_digest": {"$ref": "#/$defs/digest"},
+    "entrypoint": {"type": "string", "minLength": 1},
+    "runs": {"type": "array", "minItems": 5, "maxItems": 5, "items": {"type": "object", "required": ["elapsed_ms", "peak_rss_bytes", "peak_file_descriptors", "output_bytes", "archive_digest", "repository_closure_digest", "candidate_executions", "verification_result"]}},
+    "summary": {
+      "type": "object", "additionalProperties": false,
+      "required": ["pipeline_p50_ms", "pipeline_p95_ms", "pipeline_p99_ms", "records_per_second_at_p95", "peak_rss_bytes", "peak_file_descriptors", "max_output_bytes", "max_archive_bytes", "errors"],
+      "properties": {
+        "pipeline_p50_ms": {"type": "number", "maximum": 30000},
+        "pipeline_p95_ms": {"type": "number", "maximum": 30000},
+        "pipeline_p99_ms": {"type": "number", "maximum": 40000},
+        "records_per_second_at_p95": {"type": "number", "minimum": 64},
+        "peak_rss_bytes": {"type": "integer", "maximum": 2147483648},
+        "peak_file_descriptors": {"type": "integer", "maximum": 256},
+        "max_output_bytes": {"type": "integer", "maximum": 67108864},
+        "max_archive_bytes": {"type": "integer", "maximum": 16777216},
+        "errors": {"const": 0}
+      }
+    },
+    "checks": {"type": "object", "minProperties": 13, "additionalProperties": {"const": true}}
+  },
+  "$defs": {"digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}}
+}

@@ -93,7 +93,7 @@
     }
   },
   "purpose": "serving-framework-e2e-not-detection-accuracy",
-  "model_revision_digest": "sha256:0fb54e45e48907f7d9bfb5c59fcfb0e44ed3797107f9f00e13233e222a517a89",
+  "model_revision_digest": "sha256:9f706429b9bfb089b9ba57091621e88de3b159934af61be0efbcbbc05eae7fa5",
   "binding_identity": {
     "model_id": "masi-ids-window-v1",
     "revision": "0000000000000000000000000000000000000003",
@@ -102,7 +102,7 @@
     "feature_contract_digest": "sha256:a7695ca4a65d9dc557d77689a3cc9f9d4cacf9b638da17efe9de74b2c9f11810",
     "label_contract_digest": "sha256:be5b8e1d9d8fd06ad37f005b51330b5a8756f1cb222d395b74eaa805f44a2180",
     "output_adapter_digest": "sha256:b24aa57979d4473be9b8d1303a9bbb511eb164e898b898e0f342fcfd24d8d8ff",
-    "inference_wire_profile_digest": "sha256:8e30d532aa6b433346e69256dfaecdc421e4cac668faaeadd04e562827457707",
+    "inference_wire_profile_digest": "sha256:bdcc5401db309d22b703b36f615b68a9ecc81ee4e4e192862bc3bc9c971d6e8c",
     "runtime_profile_id": "model-runtime-central-cpu/v1",
     "runtime_profile_digest": "sha256:cf25a38fb3e7d288ee918cfa83c4e112e89132ca172affca8d21161ab11faf13",
     "optimization_profile_id": "optimization-profile-central-cpu/v1",

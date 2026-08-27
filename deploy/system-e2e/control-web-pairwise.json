@@ -1,0 +1,49 @@
+{
+  "release_version": "control-web-pairwise-rehearsal",
+  "runtime_profile": "test",
+  "external_clients": "test-fake",
+  "http_listen": "127.0.0.1:18080",
+  "grpc_listen": "127.0.0.1:19090",
+  "public_origin": "http://127.0.0.1:4189",
+  "postgresql_dsn": "postgres://masi:masi@127.0.0.1:55433/masi_control_test?sslmode=disable",
+  "postgresql_test_dsn": "postgres://masi:masi@127.0.0.1:55433/masi_control_test?sslmode=disable",
+  "session_cookie_name": "masi_session",
+  "sse_hmac_key_ref": "test-only-not-a-secret",
+  "oidc_step_up_acr_values": ["urn:masi:acr:phishing-resistant"],
+  "role_mapping_path": "/run/masi/role-mapping-e2e.json",
+  "role_mapping_digest": "sha256:e33fc6c4c041a5177dab636209325f53e901e507d48269e61971e256cf5e66d1",
+  "contract_root": "/run/masi/contracts",
+  "schema_migration_digest": "sha256:7d19f7d01fa2f47734d08b5159d1a87b30c55c8a54b798f15cc754b5c68bb74a",
+  "profile_digests": {
+    "openapi_rest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "grpc_service": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "a2a_agent": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "masi_mcp_readonly": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "plugin_statistics": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "model_rollout_pool_generation": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "p4_target_fleet": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "p4_stateless_firewall": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "p4_rule_observation": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "qualification_evidence": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "deployment_tier": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "availability": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "e2e_runner_compose": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "supply_tooling": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "json_schema": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "performance_environment": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "qualification_soak_3600s": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  },
+  "resource": {
+    "max_pool_connections": 8,
+    "max_in_flight_claims": 4,
+    "max_in_flight_stats_runs": 2,
+    "statement_timeout": 5000000000,
+    "lock_timeout": 1000000000,
+    "idle_conn_timeout": 300000000000
+  },
+  "probe": {
+    "startup_max_seconds": 30,
+    "drain_timeout": 5000000000
+  },
+  "tls": {}
+}

@@ -23,6 +23,7 @@ use crate::{
             p4_runtime_client::P4RuntimeClient, stream_message_request, stream_message_response,
             write_request::Atomicity,
         },
+        p4info::P4Info,
     },
     digest,
     endpoint::resolve_endpoint,
@@ -151,7 +152,7 @@ impl P4Session {
         let (request_tx, request_rx) = mpsc::channel(limits.p4_stream_request_queue);
         let arbitration = MasterArbitrationUpdate {
             device_id: assignment.device_id,
-            role: Some(Role {
+            role: (assignment.role != "default").then(|| Role {
                 id: 0,
                 config: Vec::new(),
                 name: assignment.role.clone(),
@@ -550,7 +551,14 @@ fn validate_arbitration(
         .status
         .as_ref()
         .is_some_and(|status| status.code == 0);
-    let role_ok = update.role.as_ref().is_some_and(|value| value.name == role);
+    let role_ok = if role == "default" {
+        update
+            .role
+            .as_ref()
+            .is_none_or(|value| value.id == 0 && value.name.is_empty() && value.config.is_empty())
+    } else {
+        update.role.as_ref().is_some_and(|value| value.name == role)
+    };
     let election_ok = update.election_id.as_ref() == Some(election);
     if update.device_id != device_id || !status_ok || !role_ok || !election_ok {
         return Err(EdgeError::precondition(
@@ -595,7 +603,7 @@ async fn read_pipeline_identity(
     })?;
     Ok(PipelineIdentity {
         p4runtime_api_version: p4runtime_api_version.to_owned(),
-        p4info_digest: digest::sha256(&config.p4info),
+        p4info_digest: canonical_p4info_digest(&config.p4info)?,
         device_config_digest: digest::sha256(&config.p4_device_config),
         profile_digest: profile_digest.to_owned(),
         cookie: cookie.cookie,
@@ -630,7 +638,7 @@ fn compare_pipeline(expected: &PipelineIdentity, observed: &PipelineIdentity) ->
         if left != right {
             return Err(EdgeError::precondition(
                 code,
-                format!("{field} exact readback mismatch"),
+                format!("{field} exact readback mismatch: expected {left}, observed {right}"),
             ));
         }
     }
@@ -647,4 +655,35 @@ fn compare_pipeline(expected: &PipelineIdentity, observed: &PipelineIdentity) ->
         ));
     }
     Ok(())
+}
+
+fn canonical_p4info_digest(payload: &[u8]) -> EdgeResult<String> {
+    let p4info = P4Info::decode(payload).map_err(|error| {
+        EdgeError::precondition(
+            "P4INFO_DRIFT",
+            format!("target P4Info cannot be decoded with the pinned 1.4.1 schema: {error}"),
+        )
+    })?;
+    Ok(digest::sha256(&p4info.encode_to_vec()))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn default_role_is_encoded_as_absent_and_validated_exactly() {
+        let election = Uint128 { high: 0, low: 7 };
+        let update = MasterArbitrationUpdate {
+            device_id: 1,
+            role: None,
+            election_id: Some(election),
+            status: Some(crate::google::rpc::Status {
+                code: 0,
+                ..crate::google::rpc::Status::default()
+            }),
+        };
+        assert!(validate_arbitration(&update, 1, "default", &election).is_ok());
+        assert!(validate_arbitration(&update, 1, "primary", &election).is_err());
+    }
 }

@@ -4,7 +4,7 @@
 
 ## 当前状态与完成判定
 
-按 `DEC-044`，operational Module Complete 由 `scripts/run-module-gates.sh` 机器派生；唯一权威字段是本次 run 的 `gate-summary.json#overall_module_complete`。当前代码审计登记 28 条 finding，全部 CLOSED、open P0/P1/P2 均为 0。完整门禁必须实际运行 release binary、真实 Triton/Gateway mTLS 边界、真实 OCI、ASan/UBSan/TSan、网络隔离供应链重建和 3,600 秒合格 soak；任一证据缺失或 schema 不符都会阻断完成。
+按 `DEC-044`，operational Module Complete 由 `scripts/run-module-gates.sh` 机器派生；唯一权威字段是本次 exact-source run 的 `gate-summary.json#overall_module_complete`。代码审计登记的28条finding均已CLOSED、open P0/P1/P2为0。完整门禁必须实际运行release binary、真实Triton/Gateway mTLS边界、真实OCI、ASan/UBSan/TSan、网络隔离供应链重建和3,600秒合格soak；任一证据缺失或schema不符都会阻断完成。本次connected integration修改了wire/profile、Gateway smoke/export与fixture closure，故已有summary只保留历史，current dirty source须重跑完整module gate。
 
 `overall_module_complete=true` 不等于 production qualified。dirty tree、`DEC-001` 绝对生产阈值、受保护提交/tag 与未来 pairwise/system 可以继续保持 `HOLD/NOT_QUALIFIED` 或 `NOT_RUN`，但不得改变已执行门禁的原始结果。
 

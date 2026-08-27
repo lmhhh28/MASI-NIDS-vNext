@@ -1,0 +1,224 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  CARGO_INCREMENTAL: "0"
+  CARGO_TERM_COLOR: always
+  PIP_DISABLE_PIP_VERSION_CHECK: "1"
+
+jobs:
+  repository-hygiene:
+    name: repository-hygiene
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          fetch-depth: 0
+      - run: python3 scripts/ci/check_repository_hygiene.py
+
+  p4-contracts:
+    name: p4-contracts
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.12.13"
+      - run: python -m pip install --requirement testkit/p4_switch/requirements-e2e.txt
+      - name: Contract, golden, and runner unit checks
+        run: |
+          mapfile -t tests < <(
+            find testkit/p4_switch/tests -maxdepth 1 -name 'test_*.py' \
+              ! -name 'test_p4_program.py' -printf '%p\n' \
+              | sed -e 's#/#.#g' -e 's#\.py$##' | sort
+          )
+          PYTHONPATH="$PWD" python -m unittest -v "${tests[@]}"
+
+  edge-rust:
+    name: edge-rust
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - name: Install exact Rust toolchain
+        run: rustup toolchain install 1.97.1 --profile minimal --component clippy,rustfmt
+      - working-directory: edge-rs
+        run: cargo +1.97.1 fmt --all -- --check
+      - working-directory: edge-rs
+        run: python3 scripts/validate-public-contracts.py --repo ..
+      - working-directory: edge-rs
+        run: python3 scripts/validate-traceability.py --repo .. --manifest requirements-traceability.json
+      - working-directory: edge-rs
+        run: cargo +1.97.1 clippy --all-targets --locked -- -D warnings
+      - working-directory: edge-rs
+        env:
+          MASI_EDGE_EVIDENCE_DIR: ${{ runner.temp }}/edge-evidence
+        run: cargo +1.97.1 test --all-targets --locked
+
+  plugin-host-rust:
+    name: plugin-host-rust
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - name: Install exact Rust toolchain
+        run: rustup toolchain install 1.97.1 --profile minimal --component clippy,rustfmt
+      - working-directory: plugin-host-rs
+        run: cargo +1.97.1 fmt --all -- --check
+      - working-directory: plugin-host-rs
+        run: python3 scripts/validate-contracts.py
+      - working-directory: plugin-host-rs
+        run: python3 scripts/check-source-sentinels.py
+      - working-directory: plugin-host-rs
+        run: cargo +1.97.1 clippy --locked --all-targets --all-features -- -D warnings
+      - working-directory: plugin-host-rs
+        run: cargo +1.97.1 test --locked --all-targets --all-features -- --test-threads=1
+      - working-directory: plugin-host-rs
+        env:
+          RUSTDOCFLAGS: -Dwarnings
+        run: cargo +1.97.1 doc --locked --all-features --no-deps
+
+  control-go:
+    name: control-go
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        with:
+          go-version: "1.26.6"
+          cache-dependency-path: control-go/go.sum
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.12.13"
+      - run: python -m pip install jsonschema==4.26.0
+      - working-directory: control-go
+        run: test -z "$(gofmt -l ./cmd ./internal ./tests)"
+      - working-directory: control-go
+        run: go vet ./...
+      - working-directory: control-go
+        run: go test -count=1 ./...
+      - working-directory: control-go
+        run: python scripts/validate-public-contracts.py --repo ..
+      - working-directory: control-go
+        run: python -m unittest discover -s scripts -p 'test_*.py' -v
+
+  postgresql-state:
+    name: postgresql-state
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        with:
+          go-version: "1.26.6"
+          cache-dependency-path: db/go.sum
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.12.13"
+      - run: python -m pip install ruff==0.15.17
+      - working-directory: db
+        run: test -z "$(gofmt -l ./cmd ./internal ./tests)"
+      - working-directory: db
+        run: go vet ./...
+      - working-directory: db
+        run: go test -count=1 ./...
+      - working-directory: db
+        run: python scripts/test_evidence_tools.py
+      - working-directory: db
+        run: ruff check scripts
+
+  analysis-python:
+    name: analysis-python
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.12.13"
+      - run: python -m pip install uv==0.12.3 ruff==0.15.17 pyright==1.1.409
+      - working-directory: analysis-py
+        run: uv sync --frozen
+      - working-directory: analysis-py
+        run: ruff format --check src tests scripts
+      - working-directory: analysis-py
+        run: ruff check src tests scripts
+      - working-directory: analysis-py
+        run: pyright --project pyproject.toml
+      - working-directory: analysis-py
+        run: .venv/bin/python -m unittest discover -s tests -t . -v
+      - working-directory: analysis-py
+        run: .venv/bin/python scripts/validate-contracts.py
+
+  offline-ml-python:
+    name: offline-ml-python
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.12.13"
+      - run: python -m pip install uv==0.12.3
+      - working-directory: ml-py
+        run: uv sync --frozen --extra dev
+      - working-directory: ml-py
+        run: .venv/bin/ruff format --check src tests scripts
+      - working-directory: ml-py
+        run: .venv/bin/ruff check src tests scripts
+      - working-directory: ml-py
+        run: .venv/bin/pyright
+      - working-directory: ml-py
+        run: .venv/bin/python -m unittest discover -s tests -v
+      - working-directory: ml-py
+        run: .venv/bin/python scripts/validate-static-contracts.py --repo .. --output "${RUNNER_TEMP}/offline-ml-static.json"
+
+  web:
+    name: web
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+        with:
+          node-version: "22.22.3"
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - working-directory: web
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - working-directory: web
+        run: npm run verify
+
+  inference-contracts:
+    name: inference-contracts
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.12.13"
+      - run: python -m pip install jsonschema==4.26.0
+      - working-directory: infer-cpp
+        run: python scripts/validate-public-contracts.py --repo ..
+      - working-directory: infer-cpp
+        run: python scripts/run-numeric-golden.py --repo .. --evidence-dir "${RUNNER_TEMP}/inference-numeric"

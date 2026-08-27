@@ -80,6 +80,7 @@ control-core 的进程资源门槛为 `OBSERVED_ONLY_OWNER_NOT_FROZEN_DEC_001`�
 ## Runtime profiles
 
 - `test` + `test-fake`: loopback plaintext only, and the PostgreSQL database name must contain `test`.
+- `acceptance` + `test-fake`: loopback-only Control listeners and a test-named PostgreSQL database. Statically configured Analysis A2A peers require TLS 1.3 mTLS with exact CA/client/server identity and bounded loopback IPs; an explicitly configured Plugin Statistics adapter is likewise limited to a loopback TLS 1.3 mTLS endpoint. Edge/deployment and other production outbound adapters remain disabled. The loopback test-login is acceptance infrastructure, not a production identity boundary.
 - `production` + `production-mtls`: HTTPS, gRPC TLS 1.3 with required client certificates, OIDC, and a digest-pinned role/scope mapping are mandatory. This build refuses production startup until real outbound Edge/deployment mTLS adapters are configured; test fakes cannot silently enter production.
 
 ## OCI

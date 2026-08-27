@@ -9,6 +9,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let edge = root.join("edge/v1/edge.proto");
     let inference = root.join("inference/v1/inference.proto");
     let p4 = root.join("p4runtime/v1/p4runtime.proto");
+    let p4info = root.join("p4runtime/v1/p4/config/v1/p4info.proto");
+    core_config.btree_map([".p4.config.v1.P4TypeInfo"]);
 
     let mut inference_config = tonic_prost_build::Config::new();
     inference_config.protoc_executable(protoc);
@@ -30,13 +32,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .type_attribute("masi.edge.v1", "#[serde(deny_unknown_fields)]")
         .compile_with_config(
             core_config,
-            &[edge, p4],
+            &[edge, p4, p4info],
             &[root, std::path::PathBuf::from("../contracts/p4runtime/v1")],
         )?;
 
     println!("cargo:rerun-if-changed=../contracts/edge/v1/edge.proto");
     println!("cargo:rerun-if-changed=../contracts/inference/v1/inference.proto");
     println!("cargo:rerun-if-changed=../contracts/p4runtime/v1/p4runtime.proto");
+    println!("cargo:rerun-if-changed=../contracts/p4runtime/v1/p4/config/v1/p4info.proto");
+    println!("cargo:rerun-if-changed=../contracts/p4runtime/v1/p4/config/v1/p4types.proto");
     println!("cargo:rerun-if-changed=../contracts/p4runtime/v1/google/rpc/status.proto");
     Ok(())
 }

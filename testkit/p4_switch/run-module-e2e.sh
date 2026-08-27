@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# shellcheck disable=SC1007  # Empty CDPATH applies only to the path-resolution cd.
 set -euo pipefail
 
 repo_root=$(CDPATH= cd -- "$(dirname -- "$0")/../.." && pwd)
@@ -13,11 +14,12 @@ evidence_dir="$repo_root/evidence/p4-switch/$run_id"
 certificate_dir="$repo_root/out/p4-switch-e2e/$run_id/certs"
 compiled_artifact_dir="$repo_root/out/p4-switch-e2e/$run_id/compiled-artifacts"
 mininet_artifact_dir="$repo_root/out/p4-switch-e2e/$run_id/mininet-artifacts"
+source_input_dir="$repo_root/out/p4-switch-e2e/$run_id/source-inputs"
 project_name="masip4e2e${run_id//[^a-zA-Z0-9]/}"
 project_name=${project_name,,}
 project_name=${project_name:0:56}
 
-mkdir -p "$evidence_dir" "$certificate_dir" "$compiled_artifact_dir"
+mkdir -p "$evidence_dir" "$certificate_dir" "$compiled_artifact_dir" "$source_input_dir"
 chown 65532:65532 "$evidence_dir"
 chmod 0770 "$evidence_dir"
 "$repo_root/testkit/p4_switch/scripts/prepare-certs.sh" "$certificate_dir"
@@ -31,12 +33,14 @@ p4=json.load(open(root / "contracts/profiles/v1/p4-stateless-firewall-bmv2.json"
 runner=json.load(open(root / "contracts/profiles/v1/e2e-runner-compose.json", encoding="utf-8"))
 print(p4["target"]["runtime_image"])
 print(runner["runner_image_digest"])
+print(runner["supply_chain_minimum_free_bytes"])
 PY
 )
 runtime_ref=${MASI_P4_RUNTIME_IMAGE:-${expected_images[0]}}
 runner_ref=${MASI_P4_RUNNER_IMAGE:-masi-nids/p4-switch-e2e-runner:local}
 expected_runtime_digest=${expected_images[0]#*@}
 expected_runner_digest=${expected_images[1]}
+supply_minimum_free_bytes=${expected_images[2]}
 runtime_image=$(docker image inspect "$runtime_ref" --format '{{.Id}}')
 runner_image=$(docker image inspect "$runner_ref" --format '{{.Id}}')
 if [ "$runtime_image" != "$expected_runtime_digest" ]; then
@@ -46,6 +50,49 @@ fi
 if [ "$runner_image" != "$expected_runner_digest" ]; then
   echo "runner image mismatch: expected $expected_runner_digest, got $runner_image" >&2
   exit 65
+fi
+
+if [ "$qualification_mode" = formal ]; then
+  source_archive_input=${MASI_BMV2_SOURCE_ARCHIVE:-/tmp/behavioral-model-693e69e634fedf007964a069fdd69acc441a5f80.tar.gz}
+  pi_source_archive_input=${MASI_PI_SOURCE_ARCHIVE:-/tmp/PI-577b502da91b7d17e4be5821d49d481dc2e1bb7a-p4runtime-v1.4.1.tar.gz}
+  bmv2_snapshot_name=$(jq -er '.source_archive.filename' \
+    "$repo_root/deploy/p4-switch/bmv2/source.lock.json")
+  pi_snapshot_name=$(jq -er '.source_archive.filename' \
+    "$repo_root/deploy/p4-switch/pi/source.lock.json")
+  test "$bmv2_snapshot_name" = "$(basename -- "$bmv2_snapshot_name")"
+  test "$pi_snapshot_name" = "$(basename -- "$pi_snapshot_name")"
+  source_archive="$source_input_dir/$bmv2_snapshot_name"
+  pi_source_archive="$source_input_dir/$pi_snapshot_name"
+  for source_input in "$source_archive_input" "$pi_source_archive_input"; do
+    if [ ! -f "$source_input" ] || [ -L "$source_input" ]; then
+      echo "formal source input must be a regular non-symlink file: $source_input" >&2
+      exit 66
+    fi
+  done
+  cp -- "$source_archive_input" "$source_archive.tmp"
+  cp -- "$pi_source_archive_input" "$pi_source_archive.tmp"
+  bmv2_expected_sha=$(jq -er '.source_archive.sha256' \
+    "$repo_root/deploy/p4-switch/bmv2/source.lock.json")
+  bmv2_expected_size=$(jq -er '.source_archive.size_bytes' \
+    "$repo_root/deploy/p4-switch/bmv2/source.lock.json")
+  pi_expected_sha=$(jq -er '.source_archive.sha256' \
+    "$repo_root/deploy/p4-switch/pi/source.lock.json")
+  pi_expected_size=$(jq -er '.source_archive.size_bytes' \
+    "$repo_root/deploy/p4-switch/pi/source.lock.json")
+  test "$(sha256sum "$source_archive.tmp" | cut -d' ' -f1)" = "$bmv2_expected_sha"
+  test "$(stat -c %s "$source_archive.tmp")" = "$bmv2_expected_size"
+  test "$(sha256sum "$pi_source_archive.tmp" | cut -d' ' -f1)" = "$pi_expected_sha"
+  test "$(stat -c %s "$pi_source_archive.tmp")" = "$pi_expected_size"
+  mv -T -- "$source_archive.tmp" "$source_archive"
+  mv -T -- "$pi_source_archive.tmp" "$pi_source_archive"
+  chmod 0444 "$source_archive" "$pi_source_archive"
+  supply_free_bytes=$(df -PB1 "$repo_root/out" | awk 'NR == 2 {print $4}')
+  if [ "$supply_free_bytes" -lt "$supply_minimum_free_bytes" ]; then
+    echo "insufficient free bytes for formal supply chain: required=$supply_minimum_free_bytes observed=$supply_free_bytes" >&2
+    exit 67
+  fi
+  trivy_cache=${MASI_TRIVY_CACHE:-$repo_root/out/supply-chain/trivy-cache}
+  cosign_key_dir=${MASI_COSIGN_KEY_DIR:-$repo_root/.masi-secrets/cosign}
 fi
 
 export MASI_P4_RUNTIME_IMAGE="$runtime_ref"
@@ -369,28 +416,55 @@ soak_sampler_pid=$!
 soak_status=$(docker wait "$soak_id")
 docker logs "$soak_id" >"$evidence_dir/soak-workload.log" 2>&1
 wait "$soak_sampler_pid"
-docker rm "$soak_id" >/dev/null
+soak_runner_removed=false
+if docker rm "$soak_id" >/dev/null; then soak_runner_removed=true; fi
+provider_tasks_joined=false
+if [ "$soak_status" -eq 0 ] && [ "$soak_runner_removed" = true ]; then
+  provider_tasks_joined=true
+fi
+switch_id=$("${compose[@]}" ps -q switch)
+"${compose[@]}" logs --no-color switch >"$evidence_dir/bmv2-final.log" 2>&1
+module_process_reaped=false
+listeners_released=false
+if docker stop --time 15 "$switch_id" >/dev/null; then
+  switch_running=$(docker inspect "$switch_id" --format '{{.State.Running}}')
+  if [ "$switch_running" = false ]; then
+    module_process_reaped=true
+    listeners_released=true
+  fi
+fi
 set +e
 python3 "$repo_root/testkit/p4_switch/scripts/finalize-soak.py" \
   --repo "$repo_root" --workload "$evidence_dir/soak-workload.json" \
   --resources "$evidence_dir/soak-resources.jsonl" \
   --evidence-output "$evidence_dir/soak-evidence.json" \
-  --phase-output "$evidence_dir/soak.json" --runner-container-removed true
+  --phase-output "$evidence_dir/soak.json" \
+  --runner-container-removed "$soak_runner_removed" \
+  --module-process-reaped "$module_process_reaped" \
+  --provider-tasks-joined "$provider_tasks_joined" \
+  --listeners-released "$listeners_released"
 soak_finalize_status=$?
 set -e
 
 supply_status=2
 if [ "$qualification_mode" = formal ]; then
-  source_archive=${MASI_BMV2_SOURCE_ARCHIVE:-/tmp/behavioral-model-693e69e634fedf007964a069fdd69acc441a5f80.tar.gz}
-  trivy_cache=${MASI_TRIVY_CACHE:-$repo_root/out/supply-chain/trivy-cache}
-  cosign_key_dir=${MASI_COSIGN_KEY_DIR:-$repo_root/.masi-secrets/cosign}
-  set +e
-  "$repo_root/testkit/p4_switch/scripts/run-supply-chain.sh" \
-    "$evidence_dir" "$compiled_artifact_dir" "$run_id" \
-    "$runtime_ref" "$runner_ref" "$source_archive" "$trivy_cache" "$cosign_key_dir" \
-    >"$evidence_dir/supply-chain.log" 2>&1
-  supply_status=$?
-  set -e
+  supply_free_bytes=$(df -PB1 "$repo_root/out" | awk 'NR == 2 {print $4}')
+  if [ "$supply_free_bytes" -lt "$supply_minimum_free_bytes" ]; then
+    python3 "$repo_root/testkit/p4_switch/scripts/record-gate.py" \
+      --phase supply-chain --level MODULE --result FAIL \
+      --reason "INSUFFICIENT_FREE_BYTES_REQUIRED_${supply_minimum_free_bytes}_OBSERVED_${supply_free_bytes}" \
+      --output "$evidence_dir/supply-chain.json"
+    supply_status=1
+  else
+    set +e
+    "$repo_root/testkit/p4_switch/scripts/run-supply-chain.sh" \
+      "$evidence_dir" "$compiled_artifact_dir" "$run_id" \
+      "$runtime_ref" "$runner_ref" "$source_archive" "$pi_source_archive" \
+      "$trivy_cache" "$cosign_key_dir" \
+      >"$evidence_dir/supply-chain.log" 2>&1
+    supply_status=$?
+    set -e
+  fi
 else
   python3 "$repo_root/testkit/p4_switch/scripts/record-gate.py" \
     --phase supply-chain --level REHEARSAL --result HOLD \
@@ -400,8 +474,13 @@ fi
 
 firewall_after=$(firewall_fingerprint)
 set +e
-"${compose[@]}" run --rm --no-deps runner python \
-  testkit/p4_switch/scripts/aggregate-evidence.py \
+docker run --rm --network none --read-only --user 65532:65532 \
+  --cap-drop ALL --security-opt no-new-privileges:true \
+  --env PYTHONDONTWRITEBYTECODE=1 \
+  --volume "$repo_root:/workspace:ro" \
+  --volume "$evidence_dir:/evidence" \
+  --volume "$compiled_artifact_dir:/artifacts:ro" \
+  "$runner_ref" python testkit/p4_switch/scripts/aggregate-evidence.py \
   /workspace /evidence /artifacts "$run_id" "$started_at" \
   "$runner_image" "$runtime_image" "$firewall_before" "$firewall_after" \
   /evidence/qualification-evidence.json

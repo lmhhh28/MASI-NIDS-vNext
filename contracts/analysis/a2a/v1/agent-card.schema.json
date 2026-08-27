@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://masi-nids.example/contracts/analysis/a2a/v1/agent-card.schema.json",
+  "title": "Protected Analysis Agent Card V1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["name", "description", "url", "protocolVersion", "preferredTransport", "version", "capabilities", "defaultInputModes", "defaultOutputModes", "skills", "security"],
+  "properties": {
+    "name": {"const": "MASI-NIDS Analysis Agent"}, "description": {"type": "string", "minLength": 1, "maxLength": 512},
+    "url": {"type": "string", "format": "uri", "maxLength": 512}, "protocolVersion": {"const": "1.0"}, "preferredTransport": {"const": "HTTP+JSON"}, "version": {"type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"},
+    "capabilities": {"type": "object", "additionalProperties": false, "required": ["streaming", "pushNotifications", "stateTransitionHistory"], "properties": {"streaming": {"const": false}, "pushNotifications": {"const": false}, "stateTransitionHistory": {"const": true}}},
+    "defaultInputModes": {"const": ["application/json"]}, "defaultOutputModes": {"const": ["application/json"]},
+    "skills": {"type": "array", "minItems": 4, "maxItems": 4, "uniqueItems": true, "items": {"type": "object", "additionalProperties": false, "required": ["id", "name", "description", "inputModes", "outputModes"], "properties": {"id": {"enum": ["analyze_nids_incident", "compare_event_windows", "draft_mitigation_advice", "generate_incident_content"]}, "name": {"type": "string", "minLength": 1, "maxLength": 128}, "description": {"type": "string", "minLength": 1, "maxLength": 512}, "inputModes": {"const": ["application/json"]}, "outputModes": {"const": ["application/json"]}}}},
+    "security": {"type": "object", "additionalProperties": false, "required": ["scheme", "mtlsRequired", "dynamicDiscovery"], "properties": {"scheme": {"const": "mutualTLS"}, "mtlsRequired": {"const": true}, "dynamicDiscovery": {"const": false}}}
+  }
+}

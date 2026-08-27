@@ -1,0 +1,17 @@
+MASI-NIDS-vNext Analysis Plugin third-party notices
+
+The machine-readable authoritative inventory is:
+  contracts/supply-chain/v1/analysis-plugin-components.json
+  contracts/supply-chain/v1/analysis-plugin-third-party-notices.json
+
+Direct runtime dependencies include CPython (PSF-2.0), LangGraph (MIT),
+the MCP Python SDK (MIT), aiohttp (Apache-2.0), httpx (BSD-3-Clause),
+Pydantic (MIT), jsonschema (MIT), and SQLite (Public Domain).
+
+The A2A 1.0 protocol specification is Apache-2.0; the MASI-NIDS adapter is
+first-party project source. The digest-pinned Python OCI base and the complete
+transitive uv.lock closure are enumerated in the generated SPDX SBOM. Release
+artifacts must ship that SPDX document together with this notice and the exact
+uv.lock; this summary never replaces package-level license text or obligations.
+
+Offline qualification tooling uses Syft, Trivy, and Cosign under Apache-2.0.

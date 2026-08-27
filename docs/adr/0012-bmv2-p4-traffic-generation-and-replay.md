@@ -1,9 +1,9 @@
 # ADR-0012：BMv2/P4 流量生成、PCAP 回放与结果 Oracle
 
 - 状态：Accepted
-- 日期：2026-08-10；最近复核：2026-08-11
+- 日期：2026-08-10；最近复核：2026-08-22（同步ADR-0019训练corpus选择，不改变production发包边界）
 - 决策者：Owner
-- 需求基线：`vNext-requirements-1.18`（原始决策形成于 v1.9；v1.12 只补充多 target 隔离与证据身份，不扩大生产发包权限）
+- 需求基线：`vNext-requirements-1.19`（原始决策形成于 v1.9；v1.12补充多target，2026-08-22仅同步ADR-0019 corpus角色，不扩大生产发包权限）
 - 关联需求：`ARCH-003`、`ARCH-REUSE-001`、`ARCH-TELEMETRY-001`、`ARCH-TARGET-FLEET-001`、`CONTRACT-P4-001`、`CONTRACT-RULE-001`、`CONTRACT-PROFILE-001`、`CONTRACT-SUPPLY-001`、`CONTRACT-TRAFFIC-001`、`CONTRACT-TELEMETRY-001`、`CONTRACT-INFERENCE-001`、`CONTRACT-TARGET-001`、`CONTRACT-FLEET-EFFECT-001`、`FUNC-TEL-001`、`FUNC-RULE-001`、`FUNC-TRAFFIC-001`、`FUNC-TARGET-FLEET-001`、`PERF-001`、`PERF-RULE-001`、`PERF-TRAFFIC-001`、`PERF-TEL-INF-001`、`PERF-TARGET-FLEET-001`、`REL-RULE-001`、`REL-TRAFFIC-001`、`REL-TEL-INF-001`、`REL-TARGET-FLEET-001`、`SEC-TRAFFIC-001`、`SEC-TARGET-FLEET-001`、`OBS-TRAFFIC-001`、`TEST-003`、`TEST-006`、`TEST-007`、`TEST-008`、`TEST-RULE-001`、`TEST-TRAFFIC-001`、`TEST-TEL-INF-001`、`TEST-TARGET-FLEET-001`、`TEST-REUSE-001`、`ACCEPT-001`、`DEC-024`、`DEC-025`、`DEC-029`、`DEC-030`、`DEC-032`、`DEC-037`
 
 ## 背景
@@ -98,12 +98,20 @@ netem config保存 delay/jitter/loss/duplicate/reorder/corrupt/rate/slot/limit/s
 
 公开 NIDS 数据集不自动进入仓库或发布制品：
 
+- [CIC-DDoS2019](https://www.unb.ca/cic/datasets/ddos-2019.html)明确允许在保留引用的前提下再分发/镜像，且提供PCAP与按天训练/测试语义；ADR-0019选择它作为首期主要外部训练来源，但仍必须经official fetch/digest、payload/privacy、packet-to-label join和`dataset-p4-window-binary/v1`六维重提取门禁，原始PCAP不因此进入Git/普通OCI；
+- [CSE-CIC-IDS2018](https://www.unb.ca/cic/datasets/ids-2018.html)明确允许在引用并链接官方AWS页面的前提下再分发/镜像；首期只把通过门禁的aggregate-visible slice作为cross-corpus blind候选，不直接使用旧仓库CSV，也不把Web/Heartbleed/infiltration标签映射成六维可观察攻击；
 - [CIC-IDS2017](https://www.unb.ca/cic/datasets/ids-2017.html) 提供带完整 payload 的 PCAP与按时间/五元组标注的 flow CSV，适合作为候选，但项目仍须固定实际使用条目的许可/引用/再分发条件和 packet-to-label join；
 - [UNSW-NB15](https://research.unsw.edu.au/projects/unsw-nb15-dataset) 包含约100 GB PCAP与九类攻击，官方页面明确 academic free、commercial use需与作者协商，不能默认打包进产品或通用 CI；
+- [TON_IoT](https://research.unsw.edu.au/projects/toniot-datasets)是异构IoT/IIoT、主机与network corpus，学术研究免费但商业使用需询问作者；只作条件cross-domain验证，不把legacy CSV字段直接当P4 window feature；
+- [CICIoT2023](https://www.unb.ca/cic/datasets/iotdataset-2023.html)提供真实IoT设备PCAP/CSV与多类攻击，但官方页未给出足以直接支撑项目再分发/商业使用的明确license段；只有未来IoT target/source profile触发且用途、隐私、join通过后才作独立blind候选；
 - [CTU datasets](https://www.stratosphereips.org/datasets-overview) 可作为有明确场景/许可元数据的候选，但每个 scenario仍独立登记完整/截断、normal/background/malware和ground truth；
 - [NIST SP 800-188](https://csrc.nist.gov/pubs/sp/800/188/final) 强调去标识既是技术也是治理过程；[RFC 6235](https://datatracker.ietf.org/doc/rfc6235/)说明 IP flow anonymization需要明确定义字段与风险。仅改写 IP/MAC 不构成自动匿名、授权或无敏感 payload。
 
 首期至少维护一个项目自有、最小、无真实 credential 的 synthetic corpus，以及一个通过所有门禁的外部 PCAP slice。原始大型 corpus保留在独立受控存储；仓库只保存允许分发的最小 fixture或 fetch/verify metadata，不保存来源许可不清的 payload。
+
+训练与traffic replay共享source/provenance/ground-truth治理，但不共享结论：ADR-0019的模型训练样本必须由exact P4/BMv2或经其golden资格化的reference extractor生成`[1,6]` 10秒final window；公开flow CSV和legacy 21列不得直接训练vNext模型。旧`/home/lmhhh/MASI-NIDS/dataset`固定为`REJECT direct import`，只能帮助定位官方来源和legacy行为。
+
+同一官方PCAP用于训练数据摄取和`curated-pcap`检测回放时，必须生成不同的artifact/manifest/evidence identity：前者证明packet→window→label数据产品，后者证明声明topology/rate下的sender/DUT/detection层。训练指标不能替代replay PASS，replay检测到攻击也不能替代split、校准或模型质量。当前只冻结source/recipe；exact外部PCAP slice与dataset revision尚未形成，均保持`HOLD/NOT_RUN`。
 
 ### 7. 安全与运行边界
 
@@ -161,7 +169,11 @@ legacy CSV→命令 replay plan可用于提取可观察场景，但不能直接�
 - Cisco TRex：<https://trex-tgn.cisco.com/>
 - Docker Compose 启动顺序与 healthcheck：<https://docs.docker.com/compose/how-tos/startup-order/>
 - CIC-IDS2017：<https://www.unb.ca/cic/datasets/ids-2017.html>
+- CIC-DDoS2019：<https://www.unb.ca/cic/datasets/ddos-2019.html>
+- CSE-CIC-IDS2018：<https://www.unb.ca/cic/datasets/ids-2018.html>
 - UNSW-NB15：<https://research.unsw.edu.au/projects/unsw-nb15-dataset>
+- TON_IoT：<https://research.unsw.edu.au/projects/toniot-datasets>
+- CICIoT2023：<https://www.unb.ca/cic/datasets/iotdataset-2023.html>
 - CTU datasets：<https://www.stratosphereips.org/datasets-overview>
 - NIST SP 800-188：<https://csrc.nist.gov/pubs/sp/800/188/final>
 - RFC 6235：<https://datatracker.ietf.org/doc/rfc6235/>
@@ -171,3 +183,4 @@ legacy CSV→命令 replay plan可用于提取可观察场景，但不能直接�
 - 在线遥测、窗口、推理热路径与 canonical ACK：`0013-online-telemetry-and-inference-hot-path.md`
 - BMv2 无状态防火墙与双 bank 激活：`0014-bmv2-stateless-firewall-policy-and-activation.md`
 - 多 target/fleet 与设备管理边界：`0015-multi-target-p4-fleet-and-device-management-boundary.md`
+- Offline ML 数据集、训练recipe与解释边界：`0019-offline-ml-dataset-training-and-explanation-boundary.md`

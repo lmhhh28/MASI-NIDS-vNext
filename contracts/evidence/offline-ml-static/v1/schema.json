@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://masi-nids.example/contracts/evidence/offline-ml-static/v1/schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "module_id", "level", "applicability", "result", "qualification", "contract_validation", "schema_count", "public_contract_count", "requirement_count", "component_count", "lock_digest", "source_tree_digest", "checks", "failures"],
+  "properties": {
+    "schema_version": {"const": "offline-ml-static-contract-evidence/v1"},
+    "module_id": {"const": "MOD-ML-001"},
+    "level": {"const": "MODULE"},
+    "applicability": {"const": "APPLICABLE"},
+    "result": {"const": "PASS"},
+    "qualification": {"const": "NOT_QUALIFIED"},
+    "contract_validation": {"type": "object", "properties": {"result": {"const": "PASS"}}, "required": ["result"]},
+    "schema_count": {"type": "integer", "minimum": 12},
+    "public_contract_count": {"type": "integer", "minimum": 16},
+    "requirement_count": {"type": "integer", "minimum": 20},
+    "component_count": {"type": "integer", "minimum": 11},
+    "lock_digest": {"$ref": "#/$defs/digest"},
+    "source_tree_digest": {"$ref": "#/$defs/digest"},
+    "checks": {"type": "object", "minProperties": 18, "additionalProperties": {"const": true}},
+    "failures": {"type": "array", "maxItems": 0}
+  },
+  "$defs": {"digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}}
+}

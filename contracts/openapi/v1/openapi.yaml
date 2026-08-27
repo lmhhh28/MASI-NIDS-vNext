@@ -3,7 +3,7 @@ x-masi-openapi-profile: openapi-rest/v1
 x-masi-contract-version: masi-openapi/v1
 info:
   title: MASI-NIDS Go Control Core REST API
-  version: 1.1.0
+  version: 1.2.0
   description: |
     Same-origin HTTPS REST API for MOD-CTRL-001. Every list is scope-filtered and
     bounded to 200 records, with an authenticated server cursor. Every business
@@ -24,6 +24,13 @@ paths:
       responses:
         '200': {description: session bootstrap, content: {application/json: {schema: {$ref: '#/components/schemas/Session'}}}}
         '401': {$ref: '#/components/responses/Error401'}
+  /api/dashboard:
+    get:
+      operationId: getDashboard
+      responses:
+        '200': {description: one-statement bounded Overview snapshot, content: {application/json: {schema: {$ref: '../../web/v1/dashboard.schema.json'}}}}
+        '403': {$ref: '#/components/responses/Error403'}
+        '503': {$ref: '#/components/responses/Error503'}
   /api/events:
     get:
       operationId: listEvents
@@ -84,7 +91,9 @@ paths:
     get:
       operationId: getProposal
       parameters: [{$ref: '#/components/parameters/ProposalID'}]
-      responses: {'200': {$ref: '#/components/responses/Projection200'}, '404': {$ref: '#/components/responses/Error404'}}
+      responses:
+        '200': {description: exact immutable proposal and governance state, content: {application/json: {schema: {$ref: '#/components/schemas/EffectProposalDetail'}}}}
+        '404': {$ref: '#/components/responses/Error404'}
   /api/effects/proposals/{proposalID}/supersede:
     post:
       operationId: supersedeProposal
@@ -240,7 +249,7 @@ paths:
       operationId: advanceFleetWave
       security: [{oidc: [], csrf: []}]
       parameters: [{$ref: '#/components/parameters/FleetID'}]
-      requestBody: {required: true, content: {application/json: {schema: {type: object, required: [idempotency_key], maxProperties: 9, properties: {idempotency_key: {$ref: '#/components/schemas/IdempotencyKey'}}}}}}
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/AdvanceFleetWaveRequest'}}}}
       responses: {'200': {$ref: '#/components/responses/Mutation200'}, '409': {$ref: '#/components/responses/Error409'}}
   /api/fleet/operations/{fleetID}/rollback:
     post:
@@ -565,11 +574,21 @@ paths:
       parameters: [{name: taskID, in: path, required: true, schema: {$ref: '#/components/schemas/Identity'}}]
       requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/ScopedMutationRequest'}}}}
       responses: {'200': {$ref: '#/components/responses/Mutation200'}, '409': {$ref: '#/components/responses/Error409'}}
+  /api/analysis/artifacts:
+    get:
+      operationId: listAnalysisArtifacts
+      parameters: [{$ref: '#/components/parameters/Cursor'}, {$ref: '#/components/parameters/PageSize'}]
+      responses: {'200': {$ref: '#/components/responses/Projection200'}}
   /api/analysis/artifacts/{artifactID}:
     get:
       operationId: getAnalysisArtifact
       parameters: [{$ref: '#/components/parameters/ArtifactID'}]
       responses: {'200': {$ref: '#/components/responses/Projection200'}, '404': {$ref: '#/components/responses/Error404'}}
+  /api/audit:
+    get:
+      operationId: listAuditFacts
+      parameters: [{$ref: '#/components/parameters/Cursor'}, {$ref: '#/components/parameters/PageSize'}]
+      responses: {'200': {$ref: '#/components/responses/Projection200'}}
   /events:
     get:
       operationId: streamSseEvents
@@ -712,6 +731,29 @@ components:
         csrf_token: {type: string, minLength: 32, maxLength: 256}
         expires_at: {type: integer, minimum: 1}
         step_up: {enum: [none, webauthn-fido2, passkey, hardware-key]}
+    EffectProposalDetail:
+      type: object
+      additionalProperties: false
+      required: [proposal_id, proposal_digest, scope, risk_level, effect_kind, target_set_digest, target_ids, policy_digest, evidence_refs, expires_at_unix_ms, note, created_at_unix_ms, actor_ref, reason_code, governance_status, superseded_by_proposal_id, superseded_at_unix_ms, supersede_reason_code]
+      properties:
+        proposal_id: {$ref: '#/components/schemas/Identity'}
+        proposal_digest: {$ref: '#/components/schemas/Digest'}
+        scope: {type: string, minLength: 1, maxLength: 256}
+        risk_level: {enum: [R0, R1, R2, R3]}
+        effect_kind: {$ref: '#/components/schemas/Identity'}
+        target_set_digest: {$ref: '#/components/schemas/Digest'}
+        target_ids: {type: array, minItems: 1, maxItems: 128, uniqueItems: true, items: {$ref: '#/components/schemas/Identity'}}
+        policy_digest: {$ref: '#/components/schemas/Digest'}
+        evidence_refs: {type: array, maxItems: 128, uniqueItems: true, items: {type: string, minLength: 1, maxLength: 256}}
+        expires_at_unix_ms: {type: integer, minimum: 1}
+        note: {type: string, maxLength: 2048}
+        created_at_unix_ms: {type: integer, minimum: 1}
+        actor_ref: {$ref: '#/components/schemas/Identity'}
+        reason_code: {$ref: '#/components/schemas/ReasonCode'}
+        governance_status: {enum: [pending, approved, rejected, expired, superseded]}
+        superseded_by_proposal_id: {type: [string, 'null'], maxLength: 128}
+        superseded_at_unix_ms: {type: [integer, 'null'], minimum: 1}
+        supersede_reason_code: {type: [string, 'null'], maxLength: 64}
     Projection:
       type: object
       additionalProperties: false
@@ -856,6 +898,19 @@ components:
         prior_election_ceiling: {type: integer, minimum: 0}
         scope: {type: string, minLength: 1, maxLength: 256}
         target_set_digest: {$ref: '#/components/schemas/Digest'}
+        idempotency_key: {$ref: '#/components/schemas/IdempotencyKey'}
+    AdvanceFleetWaveRequest:
+      type: object
+      additionalProperties: false
+      required: [current_wave, next_wave, scope, target_set_digest, idempotency_key]
+      properties:
+        current_wave: {type: integer, minimum: 0, maximum: 63}
+        next_wave: {type: integer, minimum: 0, maximum: 63}
+        scope: {type: string, minLength: 1, maxLength: 256}
+        target_set_digest: {$ref: '#/components/schemas/Digest'}
+        completed_vector_digest: {$ref: '#/components/schemas/Digest'}
+        gate_proposal_id: {$ref: '#/components/schemas/Identity'}
+        decision_reason: {$ref: '#/components/schemas/ReasonCode'}
         idempotency_key: {$ref: '#/components/schemas/IdempotencyKey'}
     FirewallProposalRequest:
       type: object

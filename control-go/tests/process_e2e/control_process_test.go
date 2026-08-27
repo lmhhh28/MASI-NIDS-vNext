@@ -159,7 +159,9 @@ func TestRealControlProcessCommitResults(t *testing.T) {
 	if err != nil {
 		t.Fatalf("commit: %v\n%s", err, logs.String())
 	}
-	if len(ack.Acknowledgements) != 1 || ack.Acknowledgements[0].Status != "committed" {
+	if ack.SchemaVersion != "canonical-event-ack/v1" ||
+		!strings.HasPrefix(ack.AckBatchDigest, "sha256:") ||
+		len(ack.Acknowledgements) != 1 || ack.Acknowledgements[0].Status != "committed" {
 		t.Fatalf("unexpected ACK: %+v", ack)
 	}
 	replay, err := client.CommitResults(ctx, batch)
@@ -226,8 +228,8 @@ func TestRealControlProcessCommitResults(t *testing.T) {
 }
 
 func validBatch(d string) *edgev1.InferenceResultBatch {
-	route := &edgev1.InferenceRoute{SchemaVersion: "inference-central-grpc-batch/v1", ShardId: "shard-e2e", ModelControlIncarnationId: "inc-e2e", LogicalPoolId: "pool-e2e", PoolGeneration: 1, BindingGeneration: 1, RouteEpoch: 1, ModelRevisionDigest: d, ModelBundleDigest: d, FeatureContractDigest: d, LabelContractDigest: d, OutputAdapterDigest: d, WireProfileDigest: d, RuntimeProfileDigest: d, OptimizationProfileDigest: d, StartupEnvelopeDigest: d, PoolObservationDigest: d, BindingDigest: d, Scope: "scope-e2e"}
-	record := &edgev1.InferenceResultRecord{EventIdempotencyKey: "event-e2e", InputDigest: d, OutputDigest: d, ModelControlIncarnationId: "inc-e2e", LogicalPoolId: "pool-e2e", PoolGeneration: 1, BindingGeneration: 1, RouteEpoch: 1, ModelRevisionDigest: d, ModelBundleDigest: d, FeatureContractDigest: d, LabelContractDigest: d, OutputAdapterDigest: d, WireProfileDigest: d, RuntimeProfileDigest: d, OptimizationProfileDigest: d, StartupEnvelopeDigest: d, PoolObservationDigest: d, BindingDigest: d, Scope: "scope-e2e", TargetId: "target-e2e", WindowId: "window-e2e", WindowStartUnixMs: 1700000000000, WindowEndUnixMs: 1700000001000, FinalizedAtUnixMs: 1700000001000, Quality: "valid", QualityCode: edgev1.DataQuality_DATA_QUALITY_VALID, TraceId: "trace-e2e", WorkerId: "worker-e2e", WorkerDigest: d, WorkerAttemptId: "attempt-e2e", Scores: []float32{0.1, 0.9}, PredictedLabel: 1, Decision: "alert", DecisionCode: edgev1.InferenceDecision_INFERENCE_DECISION_ALERT, Status: "ok", ExecutionStatus: edgev1.InferenceExecutionStatus_INFERENCE_EXECUTION_STATUS_OK, InferenceStartedAtUnixMs: 1700000000900, InferenceCompletedAtUnixMs: 1700000000950}
+	route := &edgev1.InferenceRoute{SchemaVersion: "inference-route/v1", ShardId: "shard-e2e", ModelControlIncarnationId: "inc-e2e", LogicalPoolId: "pool-e2e", PoolGeneration: 1, BindingGeneration: 1, RouteEpoch: 1, ModelRevisionDigest: d, ModelBundleDigest: d, FeatureContractDigest: d, LabelContractDigest: d, OutputAdapterDigest: d, WireProfileDigest: d, RuntimeProfileDigest: d, OptimizationProfileDigest: d, StartupEnvelopeDigest: d, PoolObservationDigest: d, BindingDigest: d, Scope: "scope-e2e"}
+	record := &edgev1.InferenceResultRecord{EventIdempotencyKey: "event-e2e", InputDigest: d, OutputDigest: d, ModelControlIncarnationId: "inc-e2e", LogicalPoolId: "pool-e2e", PoolGeneration: 1, BindingGeneration: 1, RouteEpoch: 1, ModelRevisionDigest: d, ModelBundleDigest: d, FeatureContractDigest: d, LabelContractDigest: d, OutputAdapterDigest: d, WireProfileDigest: d, RuntimeProfileDigest: d, OptimizationProfileDigest: d, StartupEnvelopeDigest: d, PoolObservationDigest: d, BindingDigest: d, Scope: "scope-e2e", TargetId: "target-e2e", WindowId: "window-e2e", WindowStartUnixMs: 1700000000000, WindowEndUnixMs: 1700000001000, FinalizedAtUnixMs: 1700000001000, Quality: "valid", QualityCode: edgev1.DataQuality_DATA_QUALITY_VALID, TraceId: "trace-e2e", WorkerId: "worker-e2e", WorkerDigest: d, WorkerAttemptId: "attempt-e2e", Scores: []float32{0.1, 0.9}, PredictedLabel: 1, Decision: "alert", DecisionCode: edgev1.InferenceDecision_INFERENCE_DECISION_ALERT, Status: "OK", ErrorCode: "NONE", ExecutionStatus: edgev1.InferenceExecutionStatus_INFERENCE_EXECUTION_STATUS_OK, InferenceStartedAtUnixMs: 1700000000900, InferenceCompletedAtUnixMs: 1700000000950}
 	return &edgev1.InferenceResultBatch{SchemaVersion: "inference-central-grpc-batch/v1", RequestId: "request-e2e", Route: route, Records: []*edgev1.InferenceResultRecord{record}, BatchDigest: d, TraceId: "trace-e2e"}
 }
 

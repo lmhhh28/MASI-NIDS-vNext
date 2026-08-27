@@ -3,7 +3,7 @@
   "fixture_id": "synthetic-flow-v1",
   "fixture_revision": 1,
   "fixture_class": "synthetic-flow",
-  "manifest_digest": "sha256:6db63d1850db1a50fcbfc71c180470461fc12108d65b70fe56d0fdf38efbd719",
+  "manifest_digest": "sha256:33ca12db12a89e223d0b87f10b0fe4d70ed18aefbbcfed02181cf7489241df41",
   "source": {
     "reference": "repo-generated://testkit/p4_switch/ptf/synthetic-flow",
     "acquired_at": "2026-08-12T00:00:00Z",
@@ -92,7 +92,7 @@
         "package_version": "4.5.2-r1"
       }
     },
-    "bmv2_image_digest": "sha256:8b8655c2fb7bc5563706ee853fb668ba70457633cda7d93633d022b30b7ead42",
+    "bmv2_image_digest": "sha256:24669f08df3583b0d170226f6969f1090235604ef6d5bb5e2b2bb06062d9a571",
     "mininet_version": null,
     "veth": true,
     "offloads": "disabled-or-not-applicable-to-raw-veth",

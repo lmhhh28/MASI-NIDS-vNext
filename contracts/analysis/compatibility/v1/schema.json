@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://masi-nids.example/contracts/analysis/compatibility/v1/schema.json",
+  "title": "Analysis Legacy Observable Capability Matrix V1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "matrix_id", "legacy_graph_id", "vnext_plugin_id", "decision_id", "budget_invariants", "rows"],
+  "properties": {
+    "schema_version": {"const": "masi-analysis-compatibility/v1"},
+    "matrix_id": {"const": "AGENT-COMPAT-001"},
+    "legacy_graph_id": {"const": "masi-event-analysis-v1"},
+    "vnext_plugin_id": {"const": "masi.analysis.langgraph"},
+    "decision_id": {"const": "ADR-0002"},
+    "budget_invariants": {
+      "type": "object", "additionalProperties": false,
+      "required": ["llm_calls", "mcp_rounds", "tool_calls", "graph_deadline_ms", "artifact_bytes", "mutation_tool_calls"],
+      "properties": {
+        "llm_calls": {"const": 2}, "mcp_rounds": {"const": 2}, "tool_calls": {"const": 6},
+        "graph_deadline_ms": {"const": 30000}, "artifact_bytes": {"const": 65536}, "mutation_tool_calls": {"const": 0}
+      }
+    },
+    "rows": {"type": "array", "minItems": 16, "maxItems": 32, "items": {"$ref": "#/$defs/row"}}
+  },
+  "$defs": {
+    "identity": {"type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"},
+    "digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "legacy_source": {
+      "type": "object", "additionalProperties": false, "required": ["path", "line_start", "line_end", "source_digest"],
+      "properties": {"path": {"type": "string", "minLength": 1, "maxLength": 512}, "line_start": {"type": "integer", "minimum": 1}, "line_end": {"type": "integer", "minimum": 1}, "source_digest": {"$ref": "#/$defs/digest"}}
+    },
+    "row": {
+      "type": "object", "additionalProperties": false,
+      "required": ["capability_id", "requirement_ids", "legacy_observable", "legacy_source", "vnext_skill_ids", "vnext_component", "contract_refs", "test_ids", "expected_outcomes", "classification", "owner_decision", "difference", "evidence_ref", "evidence_digest"],
+      "properties": {
+        "capability_id": {"$ref": "#/$defs/identity"},
+        "requirement_ids": {"type": "array", "minItems": 1, "maxItems": 8, "uniqueItems": true, "items": {"$ref": "#/$defs/identity"}},
+        "legacy_observable": {"type": "string", "minLength": 1, "maxLength": 1024}, "legacy_source": {"$ref": "#/$defs/legacy_source"},
+        "vnext_skill_ids": {"type": "array", "maxItems": 4, "uniqueItems": true, "items": {"enum": ["analyze_nids_incident", "compare_event_windows", "draft_mitigation_advice", "generate_incident_content"]}},
+        "vnext_component": {"type": "string", "minLength": 1, "maxLength": 256},
+        "contract_refs": {"type": "array", "minItems": 1, "maxItems": 8, "uniqueItems": true, "items": {"type": "string", "minLength": 1, "maxLength": 512}},
+        "test_ids": {"type": "array", "minItems": 1, "maxItems": 8, "uniqueItems": true, "items": {"$ref": "#/$defs/identity"}},
+        "expected_outcomes": {"type": "array", "minItems": 1, "maxItems": 4, "uniqueItems": true, "items": {"enum": ["succeeded", "limited", "insufficient_evidence", "failed", "rejected"]}},
+        "classification": {"enum": ["equivalent", "accepted_difference", "not_supported"]},
+        "owner_decision": {"type": ["string", "null"], "maxLength": 128},
+        "difference": {"type": "string", "maxLength": 1024},
+        "evidence_ref": {"type": "string", "minLength": 1, "maxLength": 512}, "evidence_digest": {"$ref": "#/$defs/digest"}
+      },
+      "allOf": [
+        {"if": {"properties": {"classification": {"enum": ["accepted_difference", "not_supported"]}}, "required": ["classification"]}, "then": {"properties": {"owner_decision": {"type": "string", "minLength": 1}}}},
+        {"if": {"properties": {"classification": {"const": "equivalent"}}, "required": ["classification"]}, "then": {"properties": {"owner_decision": {"type": "null"}}}}
+      ]
+    }
+  }
+}

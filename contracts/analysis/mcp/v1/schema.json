@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://masi-nids.example/contracts/analysis/mcp/v1/schema.json",
+  "title": "Restricted MCP Client Wire Records V1",
+  "oneOf": [
+    {"$ref": "#/$defs/request"}, {"$ref": "#/$defs/response"}
+  ],
+  "$defs": {
+    "identity": {"oneOf": [{"type": "integer", "minimum": 1}, {"type": "string", "minLength": 1, "maxLength": 128}]},
+    "request": {
+      "type": "object", "additionalProperties": false, "required": ["jsonrpc", "id", "method", "params"],
+      "properties": {"jsonrpc": {"const": "2.0"}, "id": {"$ref": "#/$defs/identity"}, "method": {"enum": ["initialize", "tools/list", "tools/call", "resources/list", "resources/read"]}, "params": {"type": "object", "maxProperties": 16}}
+    },
+    "response": {
+      "type": "object", "additionalProperties": false, "required": ["jsonrpc", "id"],
+      "properties": {"jsonrpc": {"const": "2.0"}, "id": {"$ref": "#/$defs/identity"}, "result": {"type": "object"}, "error": {"type": "object", "additionalProperties": false, "required": ["code", "message"], "properties": {"code": {"type": "integer"}, "message": {"type": "string", "minLength": 1, "maxLength": 256}}}},
+      "oneOf": [{"required": ["result"]}, {"required": ["error"]}]
+    }
+  },
+  "x-masi-semantic-constraints": [
+    {"constraint_id": "MCP-CLIENT-READONLY", "field": "/method", "operator": "closed-readonly-method-set"},
+    {"constraint_id": "MCP-RESPONSE-EXCLUSIVE", "fields": ["/result", "/error"], "operator": "exactly-one"}
+  ]
+}

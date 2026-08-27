@@ -24,6 +24,27 @@ export type Session = {
     step_up: 'none' | 'webauthn-fido2' | 'passkey' | 'hardware-key';
 };
 
+export type EffectProposalDetail = {
+    proposal_id: Identity;
+    proposal_digest: Digest;
+    scope: string;
+    risk_level: 'R0' | 'R1' | 'R2' | 'R3';
+    effect_kind: Identity;
+    target_set_digest: Digest;
+    target_ids: Array<Identity>;
+    policy_digest: Digest;
+    evidence_refs: Array<string>;
+    expires_at_unix_ms: number;
+    note: string;
+    created_at_unix_ms: number;
+    actor_ref: Identity;
+    reason_code: ReasonCode;
+    governance_status: 'pending' | 'approved' | 'rejected' | 'expired' | 'superseded';
+    superseded_by_proposal_id: string | null;
+    superseded_at_unix_ms: number | null;
+    supersede_reason_code: string | null;
+};
+
 export type Projection = {
     schema_version: 'masi-web-projection/v1';
     projection_type: 'current' | 'desired' | 'observed' | 'stale' | 'hold' | 'unknown' | 'reconciling';
@@ -147,6 +168,17 @@ export type AssignTargetRequest = {
     prior_election_ceiling: number;
     scope: string;
     target_set_digest: Digest;
+    idempotency_key: IdempotencyKey;
+};
+
+export type AdvanceFleetWaveRequest = {
+    current_wave: number;
+    next_wave: number;
+    scope: string;
+    target_set_digest: Digest;
+    completed_vector_digest?: Digest;
+    gate_proposal_id?: Identity;
+    decision_reason?: ReasonCode;
     idempotency_key: IdempotencyKey;
 };
 
@@ -684,6 +716,75 @@ export type Truncation = {
     reason_code: SchemaReasonCode;
 };
 
+/**
+ * MASI-NIDS bounded SOC dashboard snapshot
+ */
+export type DashboardSchema = {
+    schema_version: 'masi-web-dashboard/v1';
+    snapshot_id: DashboardSchemaIdentity;
+    snapshot_unix_ms: number;
+    generation: number;
+    state: 'ready' | 'partial' | 'stale' | 'hold';
+    actor_ref: DashboardSchemaIdentity;
+    authorized_scopes: Array<string>;
+    counts: Counts;
+    recent_alerts: Array<RecentAlert>;
+    active_operations: Array<ActiveOperation>;
+    target_health: Array<TargetHealth>;
+    reason_code: DashboardSchemaReasonCode;
+};
+
+export type ActiveOperation = {
+    effect_intent_id: DashboardSchemaIdentity;
+    operation_id: DashboardSchemaIdentity;
+    target_id: DashboardSchemaIdentity;
+    effect_kind: DashboardSchemaIdentity;
+    risk_level: 'R0' | 'R1' | 'R2' | 'R3';
+    claim_state: 'unclaimed' | 'claimed' | 'fenced' | 'executing' | 'unknown';
+    deadline_unix_ms: number;
+    reason_code: DashboardSchemaReasonCode;
+};
+
+export type Count = number;
+
+export type Counts = {
+    events_24h: Count;
+    alerts_24h: Count;
+    degraded_events_24h: Count;
+    open_incidents: Count;
+    targets_total: Count;
+    targets_active: Count;
+    targets_attention: Count;
+    pending_approvals: Count;
+    active_effects: Count;
+    unknown_effects: Count;
+    model_shards_ready: Count;
+    model_shards_unavailable: Count;
+    plugins_active: Count;
+    analysis_attention: Count;
+};
+
+export type DashboardSchemaIdentity = string;
+
+export type DashboardSchemaReasonCode = string;
+
+export type RecentAlert = {
+    event_id: DashboardSchemaIdentity;
+    shard_id: DashboardSchemaIdentity;
+    decision: 'benign' | 'alert' | 'abstain';
+    quality: 'valid' | 'partial' | 'gap' | 'stale' | 'invalid' | 'reset' | 'not-covered' | 'not-measurable';
+    predicted_label: number;
+    event_time_unix_ms: number;
+};
+
+export type TargetHealth = {
+    target_id: DashboardSchemaIdentity;
+    display_name: string;
+    lifecycle: 'candidate' | 'verified' | 'active' | 'draining' | 'disabled' | 'quarantined' | 'retired';
+    assignment_generation: number | null;
+    lease_expires_at_unix_ms: number | null;
+};
+
 export type Cursor = string;
 
 export type PageSize = number;
@@ -768,6 +869,35 @@ export type GetSessionResponses = {
 };
 
 export type GetSessionResponse = GetSessionResponses[keyof GetSessionResponses];
+
+export type GetDashboardData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/dashboard';
+};
+
+export type GetDashboardErrors = {
+    /**
+     * authorization denied
+     */
+    403: Error;
+    /**
+     * dependency unavailable or process not accepting mutations
+     */
+    503: Error;
+};
+
+export type GetDashboardError = GetDashboardErrors[keyof GetDashboardErrors];
+
+export type GetDashboardResponses = {
+    /**
+     * one-statement bounded Overview snapshot
+     */
+    200: DashboardSchema;
+};
+
+export type GetDashboardResponse = GetDashboardResponses[keyof GetDashboardResponses];
 
 export type ListEventsData = {
     body?: never;
@@ -1005,9 +1135,9 @@ export type GetProposalError = GetProposalErrors[keyof GetProposalErrors];
 
 export type GetProposalResponses = {
     /**
-     * bounded scope-filtered projection
+     * exact immutable proposal and governance state
      */
-    200: Projection;
+    200: EffectProposalDetail;
 };
 
 export type GetProposalResponse = GetProposalResponses[keyof GetProposalResponses];
@@ -1720,9 +1850,7 @@ export type GetFleetOperationResponses = {
 export type GetFleetOperationResponse = GetFleetOperationResponses[keyof GetFleetOperationResponses];
 
 export type AdvanceFleetWaveData = {
-    body: {
-        idempotency_key: IdempotencyKey;
-    };
+    body: AdvanceFleetWaveRequest;
     path: {
         fleetID: Identity;
     };
@@ -3038,6 +3166,25 @@ export type PollAnalysisTaskResponses = {
 
 export type PollAnalysisTaskResponse = PollAnalysisTaskResponses[keyof PollAnalysisTaskResponses];
 
+export type ListAnalysisArtifactsData = {
+    body?: never;
+    path?: never;
+    query?: {
+        cursor?: string;
+        page_size?: number;
+    };
+    url: '/api/analysis/artifacts';
+};
+
+export type ListAnalysisArtifactsResponses = {
+    /**
+     * bounded scope-filtered projection
+     */
+    200: Projection;
+};
+
+export type ListAnalysisArtifactsResponse = ListAnalysisArtifactsResponses[keyof ListAnalysisArtifactsResponses];
+
 export type GetAnalysisArtifactData = {
     body?: never;
     path: {
@@ -3064,6 +3211,25 @@ export type GetAnalysisArtifactResponses = {
 };
 
 export type GetAnalysisArtifactResponse = GetAnalysisArtifactResponses[keyof GetAnalysisArtifactResponses];
+
+export type ListAuditFactsData = {
+    body?: never;
+    path?: never;
+    query?: {
+        cursor?: string;
+        page_size?: number;
+    };
+    url: '/api/audit';
+};
+
+export type ListAuditFactsResponses = {
+    /**
+     * bounded scope-filtered projection
+     */
+    200: Projection;
+};
+
+export type ListAuditFactsResponse = ListAuditFactsResponses[keyof ListAuditFactsResponses];
 
 export type StreamSseEventsData = {
     body?: never;

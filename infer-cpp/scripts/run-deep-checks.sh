@@ -25,7 +25,7 @@ printf '%s\n' "${working_tree_status}" >"${evidence_dir}/working-tree-status.txt
 working_tree_status_digest="sha256:$(sha256sum "${evidence_dir}/working-tree-status.txt" | awk '{print $1}')"
 tar --sort=name --mtime=@1786406400 --owner=0 --group=0 --numeric-owner \
   --exclude='infer-cpp/build' --exclude='infer-cpp/evidence' \
-  --exclude='infer-cpp/**/__pycache__' --exclude='contracts/**/__pycache__' \
+  --exclude='**/node_modules' --exclude='**/__pycache__' --exclude='*.pyc' \
   -cf "${source_archive}" -C "${repo_root}" infer-cpp contracts testkit
 source_tree_digest="sha256:$(sha256sum "${source_archive}" | awk '{print $1}')"
 if [[ -n "${MASI_INF_EXPECTED_SOURCE_TREE_DIGEST:-}" \

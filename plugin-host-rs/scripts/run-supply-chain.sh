@@ -68,6 +68,7 @@ source_revision="$(git -C "${repo_root}" rev-parse HEAD)"
 source_archive="${temporary_root}/source.tar"
 tar --sort=name --mtime=@1787270400 --owner=0 --group=0 --numeric-owner \
   --exclude='plugin-host-rs/target' --exclude='plugin-host-rs/evidence' \
+  --exclude='**/node_modules' --exclude='**/__pycache__' --exclude='*.pyc' \
   -cf "${source_archive}" -C "${repo_root}" plugin-host-rs contracts deploy/plugin-host
 source_tree_digest="sha256:$(sha256sum "${source_archive}" | awk '{print $1}')"
 tar -xf "${source_archive}" -C "${temporary_root}/snapshot"

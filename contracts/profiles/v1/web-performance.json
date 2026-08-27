@@ -1,0 +1,66 @@
+{
+  "schema_version": "masi-profile/v1",
+  "profile_id": "web-performance/v1",
+  "profile_version": "1.0.0",
+  "artifact": "production content-hashed static build",
+  "browser_profile": "web-browser/v1",
+  "workstation": {
+    "architecture": "x86_64",
+    "logical_cpu_min": 4,
+    "ram_bytes_min": 8589934592,
+    "desktop_viewport": "1440x900",
+    "narrow_viewport": "390x844"
+  },
+  "networks": [
+    {"id": "controlled-lan", "latency_ms": 20, "down_mbps": 100, "up_mbps": 100},
+    {"id": "controlled-weak", "latency_ms": 100, "down_mbps": 10, "up_mbps": 5}
+  ],
+  "fixture_scale": {
+    "default_page_rows": 50,
+    "maximum_page_rows": 200,
+    "maximum_virtual_rows": 10000,
+    "chart_points": 2000,
+    "page_chart_points": 10000,
+    "dashboard_section_items": 8
+  },
+  "bundle_gzip_bytes": {
+    "synchronous_shell_javascript_max": 256000,
+    "initial_css_max": 81920,
+    "any_route_javascript_and_css_max": 614400
+  },
+  "core_web_vitals_p75": {
+    "lcp_ms_max": 2500,
+    "inp_ms_max": 200,
+    "cls_max": 0.1
+  },
+  "runtime_bounds": {
+    "http_concurrency": 8,
+    "sse_connections": 1,
+    "query_cache_entries": 128,
+    "query_cache_bytes": 16777216,
+    "chart_instances": 4,
+    "dom_nodes": 5000,
+    "route_navigation_p95_ms": 500,
+    "long_task_ms_max": 200
+  },
+  "measurement": {
+    "cold_trials": 5,
+    "warm_trials": 10,
+    "percentile": 75,
+    "formal_soak_seconds": 3600,
+    "warmup_seconds_excluded": 60,
+    "phases_seconds": [900, 900, 900, 900]
+  },
+  "required_evidence": [
+    "source-and-build-digest",
+    "lockfile-and-sbom-digest",
+    "browser-engine-readback",
+    "bundle-route-manifest",
+    "lcp-inp-cls",
+    "api-wait-and-render",
+    "heap-dom-listener-timer-chart-query",
+    "cold-and-warm-cache",
+    "controlled-lan-and-weak-network",
+    "cleanup"
+  ]
+}

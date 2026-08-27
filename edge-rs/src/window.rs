@@ -265,6 +265,7 @@ fn validate_snapshot(snapshot: &TelemetrySnapshot) -> EdgeResult<()> {
     crate::digest::validate_sha256(&snapshot.source_profile_digest, "source_profile_digest")?;
     crate::digest::validate_identity(&snapshot.telemetry_source_id, "telemetry_source_id")?;
     crate::digest::validate_identity(&snapshot.window_id, "window_id")?;
+    crate::digest::validate_identity(&snapshot.role, "role")?;
     let fence = snapshot
         .fence
         .as_ref()
@@ -305,7 +306,6 @@ fn validate_snapshot(snapshot: &TelemetrySnapshot) -> EdgeResult<()> {
         || !snapshot.final_snapshot
         || snapshot.aggregation_end_unix_ms != snapshot.export_time_unix_ms
         || snapshot.watermark_unix_ms != expected_watermark
-        || snapshot.role != "primary"
         || snapshot.observation_domain != format!("target:{}", snapshot.target_id)
         || snapshot.observation_point != "p4-ingress-pre-firewall"
         || snapshot.shard_id != snapshot.target_id
@@ -502,50 +502,14 @@ fn to_inference_record(
     Ok(record)
 }
 
-/// Canonical identity-and-feature digest used at the central inference fence.
+/// Canonical tensor digest verified independently by Central admission.
+///
+/// Route, window, and Event identities are separate result-fence dimensions;
+/// including them here would make the Edge digest diverge from the frozen
+/// `sha256(feature_tensor bytes)` wire contract.
 #[must_use]
 pub fn canonical_input_record_digest(record: &InferenceRecord) -> String {
-    let identity_material = [
-        record.schema_version.clone(),
-        record.input_id.clone(),
-        record.event_idempotency_key.clone(),
-        record.window_id.clone(),
-        record.target_id.clone(),
-        record.source_runtime_epoch.clone(),
-        record.source_sequence_start.to_string(),
-        record.source_sequence_end.to_string(),
-        record.window_start_unix_ms.to_string(),
-        record.window_end_unix_ms.to_string(),
-        record.feature_contract_digest.clone(),
-        record.model_control_incarnation_id.clone(),
-        record.logical_pool_id.clone(),
-        record.pool_generation.to_string(),
-        record.binding_generation.to_string(),
-        record.route_epoch.to_string(),
-        record.model_revision_digest.clone(),
-        record.label_contract_digest.clone(),
-        record.output_adapter_digest.clone(),
-        record.wire_profile.clone(),
-        record.runtime_profile.clone(),
-        record.operation_id.clone(),
-        record.scope.clone(),
-        record.expected_binding_generation.to_string(),
-        record.proposed_binding_generation.to_string(),
-        record.current_binding_generation.to_string(),
-        record.startup_envelope_digest.clone(),
-        record.pool_observation_digest.clone(),
-        record.binding_digest.clone(),
-        record.model_bundle_digest.clone(),
-        record.wire_profile_digest.clone(),
-        record.runtime_profile_digest.clone(),
-        record.optimization_profile_digest.clone(),
-        record.dtype.clone(),
-        record.sampling_coverage_ppm.to_string(),
-    ]
-    .join("\0");
-    let mut material = identity_material.into_bytes();
-    material.extend_from_slice(&record.feature_tensor);
-    digest::sha256(&material)
+    digest::sha256(&record.feature_tensor)
 }
 
 #[cfg(test)]
@@ -684,6 +648,10 @@ mod tests {
             FEATURE_WIDTH * 8,
             advance.inference_records[0].feature_tensor.len()
         );
+        assert_eq!(
+            digest::sha256(&advance.inference_records[0].feature_tensor),
+            advance.inference_records[0].input_digest
+        );
         Ok(())
     }
 
@@ -694,6 +662,15 @@ mod tests {
         let advance = engine.push(&snapshot(110, 2, "valid"), 111)?;
         assert!(advance.inference_records.is_empty());
         assert_eq!(1, advance.invalid_final_windows);
+        Ok(())
+    }
+
+    #[test]
+    fn stable_default_p4runtime_role_is_not_confused_with_mastership()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let mut value = snapshot(10, 1, "valid");
+        value.role = "default".into();
+        validate_snapshot(&value)?;
         Ok(())
     }
 

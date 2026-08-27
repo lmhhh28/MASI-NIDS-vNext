@@ -53,7 +53,7 @@ def main() -> int:
         and stop_duration_ms <= 12_000
         and expected_health == "healthy"
         and primary
-        and api_version.startswith("1.")
+        and api_version == "1.4.1"
         and error is None
     )
     graceful = restart_live and old_exit in {0, 130}

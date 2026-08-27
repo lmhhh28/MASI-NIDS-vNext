@@ -1,0 +1,46 @@
+{
+  "schema_version": "masi-profile/v1",
+  "profile_id": "web-browser/v1",
+  "profile_version": "1.0.0",
+  "driver": "@playwright/test@1.62.1",
+  "engines": [
+    {
+      "name": "chromium",
+      "browser": "Chrome for Testing 151.0.7922.34",
+      "playwright_revision": 1234
+    },
+    {
+      "name": "firefox",
+      "browser": "Firefox 153.0",
+      "playwright_revision": 1538
+    },
+    {
+      "name": "webkit",
+      "browser": "WebKit 26.5",
+      "playwright_revision": 2336
+    }
+  ],
+  "viewports": [
+    {"id": "soc-desktop", "width": 1440, "height": 900, "device_scale_factor": 1},
+    {"id": "soc-narrow-readonly", "width": 390, "height": 844, "device_scale_factor": 1}
+  ],
+  "locale": "en-US",
+  "timezone": "UTC",
+  "color_schemes": ["light", "dark"],
+  "motion_preferences": ["no-preference", "reduce"],
+  "zoom_percent": [100, 200],
+  "required_flows": [
+    "session-expiry-and-recovery",
+    "overview-drilldown",
+    "event-incident-evidence",
+    "r2-maker-checker",
+    "r3-firewall-activation",
+    "target-fleet-partial-reconcile",
+    "model-mixed-rollout-rollback",
+    "plugin-statistics-revoke-stale",
+    "keyboard-focus-reflow"
+  ],
+  "dangerous_mutation_minimum_viewport_width": 1024,
+  "unsupported_engine_behavior": "fail-closed with controlled browser-unsupported state",
+  "polyfill_policy": "none at runtime"
+}

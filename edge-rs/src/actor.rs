@@ -438,11 +438,18 @@ pub async fn spawn(assignment: TargetAssignment, config: EdgeConfig) -> EdgeResu
         .await
         {
             Ok(session) => (Some(session), ActorState::Primary, "PRIMARY".to_owned()),
-            Err(error) => (
-                None,
-                ActorState::Hold,
-                format!("{}:initial-connect", error.reason_code()),
-            ),
+            Err(error) => {
+                tracing::warn!(
+                    target_id = %assignment.target_id,
+                    error = %error,
+                    "initial P4 session connect failed"
+                );
+                (
+                    None,
+                    ActorState::Hold,
+                    format!("{}:initial-connect", error.reason_code()),
+                )
+            }
         }
     };
     let now = Instant::now();
@@ -671,16 +678,35 @@ impl TargetActor {
             self.state = ActorState::Hold;
             self.reason_code = format!("{}:effect-recovery", error.reason_code());
         }
-        if self.session.is_some()
-            && self.source_recovery.is_some()
-            && let Err(error) = self.finish_source_recovery().await
-        {
-            self.state = ActorState::Hold;
-            self.reason_code = format!("{}:source-recovery", error.reason_code());
+        if self.session.is_some() && self.source_recovery.is_some() {
+            match self.finish_source_recovery().await {
+                Ok(()) => {
+                    if self.state == ActorState::Hold
+                        && self.reason_code.ends_with(":source-recovery")
+                    {
+                        self.state = ActorState::Primary;
+                        self.reason_code = "PRIMARY".into();
+                    }
+                }
+                Err(error) => {
+                    tracing::warn!(
+                        target_id = %self.assignment.target_id,
+                        error = %error,
+                        "durable telemetry source recovery failed"
+                    );
+                    self.state = ActorState::Hold;
+                    self.reason_code = format!("{}:source-recovery", error.reason_code());
+                }
+            }
         }
         if self.route_recovery.is_some() && now >= self.route_reconnect_after {
             self.route_reconnect_after = now + Duration::from_secs(1);
             if let Err(error) = self.finish_route_recovery().await {
+                tracing::warn!(
+                    target_id = %self.assignment.target_id,
+                    error = %error,
+                    "durable route recovery failed"
+                );
                 self.reason_code = format!("{}:route-recovery", error.reason_code());
             }
         }
@@ -693,6 +719,11 @@ impl TargetActor {
         if now >= self.control_retry_after
             && let Err(error) = self.process_pending_results().await
         {
+            tracing::warn!(
+                target_id = %self.assignment.target_id,
+                error = %error,
+                "canonical result delivery failed"
+            );
             // Result remains durable and retryable. A whole failed RPC budget
             // opens a bounded outer cooldown instead of retrying every 20 ms.
             self.reason_code = error.reason_code().into();
@@ -720,6 +751,11 @@ impl TargetActor {
             self.telemetry_due =
                 now + Duration::from_millis(self.config.limits.telemetry_poll_interval_ms);
             if let Err(error) = self.poll_telemetry().await {
+                tracing::warn!(
+                    target_id = %self.assignment.target_id,
+                    error = %error,
+                    "telemetry poll failed"
+                );
                 self.reason_code = error.reason_code().into();
             }
         }
@@ -1942,6 +1978,7 @@ impl TargetActor {
             .read(vec![firewall::telemetry_selector_query()])
             .await?;
         let (observed_bank, observed_epoch) = firewall::active_telemetry_bank(&selector)?;
+        let mut freeze_reason = None;
         if observed_bank == recovery.frozen_bank
             && u64::from(observed_epoch) == recovery.previous_epoch
             && !recovery.frozen
@@ -1964,7 +2001,9 @@ impl TargetActor {
                         error.reason_code()
                     ))
                 })?;
-            if firewall::exact_readback(&[new_selector], &selector_readback).is_err() {
+            if let Err(readback_error) =
+                firewall::exact_readback(&[new_selector], &selector_readback)
+            {
                 return Err(if write.is_err() {
                     EdgeError::UnknownOutcome(
                         "telemetry selector response lost and readback differs".into(),
@@ -1972,34 +2011,41 @@ impl TargetActor {
                 } else {
                     EdgeError::precondition(
                         "TELEMETRY_SELECTOR_MISMATCH",
-                        "telemetry selector exact readback failed",
+                        format!("telemetry selector exact readback failed: {readback_error}"),
                     )
                 });
             }
-            recovery.frozen = true;
-            self.source_wal.append_message(&source_stage_record(
-                SourceWalStage::BankFrozen,
-                &recovery,
-                "BANK_FROZEN",
-            )?)?;
-            self.source_recovery = Some(recovery.clone());
+            freeze_reason = Some("BANK_FROZEN");
         } else if observed_bank == recovery.new_active_bank
             && u64::from(observed_epoch) == recovery.new_epoch
         {
             if !recovery.frozen {
-                recovery.frozen = true;
-                self.source_wal.append_message(&source_stage_record(
-                    SourceWalStage::BankFrozen,
-                    &recovery,
-                    "BANK_FROZEN_RECOVERED",
-                )?)?;
-                self.source_recovery = Some(recovery.clone());
+                freeze_reason = Some("BANK_FROZEN_RECOVERED");
             }
         } else {
             return Err(EdgeError::precondition(
                 "TELEMETRY_SELECTOR_DRIFT",
                 "selector is neither the durable pre-state nor frozen post-state",
             ));
+        }
+        if let Some(reason) = freeze_reason {
+            let frozen_aggregate = self
+                .session_mut()?
+                .read(vec![firewall::counter_query(
+                    firewall::counter_id::TELEMETRY_BANK,
+                    i64::from(recovery.frozen_bank),
+                )])
+                .await?;
+            let (packets, bytes) = single_counter(&frozen_aggregate)?;
+            recovery.counter_packets_before = packets;
+            recovery.counter_bytes_before = bytes;
+            recovery.frozen = true;
+            self.source_wal.append_message(&source_stage_record(
+                SourceWalStage::BankFrozen,
+                &recovery,
+                reason,
+            )?)?;
+            self.source_recovery = Some(recovery.clone());
         }
 
         if recovery.snapshot.is_none() {

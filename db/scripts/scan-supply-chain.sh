@@ -86,6 +86,11 @@ docker run --rm --network none --read-only --cap-drop ALL \
   --skip-dirs /source/out --skip-dirs /source/evidence \
   --skip-dirs /source/db/evidence --skip-dirs /source/control-go/evidence \
   --skip-dirs /source/edge-rs/evidence --skip-dirs /source/infer-cpp/evidence \
+  --skip-dirs /source/plugin-host-rs/evidence --skip-dirs /source/analysis-py/evidence \
+  --skip-dirs /source/ml-py/evidence --skip-dirs /source/web/evidence \
+  --skip-dirs /source/p4/evidence --skip-dirs /source/testkit/evidence \
+  --skip-dirs /source/contracts/openapi/v1/typescript-client/node_modules \
+  --skip-dirs /source/web/node_modules \
   --output /out/source.trivy-secret.json /source
 
 for subject in db pgbouncer postgres; do

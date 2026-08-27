@@ -1,0 +1,25 @@
+{
+  "schema_version": "masi-profile/v1",
+  "profile_id": "analysis-performance/v1",
+  "claim_scope": "operational-single-domain module boundary with deterministic provider/MCP fixtures",
+  "runtime": "CPython 3.12 release process or exact OCI image",
+  "workload": {
+    "warmup_tasks": 10,
+    "concurrency_levels": [1, 4, 16],
+    "trials_per_level": 3,
+    "tasks_per_trial": 20,
+    "saturation_tasks": 128,
+    "saturation_provider_delay_ms": 200
+  },
+  "thresholds": {
+    "normal_terminal_error_count": 0,
+    "normal_p95_ms_max": 1000,
+    "concurrency_16_tasks_per_second_min": 20,
+    "saturation_typed_rejections_min": 1,
+    "recovery_task_ms_max": 1000,
+    "rss_bytes_max": 402653184,
+    "fd_count_max": 512
+  },
+  "required_evidence": ["python-version", "source-and-binary-digest", "cpu", "memory", "kernel", "trials", "latency-p50-p95-p99", "throughput", "typed-saturation", "recovery", "rss", "fd", "cleanup"],
+  "qualification_limit": "does not qualify a real external LLM provider, multi-host topology, pairwise, system, or production-ha"
+}

@@ -25,8 +25,10 @@ temporary="${output}.$$.tmp"
 trap 'unlink -- "${temporary}" 2>/dev/null || true' EXIT
 db_user="$(docker image inspect --format '{{.Config.User}}' "${db_image}")"
 pool_user="$(docker image inspect --format '{{.Config.User}}' "${pgbouncer_image}")"
+postgres_user="$(docker image inspect --format '{{.Config.User}}' "${postgres_image}")"
 [[ "${db_user}" == "70:70" ]]
 [[ "${pool_user}" == "10003:10003" ]]
+[[ "${postgres_user}" == "70:70" ]]
 
 chain="$(docker run --rm --network none --read-only --cap-drop ALL \
   --security-opt no-new-privileges --pids-limit 64 --memory 256m \
@@ -56,6 +58,7 @@ jq -n --arg run_id "${run_id}" --arg db_image "${db_image}" --arg pgbouncer_imag
   --arg postgres_image "${postgres_image}" --arg db_id "${db_id}" \
   --arg pgbouncer_id "${pool_id}" --arg postgres_id "${postgres_id}" \
   --arg db_user "${db_user}" --arg pgbouncer_user "${pool_user}" \
+  --arg postgres_user "${postgres_user}" \
   --arg chain_digest "$(jq -r .chain_digest <<<"${chain}")" \
   --arg pgbouncer_version "${pool_version}" \
   --arg postgres_version "${postgres_version}" --arg gosu_version "${gosu_version}" \
@@ -64,7 +67,8 @@ jq -n --arg run_id "${run_id}" --arg db_image "${db_image}" --arg pgbouncer_imag
     module_id:"MOD-DB-001",run_id:$run_id,result:"PASS",qualification:"QUALIFIED",
     images:{db:$db_image,pgbouncer:$pgbouncer_image,postgres:$postgres_image},
     image_ids:{db:$db_id,pgbouncer:$pgbouncer_id,postgres:$postgres_id},
-    users:{db:$db_user,pgbouncer:$pgbouncer_user},read_only_rootfs:true,capabilities_dropped:true,
+    users:{db:$db_user,pgbouncer:$pgbouncer_user,postgres:$postgres_user},
+    read_only_rootfs:true,capabilities_dropped:true,
     migration_count:$migration_count,migration_chain_digest:$chain_digest,
     pgbouncer_version:$pgbouncer_version,postgres_version:$postgres_version,
     gosu_version:$gosu_version}' >"${temporary}"

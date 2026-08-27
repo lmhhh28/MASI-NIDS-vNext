@@ -33,6 +33,7 @@ git -C "${repo_root}" status --porcelain=v1 --untracked-files=all \
   >"${temporary_root}/working-tree-status.txt"
 tar --sort=name --mtime=@1787270400 --owner=0 --group=0 --numeric-owner \
   --exclude='plugin-host-rs/target' --exclude='plugin-host-rs/evidence' \
+  --exclude='**/node_modules' --exclude='**/__pycache__' --exclude='*.pyc' \
   -cf "${temporary_root}/source-tree.tar" -C "${repo_root}" plugin-host-rs contracts deploy/plugin-host
 source_tree_digest="sha256:$(sha256sum "${temporary_root}/source-tree.tar" | awk '{print $1}')"
 working_tree_status_digest="sha256:$(sha256sum "${temporary_root}/working-tree-status.txt" | awk '{print $1}')"

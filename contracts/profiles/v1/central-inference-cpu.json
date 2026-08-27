@@ -14,7 +14,7 @@
     "image": "nvcr.io/nvidia/tritonserver:25.06-py3",
     "image_digest": "sha256:75bcfa5b0043898ece3e603c17a5bbbb1c9bddc390563db24312ef59d83735e5",
     "version_tag": "25.06-py3",
-    "triton_version": "v2.58.0",
+    "triton_version": "2.59.0",
     "model_control_mode": "none",
     "disable_auto_complete_config": true,
     "strict_readiness": true,

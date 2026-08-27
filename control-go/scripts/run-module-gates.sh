@@ -57,7 +57,10 @@ control_binary="${runtime_root}/control-core"
 oci_runtime_config="${runtime_root}/oci-control-config.json"
 
 cleanup_runtime() {
-  unlink -- "${control_binary}" "${oci_runtime_config}" 2>/dev/null || true
+  local runtime_file
+  for runtime_file in "${control_binary}" "${oci_runtime_config}"; do
+    unlink -- "${runtime_file}" 2>/dev/null || true
+  done
   rmdir -- "${runtime_root}" 2>/dev/null || true
 }
 trap cleanup_runtime EXIT
@@ -304,6 +307,7 @@ cd -- "${ctrl_root}"
 calculate_source_tree_digest() {
   printf 'sha256:%s\n' "$(tar --sort=name --mtime=@1786406400 --owner=0 --group=0 --numeric-owner \
     --exclude='control-go/evidence' \
+    --exclude='db/evidence' \
     --exclude='**/node_modules' \
     --exclude='control-go/**/__pycache__' --exclude='contracts/**/__pycache__' \
     -cf - -C "${repo_root}" control-go contracts db | sha256sum | awk '{print $1}')"
@@ -335,7 +339,7 @@ run_gate format bash -lc 'cd "${0}" && test -z "$(gofmt -l ./cmd ./internal ./te
 run_gate vet bash -lc 'cd "${0}" && go vet ./...' "${ctrl_root}"
 run_gate staticcheck bash -lc 'cd "${0}" && staticcheck ./...' "${ctrl_root}"
 run_gate vulnerability-scan bash -lc 'cd "${0}" && govulncheck ./...' "${ctrl_root}"
-run_gate tests bash -lc 'cd "${0}" && go test -count=1 ./...' "${ctrl_root}"
+run_gate tests bash -lc 'cd "${0}" && go test -count=1 ./... && python3 -m unittest discover -s scripts -p "test_*.py"' "${ctrl_root}"
 run_gate race bash -lc 'cd "${0}" && go test -count=1 -race ./...' "${ctrl_root}"
 run_gate coverage bash -lc 'cd "${0}" && go test -count=1 -coverprofile "${1}/coverage.out" ./cmd/... ./internal/... ./tests/...' "${ctrl_root}" "${evidence_root}"
 

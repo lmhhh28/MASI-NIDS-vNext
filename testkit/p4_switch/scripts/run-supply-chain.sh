@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
+# shellcheck disable=SC1007,SC2094  # Empty CDPATH is intentional; SHA256SUMS is excluded from find input.
 set -euo pipefail
 
 repo_root=$(CDPATH= cd -- "$(dirname -- "$0")/../../.." && pwd)
-if [ "$#" -ne 8 ]; then
-  echo "usage: run-supply-chain.sh EVIDENCE_DIR ARTIFACT_DIR RUN_ID RUNTIME_REF RUNNER_REF SOURCE_ARCHIVE TRIVY_CACHE KEY_DIR" >&2
+if [ "$#" -ne 9 ]; then
+  echo "usage: run-supply-chain.sh EVIDENCE_DIR ARTIFACT_DIR RUN_ID RUNTIME_REF RUNNER_REF BMV2_SOURCE_ARCHIVE PI_SOURCE_ARCHIVE TRIVY_CACHE KEY_DIR" >&2
   exit 64
 fi
 evidence_dir=$(realpath "$1")
@@ -12,8 +13,9 @@ run_id=$3
 runtime_ref=$4
 runner_ref=$5
 source_archive=$(realpath "$6")
-trivy_cache=$(realpath "$7")
-key_dir=$(realpath "$8")
+pi_source_archive=$(realpath "$7")
+trivy_cache=$(realpath "$8")
+key_dir=$(realpath "$9")
 supply_dir="$evidence_dir/supply"
 bundle_dir="$repo_root/out/supply-chain/offline-bundles/$run_id"
 source_snapshot_dir="$repo_root/out/supply-chain/source-snapshots/$run_id"
@@ -59,6 +61,9 @@ tar -cf "$bundle_dir/trivy-db.tar" -C "$trivy_cache" db java-db
 cp -- "$source_archive" "$bundle_dir/source-archive.tar.gz"
 cp -- "$repo_root/deploy/p4-switch/bmv2/source.lock.json" "$bundle_dir/source.lock.json"
 cp -- "$repo_root/deploy/p4-switch/bmv2/0001-bounded-graceful-shutdown.patch" "$bundle_dir/qualified-source.patch"
+cp -- "$pi_source_archive" "$bundle_dir/pi-source-archive.tar.gz"
+cp -- "$repo_root/deploy/p4-switch/pi/source.lock.json" "$bundle_dir/pi-source.lock.json"
+cp -- "$repo_root/deploy/p4-switch/pi/0001-p4runtime-1.4.1-capabilities.patch" "$bundle_dir/qualified-pi.patch"
 cp -- "$repo_root/deploy/p4-switch/bmv2/Dockerfile.runtime" "$bundle_dir/Dockerfile.runtime"
 cp -- "$repo_root/deploy/p4-switch/Dockerfile.runner" "$bundle_dir/Dockerfile.runner"
 cp -- "$repo_root/deploy/p4-switch/Dockerfile.runner-deps" "$bundle_dir/Dockerfile.runner-deps"
@@ -68,7 +73,12 @@ cp -- "$cosign_signing_config" "$bundle_dir/cosign-offline-signing-config.json"
 cp -- "$repo_root/contracts/trust/v1/cosign.pub" "$bundle_dir/cosign.pub"
 tar --sort=name --mtime=@1786406400 --owner=0 --group=0 --numeric-owner \
   --exclude=.git --exclude=.cache --exclude=.masi-secrets \
-  --exclude=evidence --exclude=out --exclude='**/__pycache__' \
+  --exclude=evidence --exclude=out --exclude='**/node_modules' \
+  --exclude='**/.venv' --exclude='**/__pycache__' --exclude='*.pyc' \
+  --exclude='**/build' --exclude='**/target' --exclude='**/dist' \
+  --exclude='**/.ruff_cache' --exclude='**/.mypy_cache' \
+  --exclude='**/.pytest_cache' --exclude='**/*.egg-info' \
+  --exclude='**/coverage.out' \
   -cf "$bundle_dir/source-tree.tar" -C "$repo_root" .
 tar -xf "$bundle_dir/source-tree.tar" -C "$source_snapshot_dir"
 
@@ -117,7 +127,7 @@ runner_rebuild_ref="masi-nids/p4-switch-e2e-runner:offline-$run_id"
 set +e
 MASI_BMV2_NO_CACHE=1 \
   "$repo_root/deploy/p4-switch/bmv2/build-runtime.sh" \
-  "$source_archive" "$runtime_rebuild_ref" \
+  "$source_archive" "$pi_source_archive" "$runtime_rebuild_ref" \
   >"$supply_dir/offline-runtime-rebuild.log" 2>&1
 runtime_rebuild_status=$?
 MASI_RUNNER_NO_CACHE=1 \
@@ -167,7 +177,7 @@ fi
 
 python3 "$repo_root/testkit/p4_switch/scripts/create-supply-manifest.py" \
   --repo "$repo_root" --artifacts "$artifact_dir" --supply-dir "$supply_dir" \
-  --source-archive "$source_archive" \
+  --source-archive "$source_archive" --pi-source-archive "$pi_source_archive" \
   --runtime-digest "$runtime_expected" --runner-digest "$runner_expected" \
   --compiler-digest "$compiler_expected" --runner-deps-digest "$runner_deps_digest" \
   --offline-result "$supply_dir/offline-rebuild.json" \

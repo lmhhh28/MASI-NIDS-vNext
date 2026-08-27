@@ -3,7 +3,20 @@
 FROM p4lang/behavioral-model@sha256:85905a1ecad8c26e1f746efdf9e66d3600ee743588b32fe5b65d7d3ad1c0157d AS builder
 
 ARG SOURCE_DATE_EPOCH=1786406400
+ARG PI_SOURCE_COMMIT=577b502da91b7d17e4be5821d49d481dc2e1bb7a
 ENV SOURCE_DATE_EPOCH=${SOURCE_DATE_EPOCH}
+
+COPY .masi-pi-source /pi-source/
+WORKDIR /pi-source
+RUN ./configure \
+      --prefix=/usr/local \
+      --with-proto \
+      --with-bmv2 \
+      --enable-Werror && \
+    make --jobs "$(nproc)" && \
+    make check && \
+    make install && \
+    ldconfig
 
 COPY . /behavioral-model/
 WORKDIR /behavioral-model
@@ -30,12 +43,22 @@ RUN apt-get purge -y linux-libc-dev libc6-dev \
        /var/log/alternatives.log /var/log/apt/* /var/log/dpkg.log
 
 ARG SOURCE_DATE_EPOCH=1786406400
+ARG PI_SOURCE_COMMIT=577b502da91b7d17e4be5821d49d481dc2e1bb7a
 LABEL org.opencontainers.image.title="MASI-NIDS bounded simple_switch_grpc runtime" \
       org.opencontainers.image.source="https://github.com/p4lang/behavioral-model" \
       org.opencontainers.image.revision="693e69e634fedf007964a069fdd69acc441a5f80" \
       io.masi-nids.patch.sha256="0f0665b4db472680e17c5f2d9f5eddfa1e78201f4097f7cf5dd614a690b2597a" \
+      io.masi-nids.pi.source="https://github.com/p4lang/PI" \
+      io.masi-nids.pi.revision="${PI_SOURCE_COMMIT}" \
+      io.masi-nids.pi.patch.sha256="c6bdd909599c01a9afdd921352b8c61a1a4ed0368ef68f759d3ecca6cd521f45" \
+      io.masi-nids.p4runtime.version="1.4.1" \
       io.masi-nids.source-date-epoch="${SOURCE_DATE_EPOCH}"
 
 COPY --from=builder /opt/masi-runtime/bin/simple_switch_grpc /usr/local/bin/simple_switch_grpc
+COPY --from=builder /usr/local/lib/libpi*.so* /usr/local/lib/
+# `/etc/ld.so.cache` is deterministic for this fixed library set.  The private
+# ldconfig aux-cache records build-time file metadata and is not used by the
+# runtime loader, so do not carry that non-reproducible build cache forward.
+RUN ldconfig && rm -rf /var/cache/ldconfig
 
 USER 65532:65532

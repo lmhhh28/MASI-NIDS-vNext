@@ -2,7 +2,7 @@
   "schema_version": "qualification-profile/v1",
   "profile_id": "p4-rule-observation-bmv2/v1",
   "target_profile_id": "p4-stateless-firewall/v1",
-  "p4runtime_capabilities_version": "1.3.0",
+  "p4runtime_capabilities_version": "1.4.1",
   "test_client_proto_package_version": "1.4.1",
   "counter": {
     "packet_width_bits": 64,

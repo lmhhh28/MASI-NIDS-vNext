@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://masi-nids.example/contracts/evidence/offline-ml-module/v1/schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "module_id", "level", "applicability", "result", "qualification", "generated_at", "source_revision", "source_tree_digest", "working_tree_dirty", "working_tree_status_digest", "executed_gates", "completion", "findings", "evidence_refs", "conditional_applicability", "requirement_ids", "artifact_digests", "qualification_gates", "remaining_holds", "overall_module_complete"],
+  "properties": {
+    "schema_version": {"const": "offline-ml-module-gates/v1"},
+    "module_id": {"const": "MOD-ML-001"},
+    "level": {"const": "MODULE"},
+    "applicability": {"const": "APPLICABLE"},
+    "result": {"const": "PASS"},
+    "qualification": {"const": "NOT_QUALIFIED"},
+    "generated_at": {"type": "string", "format": "date-time"},
+    "source_revision": {"type": "string", "pattern": "^[0-9a-f]{40,64}$"},
+    "source_tree_digest": {"$ref": "#/$defs/digest"},
+    "working_tree_dirty": {"type": "boolean"},
+    "working_tree_status_digest": {"$ref": "#/$defs/digest"},
+    "executed_gates": {"type": "object", "minProperties": 18, "maxProperties": 32, "additionalProperties": {"const": "PASS"}},
+    "completion": {"type": "object", "additionalProperties": false, "required": ["contracts_frozen", "mandatory_candidates_executed", "formal_soak_executed", "no_required_not_run", "open_p0_zero", "operational_gates_pass", "real_release_process_started", "real_oci_started", "real_triton_consumer_started", "central_cpp_consumer_passed"], "properties": {"contracts_frozen": {"const": true}, "mandatory_candidates_executed": {"const": 9}, "formal_soak_executed": {"const": true}, "no_required_not_run": {"const": true}, "open_p0_zero": {"const": true}, "operational_gates_pass": {"const": true}, "real_release_process_started": {"const": true}, "real_oci_started": {"const": true}, "real_triton_consumer_started": {"const": true}, "central_cpp_consumer_passed": {"const": true}}},
+    "findings": {"type": "object", "additionalProperties": false, "required": ["open_total", "open_p0", "registry_digest"], "properties": {"open_total": {"const": 0}, "open_p0": {"const": 0}, "registry_digest": {"$ref": "#/$defs/digest"}}},
+    "evidence_refs": {"type": "object", "minProperties": 10, "additionalProperties": {"$ref": "#/$defs/ref"}},
+    "conditional_applicability": {"type": "array", "minItems": 4, "maxItems": 4, "uniqueItems": true, "items": {"type": "object", "required": ["profile", "applicability", "result", "stable_reason"], "properties": {"profile": {"type": "string"}, "applicability": {"const": "NOT_APPLICABLE"}, "result": {"const": "NOT_RUN"}, "stable_reason": {"type": "string"}}}},
+    "requirement_ids": {"type": "array", "minItems": 10, "maxItems": 64, "uniqueItems": true, "items": {"type": "string", "pattern": "^[A-Z][A-Z0-9-]+-[0-9]{3}$"}},
+    "artifact_digests": {"type": "object", "minProperties": 16, "additionalProperties": {"$ref": "#/$defs/digest"}},
+    "qualification_gates": {"type": "object", "additionalProperties": false, "required": ["module_operational", "official_corpus", "protected_baseline", "pairwise", "system", "production"], "properties": {"module_operational": {"const": "PASS"}, "official_corpus": {"const": "HOLD"}, "protected_baseline": {"const": "HOLD"}, "pairwise": {"const": "HOLD"}, "system": {"const": "HOLD"}, "production": {"const": "HOLD"}}},
+    "remaining_holds": {"type": "array", "minItems": 5, "uniqueItems": true, "items": {"type": "string"}},
+    "overall_module_complete": {"const": true}
+  },
+  "$defs": {
+    "digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "ref": {"type": "object", "additionalProperties": false, "required": ["path", "digest", "result"], "properties": {"path": {"type": "string", "minLength": 1}, "digest": {"$ref": "#/$defs/digest"}, "result": {"const": "PASS"}}}
+  }
+}

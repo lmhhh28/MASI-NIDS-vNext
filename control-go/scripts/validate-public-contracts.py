@@ -192,12 +192,22 @@ GO_CONTRACTS = [
     "contracts/analysis/v1/schema.json",
     "contracts/analysis/input/v1/schema.json",
     "contracts/analysis/artifact/v1/schema.json",
+    "contracts/analysis/config/v1/schema.json",
+    "contracts/analysis/binding/v1/schema.json",
+    "contracts/analysis/a2a/v1/send-request.schema.json",
+    "contracts/analysis/a2a/v1/task-response.schema.json",
+    "contracts/analysis/a2a/v1/agent-card.schema.json",
+    "contracts/analysis/a2a/v1/error.schema.json",
+    "contracts/analysis/a2a/v1/delegation.schema.json",
+    "contracts/analysis/mcp/v1/schema.json",
+    "contracts/analysis/provider/v1/schema.json",
     "contracts/evidence/bounded-capture/v1/schema.json",
     "contracts/plugin/v1/schema.json",
     "contracts/plugin/manifest/v1/schema.json",
     "contracts/plugin/wit/v1/schema.json",
     "contracts/plugin/statistics/v1/schema.json",
     "contracts/web/v1/schema.json",
+    "contracts/web/v1/dashboard.schema.json",
 ]
 
 SHARED_EVIDENCE = [
@@ -232,6 +242,19 @@ def main() -> int:
         profile = load(profile_path)
         if profile.get("profile_id") != profile_id or profile.get("protocol_version") != version:
             raise ValueError(f"{rel} profile/version drift")
+        checked.append({"name": rel, "digest": sha256(profile_path)})
+
+    for rel, profile_id in [
+        ("contracts/profiles/v1/web-spa.json", "web-spa/v1"),
+        ("contracts/profiles/v1/web-browser.json", "web-browser/v1"),
+        ("contracts/profiles/v1/web-performance.json", "web-performance/v1"),
+    ]:
+        profile_path = repo / rel
+        profile = load(profile_path)
+        if (profile.get("schema_version") != "masi-profile/v1" or
+                profile.get("profile_id") != profile_id or
+                profile.get("profile_version") != "1.0.0"):
+            raise ValueError(f"{rel} identity/version drift")
         checked.append({"name": rel, "digest": sha256(profile_path)})
 
     supply_schema_path = repo / "contracts/supply-chain/v1/schema.json"
@@ -444,6 +467,33 @@ def main() -> int:
             extras=[("a2a-0.3", lambda i: i.update(a2a_version="0.3")),
                     ("artifact-executable", lambda i: i.update(artifact_identity={**i["artifact_identity"], "non_executable": False}))])
 
+    analysis_input_schema = load(repo / "contracts/analysis/input/v1/schema.json")
+    analysis_input = load(repo / "contracts/analysis/v1/golden/input-v1.json")
+    validate(analysis_input_schema, analysis_input, "analysis-input:golden")
+    reject(analysis_input_schema, {**analysis_input, "schema_version": "masi-analysis-input/v2"},
+           "analysis-input:unknown-major")
+    reject(analysis_input_schema, {**analysis_input, "budgets": {**analysis_input["budgets"], "tool_calls": 7}},
+           "analysis-input:tool-budget")
+    negative_vectors += 2
+
+    analysis_artifact_schema = load(repo / "contracts/analysis/artifact/v1/schema.json")
+    analysis_artifact = load(repo / "contracts/analysis/v1/golden/artifact-v1.json")
+    validate(analysis_artifact_schema, analysis_artifact, "analysis-artifact:golden")
+    reject(analysis_artifact_schema, {**analysis_artifact, "deployment_eligible": True},
+           "analysis-artifact:deployment-eligible")
+    reject(analysis_artifact_schema, {**analysis_artifact, "graph_version": "legacy-workflow/v2"},
+           "analysis-artifact:legacy-graph")
+    negative_vectors += 2
+
+    provider_schema = load(repo / "contracts/analysis/provider/v1/schema.json")
+    provider_request = load(repo / "contracts/analysis/v1/golden/provider-request-v1.json")
+    provider_response = load(repo / "contracts/analysis/v1/golden/provider-response-v1.json")
+    validate(provider_schema, provider_request, "analysis-provider:request")
+    validate(provider_schema, provider_response, "analysis-provider:response")
+    reject(provider_schema, {**provider_response, "tool_requests": [{"kind": "tool", "name": "effect.mutate", "arguments": {}}]},
+           "analysis-provider:unknown-tool-shape")
+    negative_vectors += 1
+
     # plugin
     plugin_good = {"schema_version": "masi-plugin/v1", "plugin_id": "plug-1",
                    "revision": "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2", "manifest_digest": D,
@@ -554,6 +604,28 @@ def main() -> int:
             extras=[("sse-oversize", lambda i: i.update(sse_event={**i["sse_event"], "bytes": 70000})),
                     ("page-oversize", lambda i: i.update(page_size=500))])
 
+    dashboard_good = {
+        "schema_version": "masi-web-dashboard/v1", "snapshot_id": "dashboard-1000",
+        "snapshot_unix_ms": 1000, "generation": 1000, "state": "ready",
+        "actor_ref": "iss-x:sub-a", "authorized_scopes": ["scope-1"],
+        "counts": {"events_24h": 1, "alerts_24h": 1, "degraded_events_24h": 0,
+                   "open_incidents": 1, "targets_total": 1, "targets_active": 1,
+                   "targets_attention": 0, "pending_approvals": 0, "active_effects": 0,
+                   "unknown_effects": 0, "model_shards_ready": 1,
+                   "model_shards_unavailable": 0, "plugins_active": 1,
+                   "analysis_attention": 0},
+        "recent_alerts": [{"event_id": "evt-1", "shard_id": "shard-1", "decision": "alert",
+                           "quality": "valid", "predicted_label": 1, "event_time_unix_ms": 900}],
+        "active_operations": [],
+        "target_health": [{"target_id": "target-1", "display_name": "edge one",
+                           "lifecycle": "active", "assignment_generation": 1,
+                           "lease_expires_at_unix_ms": 2000}],
+        "reason_code": "DASHBOARD_READY",
+    }
+    pos_neg("contracts/web/v1/dashboard.schema.json", dashboard_good,
+            extras=[("alerts-oversize", lambda i: i.update(recent_alerts=i["recent_alerts"] * 9)),
+                    ("unknown-state", lambda i: i.update(state="ok"))])
+
     # ---- 5. Evidence schema extensions: MOD-CTRL-001 ----
     findings_schema = load(repo / "contracts/evidence/module-findings/v1/schema.json")
     findings_env = {"schema_version": "module-findings/v1", "module_id": "MOD-CTRL-001",
@@ -616,7 +688,7 @@ def main() -> int:
     oa = yaml.safe_load((repo / "contracts" / "openapi" / "v1" / "openapi.yaml").read_text(encoding="utf-8"))
     if oa.get("openapi") != "3.1.2":
         raise ValueError("openapi.yaml openapi version not 3.1.2")
-    required_paths = ["/api/events", "/api/incidents", "/api/evidence", "/api/evidence/captures",
+    required_paths = ["/api/dashboard", "/api/events", "/api/incidents", "/api/evidence", "/api/evidence/captures",
                       "/api/evidence/captures/{captureID}/intents", "/api/effects/proposals",
                       "/api/effects/decisions", "/api/effects/intents", "/api/firewall/revisions",
                       "/api/firewall/activations",
@@ -626,7 +698,7 @@ def main() -> int:
                       "/api/plugins/statistics/definitions", "/api/plugins/statistics/runs",
                       "/api/plugins/statistics/current", "/api/plugins/statistics/schedules",
                       "/api/plugins/statistics/artifacts/{artifactID}", "/events", "/healthz", "/readyz",
-                      "/api/analysis/tasks", "/api/analysis/artifacts/{artifactID}",
+                      "/api/analysis/tasks", "/api/analysis/artifacts", "/api/analysis/artifacts/{artifactID}", "/api/audit",
                       "/api/effects/operations/{operationID}", "/api/effects/operations/{operationID}/readback",
                       "/api/targets/{targetID}", "/api/targets/{targetID}/observation",
                       "/api/fleet/operations/{fleetID}", "/api/firewall/bindings",
@@ -680,7 +752,7 @@ def main() -> int:
     types_path = repo / "contracts/generated/typescript/control-api/types.gen.ts"
     package_lock_path = repo / "contracts/openapi/v1/typescript-client/package-lock.json"
     sdk = sdk_path.read_text(encoding="utf-8")
-    for operation in ["listEvents", "registerBoundedCapture", "inspectFirewallRevision", "submitAnalysisTask"]:
+    for operation in ["getDashboard", "listEvents", "registerBoundedCapture", "inspectFirewallRevision", "submitAnalysisTask"]:
         if f"export const {operation}" not in sdk:
             raise ValueError(f"generated TypeScript SDK missing operation {operation}")
     package_lock = load(package_lock_path)

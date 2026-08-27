@@ -1,0 +1,155 @@
+{
+  "schema_version": "masi-analysis-compatibility/v1",
+  "matrix_id": "AGENT-COMPAT-001",
+  "legacy_graph_id": "masi-event-analysis-v1",
+  "vnext_plugin_id": "masi.analysis.langgraph",
+  "decision_id": "ADR-0002",
+  "budget_invariants": {"llm_calls": 2, "mcp_rounds": 2, "tool_calls": 6, "graph_deadline_ms": 30000, "artifact_bytes": 65536, "mutation_tool_calls": 0},
+  "rows": [
+    {
+      "capability_id": "frozen-input-hash-quality",
+      "requirement_ids": ["AGENT-004", "AGENT-COMPAT-001"],
+      "legacy_observable": "Reject missing or mismatched frozen evidence snapshot identity/hash and retain quality/provenance.",
+      "legacy_source": {"path": "AEE_cuda/nids_backend/agents/analysis_graph/runner.py", "line_start": 121, "line_end": 155, "source_digest": "sha256:5985cc5e6355bd6a6a96f4bae08e054725180c54ad063e3cda9213f5a8aaf15f"},
+      "vnext_skill_ids": ["analyze_nids_incident", "compare_event_windows", "draft_mitigation_advice", "generate_incident_content"],
+      "vnext_component": "FrozenInput strict validation and Go-compatible input digest",
+      "contract_refs": ["contracts/analysis/input/v1/schema.json"],
+      "test_ids": ["A2A_VERSION_FRAMING_NEGATIVES", "test-input-digest"],
+      "expected_outcomes": ["succeeded", "rejected"],
+      "classification": "equivalent", "owner_decision": null, "difference": "Identity names changed; frozen semantics remain.",
+      "evidence_ref": "contracts/analysis/v1/golden/catalog.json", "evidence_digest": "sha256:83d063a25e519514e20554151a372b146a79df8d0b15751d3ab70a262b4d7c1e"
+    },
+    {
+      "capability_id": "rate-impact-context",
+      "requirement_ids": ["AGENT-COMPAT-001"],
+      "legacy_observable": "Build deterministic rate and impact context from the frozen bundle.",
+      "legacy_source": {"path": "AEE_cuda/nids_backend/agents/analysis_graph/nodes.py", "line_start": 117, "line_end": 124, "source_digest": "sha256:7a639dca31e50fa15f30755a5ac11806b2833ee3e8bd85f7de5197624433184a"},
+      "vnext_skill_ids": ["analyze_nids_incident", "compare_event_windows"], "vnext_component": "LangGraph context node: rate_and_impact",
+      "contract_refs": ["contracts/analysis/input/v1/schema.json"], "test_ids": ["test-real-langgraph-context", "A2A_MCP_GROUNDED_SUCCESS"], "expected_outcomes": ["succeeded", "limited"],
+      "classification": "equivalent", "owner_decision": null, "difference": "Counts and digests replace legacy mutable context objects.",
+      "evidence_ref": "contracts/analysis/v1/golden/catalog.json", "evidence_digest": "sha256:83d063a25e519514e20554151a372b146a79df8d0b15751d3ab70a262b4d7c1e"
+    },
+    {
+      "capability_id": "quality-provenance-context", "requirement_ids": ["AGENT-007", "AGENT-COMPAT-001"],
+      "legacy_observable": "Preserve evidence quality and provenance in deterministic context.",
+      "legacy_source": {"path": "AEE_cuda/nids_backend/agents/analysis_graph/nodes.py", "line_start": 125, "line_end": 131, "source_digest": "sha256:7a639dca31e50fa15f30755a5ac11806b2833ee3e8bd85f7de5197624433184a"},
+      "vnext_skill_ids": ["analyze_nids_incident", "compare_event_windows", "draft_mitigation_advice", "generate_incident_content"], "vnext_component": "LangGraph context node: quality_and_provenance",
+      "contract_refs": ["contracts/analysis/input/v1/schema.json"], "test_ids": ["LIMITED_TIMEOUT_SECURITY_XAI_NEGATIVES", "test-low-quality"], "expected_outcomes": ["succeeded", "limited", "rejected"],
+      "classification": "equivalent", "owner_decision": null, "difference": "Quality is a closed enum and provenance is digest-bound.",
+      "evidence_ref": "contracts/analysis/v1/golden/catalog.json", "evidence_digest": "sha256:83d063a25e519514e20554151a372b146a79df8d0b15751d3ab70a262b4d7c1e"
+    },
+    {
+      "capability_id": "runtime-p4-read-context", "requirement_ids": ["AGENT-002", "AGENT-COMPAT-001"],
+      "legacy_observable": "Build read-only runtime and P4 context without mutation authority.",
+      "legacy_source": {"path": "AEE_cuda/nids_backend/agents/analysis_graph/nodes.py", "line_start": 132, "line_end": 139, "source_digest": "sha256:7a639dca31e50fa15f30755a5ac11806b2833ee3e8bd85f7de5197624433184a"},
+      "vnext_skill_ids": ["analyze_nids_incident", "draft_mitigation_advice"], "vnext_component": "LangGraph context node plus restricted MCP runtime reads",
+      "contract_refs": ["contracts/analysis/input/v1/schema.json", "contracts/profiles/v1/masi-mcp-readonly.json"], "test_ids": ["A2A_MCP_GROUNDED_SUCCESS", "ZERO_CORE_P4_EFFECT_MUTATION"], "expected_outcomes": ["succeeded", "limited"],
+      "classification": "equivalent", "owner_decision": null, "difference": "Only Go-authorized references cross the boundary.",
+      "evidence_ref": "contracts/analysis/v1/golden/catalog.json", "evidence_digest": "sha256:83d063a25e519514e20554151a372b146a79df8d0b15751d3ab70a262b4d7c1e"
+    },
+    {
+      "capability_id": "incident-replay-context", "requirement_ids": ["AGENT-COMPAT-001"], "legacy_observable": "Join incident and replay evidence deterministically.",
+      "legacy_source": {"path": "AEE_cuda/nids_backend/agents/analysis_graph/nodes.py", "line_start": 140, "line_end": 147, "source_digest": "sha256:7a639dca31e50fa15f30755a5ac11806b2833ee3e8bd85f7de5197624433184a"},
+      "vnext_skill_ids": ["analyze_nids_incident", "compare_event_windows"], "vnext_component": "LangGraph context node: incident_and_replay_context",
+      "contract_refs": ["contracts/analysis/input/v1/schema.json"], "test_ids": ["A2A_MCP_GROUNDED_SUCCESS"], "expected_outcomes": ["succeeded", "limited"],
+      "classification": "equivalent", "owner_decision": null, "difference": "The join is by immutable ID/digest rather than a Workflow object.",
+      "evidence_ref": "contracts/analysis/v1/golden/catalog.json", "evidence_digest": "sha256:83d063a25e519514e20554151a372b146a79df8d0b15751d3ab70a262b4d7c1e"
+    },
+    {
+      "capability_id": "hypothesis-gap-planning", "requirement_ids": ["AGENT-003", "AGENT-COMPAT-001"], "legacy_observable": "One bounded provider pass proposes hypotheses and evidence gaps.",
+      "legacy_source": {"path": "AEE_cuda/nids_backend/agents/analysis_graph/nodes.py", "line_start": 150, "line_end": 211, "source_digest": "sha256:7a639dca31e50fa15f30755a5ac11806b2833ee3e8bd85f7de5197624433184a"},
+      "vnext_skill_ids": ["analyze_nids_incident", "compare_event_windows", "draft_mitigation_advice", "generate_incident_content"], "vnext_component": "LangGraph hypothesis node and structured ProviderResponse",
+      "contract_refs": ["contracts/analysis/provider/v1/schema.json"], "test_ids": ["A2A_MCP_GROUNDED_SUCCESS", "LIMITED_TIMEOUT_SECURITY_XAI_NEGATIVES"], "expected_outcomes": ["succeeded", "limited", "insufficient_evidence"],
+      "classification": "equivalent", "owner_decision": null, "difference": "The provider output is strict structured JSON rather than legacy prompt-shaped objects.",
+      "evidence_ref": "contracts/analysis/v1/golden/catalog.json", "evidence_digest": "sha256:83d063a25e519514e20554151a372b146a79df8d0b15751d3ab70a262b4d7c1e"
+    },
+    {
+      "capability_id": "bounded-readonly-mcp", "requirement_ids": ["AGENT-002", "AGENT-006", "AGENT-COMPAT-001"], "legacy_observable": "Call only fixed read-only tools with bounded rounds, calls, timeout, and bytes.",
+      "legacy_source": {"path": "AEE_cuda/nids_backend/agents/analysis_graph/nodes.py", "line_start": 213, "line_end": 242, "source_digest": "sha256:7a639dca31e50fa15f30755a5ac11806b2833ee3e8bd85f7de5197624433184a"},
+      "vnext_skill_ids": ["analyze_nids_incident", "compare_event_windows", "draft_mitigation_advice"], "vnext_component": "Restricted MCP 2025-11-25 client",
+      "contract_refs": ["contracts/analysis/mcp/v1/schema.json", "contracts/profiles/v1/masi-mcp-readonly.json"], "test_ids": ["A2A_MCP_GROUNDED_SUCCESS", "MCP_BUDGET_SESSION_CLEANUP", "LIMITED_TIMEOUT_SECURITY_XAI_NEGATIVES"], "expected_outcomes": ["succeeded", "limited"],
+      "classification": "equivalent", "owner_decision": null, "difference": "Tool names are the vNext Go read-only projection IDs.",
+      "evidence_ref": "contracts/analysis/v1/golden/catalog.json", "evidence_digest": "sha256:83d063a25e519514e20554151a372b146a79df8d0b15751d3ab70a262b4d7c1e"
+    },
+    {
+      "capability_id": "optional-second-synthesis", "requirement_ids": ["AGENT-006", "AGENT-COMPAT-001"], "legacy_observable": "Run a second provider synthesis only when bounded new evidence exists.",
+      "legacy_source": {"path": "AEE_cuda/nids_backend/agents/analysis_graph/nodes.py", "line_start": 262, "line_end": 310, "source_digest": "sha256:7a639dca31e50fa15f30755a5ac11806b2833ee3e8bd85f7de5197624433184a"},
+      "vnext_skill_ids": ["analyze_nids_incident", "compare_event_windows", "draft_mitigation_advice"], "vnext_component": "LangGraph synthesis node",
+      "contract_refs": ["contracts/analysis/provider/v1/schema.json"], "test_ids": ["A2A_MCP_GROUNDED_SUCCESS", "A2A_OUTBOUND_DELEGATION_LOOP_FENCE"], "expected_outcomes": ["succeeded", "limited"],
+      "classification": "equivalent", "owner_decision": null, "difference": "A2A peer material remains explicitly untrusted context.",
+      "evidence_ref": "contracts/analysis/v1/golden/catalog.json", "evidence_digest": "sha256:83d063a25e519514e20554151a372b146a79df8d0b15751d3ab70a262b4d7c1e"
+    },
+    {
+      "capability_id": "hard-budgets", "requirement_ids": ["AGENT-006", "AGENT-COMPAT-001"], "legacy_observable": "Enforce at most 2 LLM calls, 2 MCP rounds, 6 tools, and bounded output.",
+      "legacy_source": {"path": "AEE_cuda/nids_backend/tests/test_agent_analysis_graph.py", "line_start": 144, "line_end": 187, "source_digest": "sha256:5f80f494db9d5abce43f3ef3d0135e5a7984e3ce2faae53c57867e6ef4e4d928"},
+      "vnext_skill_ids": ["analyze_nids_incident", "compare_event_windows", "draft_mitigation_advice", "generate_incident_content"], "vnext_component": "Frozen AnalysisBudgets plus graph/adapters",
+      "contract_refs": ["contracts/analysis/input/v1/schema.json", "contracts/profiles/v1/analysis-agent-runtime.json"], "test_ids": ["MCP_BUDGET_SESSION_CLEANUP", "A2A_OUTBOUND_DELEGATION_LOOP_FENCE"], "expected_outcomes": ["succeeded", "limited", "rejected"],
+      "classification": "equivalent", "owner_decision": null, "difference": "The vNext input carries the exact reduced budget for every task.",
+      "evidence_ref": "contracts/analysis/v1/golden/catalog.json", "evidence_digest": "sha256:83d063a25e519514e20554151a372b146a79df8d0b15751d3ab70a262b4d7c1e"
+    },
+    {
+      "capability_id": "grounding-report-guard", "requirement_ids": ["AGENT-005", "AGENT-007", "AGENT-COMPAT-001"], "legacy_observable": "Only claims joined to frozen evidence survive the final report guard.",
+      "legacy_source": {"path": "AEE_cuda/nids_backend/agents/analysis_graph/topology.py", "line_start": 70, "line_end": 149, "source_digest": "sha256:a7b92ddafb7459eb2b231675911884aac36548f6e65133a5ccd2aac8e3965b58"},
+      "vnext_skill_ids": ["analyze_nids_incident", "compare_event_windows", "draft_mitigation_advice", "generate_incident_content"], "vnext_component": "grounding and Artifact assembly nodes",
+      "contract_refs": ["contracts/analysis/artifact/v1/schema.json"], "test_ids": ["A2A_MCP_GROUNDED_SUCCESS", "LIMITED_TIMEOUT_SECURITY_XAI_NEGATIVES"], "expected_outcomes": ["succeeded", "limited", "insufficient_evidence"],
+      "classification": "equivalent", "owner_decision": null, "difference": "Model result, model explanation, and LLM interpretation are separately typed.",
+      "evidence_ref": "contracts/analysis/v1/golden/catalog.json", "evidence_digest": "sha256:83d063a25e519514e20554151a372b146a79df8d0b15751d3ab70a262b4d7c1e"
+    },
+    {
+      "capability_id": "stable-degradation", "requirement_ids": ["AGENT-006", "AGENT-COMPAT-001"], "legacy_observable": "Provider/tool/quality failures yield deterministic limited or insufficient output.",
+      "legacy_source": {"path": "AEE_cuda/nids_backend/agents/analysis_graph/nodes.py", "line_start": 150, "line_end": 310, "source_digest": "sha256:7a639dca31e50fa15f30755a5ac11806b2833ee3e8bd85f7de5197624433184a"},
+      "vnext_skill_ids": ["analyze_nids_incident", "compare_event_windows", "draft_mitigation_advice", "generate_incident_content"], "vnext_component": "bounded error collection and Artifact outcome selection",
+      "contract_refs": ["contracts/analysis/artifact/v1/schema.json"], "test_ids": ["LIMITED_TIMEOUT_SECURITY_XAI_NEGATIVES", "test-provider-failure", "test-low-quality"], "expected_outcomes": ["limited", "insufficient_evidence", "failed"],
+      "classification": "equivalent", "owner_decision": null, "difference": "The legacy deterministic_fallback name is replaced by typed Analysis outcomes.",
+      "evidence_ref": "contracts/analysis/v1/golden/catalog.json", "evidence_digest": "sha256:83d063a25e519514e20554151a372b146a79df8d0b15751d3ab70a262b4d7c1e"
+    },
+    {
+      "capability_id": "append-only-trace-topology", "requirement_ids": ["AGENT-005", "AGENT-COMPAT-001"], "legacy_observable": "Expose graph/topology, input/output, trace, and terminal digests.",
+      "legacy_source": {"path": "AEE_cuda/nids_backend/agents/analysis_graph/runner.py", "line_start": 121, "line_end": 155, "source_digest": "sha256:5985cc5e6355bd6a6a96f4bae08e054725180c54ad063e3cda9213f5a8aaf15f"},
+      "vnext_skill_ids": ["analyze_nids_incident", "compare_event_windows", "draft_mitigation_advice", "generate_incident_content"], "vnext_component": "private append-only trace plus graph/topology/artifact digests",
+      "contract_refs": ["contracts/analysis/artifact/v1/schema.json"], "test_ids": ["TRACE_METRICS_REDACTION", "test-real-langgraph-context"], "expected_outcomes": ["succeeded", "limited", "insufficient_evidence"],
+      "classification": "equivalent", "owner_decision": null, "difference": "Internal node names are intentionally new; the public execution-plan digest is stable.",
+      "evidence_ref": "contracts/analysis/v1/golden/catalog.json", "evidence_digest": "sha256:83d063a25e519514e20554151a372b146a79df8d0b15751d3ab70a262b4d7c1e"
+    },
+    {
+      "capability_id": "non-executable-artifact", "requirement_ids": ["AGENT-005", "AGENT-008", "AGENT-COMPAT-001"], "legacy_observable": "Analysis output is inspect-only and deployment_eligible is always false.",
+      "legacy_source": {"path": "AEE_cuda/nids_backend/agents/analysis_graph/artifact.py", "line_start": 43, "line_end": 68, "source_digest": "sha256:2f3a54a0caf3ca356fae54be19ea9c9d4680ad9e9b4f3b18482f076d82b27118"},
+      "vnext_skill_ids": ["analyze_nids_incident", "compare_event_windows", "draft_mitigation_advice", "generate_incident_content"], "vnext_component": "AnalysisArtifact safety constants and Go/Python validation",
+      "contract_refs": ["contracts/analysis/artifact/v1/schema.json"], "test_ids": ["A2A_MCP_GROUNDED_SUCCESS", "ZERO_CORE_P4_EFFECT_MUTATION"], "expected_outcomes": ["succeeded", "limited", "insufficient_evidence", "rejected"],
+      "classification": "equivalent", "owner_decision": null, "difference": "vNext additionally rejects P4/browser/arbitrary URL text at both producer and Go consumer.",
+      "evidence_ref": "contracts/analysis/v1/golden/catalog.json", "evidence_digest": "sha256:83d063a25e519514e20554151a372b146a79df8d0b15751d3ab70a262b4d7c1e"
+    },
+    {
+      "capability_id": "workflow-checkpoint-runtime", "requirement_ids": ["AGENT-001", "AGENT-COMPAT-001"], "legacy_observable": "Legacy outer Workflow owns revision, node-attempt, review, and durable checkpoint state.",
+      "legacy_source": {"path": "AEE_cuda/nids_backend/agents/analysis_graph/runner.py", "line_start": 8, "line_end": 17, "source_digest": "sha256:5985cc5e6355bd6a6a96f4bae08e054725180c54ad063e3cda9213f5a8aaf15f"},
+      "vnext_skill_ids": [], "vnext_component": "No production mapping; A2A task and private SQLite are non-core details",
+      "contract_refs": ["docs/adr/0002-analysis-plugin-legacy-behavior-compatibility.md"], "test_ids": ["ZERO_CORE_P4_EFFECT_MUTATION", "BOUNDED_DRAIN_SHUTDOWN"], "expected_outcomes": ["rejected"],
+      "classification": "not_supported", "owner_decision": "ADR-0002", "difference": "Legacy Workflow/checkpoint/schema migration is explicitly rejected.",
+      "evidence_ref": "contracts/analysis/v1/golden/catalog.json", "evidence_digest": "sha256:83d063a25e519514e20554151a372b146a79df8d0b15751d3ab70a262b4d7c1e"
+    },
+    {
+      "capability_id": "outer-workflow-report-summary", "requirement_ids": ["AGENT-003", "AGENT-COMPAT-001"], "legacy_observable": "Outer Workflow exposes operator report and workflow summary projections.",
+      "legacy_source": {"path": "AEE_cuda/nids_backend/tests/test_agent_analysis_graph.py", "line_start": 79, "line_end": 108, "source_digest": "sha256:5f80f494db9d5abce43f3ef3d0135e5a7984e3ce2faae53c57867e6ef4e4d928"},
+      "vnext_skill_ids": ["generate_incident_content"], "vnext_component": "GeneratedContent inside AnalysisArtifact",
+      "contract_refs": ["contracts/analysis/artifact/v1/schema.json"], "test_ids": ["FOUR_SKILLS"], "expected_outcomes": ["succeeded", "limited", "insufficient_evidence"],
+      "classification": "accepted_difference", "owner_decision": "ADR-0002", "difference": "Readable content is preserved; the legacy /workflows summary contract and report writer are not migrated.",
+      "evidence_ref": "contracts/analysis/v1/golden/catalog.json", "evidence_digest": "sha256:83d063a25e519514e20554151a372b146a79df8d0b15751d3ab70a262b4d7c1e"
+    },
+    {
+      "capability_id": "direct-effect-review-deployment", "requirement_ids": ["AGENT-005", "AGENT-008", "AGENT-COMPAT-001"], "legacy_observable": "Legacy outer Workflow can continue into review/deployment/P4 nodes outside the analysis graph.",
+      "legacy_source": {"path": "AEE_cuda/nids_backend/tests/test_agent_analysis_graph.py", "line_start": 306, "line_end": 311, "source_digest": "sha256:5f80f494db9d5abce43f3ef3d0135e5a7984e3ce2faae53c57867e6ef4e4d928"},
+      "vnext_skill_ids": [], "vnext_component": "No mapping; Analysis owns no Proposal/Decision/Intent/P4 capability",
+      "contract_refs": ["contracts/analysis/artifact/v1/schema.json", "docs/adr/0002-analysis-plugin-legacy-behavior-compatibility.md"], "test_ids": ["ZERO_CORE_P4_EFFECT_MUTATION", "LIMITED_TIMEOUT_SECURITY_XAI_NEGATIVES"], "expected_outcomes": ["rejected"],
+      "classification": "not_supported", "owner_decision": "ADR-0002", "difference": "All mutation/review/deployment behavior is intentionally outside and inaccessible to vNext Analysis.",
+      "evidence_ref": "contracts/analysis/v1/golden/catalog.json", "evidence_digest": "sha256:83d063a25e519514e20554151a372b146a79df8d0b15751d3ab70a262b4d7c1e"
+    },
+    {
+      "capability_id": "freeform-chat-endpoint", "requirement_ids": ["AGENT-002", "AGENT-COMPAT-001"], "legacy_observable": "No independent legacy end-user chat endpoint was found; chat model construction was internal provider infrastructure.",
+      "legacy_source": {"path": "AEE_cuda/nids_backend/agents/analysis_graph/topology.py", "line_start": 26, "line_end": 29, "source_digest": "sha256:a7b92ddafb7459eb2b231675911884aac36548f6e65133a5ccd2aac8e3965b58"},
+      "vnext_skill_ids": [], "vnext_component": "A2A message:send is a typed task boundary, not free-form chat",
+      "contract_refs": ["contracts/analysis/a2a/v1/send-request.schema.json"], "test_ids": ["A2A_VERSION_FRAMING_NEGATIVES"], "expected_outcomes": ["rejected"],
+      "classification": "not_supported", "owner_decision": "ADR-0002", "difference": "No unsupported chat compatibility claim is made.",
+      "evidence_ref": "contracts/analysis/v1/golden/catalog.json", "evidence_digest": "sha256:83d063a25e519514e20554151a372b146a79df8d0b15751d3ab70a262b4d7c1e"
+    }
+  ]
+}

@@ -85,13 +85,31 @@ done
 
 source_revision="$(git -C "${repo_root}" rev-parse HEAD)"
 source_tree_digest() {
+  # Immutable gate output is evidence about the source, not source itself. Keep
+  # it outside the closure so publishing gate-summary/latest cannot invalidate
+  # the run that produced them.
+  local -a source_pathspecs=(
+    db
+    deploy/postgresql-state
+    contracts
+    docs
+    ':(exclude)db/evidence/**'
+  )
   {
     git -C "${repo_root}" rev-parse HEAD
-    git -C "${repo_root}" diff --binary HEAD --
+    git -C "${repo_root}" diff --binary HEAD -- "${source_pathspecs[@]}"
     while IFS= read -r -d '' path; do
       printf '%s\0' "${path}"
-      sha256sum "${repo_root}/${path}"
-    done < <(git -C "${repo_root}" ls-files --others --exclude-standard -z | sort -z)
+      if [[ -L "${repo_root}/${path}" ]]; then
+        printf 'symlink\0%s\0' "$(readlink -- "${repo_root}/${path}")"
+      elif [[ -f "${repo_root}/${path}" ]]; then
+        sha256sum -- "${repo_root}/${path}"
+      else
+        printf 'unsupported source identity path: %s\n' "${path}" >&2
+        return 1
+      fi
+    done < <(git -C "${repo_root}" ls-files --others --exclude-standard -z \
+      -- "${source_pathspecs[@]}" | sort -z)
   } | sha256sum | awk '{print "sha256:"$1}'
 }
 working_status_digest() {

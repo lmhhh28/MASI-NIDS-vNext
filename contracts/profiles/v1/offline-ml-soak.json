@@ -1,0 +1,23 @@
+{
+  "schema_version": "offline-ml-soak/v1",
+  "module_id": "MOD-ML-001",
+  "warmup_seconds": 60,
+  "qualified_seconds": 3600,
+  "phases": [
+    {"name": "steady", "seconds": 900, "launch_interval_seconds": 30},
+    {"name": "peak", "seconds": 900, "launch_interval_seconds": 20},
+    {"name": "saturation", "seconds": 900, "launch_interval_seconds": 10},
+    {"name": "recovery", "seconds": 900, "launch_interval_seconds": 30}
+  ],
+  "requirements": {
+    "successful_pipeline_runs_min": 120,
+    "unexpected_errors_max": 0,
+    "repository_digest_drifts_max": 0,
+    "resource_violations_max": 0,
+    "sigterm_cleanup_required": true,
+    "sigkill_staging_recovery_required": true,
+    "final_staging_directories": 0
+  },
+  "resource_limits_source": "contracts/profiles/v1/offline-ml-runtime.json",
+  "qualification_scope": "module-synthetic-fixture-cpu"
+}

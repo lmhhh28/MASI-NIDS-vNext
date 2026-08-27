@@ -1,10 +1,10 @@
 # MASI-NIDS vNext 整体与分部架构说明
 
-- 日期：2026-08-12
-- 对应需求基线：`vNext-requirements-1.18`
+- 日期：2026-08-22
+- 对应需求基线：`vNext-requirements-1.19`
 - 性质：非规范性架构说明；与需求冲突时，以 `../masi-nids-vnext-system-requirements-2026-08-09.md` 的稳定需求 ID 为准
-- 当前状态：架构已确认。截至 2026-08-21，契约/profile/golden 已冻结（Gate 0）；P4/Switch 已 `PASS/QUALIFIED`，Rust Edge / Central Inference / Go Control / PostgreSQL State / Plugin Runtime Host 已 operational Module Complete（qualification 仍 `HOLD/NOT_QUALIFIED`；PostgreSQL只覆盖single-domain/manual-promotion scope，Plugin Host只覆盖single-domain Host且尚未开展Go/DB pairwise）；Python Analysis、Web、Offline ML尚未开始实现；九模块global gate、正式pairwise/system与生产资格为`HOLD/NOT RUN`
-- 关键 ADR：ADR-0001、0003、0004、0005、0006、0007、0008、0009、0012、0013、0014、0015、0017、0018（ADR-0010/0011只保留模型模块化与启动绑定的历史来源，ADR-0016保留v1.13 Central GPU历史）
+- 当前状态：架构已确认。截至2026-08-27，九个首期模块均有operational-completion历史；Web run `20260827T020500Z-formal-002`完成production OCI、三浏览器、性能与3600秒soak，Offline ML亦有完整模块实现与证据，Go `20260827T041200Z-formal-003`与Analysis `analysis-formal-20260827-011`完成各自当时source scope的正式门禁。startup run `20260827T062000Z-rehearsal-004`实际启动九个runtime gate；connected run `evidence/system-connected-full/20260827T023500Z-rehearsal-005/summary.json`又在同一PG/Control拓扑连通真实BMv2/Edge/Central/Triton、Control maintenance statistics→Host/Wasm、Analysis A2A和production Web三浏览器，并通过跨字段与cleanup校验。该run仍只有64包happy path且使用隔离pipeline/traffic与external provider/MCP fixture，所以固定为`REHEARSAL/PASS/NOT_QUALIFIED`。本次联调修改了Go/Edge/Inference/P4 contract与runner，较早module evidence不再自动覆盖当前dirty source；完整module gates、十二个正式pairwise、十个system waves、fault/performance/soak与受保护Full E2E仍为`HOLD|NOT_RUN`
+- 关键 ADR：ADR-0001、0003、0004、0005、0006、0007、0008、0009、0012、0013、0014、0015、0017、0018、0019（ADR-0010/0011只保留模型模块化与启动绑定的历史来源，ADR-0016保留v1.13 Central GPU历史）
 - 详细设计入口：[`../design/README.md`](../design/README.md)；模块验收：[`../testing/module-e2e-acceptance-design.md`](../testing/module-e2e-acceptance-design.md)；正式集成：[`../integration/pairwise-and-system-integration-design.md`](../integration/pairwise-and-system-integration-design.md)
 
 ## 1. 一句话结论
@@ -34,7 +34,9 @@ Vue 3 SOC SPA（审阅、审批、运维、规则表现）
             → Go frozen input → bounded plugin run → validated Artifact
             → PostgreSQL plugin_statistics → fixed Vue renderer
 
- Offline ML → immutable model bundle → Go pool rollout → read-only repository snapshot
+ Offline ML → official/synthetic canonical P4-window dataset → LR/XGBoost/AE comparison
+            → one immutable CPU-profile model bundle → Go pool rollout → read-only repository snapshot
+            └→ offline explanation evidence refs → Go/Analysis/Web（非实时、不可执行）
  Testkit → isolated PTF/P4Testgen/replay/fault/performance evidence only
 ```
 
@@ -134,7 +136,11 @@ canonical epoch 和 PostgreSQL 规则事实只由 Go 创建/写入；Edge 只按
 ### 4.5 模型替换链
 
 ```text
-Offline ML qualified immutable bundle
+ADR-0019 source/recipe frozen（current）
+→ exact dataset revision freeze gate（current NOT_RUN）
+→ three-seed LR/XGBoost/AE mandatory comparison
+→ eligible single winner or fail-closed winner=none
+→ qualified immutable CPU-profile bundle
 → Go durable pool rollout operation + proposed generation
 → stage read-only digest-pinned exact repository closure and explicit CPU or CUDA runtime image
 → probe selected/observed hardware; mismatch fails closed
@@ -146,7 +152,7 @@ Offline ML qualified immutable bundle
 → drain old generation; late old result fenced
 ```
 
-模型是可拆卸的数据/合同模块，不是通用插件，也不编译进C++ Gateway binary。首期在pool generation启动前选择并验证模型与`model-runtime-central-cpu/v1`或`model-runtime-central-cuda/v1`；硬件probe只验证管理员选择，不自动改选。Triton使用`model-control-mode=none`、只读exact repository closure和显式instance group；CUDA profile只允许预先声明、读回并测量的host-side operator placement。模型或CPU↔CUDA切换都通过新generation启动/readback、Edge route-withdraw/drain/WAL、PostgreSQL CAS、exact commit/resume和旧generation drain完成，不做进程内热插拔或runtime repository reload。同一exact generation的同profile健康replica可由服务发现选择并按合同做有界重试，但不能切换到Edge-local、另一compute profile、其他backend或其他模型；pool全不可用时Edge只做有界WAL/backpressure，随后`gap/HOLD`。详见`ARCH-MODEL-001`、ADR-0010/0011/0017。
+模型是可拆卸的数据/合同模块，不是通用插件，也不编译进C++ Gateway binary。ADR-0019首期训练recipe只声明`model-runtime-central-cpu/v1`；CUDA对该exact bundle为`NOT_APPLICABLE`，未来bundle显式声明CUDA时才独立资格化。系统架构仍支持管理员在pool generation启动前选择一个已资格化CPU或CUDA bundle/profile；硬件probe只验证选择，不自动改选。Triton使用`model-control-mode=none`、只读exact repository closure和显式instance group；CUDA profile只允许预先声明、读回并测量的host-side operator placement。模型或CPU↔CUDA切换都通过新generation启动/readback、Edge route-withdraw/drain/WAL、PostgreSQL CAS、exact commit/resume和旧generation drain完成，不做进程内热插拔或runtime repository reload。同一exact generation的同profile健康replica可由服务发现选择并按合同做有界重试，但不能切换到Edge-local、另一compute profile、其他backend或其他模型；pool全不可用时Edge只做有界WAL/backpressure，随后`gap/HOLD`。详见`ARCH-MODEL-001`、ADR-0010/0011/0017/0019。
 
 ### 4.6 插件与 Agent 分析链
 
@@ -307,7 +313,9 @@ Host 只执行 Manager 已准入且明确标记为 Host-managed 的 exact bindin
 
 ### 5.8 Offline ML
 
-Offline ML 负责训练/评估/导出 immutable model bundle、feature schema、label taxonomy、output adapter、numeric golden 和 qualification evidence。它不部署模型、不决定 current、不写生产 Event/Incident/effect。
+Offline ML负责从项目synthetic与官方CIC-DDoS2019 PCAP生成exact六维P4 final-window dataset，按capture-family四split和三seed训练Logistic/XGBoost/benign-only Autoencoder，拟合独立Platt/threshold，选择最多一个eligible winner，并导出immutable model bundle、feature schema、label taxonomy、output adapter、numeric/explanation golden和qualification evidence。CSE-CIC-IDS2018、CIC-IDS2017、UNSW-NB15、TON-IoT/CICIoT2023只在各自门禁通过后作独立OOC blind；旧dataset CSV/NPY不直接导入。它不部署模型、不决定current、不写生产Event/Incident/effect。
+
+三候选统一输出`[benign,attack]` probability；SGD/mini-batch只用于离线out-of-core或AE训练，每次新增数据都产生新immutable revision，Edge/Central没有在线增量学习。Logistic contribution、raw-margin TreeSHAP与scaled-log AE residual只作为offline evidence，经Go授权引用给Analysis/Web；它们不进入InferenceResult、Event identity或effect eligibility。exact dataset revision、winner和解释合同未形成时状态保持`HOLD/NOT_RUN`。
 
 不同算法、权重或更多类别只要维持合同，可以替换 bundle 而无需修改 Edge/Go 主业务代码。新增 label 默认没有 effect eligibility；feature/runtime major 改变走 expand/contract 与新旧 pool generation 兼容矩阵。
 

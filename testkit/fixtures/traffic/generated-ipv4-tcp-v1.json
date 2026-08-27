@@ -3,7 +3,7 @@
   "fixture_id": "generated-ipv4-tcp-v1",
   "fixture_revision": 1,
   "fixture_class": "generated-packet",
-  "manifest_digest": "sha256:e76f919bcfe269adaec2fd4e32fe87ab2e89916a45361dcbc74b2fb1832f8503",
+  "manifest_digest": "sha256:f31cddad3731b9130389a139b1d687e186df10fce4d5e041c52b8813f415ae73",
   "source": {
     "reference": "repo-generated://testkit/p4_switch/ptf/generated-ipv4-tcp",
     "acquired_at": "2026-08-12T00:00:00Z",
@@ -92,7 +92,7 @@
         "package_version": "4.5.2-r1"
       }
     },
-    "bmv2_image_digest": "sha256:8b8655c2fb7bc5563706ee853fb668ba70457633cda7d93633d022b30b7ead42",
+    "bmv2_image_digest": "sha256:24669f08df3583b0d170226f6969f1090235604ef6d5bb5e2b2bb06062d9a571",
     "mininet_version": null,
     "veth": true,
     "offloads": "disabled-or-not-applicable-to-raw-veth",

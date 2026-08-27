@@ -14,6 +14,7 @@ package grpcapi
 
 import (
 	"context"
+	"crypto/sha256"
 	"fmt"
 	"math"
 	"strings"
@@ -98,7 +99,7 @@ func (s *ControlSinkServer) CommitResults(ctx context.Context, batch *edgev1.Inf
 	}
 	results := make([]event.InferenceResult, 0, len(batch.GetRecords()))
 	route := batch.GetRoute()
-	if route == nil || route.GetSchemaVersion() != "inference-central-grpc-batch/v1" ||
+	if route == nil || route.GetSchemaVersion() != "inference-route/v1" ||
 		route.GetShardId() == "" || route.GetLogicalPoolId() == "" || route.GetScope() == "" ||
 		route.GetRouteEpoch() == 0 || route.GetPoolGeneration() == 0 || route.GetBindingGeneration() == 0 {
 		return nil, status.Error(codes.InvalidArgument, "route fence malformed")
@@ -143,15 +144,21 @@ func (s *ControlSinkServer) CommitResults(ctx context.Context, batch *edgev1.Inf
 		decision, decisionOK := inferenceDecision(rec.GetDecisionCode())
 		execution, executionOK := inferenceExecutionStatus(rec.GetExecutionStatus())
 		quality, qualityOK := inferenceQuality(rec.GetQualityCode())
+		wireStatusExact := (execution == event.ExecutionOK && rec.GetStatus() == "OK") ||
+			(execution != event.ExecutionOK && rec.GetStatus() == string(execution))
 		if !decisionOK || !executionOK || !qualityOK || rec.GetDecision() != string(decision) ||
-			rec.GetStatus() != string(execution) || rec.GetQuality() != quality ||
+			!wireStatusExact || rec.GetQuality() != quality ||
 			rec.GetAbstain() != (decision == event.DecisionAbstain) ||
 			(rec.GetOutOfDistribution() && !rec.GetAbstain()) ||
 			(execution != event.ExecutionOK && !rec.GetAbstain()) ||
-			(execution == event.ExecutionOK && rec.GetErrorCode() != "") ||
+			(execution == event.ExecutionOK && rec.GetErrorCode() != "NONE") ||
 			(execution != event.ExecutionOK && (rec.GetErrorCode() == "" || len(rec.GetErrorCode()) > 64)) ||
 			len(rec.GetScores()) > 4096 || (execution == event.ExecutionOK && len(rec.GetScores()) == 0) {
 			return nil, status.Error(codes.InvalidArgument, "record inference outcome malformed")
+		}
+		eventErrorCode := rec.GetErrorCode()
+		if execution == event.ExecutionOK {
+			eventErrorCode = ""
 		}
 		scores := make([]float64, len(rec.GetScores()))
 		for i, score := range rec.GetScores() {
@@ -181,7 +188,7 @@ func (s *ControlSinkServer) CommitResults(ctx context.Context, batch *edgev1.Inf
 			StartupEnvelopeDigest:     route.GetStartupEnvelopeDigest(), PoolObservationDigest: route.GetPoolObservationDigest(), BindingDigest: route.GetBindingDigest(),
 			Scores: scores, PredictedLabel: rec.GetPredictedLabel(), Decision: decision,
 			OutOfDistribution: rec.GetOutOfDistribution(), Abstain: rec.GetAbstain(),
-			ExecutionStatus: execution, ErrorCode: rec.GetErrorCode(), WorkerID: rec.GetWorkerId(),
+			ExecutionStatus: execution, ErrorCode: eventErrorCode, WorkerID: rec.GetWorkerId(),
 			WorkerDigest: rec.GetWorkerDigest(), WorkerAttemptID: rec.GetWorkerAttemptId(),
 			InferenceStartedAtUnixMS:   rec.GetInferenceStartedAtUnixMs(),
 			InferenceCompletedAtUnixMS: rec.GetInferenceCompletedAtUnixMs(),
@@ -213,7 +220,7 @@ func (s *ControlSinkServer) CommitResults(ctx context.Context, batch *edgev1.Inf
 		return nil, err
 	}
 	out := &edgev1.CanonicalAckBatch{
-		SchemaVersion:     "masi-event/v1",
+		SchemaVersion:     "canonical-event-ack/v1",
 		TraceId:           batch.GetTraceId(),
 		ResultBatchDigest: batch.GetBatchDigest(),
 	}
@@ -229,7 +236,22 @@ func (s *ControlSinkServer) CommitResults(ctx context.Context, batch *edgev1.Inf
 			CommitStatus:        canonicalCommitStatus(a.CommitStatus),
 		})
 	}
+	digest, err := canonicalAckBatchDigest(out)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "canonical ACK digest: %v", err)
+	}
+	out.AckBatchDigest = digest
 	return out, nil
+}
+
+func canonicalAckBatchDigest(batch *edgev1.CanonicalAckBatch) (string, error) {
+	canonical := proto.Clone(batch).(*edgev1.CanonicalAckBatch)
+	canonical.AckBatchDigest = ""
+	raw, err := proto.MarshalOptions{Deterministic: true}.Marshal(canonical)
+	if err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("sha256:%x", sha256.Sum256(raw)), nil
 }
 
 func inferenceDecision(code edgev1.InferenceDecision) (event.InferenceDecision, bool) {

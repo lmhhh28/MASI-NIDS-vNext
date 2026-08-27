@@ -15,6 +15,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -25,7 +26,7 @@ import (
 // authorization — SEC-002).
 type Config struct {
 	ReleaseVersion        string          `json:"release_version"`
-	RuntimeProfile        string          `json:"runtime_profile"`  // test|production
+	RuntimeProfile        string          `json:"runtime_profile"`  // test|acceptance|production
 	ExternalClients       string          `json:"external_clients"` // test-fake|production-mtls
 	HTTPListen            string          `json:"http_listen"`
 	GRPCListen            string          `json:"grpc_listen"`
@@ -200,8 +201,8 @@ func Load(path string) (*Config, error) {
 }
 
 func (c *Config) validate() error {
-	if c.RuntimeProfile != "test" && c.RuntimeProfile != "production" {
-		return errors.New("runtime_profile must be test or production")
+	if c.RuntimeProfile != "test" && c.RuntimeProfile != "acceptance" && c.RuntimeProfile != "production" {
+		return errors.New("runtime_profile must be test, acceptance, or production")
 	}
 	if c.ExternalClients != "test-fake" && c.ExternalClients != "production-mtls" {
 		return errors.New("external_clients must be test-fake or production-mtls")
@@ -211,6 +212,9 @@ func (c *Config) validate() error {
 	}
 	if c.RuntimeProfile == "test" && c.ExternalClients != "test-fake" {
 		return errors.New("test runtime requires external_clients=test-fake")
+	}
+	if c.RuntimeProfile == "acceptance" && c.ExternalClients != "test-fake" {
+		return errors.New("acceptance runtime requires external_clients=test-fake")
 	}
 	if c.HTTPListen == "" || c.GRPCListen == "" {
 		return errors.New("http_listen and grpc_listen required")
@@ -308,7 +312,7 @@ func (c *Config) validate() error {
 		seenPeers := make(map[string]struct{}, len(c.Outbound.Analysis))
 		seenAnalysisPlugins := make(map[string]struct{}, len(c.Outbound.Analysis))
 		for _, peer := range c.Outbound.Analysis {
-			if err := validateA2APeer(peer, true); err != nil {
+			if err := validateA2APeer(peer, "production"); err != nil {
 				return fmt.Errorf("production Analysis A2A peer %s: %w", peer.PeerID, err)
 			}
 			if _, exists := seenPeers[peer.PeerID]; exists {
@@ -322,22 +326,48 @@ func (c *Config) validate() error {
 		}
 	} else {
 		if !loopbackListen(c.HTTPListen) || !loopbackListen(c.GRPCListen) {
-			return errors.New("test http_listen and grpc_listen must be loopback-only")
+			return errors.New("non-production http_listen and grpc_listen must be loopback-only")
 		}
 		origin, err := url.Parse(c.PublicOrigin)
 		if err != nil || origin.Scheme != "http" || origin.User != nil || origin.Hostname() == "" ||
 			(origin.Hostname() != "localhost" && (net.ParseIP(origin.Hostname()) == nil || !net.ParseIP(origin.Hostname()).IsLoopback())) {
-			return errors.New("test public_origin must be loopback http")
+			return errors.New("non-production public_origin must be loopback http")
 		}
 		if !IsTestDB(c.PostgreSQLDSN) {
-			return errors.New("test runtime PostgreSQL database name must contain test")
+			return errors.New("non-production runtime PostgreSQL database name must contain test")
+		}
+		if c.RuntimeProfile == "acceptance" {
+			if c.TLS.GRPCCertFile == "" || c.TLS.GRPCKeyFile == "" || c.TLS.GRPCClientCAFile == "" {
+				return errors.New("acceptance gRPC TLS server identity and client CA required")
+			}
+			if len(c.TLS.GRPCAllowedClientSANs) < 1 || len(c.TLS.GRPCAllowedClientSANs) > 64 {
+				return errors.New("acceptance gRPC client SAN allowlist must contain 1..64 identities")
+			}
+			seenSANs := make(map[string]struct{}, len(c.TLS.GRPCAllowedClientSANs))
+			for _, san := range c.TLS.GRPCAllowedClientSANs {
+				if !workloadRefRE.MatchString(san) {
+					return errors.New("acceptance gRPC client SAN malformed")
+				}
+				if _, exists := seenSANs[san]; exists {
+					return errors.New("acceptance gRPC client SAN duplicated")
+				}
+				seenSANs[san] = struct{}{}
+			}
+			if c.Outbound.PluginStatistics.Endpoint != "" {
+				if !loopbackListen(c.Outbound.PluginStatistics.Endpoint) {
+					return errors.New("acceptance plugin statistics endpoint must be loopback-only")
+				}
+				if err := validateMTLSClient(c.Outbound.PluginStatistics); err != nil {
+					return fmt.Errorf("acceptance plugin statistics adapter: %w", err)
+				}
+			}
 		}
 		if len(c.Outbound.Analysis) > 16 {
-			return errors.New("test Analysis A2A peer bound exceeded")
+			return errors.New("non-production Analysis A2A peer bound exceeded")
 		}
 		for _, peer := range c.Outbound.Analysis {
-			if err := validateA2APeer(peer, false); err != nil {
-				return fmt.Errorf("test Analysis A2A peer %s: %w", peer.PeerID, err)
+			if err := validateA2APeer(peer, c.RuntimeProfile); err != nil {
+				return fmt.Errorf("%s Analysis A2A peer %s: %w", c.RuntimeProfile, peer.PeerID, err)
 			}
 		}
 	}
@@ -416,7 +446,9 @@ func (c *Config) validate() error {
 
 func validateMTLSClient(client MTLSClient) error {
 	host, port, err := net.SplitHostPort(client.Endpoint)
+	numericPort, portErr := strconv.Atoi(port)
 	if err != nil || host == "" || port == "" || client.ServerName == "" || strings.Contains(client.ServerName, ":") ||
+		portErr != nil || numericPort < 1 || numericPort > 65535 ||
 		client.CAFile == "" || client.CertFile == "" || client.KeyFile == "" ||
 		client.MaxMessageBytes < 1024 || client.MaxMessageBytes > 4*1024*1024 {
 		return errors.New("endpoint/server-name/CA/cert/key/message bound malformed")
@@ -424,7 +456,7 @@ func validateMTLSClient(client MTLSClient) error {
 	return nil
 }
 
-func validateA2APeer(peer A2APeer, production bool) error {
+func validateA2APeer(peer A2APeer, runtimeProfile string) error {
 	if !workloadRefRE.MatchString(peer.PeerID) || !workloadRefRE.MatchString(peer.PluginID) ||
 		peer.MaxResponseBytes < 1024 || peer.MaxResponseBytes > 128*1024 || len(peer.AllowedIPs) < 1 || len(peer.AllowedIPs) > 16 {
 		return errors.New("identity/response/IP bounds malformed")
@@ -434,10 +466,12 @@ func validateA2APeer(peer A2APeer, production bool) error {
 		(u.Path != "" && u.Path != "/") {
 		return errors.New("base_url must be an origin without credentials/query/fragment/path")
 	}
-	if production {
+	secure := runtimeProfile == "acceptance" || runtimeProfile == "production"
+	production := runtimeProfile == "production"
+	if secure {
 		if u.Scheme != "https" || peer.ServerName == "" || strings.Contains(peer.ServerName, ":") ||
 			peer.CAFile == "" || peer.CertFile == "" || peer.KeyFile == "" {
-			return errors.New("production peer requires HTTPS and exact mTLS identity")
+			return fmt.Errorf("%s peer requires HTTPS and exact mTLS identity", runtimeProfile)
 		}
 	} else if u.Scheme != "http" || (u.Hostname() != "localhost" &&
 		(net.ParseIP(u.Hostname()) == nil || !net.ParseIP(u.Hostname()).IsLoopback())) {

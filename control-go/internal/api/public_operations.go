@@ -50,7 +50,7 @@ func handleGetEffectProposal(deps Deps) http.HandlerFunc {
 		 'proposal_digest',p.proposal_digest,'scope',p.scope,'risk_level',p.risk_level,'effect_kind',p.effect_kind,
 		 'target_set_digest',p.target_set_digest,'target_ids',p.target_ids,'policy_digest',p.policy_digest,
 		 'evidence_refs',p.evidence_refs,'expires_at_unix_ms',p.expires_at_unix_ms,'note',p.note,
-		 'created_at_unix_ms',p.created_at_unix_ms,'reason_code',p.reason_code,
+		 'created_at_unix_ms',p.created_at_unix_ms,'actor_ref',p.actor_ref,'reason_code',p.reason_code,
 		 'governance_status',CASE WHEN p.superseded_by_proposal_id IS NOT NULL THEN 'superseded'
 		   WHEN EXISTS(SELECT 1 FROM effect_decisions d WHERE d.proposal_id=p.proposal_id AND d.decision='approve') THEN 'approved'
 		   WHEN EXISTS(SELECT 1 FROM effect_decisions d WHERE d.proposal_id=p.proposal_id AND d.decision='reject') THEN 'rejected'

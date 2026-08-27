@@ -1,7 +1,7 @@
 {
   "schema_version": "plugin-runtime-host-module-latest/v1",
-  "run_id": "plugin-host-formal-20260821-004",
-  "evidence": "runs/plugin-host-formal-20260821-004/gate-summary.json",
-  "digest": "sha256:bef1a250afdd7cceef6f56065f7fdae627f2795f49db970e7e74801a34de8d50",
+  "run_id": "plugin-host-formal-20260826-007",
+  "evidence": "runs/plugin-host-formal-20260826-007/gate-summary.json",
+  "digest": "sha256:cf07bb99470ca4cb60eef543dd60ae8dc6570e813f94c4018cf0708fae9e5974",
   "overall_module_complete": true
 }

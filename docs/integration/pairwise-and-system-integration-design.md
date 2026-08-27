@@ -1,8 +1,8 @@
 # MASI-NIDS-vNext Pairwise 与系统集成测试设计
 
 - 文档状态：`DRAFT`
-- 日期：2026-08-12
-- 需求基线：`vNext-requirements-1.18`
+- 日期：2026-08-22
+- 需求基线：`vNext-requirements-1.19`
 - 主要需求：`TEST-GATE-001`、`TEST-REAL-E2E-001`、`TEST-004`、`TEST-005`、`TEST-006`、`TEST-007`、`TEST-008`、`ACCEPT-001`
 - 前置文档：[`../design/00-system-decomposition-and-delivery-design.md`](../design/00-system-decomposition-and-delivery-design.md)、[`../testing/module-e2e-acceptance-design.md`](../testing/module-e2e-acceptance-design.md)
 
@@ -267,7 +267,7 @@ Module Complete前可以做真实TLS/wire rehearsal，但证据必须是`level=R
 |---|---|---|---|
 | <a id="w1"></a>W1 数据面 | BMv2 aggregate/snapshot → Edge source WAL/window | qualified source、snapshot、final window | Digest/普通Read不冒充coverage；无P4外第二source |
 | <a id="w2"></a>W2 检测面 | BMv2 → Edge input WAL → Gateway→Triton→ORT → Edge result WAL | central real-time detection compute | CPU/CUDA显式、single route、无fallback、唯一batcher |
-| <a id="w3"></a>W3 模型控制 | ML bundle→Go rollout→Central new pool→Edge drain/CAS/resume | exact current/previous和rolling model replacement | loaded≠current、mixed显式、PITR fence |
+| <a id="w3"></a>W3 模型控制 | frozen ML dataset/recipe evidence→single exact bundle→Go rollout→Central new pool→Edge drain/CAS/resume | exact qualified candidate、current/previous和rolling model replacement | dataset/recipe/winner状态分列；loaded≠current、mixed显式、PITR fence |
 | <a id="w4"></a>W4 事实链 | Edge result WAL → Go → PostgreSQL Event → ACK/cursor | exactly-once canonical Event | commit-before-ACK、duplicate/conflict不丢/不双写 |
 | <a id="w5"></a>W5 可视化 | PostgreSQL → Go `/api|events` → production Web | canonical SOC projection | 浏览器无事实/授权/internal direct link |
 | <a id="w6"></a>W6 Target/Fleet | Go registry/assignment → Edge TargetActors/P4 → Web | 1/2/N managed targets和fleet vector | single writer、parent不可claim、unknown不聚合成功 |
@@ -301,9 +301,9 @@ Module Complete前可以做真实TLS/wire rehearsal，但证据必须是`level=R
 
 ### 7.2 模型替换链
 
-**Required scenarios**：同合同新权重、新label/unknown reader、多输出模式、profile/resource资格失败、deployment/readback/CAS/commit response loss、partial mixed、exact previous rollback、major incompatibility拒绝、CPU↔CUDA新generation、single/HA outage、PITR incarnation和active/warming/draining/replay容量。
+**Required scenarios**：ADR-0019 canonical dataset与四split/三seed/三mandatory execution证据、`winner=none` fail-closed、同合同新权重、新label/unknown reader、多输出模式、profile/resource资格失败、deployment/readback/CAS/commit response loss、partial mixed、exact previous rollback、major incompatibility拒绝、显式声明后才适用的CPU↔CUDA新generation、single/HA outage、PITR incarnation和active/warming/draining/replay容量。
 
-**不变量**：同shard始终单路；新label不自动effect；runtime load/poll/shadow/weighted split/Ready-as-current拒绝；历史Event不改写。
+**不变量**：公开/legacy flow CSV不绕过P4-window extractor，blind test不参与训练/Platt/threshold；同shard始终单路；新label不自动effect；runtime load/poll/shadow/weighted split/Ready-as-current拒绝；历史Event不改写。ADR-0019 exact bundle只声明CPU时，CUDA明确`NOT_APPLICABLE`而不是缺失PASS。
 
 ### 7.3 治理与处置链
 
@@ -335,9 +335,9 @@ Module Complete前可以做真实TLS/wire rehearsal，但证据必须是`level=R
 
 ### 7.8 Agent 旁路链
 
-**真实链**：Incident bundle → official Analysis → real A2A/MCP boundaries → deterministic provider fixture或qualified provider → AnalysisArtifact → Go/Web。
+**真实链**：Incident bundle + Go-authorized Event/model result/offline explanation references → official Analysis → real A2A/MCP boundaries → deterministic provider fixture或qualified provider → grounded non-executable AnalysisArtifact → Go/Web fixed display。
 
-**Required scenarios**：evidence sufficient、bounded MCP补证、insufficient/low quality/provider/tool timeout/grounding reject、compatibility matrix、binding revoke。System同时真实启动Host并独立验证Host场景，但Analysis业务流量不经Host。
+**Required scenarios**：evidence sufficient、bounded MCP补证、只有model result时明确“结果解读”、有offline explanation时保留method/digest/coverage、missing/stale/truncated/low-quality explanation、伪造SHAP/因果表述拒绝、insufficient/provider/tool timeout/grounding reject、compatibility matrix、binding revoke。System同时真实启动Host并独立验证Host场景，但Analysis业务流量不经Host。
 
 ## 8. System Fault 与 Performance 复核
 
@@ -379,4 +379,4 @@ Pairwise/System aggregate只包含release scope列明的required、`APPLICABLE`�
 
 ## 12. 当前状态
 
-截至 2026-08-21，六个独立模块（P4/Switch、Rust Edge、Central Inference、Go Control、PostgreSQL State、Plugin Runtime Host）已实现并取得 operational Module Complete，P4/Switch 进一步取得 `QUALIFIED`。但九模块独立完成是正式pairwise的入口条件，目前仍有三个模块（Python Analysis、Web、Offline ML）未开始实现，因此所有正式pairwise、系统波次和Full E2E仍不具备入口条件，状态保持`result=HOLD|NOT_RUN`、`qualification=NOT_QUALIFIED`。已实现模块的qualification-only HOLD（受保护发布基线/dirty tree；PostgreSQL的single-domain/manual-promotion scope；Plugin Host的single-domain、Go/DB pairwise与core相对退化门禁）不改写其operational完成结论，也不得被当作pairwise/system PASS。
+截至2026-08-27，九个首期模块均已有机器派生的operational-completion历史。Web run `web/evidence/module-gates/runs/20260827T020500Z-formal-002/gate-summary.json`执行了真实production OCI、三引擎27项黑盒、性能矩阵和60秒排除warmup后的3600.079秒soak，结果为`overall_module_complete=true`、`result=HOLD`、`qualification=NOT_QUALIFIED`；Offline ML亦有完整独立模块门禁历史。Go `control-go/evidence/module-gates/runs/20260827T041200Z-formal-003/gate-summary.json`和Analysis `analysis-py/evidence/module-gates/runs/analysis-formal-20260827-011/gate-summary.json`完成了当时source scope的真实OCI/公开边界及3600秒soak。`evidence/system-startup-rehearsal/20260827T062000Z-rehearsal-004/summary.json`实际启动九个runtime gate；P9/P11另分别验证真实Go/PostgreSQL/Web与Go/PostgreSQL/Analysis边界。加固后的connected run `evidence/system-connected-full/20260827T023500Z-rehearsal-005/summary.json`进一步在同一PostgreSQL/Control拓扑中连通真实BMv2→Edge→Gateway→Triton/ORT→Go Event commit/ACK、运行中Control maintenance dispatcher→Plugin Host/Wasm→statistics current/history、Go→Analysis A2A以及production Web；Chromium/Firefox/WebKit均读回同一Event/Incident、统计Artifact和不可执行/不可部署Analysis Artifact，且runner中断清理负例无自有资源残留。该run通过闭合schema与跨字段identity/timeline/count/browser/secret-path validator，但只覆盖64包happy path；pipeline loader/packet sender及external provider/MCP仍是明确fixture，Central子证据因dirty tree保持`HOLD`。本次联调同时修改了Go/Edge/Inference/P4 contract与runner，故较早module summaries只保留为历史，不能覆盖当前dirty source；当前语言/contract回归虽通过，完整module gates尚未重跑。因此connected run只能是`REHEARSAL/PASS/NOT_QUALIFIED`，不得命名为正式Full System E2E；十二个clean-environment pairwise、十个完整system waves、必需fault/traffic/PITR/performance/soak、受保护基线和production HA仍为`HOLD|NOT_RUN`。

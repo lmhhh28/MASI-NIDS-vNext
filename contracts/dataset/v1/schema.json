@@ -1,0 +1,394 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://masi-nids.example/contracts/dataset/v1/schema.json",
+  "title": "MASI P4 Window Binary Dataset Manifest V1",
+  "description": "ADR-0019 dataset-p4-window-binary/v1 immutable dataset manifest. Feature bytes and the canonical sample index are separate bounded files so large corpora are not embedded in JSON.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "dataset_id",
+    "dataset_revision",
+    "created_at",
+    "status",
+    "producer",
+    "feature_contract",
+    "source_profiles",
+    "extractor",
+    "files",
+    "split_policy",
+    "label_policy",
+    "quality_summary",
+    "limits",
+    "compatibility"
+  ],
+  "properties": {
+    "schema_version": {"const": "dataset-p4-window-binary/v1"},
+    "dataset_id": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]{1,127}$"},
+    "dataset_revision": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "created_at": {"type": "string", "format": "date-time"},
+    "status": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source_selection", "dataset_revision", "official_source", "production_quality_scope"],
+      "properties": {
+        "source_selection": {"const": "frozen"},
+        "dataset_revision": {"enum": ["frozen", "hold", "rejected"]},
+        "official_source": {"enum": ["verified", "hold", "not_applicable_module_fixture"]},
+        "production_quality_scope": {"enum": ["eligible_for_evaluation", "hold"]}
+      }
+    },
+    "producer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["producer_id", "version", "config_digest", "toolchain_digest", "source_revision"],
+      "properties": {
+        "producer_id": {"const": "masi-offline-ml-pipeline"},
+        "version": {"type": "string", "pattern": "^v[0-9]+$"},
+        "config_digest": {"$ref": "#/$defs/digest"},
+        "toolchain_digest": {"$ref": "#/$defs/digest"},
+        "source_revision": {"type": "string", "pattern": "^(?:[0-9a-f]{40}|dirty:[0-9a-f]{64})$"}
+      }
+    },
+    "feature_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["profile_id", "profile_digest", "dtype", "shape", "order", "record_bytes", "window_duration_ms", "final_required", "valid_required", "zero_fill", "graph_preprocessing"],
+      "properties": {
+        "profile_id": {"const": "edge-feature-p4-window/v1"},
+        "profile_digest": {"$ref": "#/$defs/digest"},
+        "dtype": {"const": "uint64-le"},
+        "shape": {
+          "type": "array",
+          "prefixItems": [{"const": 1}, {"const": 6}],
+          "items": false
+        },
+        "order": {"$ref": "#/$defs/feature_order"},
+        "record_bytes": {"const": 48},
+        "window_duration_ms": {"const": 10000},
+        "final_required": {"const": true},
+        "valid_required": {"const": true},
+        "zero_fill": {"const": false},
+        "graph_preprocessing": {"const": "Cast(float32)->Log1p"}
+      }
+    },
+    "source_profiles": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 16,
+      "items": {"$ref": "#/$defs/source_profile"}
+    },
+    "extractor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["profile_id", "implementation", "implementation_digest", "p4_golden_digest", "p4_program_digest", "p4info_digest", "pipeline_digest", "selector_digest", "cell_count", "bank_count", "snapshot_strategy", "golden_verified"],
+      "properties": {
+        "profile_id": {"const": "p4-window-reference-extractor/v1"},
+        "implementation": {"enum": ["exact-bmv2-p4runtime", "qualified-reference-extractor"]},
+        "implementation_digest": {"$ref": "#/$defs/digest"},
+        "p4_golden_digest": {"$ref": "#/$defs/digest"},
+        "p4_program_digest": {"$ref": "#/$defs/digest"},
+        "p4info_digest": {"$ref": "#/$defs/digest"},
+        "pipeline_digest": {"$ref": "#/$defs/digest"},
+        "selector_digest": {"$ref": "#/$defs/digest"},
+        "cell_count": {"const": 256},
+        "bank_count": {"const": 2},
+        "snapshot_strategy": {"const": "dual-bank-sequence-before-after"},
+        "golden_verified": {"const": true}
+      }
+    },
+    "files": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["features", "sample_index", "split_manifest"],
+      "properties": {
+        "features": {
+          "allOf": [
+            {"$ref": "#/$defs/file"},
+            {
+              "type": "object",
+              "required": ["record_bytes", "record_count"],
+              "properties": {
+                "record_bytes": {"const": 48},
+                "record_count": {"type": "integer", "minimum": 4, "maximum": 100000000}
+              }
+            }
+          ]
+        },
+        "sample_index": {
+          "allOf": [
+            {"$ref": "#/$defs/file"},
+            {
+              "type": "object",
+              "required": ["record_count", "record_schema", "encoding", "max_line_bytes"],
+              "properties": {
+                "record_count": {"type": "integer", "minimum": 4, "maximum": 100000000},
+                "record_schema": {"const": "contracts/dataset/v1/sample-schema.json"},
+                "encoding": {"const": "canonical-json-lines-utf8-lf"},
+                "max_line_bytes": {"const": 16384}
+              }
+            }
+          ]
+        },
+        "split_manifest": {
+          "allOf": [
+            {"$ref": "#/$defs/file"},
+            {
+              "type": "object",
+              "required": ["capture_family_count"],
+              "properties": {
+                "capture_family_count": {"type": "integer", "minimum": 4, "maximum": 10000000}
+              }
+            }
+          ]
+        }
+      }
+    },
+    "split_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["algorithm", "grouping", "intervals", "source_matrix", "leakage_policy", "blind_open_policy", "weighting"],
+      "properties": {
+        "algorithm": {"const": "u64be(sha256(masi-split-v1\\0||source_revision||\\0||capture_family_id)[0:8])/2^64"},
+        "grouping": {"const": "capture-family-only-no-row-window-random-split"},
+        "intervals": {
+          "type": "array",
+          "prefixItems": [
+            {"const": {"split": "train", "lower": 0.0, "upper": 0.6}},
+            {"const": {"split": "early_stop", "lower": 0.6, "upper": 0.75}},
+            {"const": {"split": "calibration", "lower": 0.75, "upper": 0.9}},
+            {"const": {"split": "blind_test", "lower": 0.9, "upper": 1.0}}
+          ],
+          "items": false
+        },
+        "source_matrix": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 16,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["source_partition", "train", "early_stop", "calibration", "blind_test"],
+            "properties": {
+              "source_partition": {"enum": ["project-synthetic", "cic-ddos2019-official-training", "cic-ddos2019-official-test", "ooc"]},
+              "train": {"type": "number", "minimum": 0, "maximum": 1},
+              "early_stop": {"type": "number", "minimum": 0, "maximum": 1},
+              "calibration": {"type": "number", "minimum": 0, "maximum": 1},
+              "blind_test": {"type": "number", "minimum": 0, "maximum": 1}
+            }
+          }
+        },
+        "leakage_policy": {"const": "reject-any-capture-family-in-more-than-one-split"},
+        "blind_open_policy": {"const": "open-once-after-all-candidates-configs-thresholds-frozen"},
+        "weighting": {"const": "equal-source-label-then-equal-family-then-equal-window-normalized-to-sample-count"}
+      }
+    },
+    "label_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["taxonomy", "benign", "attack", "fit_coverage", "attack_share_minimum", "mixed_ambiguous_unknown", "not_covered", "join"],
+      "properties": {
+        "taxonomy": {"const": "binary-single-label"},
+        "benign": {"const": {"id": 0, "name": "benign", "attack_packet_share": 0.0}},
+        "attack": {"const": {"id": 1, "name": "supported_aggregate_visible_attack"}},
+        "fit_coverage": {"const": 1.0},
+        "attack_share_minimum": {"const": 0.9},
+        "mixed_ambiguous_unknown": {"const": "evaluation-only-never-fit"},
+        "not_covered": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {"enum": ["xss", "sql_injection", "heartbleed_exploit", "ransomware_payload", "content_infiltration"]}
+        },
+        "join": {"const": "packet-timestamp-direction-aware-five-tuple-protocol-half-open-window"}
+      }
+    },
+    "quality_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sample_count", "capture_family_count", "split_counts", "label_counts", "ground_truth", "duplicates", "cross_split_capture_families", "raw_payload_included"],
+      "properties": {
+        "sample_count": {"type": "integer", "minimum": 4, "maximum": 100000000},
+        "capture_family_count": {"type": "integer", "minimum": 4, "maximum": 10000000},
+        "split_counts": {"$ref": "#/$defs/split_counts"},
+        "label_counts": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["benign", "attack", "mixed", "ambiguous", "unknown", "not_covered"],
+          "properties": {
+            "benign": {"type": "integer", "minimum": 0},
+            "attack": {"type": "integer", "minimum": 0},
+            "mixed": {"type": "integer", "minimum": 0},
+            "ambiguous": {"type": "integer", "minimum": 0},
+            "unknown": {"type": "integer", "minimum": 0},
+            "not_covered": {"type": "integer", "minimum": 0}
+          }
+        },
+        "ground_truth": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["eligible_packets", "labeled_eligible_packets", "coverage", "conflicts", "coverage_digest"],
+          "properties": {
+            "eligible_packets": {"type": "integer", "minimum": 1},
+            "labeled_eligible_packets": {"type": "integer", "minimum": 0},
+            "coverage": {"type": "number", "minimum": 0, "maximum": 1},
+            "conflicts": {"type": "integer", "minimum": 0},
+            "coverage_digest": {"$ref": "#/$defs/digest"}
+          }
+        },
+        "duplicates": {"const": 0},
+        "cross_split_capture_families": {"const": 0},
+        "raw_payload_included": {"const": false}
+      }
+    },
+    "limits": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["max_sources", "max_records", "max_feature_bytes", "max_index_bytes", "max_capture_families", "max_archive_files", "max_archive_depth", "max_decompression_ratio"],
+      "properties": {
+        "max_sources": {"const": 16},
+        "max_records": {"const": 100000000},
+        "max_feature_bytes": {"const": 4800000000},
+        "max_index_bytes": {"const": 10737418240},
+        "max_capture_families": {"const": 10000000},
+        "max_archive_files": {"const": 100000},
+        "max_archive_depth": {"const": 8},
+        "max_decompression_ratio": {"const": 100}
+      }
+    },
+    "compatibility": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["unknown_major", "unverified_minor", "feature_major_change", "selector_or_window_change", "legacy_direct_import", "mutable_source", "executable_content"],
+      "properties": {
+        "unknown_major": {"const": "reject"},
+        "unverified_minor": {"const": "reject"},
+        "feature_major_change": {"const": "new-dataset-profile"},
+        "selector_or_window_change": {"const": "new-dataset-profile"},
+        "legacy_direct_import": {"const": "reject"},
+        "mutable_source": {"const": "reject"},
+        "executable_content": {"const": "reject"}
+      }
+    }
+  },
+  "$defs": {
+    "digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "relative_path": {"type": "string", "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))[a-zA-Z0-9][a-zA-Z0-9._/-]{0,511}$"},
+    "feature_order": {
+      "type": "array",
+      "prefixItems": [
+        {"const": "aggregate_packets"},
+        {"const": "aggregate_bytes"},
+        {"const": "reported_nonzero_cells"},
+        {"const": "max_cell_packets"},
+        {"const": "max_cell_bytes"},
+        {"const": "snapshot_count"}
+      ],
+      "items": false
+    },
+    "file": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256", "bytes"],
+      "properties": {
+        "path": {"$ref": "#/$defs/relative_path"},
+        "sha256": {"$ref": "#/$defs/digest"},
+        "bytes": {"type": "integer", "minimum": 1, "maximum": 10737418240},
+        "record_bytes": {"type": "integer", "minimum": 1},
+        "record_count": {"type": "integer", "minimum": 1},
+        "record_schema": {"type": "string", "maxLength": 512},
+        "encoding": {"type": "string", "maxLength": 128},
+        "max_line_bytes": {"type": "integer", "minimum": 1},
+        "capture_family_count": {"type": "integer", "minimum": 1}
+      }
+    },
+    "source_profile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["profile_id", "decision", "role", "partition", "source_revision", "artifact", "license", "privacy", "ground_truth", "ingestion_status"],
+      "properties": {
+        "profile_id": {
+          "enum": [
+            "masi-synthetic-p4-window/v1",
+            "cic-ddos2019-p4-window/v1",
+            "cse-cic-ids2018-p4-window-ooc/v1",
+            "cic-ids2017-p4-window-ooc/v1",
+            "unsw-nb15-p4-window-ooc/v1",
+            "ton-iot-p4-window-ooc/v1",
+            "ciciot2023-p4-window-ooc/v1",
+            "legacy-masi-nids-dataset"
+          ]
+        },
+        "decision": {"enum": ["ADOPT", "ADOPT_AFTER_INGESTION_GATES", "CONDITIONAL", "REJECT_DIRECT_IMPORT"]},
+        "role": {"enum": ["fit_and_evaluate", "blind_only", "source_location_only"]},
+        "partition": {"enum": ["project-synthetic", "cic-ddos2019-official-training", "cic-ddos2019-official-test", "ooc", "legacy-rejected"]},
+        "source_revision": {"type": "string", "minLength": 1, "maxLength": 256},
+        "artifact": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["reference", "sha256", "bytes", "ordinary_file", "raw_capture_in_git_or_oci"],
+          "properties": {
+            "reference": {"type": "string", "pattern": "^(?:digest-pinned|controlled-fetch|repository-fixture)://", "maxLength": 512},
+            "sha256": {"$ref": "#/$defs/digest"},
+            "bytes": {"type": "integer", "minimum": 1, "maximum": 1099511627776},
+            "ordinary_file": {"const": true},
+            "raw_capture_in_git_or_oci": {"const": false}
+          }
+        },
+        "license": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["id", "citation", "use", "redistribution", "verified"],
+          "properties": {
+            "id": {"type": "string", "minLength": 1, "maxLength": 128},
+            "citation": {"type": "string", "minLength": 1, "maxLength": 1024},
+            "use": {"enum": ["allowed", "conditional", "rejected"]},
+            "redistribution": {"enum": ["allowed_with_attribution", "controlled_only", "prohibited", "not_applicable"]},
+            "verified": {"type": "boolean"}
+          }
+        },
+        "privacy": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["classification", "raw_payload_retained", "review_digest", "verified"],
+          "properties": {
+            "classification": {"enum": ["synthetic_no_personal_data", "controlled_network_capture", "unknown"]},
+            "raw_payload_retained": {"const": false},
+            "review_digest": {"$ref": "#/$defs/digest"},
+            "verified": {"type": "boolean"}
+          }
+        },
+        "ground_truth": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["method", "manifest_digest", "packet_join_required", "verified"],
+          "properties": {
+            "method": {"enum": ["project-generated-packet-truth", "official-flow-event-packet-join", "not-accepted"]},
+            "manifest_digest": {"$ref": "#/$defs/digest"},
+            "packet_join_required": {"type": "boolean"},
+            "verified": {"type": "boolean"}
+          }
+        },
+        "ingestion_status": {"enum": ["verified", "hold", "rejected"]}
+      }
+    },
+    "split_counts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["train", "early_stop", "calibration", "blind_test"],
+      "properties": {
+        "train": {"type": "integer", "minimum": 1},
+        "early_stop": {"type": "integer", "minimum": 1},
+        "calibration": {"type": "integer", "minimum": 1},
+        "blind_test": {"type": "integer", "minimum": 1}
+      }
+    }
+  },
+  "x-masi-semantic-constraints": [
+    {"constraint_id": "DATASET-FILE-COUNTS", "operator": "all-equal", "fields": ["/files/features/record_count", "/files/sample_index/record_count", "/quality_summary/sample_count"]},
+    {"constraint_id": "DATASET-FEATURE-BYTES", "operator": "multiply-equals", "fields": ["/files/features/record_count", "/files/features/record_bytes", "/files/features/bytes"]},
+    {"constraint_id": "DATASET-SPLIT-SUM", "operator": "sum-equals", "fields": ["/quality_summary/split_counts", "/quality_summary/sample_count"]},
+    {"constraint_id": "DATASET-GROUND-TRUTH-COVERAGE", "operator": "ratio-equals", "fields": ["/quality_summary/ground_truth/labeled_eligible_packets", "/quality_summary/ground_truth/eligible_packets", "/quality_summary/ground_truth/coverage"]},
+    {"constraint_id": "DATASET-SOURCE-DECISION", "operator": "source-decision-status-consistent", "fields": ["/source_profiles"]}
+  ]
+}

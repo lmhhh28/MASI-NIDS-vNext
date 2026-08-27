@@ -1,0 +1,175 @@
+{
+  "schema_version": "dataset-p4-window-binary/v1",
+  "dataset_id": "masi-synthetic-window-golden",
+  "dataset_revision": "1111111111111111111111111111111111111111111111111111111111111111",
+  "created_at": "2030-01-01T00:00:20Z",
+  "status": {
+    "source_selection": "frozen",
+    "dataset_revision": "frozen",
+    "official_source": "not_applicable_module_fixture",
+    "production_quality_scope": "hold"
+  },
+  "producer": {
+    "producer_id": "masi-offline-ml-pipeline",
+    "version": "v1",
+    "config_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "toolchain_digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "source_revision": "0000000000000000000000000000000000000001"
+  },
+  "feature_contract": {
+    "profile_id": "edge-feature-p4-window/v1",
+    "profile_digest": "sha256:a5efc8ddf3df973c295223f5a0fc169dabc44a5bffa0e3993ebdeec531055fda",
+    "dtype": "uint64-le",
+    "shape": [1, 6],
+    "order": [
+      "aggregate_packets",
+      "aggregate_bytes",
+      "reported_nonzero_cells",
+      "max_cell_packets",
+      "max_cell_bytes",
+      "snapshot_count"
+    ],
+    "record_bytes": 48,
+    "window_duration_ms": 10000,
+    "final_required": true,
+    "valid_required": true,
+    "zero_fill": false,
+    "graph_preprocessing": "Cast(float32)->Log1p"
+  },
+  "source_profiles": [
+    {
+      "profile_id": "masi-synthetic-p4-window/v1",
+      "decision": "ADOPT",
+      "role": "fit_and_evaluate",
+      "partition": "project-synthetic",
+      "source_revision": "synthetic-revision-golden-1",
+      "artifact": {
+        "reference": "repository-fixture://testkit-generated-traffic-golden",
+        "sha256": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "bytes": 4096,
+        "ordinary_file": true,
+        "raw_capture_in_git_or_oci": false
+      },
+      "license": {
+        "id": "Apache-2.0",
+        "citation": "MASI-NIDS repository-generated deterministic fixture",
+        "use": "allowed",
+        "redistribution": "allowed_with_attribution",
+        "verified": true
+      },
+      "privacy": {
+        "classification": "synthetic_no_personal_data",
+        "raw_payload_retained": false,
+        "review_digest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+        "verified": true
+      },
+      "ground_truth": {
+        "method": "project-generated-packet-truth",
+        "manifest_digest": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+        "packet_join_required": true,
+        "verified": true
+      },
+      "ingestion_status": "verified"
+    }
+  ],
+  "extractor": {
+    "profile_id": "p4-window-reference-extractor/v1",
+    "implementation": "qualified-reference-extractor",
+    "implementation_digest": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+    "p4_golden_digest": "sha256:7fe11b023a6514aa2aa7c39d7aafee9c3f9a64c88425967b088528c03e906213",
+    "p4_program_digest": "sha256:b228cf7423f083711d9f5c1ee4f097df868b452119d6c56a2f263e30c443823c",
+    "p4info_digest": "sha256:23b6d3554ca11843b7e0324352ed09752f068a05abbecf16c16d08a9839d2241",
+    "pipeline_digest": "sha256:06b99f73133ff8a7d0bfbcfe2b023ecdd5a9458f8e41afd5f11275e5d99d00ea",
+    "selector_digest": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+    "cell_count": 256,
+    "bank_count": 2,
+    "snapshot_strategy": "dual-bank-sequence-before-after",
+    "golden_verified": true
+  },
+  "files": {
+    "features": {
+      "path": "data/features.bin",
+      "sha256": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+      "bytes": 384,
+      "record_bytes": 48,
+      "record_count": 8
+    },
+    "sample_index": {
+      "path": "data/samples.jsonl",
+      "sha256": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+      "bytes": 8192,
+      "record_count": 8,
+      "record_schema": "contracts/dataset/v1/sample-schema.json",
+      "encoding": "canonical-json-lines-utf8-lf",
+      "max_line_bytes": 16384
+    },
+    "split_manifest": {
+      "path": "data/splits.json",
+      "sha256": "sha256:3333333333333333333333333333333333333333333333333333333333333333",
+      "bytes": 2048,
+      "capture_family_count": 8
+    }
+  },
+  "split_policy": {
+    "algorithm": "u64be(sha256(masi-split-v1\\0||source_revision||\\0||capture_family_id)[0:8])/2^64",
+    "grouping": "capture-family-only-no-row-window-random-split",
+    "intervals": [
+      {"split": "train", "lower": 0.0, "upper": 0.6},
+      {"split": "early_stop", "lower": 0.6, "upper": 0.75},
+      {"split": "calibration", "lower": 0.75, "upper": 0.9},
+      {"split": "blind_test", "lower": 0.9, "upper": 1.0}
+    ],
+    "source_matrix": [
+      {"source_partition": "project-synthetic", "train": 0.6, "early_stop": 0.15, "calibration": 0.15, "blind_test": 0.1},
+      {"source_partition": "cic-ddos2019-official-training", "train": 0.7, "early_stop": 0.15, "calibration": 0.15, "blind_test": 0.0}
+    ],
+    "leakage_policy": "reject-any-capture-family-in-more-than-one-split",
+    "blind_open_policy": "open-once-after-all-candidates-configs-thresholds-frozen",
+    "weighting": "equal-source-label-then-equal-family-then-equal-window-normalized-to-sample-count"
+  },
+  "label_policy": {
+    "taxonomy": "binary-single-label",
+    "benign": {"id": 0, "name": "benign", "attack_packet_share": 0.0},
+    "attack": {"id": 1, "name": "supported_aggregate_visible_attack"},
+    "fit_coverage": 1.0,
+    "attack_share_minimum": 0.9,
+    "mixed_ambiguous_unknown": "evaluation-only-never-fit",
+    "not_covered": ["xss", "sql_injection", "heartbleed_exploit", "ransomware_payload", "content_infiltration"],
+    "join": "packet-timestamp-direction-aware-five-tuple-protocol-half-open-window"
+  },
+  "quality_summary": {
+    "sample_count": 8,
+    "capture_family_count": 8,
+    "split_counts": {"train": 2, "early_stop": 2, "calibration": 2, "blind_test": 2},
+    "label_counts": {"benign": 4, "attack": 4, "mixed": 0, "ambiguous": 0, "unknown": 0, "not_covered": 0},
+    "ground_truth": {
+      "eligible_packets": 80,
+      "labeled_eligible_packets": 80,
+      "coverage": 1.0,
+      "conflicts": 0,
+      "coverage_digest": "sha256:4444444444444444444444444444444444444444444444444444444444444444"
+    },
+    "duplicates": 0,
+    "cross_split_capture_families": 0,
+    "raw_payload_included": false
+  },
+  "limits": {
+    "max_sources": 16,
+    "max_records": 100000000,
+    "max_feature_bytes": 4800000000,
+    "max_index_bytes": 10737418240,
+    "max_capture_families": 10000000,
+    "max_archive_files": 100000,
+    "max_archive_depth": 8,
+    "max_decompression_ratio": 100
+  },
+  "compatibility": {
+    "unknown_major": "reject",
+    "unverified_minor": "reject",
+    "feature_major_change": "new-dataset-profile",
+    "selector_or_window_change": "new-dataset-profile",
+    "legacy_direct_import": "reject",
+    "mutable_source": "reject",
+    "executable_content": "reject"
+  }
+}

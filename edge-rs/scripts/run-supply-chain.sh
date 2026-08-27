@@ -190,7 +190,7 @@ module_label="$(docker image inspect --format '{{index .Config.Labels "io.masi-n
 
 tar --sort=name --mtime=@1786406400 --owner=0 --group=0 --numeric-owner \
   --exclude='edge-rs/target' --exclude='edge-rs/evidence' \
-  --exclude='edge-rs/**/__pycache__' --exclude='contracts/**/__pycache__' \
+  --exclude='**/node_modules' --exclude='**/__pycache__' --exclude='*.pyc' \
   -cf "${source_archive}" -C "${repo_root}" edge-rs contracts
 tar -xf "${source_archive}" -C "${snapshot_dir}"
 mkdir -p -- "${snapshot_dir}/edge-rs/target"

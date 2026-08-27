@@ -75,7 +75,7 @@ def main() -> int:
     sender_attempted = packet_oracle.get("sender_attempted", 0)
     passed = (
         primary
-        and api_version.startswith("1.")
+        and api_version == "1.4.1"
         and identity_match
         and not errors
         and isinstance(sender_attempted, int)

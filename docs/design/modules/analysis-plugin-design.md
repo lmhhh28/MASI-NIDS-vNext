@@ -3,9 +3,9 @@
 - 模块 ID：`MOD-AGENT-001`
 - 官方插件 ID：`masi.analysis.langgraph`
 - 目录：`analysis-py/`
-- 文档状态：`DRAFT`
+- 文档状态：`IMPLEMENTED / OPERATIONAL MODULE COMPLETE`；qualification 仍为 `NOT_QUALIFIED`
 - 主要需求：`CORE-PLUGIN-001`、`MOD-AGENT-001`、`CONTRACT-AGENT-001`、`AGENT-001`、`AGENT-002`、`AGENT-003`、`AGENT-004`、`AGENT-005`、`AGENT-006`、`AGENT-007`、`AGENT-008`、`AGENT-COMPAT-001`、`TEST-003`、`TEST-PLUGIN-001`、`TEST-006`
-- 主要 ADR：ADR-0002、ADR-0003、ADR-0005、ADR-0006；ADR-0018用于统计Artifact引用边界
+- 主要 ADR：ADR-0002、ADR-0003、ADR-0005、ADR-0006、ADR-0019；ADR-0018用于统计Artifact引用边界
 
 ## 1. 模块目标
 
@@ -32,16 +32,19 @@ Go/peer通过A2A调用Analysis；Analysis再调用Go提供的`masi-mcp-readonly/
 
 ## 3. 输入合同
 
-`IncidentAnalysisBundleV1`（具体名称由contract冻结）至少携带：
+冻结的 `masi-analysis-input/v1`（Frozen Analysis Input Bundle V1）至少携带：
 
 - task/incident/evidence identity、schema/profile、scope和trace；
 - exact Event/Incident/model/target/rule/generation引用；
+- Go已授权的model result事实（label/confidence或scores引用、decision、OOD/abstain、quality、model/feature/label/output/runtime digest）与可选offline explanation evidence引用；
 - bounded canonical facts、evidence content digest、freshness和quality；
 - actor/policy允许的tool/provider capability；
 - token/time/tool-call/output/resource budgets；
 - redaction/data-class/provenance和expiry。
 
 输入只包含Go授权投影，不提供DB连接、raw secret、P4 credential或可执行prompt/template。Untrusted packet/user/plugin文本与system instruction分离并带来源；超限、过期、未知major或scope不符在graph运行前拒绝。
+
+模型result与explanation必须分层：scores/decision/quality和offline explanation artifact是确定性来源事实，Analysis产生的文字只是二次解读。缺少model-native contribution时，Analysis只能称为“模型结果解读”，不得生成或猜测SHAP、reconstruction residual或真实攻击原因；存在合法explanation reference时必须保留method/model/sample digest、coverage、truncation和limitations。`background_digest`对ADR-0019 interventional TreeSHAP为必填，`scaler_digest`对Logistic/Autoencoder为必填；对不使用该对象的方法必须携带稳定`not_applicable_reason`，不得用空值假装已验证。
 
 ## 4. LangGraph 内部设计
 
@@ -83,6 +86,7 @@ Artifact是不可执行内容，至少包含：
 - task/plugin/revision/config/binding identity；
 - source fact/evidence引用与digest；
 - facts、inferences、unknowns明确分区；
+- model result facts、model explanation facts与LLM interpretation明确分区，grounded claim引用exact evidence ID；
 - conclusion/recommendation及confidence/limitations；
 - citations/tool/provider provenance；
 - quality/outcome、produced/expires time和artifact digest。
@@ -90,6 +94,8 @@ Artifact是不可执行内容，至少包含：
 Artifact不能包含P4 command、raw TableEntry、effect intent、approval token、browser code、HTML/JS、arbitrary URL或自动action。UI可供人阅读和引用hash，但Analyst仍需从当前Go facts独立创建proposal，Go重算eligibility/risk/diff。
 
 Analysis可以引用已由Go验证的Plugin Statistics Artifact生成叙述，但不能把它升级为核心统计或覆盖rule/model/incident facts。
+
+Analysis可以引用ADR-0019 Offline ML产生的raw-margin coefficient contribution、interventional/raw-margin TreeSHAP或scaled-log reconstruction-residual evidence并转述其限制，但不能重新运行在线模型、读取model repository、用LLM计算attribution或把association写成因果。Platt后的概率不得被描述为TreeSHAP的直接可加分解；`unstable|partial|truncated`解释必须原样显示限制。Artifact不改变Event decision、model qualification、policy/effect eligibility或proposal审批事实。
 
 ## 9. 状态与存储
 
@@ -128,6 +134,7 @@ Legacy Python graph节点源码、Workflow v2、checkpoint、Review/Auth/schema�
 - A2A task/polling/version/identity/idempotency；
 - MCP restricted allowlist/read-only/scope/timeout/provenance；
 - LangGraph成功、补证、证据不足、低质量、provider/tool故障路径；
+- 只有result facts时的“模型结果解读”、有offline explanation引用时的grounded解读、缺失/过期/低coverage/truncated explanation和伪造attribution拒绝；
 - Artifact schema/grounding/citation/不可执行边界；
 - prompt injection、oversize、secret/data exfiltration和零core/P4/effect mutation；
 - `AGENT-COMPAT-001`完整矩阵、资源、fault、performance和soak；
@@ -138,3 +145,7 @@ Python验证使用type/lint和`unittest`，不引入pytest。
 ## 14. Module Complete 判定
 
 Analysis只有在官方插件完整功能、A2A/MCP/LLM边界、compatibility matrix、不可执行Artifact、安全/资源/fault/performance和真实OCI E2E全部完成后才可Module Complete。只运行LangGraph样例、只用内部函数测试、只生成一段LLM文本或兼容矩阵缺项均不满足。
+
+截至2026-08-22，[`analysis-py/evidence/module-gates/latest.json`](../../../analysis-py/evidence/module-gates/latest.json)指向immutable run `analysis-formal-20260822-004`，summary digest为`sha256:fe07406b4e0ab2d8a57bc4ad8245ef0035b3fcfc3e996d09f1ec2c07a583049e`，source-tree digest为`sha256:9194f01dd5f3e6c040b0a10e4a015d9476eb2f47d3ecc69b45182f2aa76a8d0d`。19项required gate、真实release process与只读rootfs OCI、A2A/MCP/provider黑盒、compatibility、fault/performance、supply chain、55条需求追踪和证据完整性全部通过，open finding/open P0均为0，机器派生`overall_module_complete=true`。
+
+正式soak另完成60秒warmup和4×900秒qualified阶段，共记录10,252个completed task、6,040个typed saturation rejection、0 failed、0 HTTP error、0 unclassified error，crash/restart、recovered-incomplete fence、最终queue/in-flight归零和资源增长门槛均通过。该证据只授予operational Module Complete；真实外部provider、Go/MCP与Go/peer A2A正式pairwise、Web投影、protected release baseline、production-ha和九模块global gate仍为`HOLD/NOT_QUALIFIED`。`-001`、`-002`、`-003`失败run继续作为append-only历史保留。

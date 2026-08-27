@@ -1,0 +1,95 @@
+{
+  "schema_version": "qualification-profile/v1",
+  "profile_id": "dataset-p4-window-binary/v1",
+  "manifest_schema": "contracts/dataset/v1/schema.json",
+  "sample_schema": "contracts/dataset/v1/sample-schema.json",
+  "feature_profile": "contracts/profiles/v1/edge-feature-window.json",
+  "feature_profile_digest": "sha256:a5efc8ddf3df973c295223f5a0fc169dabc44a5bffa0e3993ebdeec531055fda",
+  "record_format": {
+    "feature_file": "contiguous uint64 little-endian records",
+    "record_bytes": 48,
+    "sample_index": "canonical-json-lines-utf8-lf",
+    "split_manifest": "canonical-json-utf8",
+    "feature_order": [
+      "aggregate_packets",
+      "aggregate_bytes",
+      "reported_nonzero_cells",
+      "max_cell_packets",
+      "max_cell_bytes",
+      "snapshot_count"
+    ]
+  },
+  "window": {
+    "duration_ms": 10000,
+    "interval": "[start,end)",
+    "final_required": true,
+    "valid_required": true,
+    "zero_fill": false,
+    "event_time_basis": "target-aggregate-export-time"
+  },
+  "extractor": {
+    "profile_id": "p4-window-reference-extractor/v1",
+    "p4_golden": "contracts/golden/telemetry/snapshot-v1.json",
+    "p4_golden_digest": "sha256:7fe11b023a6514aa2aa7c39d7aafee9c3f9a64c88425967b088528c03e906213",
+    "cell_count": 256,
+    "bank_count": 2,
+    "snapshot_strategy": "dual-bank-sequence-before-after",
+    "reference_extractor_requires_exact_golden": true
+  },
+  "source_roles": {
+    "masi-synthetic-p4-window/v1": "ADOPT",
+    "cic-ddos2019-p4-window/v1": "ADOPT_AFTER_INGESTION_GATES",
+    "cse-cic-ids2018-p4-window-ooc/v1": "CONDITIONAL_BLIND_ONLY",
+    "cic-ids2017-p4-window-ooc/v1": "CONDITIONAL_BLIND_ONLY",
+    "unsw-nb15-p4-window-ooc/v1": "CONDITIONAL_BLIND_ONLY",
+    "ton-iot-p4-window-ooc/v1": "CONDITIONAL_BLIND_ONLY",
+    "ciciot2023-p4-window-ooc/v1": "CONDITIONAL_FUTURE_IOT_BLIND_ONLY",
+    "legacy-masi-nids-dataset": "REJECT_DIRECT_IMPORT"
+  },
+  "split": {
+    "hash_prefix_hex": "6d6173692d73706c69742d763100",
+    "algorithm": "u64be-sha256-prefix-source-revision-capture-family",
+    "synthetic": {"train": 0.6, "early_stop": 0.15, "calibration": 0.15, "blind_test": 0.1},
+    "cic_ddos2019_official_training": {"train": 0.7, "early_stop": 0.15, "calibration": 0.15, "blind_test": 0.0},
+    "cic_ddos2019_official_test": {"train": 0.0, "early_stop": 0.0, "calibration": 0.0, "blind_test": 1.0},
+    "ooc": {"train": 0.0, "early_stop": 0.0, "calibration": 0.0, "blind_test": 1.0},
+    "row_random_split": false,
+    "capture_family_cross_split": "reject"
+  },
+  "ground_truth": {
+    "join": "packet-timestamp-direction-aware-five-tuple-protocol",
+    "fit_coverage": 1.0,
+    "fit_benign_attack_share": 0.0,
+    "fit_attack_minimum_attack_share": 0.9,
+    "mixed_ambiguous_unknown": "evaluation-only",
+    "packet_denominator_required": true
+  },
+  "resource_limits": {
+    "sources": 16,
+    "records": 100000000,
+    "feature_bytes": 4800000000,
+    "sample_index_bytes": 10737418240,
+    "capture_families": 10000000,
+    "archive_files": 100000,
+    "archive_depth": 8,
+    "decompression_ratio": 100,
+    "sample_index_line_bytes": 16384
+  },
+  "module_e2e_scope": {
+    "small_deterministic_dataset_allowed": true,
+    "training_evaluation_export_packaging_must_be_real": true,
+    "official_full_corpus_required_for_production_quality": true,
+    "missing_official_full_corpus_result": "qualification-only-hold",
+    "module_fixture_must_not_claim_production_distribution": true
+  },
+  "security": {
+    "ordinary_files_only": true,
+    "reject_absolute_dotdot_symlink_hardlink_device_fifo_socket": true,
+    "reject_executable_content": true,
+    "raw_payload_in_git_or_ordinary_oci": false,
+    "legacy_direct_import": "reject"
+  },
+  "golden_catalog": "contracts/dataset/v1/golden/catalog.json",
+  "unknown_major": "reject",
+  "unverified_minor": "reject"
+}

@@ -1,0 +1,29 @@
+{
+  "schema_version": "dataset-p4-window-rejection-golden/v1",
+  "vectors": [
+    {
+      "id": "legacy-direct-import",
+      "input": {"source": "/home/lmhhh/MASI-NIDS/dataset", "kind": "legacy-csv-npy-model"},
+      "expected_result": "reject",
+      "reason": "legacy_direct_import"
+    },
+    {
+      "id": "capture-family-leak",
+      "input": {"capture_family_id": "capture-family-0000", "splits": ["train", "blind_test"]},
+      "expected_result": "reject",
+      "reason": "capture_family_cross_split"
+    },
+    {
+      "id": "invalid-window-zero-fill",
+      "input": {"final": true, "quality": "gap", "zero_fill": true},
+      "expected_result": "reject",
+      "reason": "invalid_window_cannot_be_fitted"
+    },
+    {
+      "id": "unknown-major",
+      "input": {"schema_version": "dataset-p4-window-binary/v2"},
+      "expected_result": "reject",
+      "reason": "unknown_major"
+    }
+  ]
+}

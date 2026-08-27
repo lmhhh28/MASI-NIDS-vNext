@@ -1,9 +1,36 @@
 /out/
 /evidence/
+/output/
 /.cache/
 /.masi-secrets/
 __pycache__/
 *.py[cod]
+.venv/
+.ruff_cache/
+.pyright/
+build/
+dist/
+*.egg-info/
 *.pcap
 *.log
 node_modules/
+.playwright-cli/
+
+# Module-gate evidence is generated per immutable run and is uploaded by CI.
+# Existing tracked evidence remains tracked; new runs must not silently enter a
+# source commit. contracts/evidence/ is intentionally not covered here because
+# it is the versioned schema source.
+/analysis-py/evidence/
+/control-go/evidence/
+/db/evidence/
+/edge-rs/evidence/
+/infer-cpp/evidence/
+/ml-py/evidence/
+/p4/evidence/
+/plugin-host-rs/evidence/
+/web/evidence/
+/testkit/**/evidence/
+
+# Browser and runner scratch output is never source.
+/*/output/
+/*/.playwright-cli/

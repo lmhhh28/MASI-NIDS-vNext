@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://masi-nids.example/contracts/evidence/offline-ml-supply/v1/schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "module_id", "level", "applicability", "source_revision", "source_tree_digest", "working_tree_status_digest", "working_tree_dirty", "image_ref", "image_id", "manifest_digest", "signature_bundle_digest", "public_key_digest", "dependency_packages", "scan_counts", "checks", "failure_reasons", "result", "qualification"],
+  "properties": {
+    "schema_version": {"const": "offline-ml-supply-chain-evidence/v1"},
+    "module_id": {"const": "MOD-ML-001"},
+    "level": {"const": "MODULE"},
+    "applicability": {"const": "APPLICABLE"},
+    "source_revision": {"type": "string", "pattern": "^[0-9a-f]{40,64}$"},
+    "source_tree_digest": {"$ref": "#/$defs/digest"},
+    "working_tree_status_digest": {"$ref": "#/$defs/digest"},
+    "working_tree_dirty": {"type": "boolean"},
+    "image_ref": {"type": "string", "minLength": 1},
+    "image_id": {"$ref": "#/$defs/digest"},
+    "manifest_digest": {"$ref": "#/$defs/digest"},
+    "signature_bundle_digest": {"$ref": "#/$defs/digest"},
+    "public_key_digest": {"$ref": "#/$defs/digest"},
+    "dependency_packages": {"type": "integer", "minimum": 10},
+    "scan_counts": {"type": "object", "additionalProperties": false, "required": ["critical_vulnerabilities", "fixable_high_vulnerabilities", "runtime_library_source_critical_vulnerabilities", "runtime_library_source_fixable_high_vulnerabilities", "runtime_library_source_secrets", "image_secrets", "source_secrets", "high_critical_misconfigurations"], "properties": {"critical_vulnerabilities": {"const": 0}, "fixable_high_vulnerabilities": {"const": 0}, "runtime_library_source_critical_vulnerabilities": {"const": 0}, "runtime_library_source_fixable_high_vulnerabilities": {"const": 0}, "runtime_library_source_secrets": {"const": 0}, "image_secrets": {"const": 0}, "source_secrets": {"const": 0}, "high_critical_misconfigurations": {"const": 0}}},
+    "checks": {"type": "object", "minProperties": 25, "additionalProperties": {"const": true}},
+    "failure_reasons": {"type": "array", "maxItems": 0},
+    "result": {"const": "PASS"},
+    "qualification": {"const": "NOT_QUALIFIED"}
+  },
+  "$defs": {"digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}}
+}

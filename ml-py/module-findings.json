@@ -1,0 +1,64 @@
+{
+  "schema_version": "module-findings/v1",
+  "module_id": "MOD-ML-001",
+  "decision_id": "DEC-044",
+  "reviewed_at": "2026-08-24T06:08:56Z",
+  "review_scope": "Offline ML contracts, dataset generation, three mandatory candidates and seeds, explanations, immutable repository, release/OCI, consumer, fault, performance, supply and soak gates",
+  "findings": [
+    {
+      "finding_id": "ML-REPOSITORY-READONLY-001",
+      "severity": "P1",
+      "status": "CLOSED",
+      "title": "Repository was made read-only before child creation",
+      "requirement_ids": ["SEC-004", "CONTRACT-MODEL-001"],
+      "evidence_refs": ["ml-py/src/masi_offline_ml/artifacts.py", "ml-py/tests/test_pipeline.py"],
+      "opened_at": "2026-08-24T02:30:00Z",
+      "closed_at": "2026-08-24T02:38:00Z",
+      "resolution": "Populate the repository under owner-only writable modes, then recursively freeze version/model/repository directories and all members before publication."
+    },
+    {
+      "finding_id": "ML-EXPLANATION-BINDING-001",
+      "severity": "P1",
+      "status": "CLOSED",
+      "title": "Explanation builder reused one contract digest set across candidates",
+      "requirement_ids": ["MOD-ML-001", "CONTRACT-MODEL-001"],
+      "evidence_refs": ["ml-py/src/masi_offline_ml/explanations.py", "ml-py/tests/test_models.py"],
+      "opened_at": "2026-08-24T02:30:00Z",
+      "closed_at": "2026-08-24T02:38:00Z",
+      "resolution": "Bind every explanation to the feature, label and output-adapter digests embedded and independently verified in that exact candidate ONNX metadata."
+    },
+    {
+      "finding_id": "ML-WHEEL-REPRODUCIBILITY-001",
+      "severity": "P1",
+      "status": "CLOSED",
+      "title": "First release wheel comparison observed stale build-state drift",
+      "requirement_ids": ["DEP-004", "CONTRACT-SUPPLY-001"],
+      "evidence_refs": ["ml-py/scripts/build-release-runtime.sh", "ml-py/scripts/prepare-wheelhouse.sh"],
+      "opened_at": "2026-08-24T02:56:00Z",
+      "closed_at": "2026-08-24T02:58:00Z",
+      "resolution": "Remove only exact setuptools-generated build and egg-info paths before both SOURCE_DATE_EPOCH-pinned builds; both wheel bytes and SHA-256 now match."
+    },
+    {
+      "finding_id": "ML-CRASH-STAGING-RECOVERY-001",
+      "severity": "P2",
+      "status": "CLOSED",
+      "title": "SIGKILL could leave a private staging directory",
+      "requirement_ids": ["TEST-007", "SEC-005"],
+      "evidence_refs": ["ml-py/src/masi_offline_ml/pipeline.py", "ml-py/scripts/run-faults.py"],
+      "opened_at": "2026-08-24T02:45:00Z",
+      "closed_at": "2026-08-24T02:49:00Z",
+      "resolution": "Write a PID plus process-start ownership marker, never publish partial output, and recover only a dead process exact-target staging tree on the next run."
+    },
+    {
+      "finding_id": "ML-CROSS-RUNTIME-IDENTITY-001",
+      "severity": "P1",
+      "status": "CLOSED",
+      "title": "Wolfi final runtime produced different immutable model identity than the release process",
+      "requirement_ids": ["CONTRACT-MODEL-001", "DEP-004"],
+      "evidence_refs": ["ml-py/Dockerfile", "contracts/profiles/v1/offline-ml-runtime.json", "ml-py/scripts/run-oci-smoke.py"],
+      "opened_at": "2026-08-24T05:56:00Z",
+      "closed_at": "2026-08-24T06:08:56Z",
+      "resolution": "Retain the vulnerability-clean distroless Debian glibc runtime, copy only exact-digest zlib and libffi files from a pinned zero-vulnerability Wolfi source image, and make release-to-OCI model, closure, and archive identity equality a required OCI gate."
+    }
+  ]
+}

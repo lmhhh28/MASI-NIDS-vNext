@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://masi-nids.example/contracts/evidence/offline-ml-soak/v1/schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "module_id", "level", "applicability", "result", "qualification", "mode", "profile_digest", "warmup", "configured_qualified_seconds", "observed_qualified_elapsed_ms", "overall_elapsed_ms", "phases", "successful_pipeline_runs", "recovery", "artifact_identity", "source_tree_digest_start", "source_tree_digest_end", "resource_trend", "checks", "cleanup_complete"],
+  "properties": {
+    "schema_version": {"const": "offline-ml-soak-evidence/v1"},
+    "module_id": {"const": "MOD-ML-001"},
+    "level": {"enum": ["MODULE", "REHEARSAL"]},
+    "applicability": {"const": "APPLICABLE"},
+    "result": {"const": "PASS"},
+    "qualification": {"const": "NOT_QUALIFIED"},
+    "mode": {"enum": ["formal", "rehearsal"]},
+    "profile_digest": {"$ref": "#/$defs/digest"},
+    "warmup": {"$ref": "#/$defs/phase"},
+    "configured_qualified_seconds": {"type": "integer", "minimum": 64, "maximum": 3600},
+    "observed_qualified_elapsed_ms": {"type": "number", "minimum": 64000},
+    "overall_elapsed_ms": {"type": "number", "minimum": 64000},
+    "phases": {"type": "array", "minItems": 4, "maxItems": 4, "prefixItems": [{"$ref": "#/$defs/steady"}, {"$ref": "#/$defs/peak"}, {"$ref": "#/$defs/saturation"}, {"$ref": "#/$defs/recoveryPhase"}]},
+    "successful_pipeline_runs": {"type": "integer", "minimum": 4},
+    "recovery": {"type": "object", "properties": {"result": {"const": "PASS"}, "sigterm_cleanup": {"const": true}, "sigkill_fenced": {"const": true}, "staging_recovered": {"const": 1}}, "required": ["result", "sigterm_cleanup", "sigkill_fenced", "staging_recovered"]},
+    "artifact_identity": {"type": "object", "minProperties": 4, "additionalProperties": {"type": "string"}},
+    "source_tree_digest_start": {"$ref": "#/$defs/digest"},
+    "source_tree_digest_end": {"$ref": "#/$defs/digest"},
+    "resource_trend": {"type": "object", "properties": {"growth_bytes": {"type": "number", "maximum": 134217728}}, "required": ["growth_bytes"]},
+    "checks": {"type": "object", "minProperties": 13, "additionalProperties": {"const": true}},
+    "cleanup_complete": {"const": true}
+  },
+  "allOf": [{"if": {"properties": {"mode": {"const": "formal"}}}, "then": {"properties": {"level": {"const": "MODULE"}, "configured_qualified_seconds": {"const": 3600}, "observed_qualified_elapsed_ms": {"minimum": 3600000}, "successful_pipeline_runs": {"minimum": 120}, "warmup": {"properties": {"configured_seconds": {"const": 60}}}}}}],
+  "$defs": {
+    "digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "phase": {"type": "object", "required": ["name", "configured_seconds", "observed_elapsed_ms", "successful_runs", "errors", "repository_digest_drifts", "peak_rss_bytes", "peak_file_descriptors", "resource_samples", "pipeline_elapsed_ms"], "properties": {"name": {"type": "string"}, "configured_seconds": {"type": "integer"}, "observed_elapsed_ms": {"type": "number"}, "successful_runs": {"type": "integer", "minimum": 1}, "errors": {"const": 0}, "repository_digest_drifts": {"const": 0}, "peak_rss_bytes": {"type": "integer", "maximum": 2147483648}, "peak_file_descriptors": {"type": "integer", "maximum": 256}, "resource_samples": {"type": "integer", "minimum": 1}, "pipeline_elapsed_ms": {"type": "array", "minItems": 1}}},
+    "steady": {"allOf": [{"$ref": "#/$defs/phase"}, {"properties": {"name": {"const": "steady"}}}]},
+    "peak": {"allOf": [{"$ref": "#/$defs/phase"}, {"properties": {"name": {"const": "peak"}}}]},
+    "saturation": {"allOf": [{"$ref": "#/$defs/phase"}, {"properties": {"name": {"const": "saturation"}}}]},
+    "recoveryPhase": {"allOf": [{"$ref": "#/$defs/phase"}, {"properties": {"name": {"const": "recovery"}}}]}
+  }
+}

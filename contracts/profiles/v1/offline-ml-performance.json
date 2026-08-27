@@ -1,0 +1,20 @@
+{
+  "schema_version": "offline-ml-performance/v1",
+  "module_id": "MOD-ML-001",
+  "dataset_profile": "dataset-p4-window-binary/v1",
+  "records_per_run": 2560,
+  "candidate_executions_per_run": 9,
+  "runs": 5,
+  "limits": {
+    "pipeline_p95_ms_max": 30000,
+    "pipeline_p99_ms_max": 40000,
+    "records_per_second_min": 64,
+    "peak_rss_bytes_max": 2147483648,
+    "peak_file_descriptors_max": 256,
+    "output_bytes_max": 67108864,
+    "repository_archive_bytes_max": 16777216,
+    "errors_max": 0
+  },
+  "runtime_profile": "offline-ml-runtime/v1",
+  "qualification_scope": "module-synthetic-fixture-cpu"
+}

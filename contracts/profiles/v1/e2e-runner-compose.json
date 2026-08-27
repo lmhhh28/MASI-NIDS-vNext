@@ -11,10 +11,11 @@
   "startup_deadline_seconds": 60,
   "test_case_deadline_seconds": 600,
   "total_deadline_seconds": 10800,
+  "supply_chain_minimum_free_bytes": 34359738368,
   "health_is_pass": false,
   "cleanup": "docker compose down --volumes --remove-orphans",
   "failure": "any command/oracle/evidence validation nonzero is FAIL; HOLD remains non-qualified",
-  "runtime_image": "masi-nids/p4-switch-runtime@sha256:8b8655c2fb7bc5563706ee853fb668ba70457633cda7d93633d022b30b7ead42",
+  "runtime_image": "masi-nids/p4-switch-runtime@sha256:24669f08df3583b0d170226f6969f1090235604ef6d5bb5e2b2bb06062d9a571",
   "compiler_image": "masi-nids/p4-switch-p4c@sha256:8c26666dfa1041b0f9a29b5051c92dbf4ce5df807273f80dd54b3aff5412c926",
   "runner_base_image": "python@sha256:42825e7ec3437b3bce923c237484eb23d32128476e18307d2f48951bf86f1db2",
   "runner_environment": {

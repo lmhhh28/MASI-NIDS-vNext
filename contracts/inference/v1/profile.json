@@ -181,8 +181,10 @@
     "ood_rule": "out_of_distribution iff maximum canonical normalized score is below output_adapter.ood_policy.threshold; OOD always forces abstain",
     "decision_values": ["benign", "alert", "abstain"],
     "quality_values": ["valid", "partial", "gap", "stale", "invalid", "reset", "not-covered", "not-measurable"],
+    "record_success_status": "OK",
     "canonical_score_encoding": "repeated float32 little-endian in canonical class order",
     "output_digest_preimage": "concatenated canonical float32-le scores",
+    "result_batch_digest_preimage": "ordered output_digest strings, each followed by one newline byte",
     "unqualified_adapter_id": "reject INCOMPATIBLE_CONTRACT before readiness",
     "unknown_score_domain": "reject INCOMPATIBLE_CONTRACT before readiness"
   },

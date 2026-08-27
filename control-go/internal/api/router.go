@@ -40,9 +40,10 @@ type Deps struct {
 	Secure         bool
 	RequestTimeout time.Duration
 	AcceptMutation func() bool
-	// TestLogin enables the test-only /oidc/test-login route that mints a session
-	// for caller-supplied identity. Set only in the test runtime profile; production
-	// never wires it. Authorization still flows through Mapping.
+	// TestLogin enables test-only session bootstrap routes. POST /oidc/test-login
+	// supports harness-supplied identities; when no OIDC client is configured,
+	// GET /oidc/login mints one fixed loopback-only browser fixture identity.
+	// Production never wires either behavior. Authorization still flows through Mapping.
 	TestLogin bool
 
 	// Wired subdomain services (constructed with the real pool at startup). The
@@ -74,8 +75,15 @@ type Deps struct {
 func Router(deps Deps, oidc *OIDCClient, store *SessionStore, hub *Hub, allowedOrigin string) http.Handler {
 	r := chi.NewRouter()
 
-	// OIDC (no session required to start login; callback verifies).
-	r.With(requestDeadline(deps.RequestTimeout)).Get("/oidc/login", handleLogin(oidc, store, deps.Secure))
+	// OIDC (no session required to start login; callback verifies). A test-profile
+	// process without an OIDC client exposes a fixed, loopback-only browser
+	// bootstrap so the human-facing CTA can enter the same bounded fixture session
+	// used by the browser harness. Production retains the normal OIDC-only path.
+	login := handleLogin(oidc, store, deps.Secure)
+	if deps.TestLogin && oidc == nil {
+		login = handleBrowserTestLogin(store, deps.Secure)
+	}
+	r.With(requestDeadline(deps.RequestTimeout)).Get("/oidc/login", login)
 	r.With(requestDeadline(deps.RequestTimeout)).Get("/oidc/callback", handleCallback(oidc, store, deps.Secure))
 	// Test-only session minting. Registered solely in the test runtime profile
 	// (deps.TestLogin); production never wires it. Mints identity only —
@@ -93,6 +101,7 @@ func Router(deps Deps, oidc *OIDCClient, store *SessionStore, hub *Hub, allowedO
 	r.Group(func(r chi.Router) {
 		r.Use(requestDeadline(deps.RequestTimeout))
 		r.Use(requireSession(store))
+		r.Get("/api/dashboard", handleGetDashboard(deps))
 		r.Get("/api/events", handleListEvents(deps))
 		r.Get("/api/events/{id}", handleGetEvent(deps))
 		r.Get("/api/incidents", handleListIncidents(deps))
@@ -140,7 +149,9 @@ func Router(deps Deps, oidc *OIDCClient, store *SessionStore, hub *Hub, allowedO
 		r.Get("/api/plugins/statistics/schedules/{scheduleID}/history", handleGetPluginStatScheduleHistory(deps))
 		r.Get("/api/plugins/statistics/artifacts/{artifactID}", handleGetPluginStatArtifact(deps))
 		r.Get("/api/analysis/tasks", handleListAnalysisTasks(deps))
+		r.Get("/api/analysis/artifacts", handleListAnalysisArtifacts(deps))
 		r.Get("/api/analysis/artifacts/{artifactID}", handleGetAnalysisArtifact(deps))
+		r.Get("/api/audit", handleListAudit(deps))
 	})
 
 	// Mutations: session + Origin + CSRF + server-side scope authorization.
@@ -518,7 +529,9 @@ func handleListModelBindings(deps Deps) http.HandlerFunc {
 		`SELECT count(*) FROM shard_bindings WHERE scope=ANY($1)`,
 		`SELECT jsonb_build_object('shard_id',shard_id,'logical_pool_id',logical_pool_id,
 		 'current_generation',current_generation,'current_binding_generation',current_binding_generation,
-		 'current_revision_id',current_revision_id,'route_epoch',route_epoch,'resume_state',resume_state),shard_id
+		 'current_revision_id',current_revision_id,'previous_generation',previous_generation,
+		 'previous_binding_generation',previous_binding_generation,'previous_revision_id',previous_revision_id,
+		 'route_epoch',route_epoch,'resume_state',resume_state,'loaded',loaded,'ready',ready),shard_id
 		 FROM shard_bindings WHERE scope=ANY($1) AND ($3::text='' OR shard_id>$3) ORDER BY shard_id LIMIT $2`)
 }
 
@@ -751,9 +764,47 @@ func handleListIntents(deps Deps) http.HandlerFunc {
 func handleListTargets(deps Deps) http.HandlerFunc {
 	return scopedJSONList(deps, "target",
 		`SELECT count(*) FROM targets WHERE scope=ANY($1)`,
-		`SELECT jsonb_build_object('target_id',target_id,'lifecycle',status,'device_id',device_id,
-		 'role',role,'desired_profile_digest',desired_profile_digest),target_id
-		 FROM targets WHERE scope=ANY($1) AND ($3::text='' OR target_id>$3) ORDER BY target_id LIMIT $2`)
+		`SELECT jsonb_build_object(
+			 'target_id',t.target_id,'display_name',t.display_name,'p4runtime_endpoint',t.p4runtime_endpoint,
+			 'lifecycle',t.status,'device_id',t.device_id,'role',t.role,
+			 'desired_profile_digest',t.desired_profile_digest,'provenance',t.provenance,
+			 'assignment_generation',a.assignment_generation,'lease_expires_at_unix_ms',a.expires_at_unix_ms,
+			 'lease_state',CASE WHEN a.target_id IS NULL THEN 'unassigned' WHEN a.revoked_at_unix_ms IS NOT NULL THEN 'revoked'
+			   WHEN a.expires_at_unix_ms <= (extract(epoch from clock_timestamp())*1000)::bigint THEN 'expired' ELSE 'assigned' END,
+			 'application_generation',o.application_generation,'observed_profile_digest',o.profile_digest,
+			 'p4info_digest',o.p4info_digest,'freshness',COALESCE(o.freshness,'not-observed'),
+			 'profile_alignment',CASE WHEN o.target_id IS NULL THEN 'not-observed'
+			   WHEN o.profile_digest=t.desired_profile_digest THEN 'exact' ELSE 'drift' END,
+			 'p4_connected',COALESCE(o.p4_connected,false),'primary_actor',COALESCE(o.primary_actor,false),
+			 'assignment',CASE WHEN a.target_id IS NULL THEN NULL ELSE jsonb_build_object(
+			   'assignment_generation',a.assignment_generation,'incarnation_id',a.incarnation_id,
+			   'edge_workload_ref',a.edge_workload_ref,'lease_id',a.lease_id,
+			   'issued_at_unix_ms',a.issued_at_unix_ms,'expires_at_unix_ms',a.expires_at_unix_ms,
+			   'election_floor',a.election_floor,'election_ceiling',a.election_ceiling,
+			   'actor_runtime_epoch',a.actor_runtime_epoch,'application_generation',a.application_generation,
+			   'actor_ref',a.actor_ref,'revoked_at_unix_ms',a.revoked_at_unix_ms) END,
+			 'observation',CASE WHEN o.target_id IS NULL THEN NULL ELSE jsonb_build_object(
+			   'observation_id',o.observation_id,'observation_digest',o.observation_digest,
+			   'target_control_incarnation_id',o.target_control_incarnation_id,
+			   'assignment_generation',o.assignment_generation,'actor_runtime_epoch',o.actor_runtime_epoch,
+			   'application_generation',o.application_generation,'profile_digest',o.profile_digest,
+			   'p4info_digest',o.p4info_digest,'pipeline_digest',o.pipeline_digest,
+			   'capacity_digest',o.capacity_digest,'capacity_available',o.capacity_available,
+			   'lease_valid',o.lease_valid,'p4_connected',o.p4_connected,'primary_actor',o.primary_actor,
+			   'pipeline_exact',o.pipeline_exact,'freshness',o.freshness,'reason_code',o.reason_code,
+			   'last_successful_read_unix_ms',o.last_successful_read_unix_ms,
+			   'observed_at_unix_ms',o.observed_at_unix_ms,'expires_at_unix_ms',o.expires_at_unix_ms) END,
+			 'latest_lifecycle_audit',CASE WHEN l.event_id IS NULL THEN NULL ELSE jsonb_build_object(
+			   'event_id',l.event_id,'previous_status',l.previous_status,'new_status',l.new_status,
+			   'actor_ref',l.actor_ref,'reason_code',l.reason_code,'trace_id',l.trace_id,
+			   'occurred_at_unix_ms',l.occurred_at_unix_ms) END),t.target_id
+			 FROM targets t
+			 LEFT JOIN LATERAL (SELECT x.* FROM target_assignments x WHERE x.target_id=t.target_id
+			   ORDER BY x.assignment_generation DESC LIMIT 1) a ON true
+			 LEFT JOIN target_capability_observations o ON o.target_id=t.target_id
+			 LEFT JOIN LATERAL (SELECT x.* FROM target_lifecycle_events x WHERE x.target_id=t.target_id
+			   ORDER BY x.occurred_at_unix_ms DESC,x.event_id DESC LIMIT 1) l ON true
+			 WHERE t.scope=ANY($1) AND ($3::text='' OR t.target_id>$3) ORDER BY t.target_id LIMIT $2`)
 }
 
 func handleListBoundedCaptures(deps Deps) http.HandlerFunc {
@@ -784,11 +835,34 @@ func handleListRuleEffectiveness(deps Deps) http.HandlerFunc {
 		`SELECT count(*) FROM rule_observations ro JOIN rule_observation_epochs e ON e.epoch_id=ro.epoch_id
 		 JOIN effect_intents i ON i.effect_intent_id=e.effect_intent_id
 		 JOIN effect_proposals p ON p.proposal_id=i.proposal_id WHERE p.scope=ANY($1)`,
-		`SELECT jsonb_build_object('rule_id',e.rule_id,'quality_status',ro.quality_status,
-		 'rate',ro.rate,'coverage',ro.coverage,'outcome_status',ro.outcome_status),e.epoch_id
+		`SELECT jsonb_build_object(
+		 'epoch_id',e.epoch_id,'rule_id',e.rule_id,'target_id',e.target_id,
+		 'quality_status',ro.quality_status,'rate',ro.rate,'coverage',ro.coverage,
+		 'outcome_status',ro.outcome_status,
+		 'installation',jsonb_build_object(
+		   'status',e.installation_readback,'observation_epoch',e.observation_epoch,
+		   'reset_epoch',e.reset_epoch,'readback',jsonb_build_object(
+		     'status',a.status,'expected_entries',a.expected_entries,
+		     'observed_entries',a.observed_entries,'mismatched_entries',a.mismatched_entries,
+		     'active_bank',a.active_bank)),
+		 'dataplane',jsonb_build_object(
+		   'formula','direct_delta/eligible_delta','direct_packets',ro.direct_delta_packets,
+		   'direct_bytes',ro.direct_delta_bytes,'eligible_packets',ro.eligible_delta_packets,
+		   'packet_match_ratio',ro.rate,'quality',ro.quality_status,
+		   'quality_reasons',ro.quality_reasons,'coverage',ro.coverage,
+		   'read_completed_at_unix_ms',ro.read_completed_at_unix_ms),
+		 'outcome',jsonb_build_object(
+		   'status',ro.outcome_status,'expected',ro.outcome_expected,'actual',ro.outcome_actual)
+		 ),e.epoch_id
 		 FROM rule_observations ro JOIN rule_observation_epochs e ON e.epoch_id=ro.epoch_id
 		 JOIN effect_intents i ON i.effect_intent_id=e.effect_intent_id
-		 JOIN effect_proposals p ON p.proposal_id=i.proposal_id WHERE p.scope=ANY($1)
+		 JOIN effect_proposals p ON p.proposal_id=i.proposal_id
+		 LEFT JOIN LATERAL (
+		   SELECT ea.status,ea.expected_entries,ea.observed_entries,ea.mismatched_entries,ea.active_bank
+		   FROM effect_attempts ea WHERE ea.intent_id=e.effect_intent_id
+		     AND ea.operation_id=e.operation_id AND ea.status='applied'
+		   ORDER BY ea.attempt_number DESC LIMIT 1
+		 ) a ON true WHERE p.scope=ANY($1)
 		 AND ($3::text='' OR e.epoch_id>$3) ORDER BY e.epoch_id LIMIT $2`)
 }
 
@@ -810,6 +884,42 @@ func handleListAnalysisTasks(deps Deps) http.HandlerFunc {
 		 'remote_task_id',remote_task_id,'updated_at_unix_ms',updated_at_unix_ms),task_id
 		 FROM analysis_task_requests WHERE scope=ANY($1) AND ($3::text='' OR task_id>$3)
 		 ORDER BY task_id LIMIT $2`)
+}
+
+func handleListAnalysisArtifacts(deps Deps) http.HandlerFunc {
+	return scopedJSONList(deps, "analysis-artifact",
+		`SELECT count(*) FROM analysis_artifacts WHERE scope=ANY($1)`,
+		`SELECT jsonb_build_object('artifact_id',artifact_id,'task_id',task_id,'plugin_id',plugin_id,
+		 'binding_generation',binding_generation,'artifact_digest',artifact_digest,'media_type',media_type,
+		 'analysis_outcome',analysis_outcome,'non_executable',non_executable,
+		 'deployment_eligible',deployment_eligible,'created_at_unix_ms',created_at_unix_ms),artifact_id
+		 FROM analysis_artifacts WHERE scope=ANY($1) AND ($3::text='' OR artifact_id>$3)
+		 ORDER BY artifact_id LIMIT $2`)
+}
+
+func handleListAudit(deps Deps) http.HandlerFunc {
+	return scopedJSONList(deps, "audit",
+		`SELECT count(*) FROM (
+		 SELECT audit_id FROM plugin_audit_events WHERE scope=ANY($1)
+		 UNION ALL SELECT audit_id FROM mcp_access_audit WHERE scope=ANY($1)
+		 UNION ALL SELECT evidence_id FROM evidence_refs WHERE scope=ANY($1) AND kind='audit'
+		) audit_facts`,
+		`SELECT item,audit_key FROM (
+		 SELECT jsonb_build_object('audit_id',audit_id,'category','plugin-lifecycle','subject_id',plugin_id,
+		   'action',action,'outcome','recorded','reason_code',reason_code,'actor_ref',actor_ref,
+		   'trace_id',trace_id,'created_at_unix_ms',(extract(epoch FROM created_at)*1000)::bigint) AS item,
+		   audit_id AS audit_key FROM plugin_audit_events WHERE scope=ANY($1)
+		 UNION ALL
+		 SELECT jsonb_build_object('audit_id',audit_id,'category','mcp-readonly','subject_id',plugin_id,
+		   'action',method,'outcome',outcome,'reason_code',reason_code,'trace_id',trace_id,
+		   'created_at_unix_ms',created_at_unix_ms),audit_id
+		   FROM mcp_access_audit WHERE scope=ANY($1)
+		 UNION ALL
+		 SELECT jsonb_build_object('audit_id',evidence_id,'category','evidence','subject_id',source,
+		   'action',kind,'outcome','recorded','reason_code','AUDIT_EVIDENCE','trace_id',trace_id,
+		   'created_at_unix_ms',(extract(epoch FROM created_at)*1000)::bigint),evidence_id
+		   FROM evidence_refs WHERE scope=ANY($1) AND kind='audit'
+		) audit_facts WHERE ($3::text='' OR audit_key>$3) ORDER BY audit_key LIMIT $2`)
 }
 
 func handleGetAnalysisArtifact(deps Deps) http.HandlerFunc {

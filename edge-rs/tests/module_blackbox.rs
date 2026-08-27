@@ -25,17 +25,19 @@ use masi_edge::{
     contract::edge::{
         AcknowledgeEffectRequest, ActorState, AssignTargetRequest, BaselineRule,
         CommitRouteRequest, ConfigureRuleObservationsRequest, DataQuality, EffectIntent,
-        EffectKind, EffectStatus, Fence, FirewallAction, GetStatusRequest, InferenceRoute,
-        InstallationReadbackStatus, Ipv4Prefix, ObservableRule, OptionalUint32, P4WriteAtomicity,
-        PipelineIdentity, PreflightEffectRequest, PrepareRouteRequest, RenewTargetRequest,
-        ResumeRouteRequest, SourceWalRecord, SourceWalStage, SupplementalHint, TargetAssignment,
-        TlsClientIdentity, edge_control_client::EdgeControlClient,
+        EffectKind, EffectStatus, Fence, FirewallAction, GetStatusRequest,
+        InferenceExecutionStatus, InferenceRoute, InstallationReadbackStatus, Ipv4Prefix,
+        ObservableRule, OptionalUint32, P4WriteAtomicity, PipelineIdentity, PreflightEffectRequest,
+        PrepareRouteRequest, RenewTargetRequest, ResumeRouteRequest, SourceWalRecord,
+        SourceWalStage, SupplementalHint, TargetAssignment, TlsClientIdentity,
+        edge_control_client::EdgeControlClient,
     },
     contract::p4::{CounterData, DigestList, PacketIn, PacketMetadata},
     digest, firewall,
     wal::{DurableWal, WalKind, WalLimits},
 };
 use prost::Message as _;
+use serde::Deserialize;
 use serde_json::json;
 use support::{
     FakeControl, FakeInference, FakeP4, IdentityPaths, PIPELINE_COOKIE, TestPki,
@@ -55,6 +57,126 @@ use tonic::transport::{
 const FEATURE_PROFILE_BYTES: &[u8] = b"edge-feature-window-module-v1";
 const TELEMETRY_PROFILE_BYTES: &[u8] = b"telemetry-source-module-v1";
 static RESERVED_TEST_PORTS: OnceLock<Mutex<HashSet<u16>>> = OnceLock::new();
+
+#[derive(Debug, Deserialize)]
+struct ExternalCentralRuntime {
+    schema_version: String,
+    state: String,
+    gateway_endpoint: String,
+    tls: ExternalCentralTls,
+    binding_readback: ExternalBindingReadback,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct ExternalCentralTls {
+    server_name: String,
+    client_san: String,
+    ca_path: PathBuf,
+    client_cert_path: PathBuf,
+    client_key_path: PathBuf,
+}
+
+#[derive(Debug, Deserialize)]
+struct ExternalBindingReadback {
+    logical_pool_id: String,
+    pool_generation: String,
+    binding_generation: String,
+    model_revision_digest: String,
+    feature_contract_digest: String,
+    label_contract_digest: String,
+    output_adapter_digest: String,
+    runtime_profile: String,
+    worker_id: String,
+    worker_digest: String,
+    schema_version: String,
+    model_control_incarnation_id: String,
+    operation_id: String,
+    startup_envelope_digest: String,
+    model_bundle_digest: String,
+    wire_profile: String,
+    wire_profile_digest: String,
+    runtime_profile_digest: String,
+    optimization_profile_digest: String,
+    pool_observation_digest: String,
+    binding_digest: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct ExternalControlRuntime {
+    schema_version: String,
+    state: String,
+    grpc_endpoint: String,
+    tls: ExternalControlTls,
+    event_evidence_path: PathBuf,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct ExternalControlTls {
+    server_name: String,
+    client_san: String,
+    ca_path: PathBuf,
+    client_cert_path: PathBuf,
+    client_key_path: PathBuf,
+}
+
+#[derive(Debug, Deserialize)]
+struct ExternalControlEvent {
+    schema_version: String,
+    event_id: String,
+    event_idempotency_key: String,
+    input_digest: String,
+    output_digest: String,
+    worker_id: String,
+    worker_digest: String,
+    commit_status: String,
+    event_count: u64,
+    incident_count: u64,
+}
+
+#[derive(Debug, Deserialize)]
+struct ExternalP4Runtime {
+    schema_version: String,
+    state: String,
+    p4runtime_endpoint: String,
+    tls: ExternalP4Tls,
+    pipeline: ExternalP4Pipeline,
+    edge_ready_path: PathBuf,
+    traffic_done_path: PathBuf,
+    expected_traffic_packets: u64,
+}
+
+#[derive(Debug, Deserialize)]
+struct ExternalTrafficReceipt {
+    schema_version: String,
+    packet_count: u64,
+    peer_packet_count: u64,
+    started_at_unix_ns: u64,
+    finished_at_unix_ns: u64,
+    p4runtime_credentials_present: bool,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct ExternalP4Tls {
+    server_name: String,
+    client_san: String,
+    ca_path: PathBuf,
+    client_cert_path: PathBuf,
+    client_key_path: PathBuf,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct ExternalP4Pipeline {
+    p4runtime_api_version: String,
+    p4info_digest: String,
+    device_config_digest: String,
+    profile_digest: String,
+    cookie: u64,
+    supported_write_atomicity: Vec<String>,
+}
 
 #[derive(Debug)]
 struct Topology {
@@ -147,6 +269,21 @@ impl Topology {
             .stdin(Stdio::null())
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
+            .kill_on_drop(true)
+            .spawn()?)
+    }
+
+    fn spawn_edge_inherited_output(&self) -> Result<Child, Box<dyn Error>> {
+        let binary = std::env::var_os("CARGO_BIN_EXE_masi-edge")
+            .map(PathBuf::from)
+            .ok_or("Cargo did not expose the masi-edge binary")?;
+        self.release_edge_listener_reservation()?;
+        Ok(Command::new(binary)
+            .arg("--config")
+            .arg(&self.config_path)
+            .stdin(Stdio::null())
+            .stdout(Stdio::inherit())
+            .stderr(Stdio::inherit())
             .kill_on_drop(true)
             .spawn()?)
     }
@@ -529,6 +666,52 @@ fn route(target_index: usize, inference_address: &SocketAddr) -> InferenceRoute 
     }
 }
 
+fn external_central_route(
+    target_index: usize,
+    runtime: &ExternalCentralRuntime,
+) -> Result<InferenceRoute, Box<dyn Error>> {
+    let readback = &runtime.binding_readback;
+    if runtime.schema_version != "central-inference-oci-runtime-export/v1"
+        || runtime.state != "READY"
+        || readback.schema_version != "inference-committed-binding/v1"
+        || runtime.tls.client_san != "masi-edge.test"
+    {
+        return Err("external Central runtime identity/profile mismatch".into());
+    }
+    Ok(InferenceRoute {
+        schema_version: "inference-route/v1".into(),
+        shard_id: format!("target-{target_index}"),
+        model_control_incarnation_id: readback.model_control_incarnation_id.clone(),
+        logical_pool_id: readback.logical_pool_id.clone(),
+        pool_generation: readback.pool_generation.parse()?,
+        binding_generation: readback.binding_generation.parse()?,
+        route_epoch: 1,
+        model_revision_digest: readback.model_revision_digest.clone(),
+        feature_contract_digest: readback.feature_contract_digest.clone(),
+        label_contract_digest: readback.label_contract_digest.clone(),
+        output_adapter_digest: readback.output_adapter_digest.clone(),
+        wire_profile: readback.wire_profile.clone(),
+        runtime_profile: readback.runtime_profile.clone(),
+        endpoint: runtime.gateway_endpoint.clone(),
+        tls: Some(TlsClientIdentity {
+            server_name: runtime.tls.server_name.clone(),
+            identity_ref: "inference-client".into(),
+        }),
+        operation_id: readback.operation_id.clone(),
+        scope: "scope-e2e".into(),
+        expected_binding_generation: 0,
+        proposed_binding_generation: readback.binding_generation.parse()?,
+        current_binding_generation: readback.binding_generation.parse()?,
+        startup_envelope_digest: readback.startup_envelope_digest.clone(),
+        pool_observation_digest: readback.pool_observation_digest.clone(),
+        binding_digest: readback.binding_digest.clone(),
+        model_bundle_digest: readback.model_bundle_digest.clone(),
+        wire_profile_digest: readback.wire_profile_digest.clone(),
+        runtime_profile_digest: readback.runtime_profile_digest.clone(),
+        optimization_profile_digest: readback.optimization_profile_digest.clone(),
+    })
+}
+
 fn resume_request(route: &InferenceRoute, trace_id: &str) -> ResumeRouteRequest {
     ResumeRouteRequest {
         schema_version: "inference-committed-binding/v1".into(),
@@ -577,7 +760,7 @@ fn assignment(target_index: usize, p4_address: SocketAddr) -> TargetAssignment {
         election_floor,
         election_ceiling: election_floor + 9_999,
         expected_pipeline: Some(PipelineIdentity {
-            p4runtime_api_version: "1.3.0".into(),
+            p4runtime_api_version: "1.4.1".into(),
             p4info_digest: digest::sha256(&p4info_bytes()),
             device_config_digest: digest::sha256(&device_config_bytes()),
             profile_digest: digest::sha256(b"p4-profile-module-v1"),
@@ -588,6 +771,55 @@ fn assignment(target_index: usize, p4_address: SocketAddr) -> TargetAssignment {
         reset_epoch: 1,
         trace_id: format!("assign-target-{}", target_index),
     }
+}
+
+fn external_p4_assignment(runtime: &ExternalP4Runtime) -> Result<TargetAssignment, Box<dyn Error>> {
+    if runtime.schema_version != "bmv2-edge-runtime-export/v1"
+        || runtime.state != "READY"
+        || runtime.tls.server_name != "masi-switch"
+        || runtime.tls.client_san != "masi-p4-e2e-controller"
+        || runtime.pipeline.supported_write_atomicity.as_slice() != ["CONTINUE_ON_ERROR"]
+        || runtime.expected_traffic_packets == 0
+        || runtime.expected_traffic_packets > 4_096
+    {
+        return Err("external BMv2 runtime identity/profile mismatch".into());
+    }
+    let now = unix_ms();
+    Ok(TargetAssignment {
+        schema_version: "target-assignment/v1".into(),
+        target_id: "target-0".into(),
+        device_id: 1,
+        role: "default".into(),
+        p4runtime_endpoint: runtime.p4runtime_endpoint.clone(),
+        p4runtime_tls: Some(TlsClientIdentity {
+            server_name: runtime.tls.server_name.clone(),
+            identity_ref: "p4-client".into(),
+        }),
+        fence: Some(Fence {
+            target_control_incarnation_id: "target-control-bmv2-rehearsal-1".into(),
+            target_assignment_generation: 1,
+            actor_runtime_epoch: String::new(),
+            application_generation: 1,
+            election_id_high: 0,
+            election_id_low: 1_000_001,
+        }),
+        lease_id: "lease-bmv2-rehearsal-1".into(),
+        issued_at_unix_ms: now,
+        expires_at_unix_ms: now + 300_000,
+        election_floor: 1_000_000,
+        election_ceiling: 1_009_999,
+        expected_pipeline: Some(PipelineIdentity {
+            p4runtime_api_version: runtime.pipeline.p4runtime_api_version.clone(),
+            p4info_digest: runtime.pipeline.p4info_digest.clone(),
+            device_config_digest: runtime.pipeline.device_config_digest.clone(),
+            profile_digest: runtime.pipeline.profile_digest.clone(),
+            cookie: runtime.pipeline.cookie,
+            supported_write_atomicity: vec![P4WriteAtomicity::ContinueOnError as i32],
+        }),
+        observation_epoch: 1,
+        reset_epoch: 1,
+        trace_id: "assign-real-bmv2-target-0".into(),
+    })
 }
 
 fn baseline_effect(assignment: &TargetAssignment, operation: &str, rules: usize) -> EffectIntent {
@@ -1058,6 +1290,42 @@ async fn wait_for_commits(control: &FakeControl, minimum: usize) -> Result<(), B
     }
 }
 
+async fn wait_for_external_control_event(
+    runtime: &ExternalControlRuntime,
+) -> Result<ExternalControlEvent, Box<dyn Error>> {
+    if runtime.schema_version != "control-core-acceptance-runtime/v1"
+        || runtime.state != "READY"
+        || runtime.tls.client_san != "edge-e2e"
+    {
+        return Err("external Control runtime identity/profile mismatch".into());
+    }
+    let deadline = Instant::now() + Duration::from_secs(30);
+    loop {
+        if runtime.event_evidence_path.is_file() {
+            let event: ExternalControlEvent =
+                serde_json::from_slice(&fs::read(&runtime.event_evidence_path)?)?;
+            if event.schema_version != "go-event-commit-observation/v1"
+                || event.event_id.is_empty()
+                || event.event_idempotency_key.is_empty()
+                || event.commit_status != "committed"
+                || event.event_count != 1
+                || event.incident_count > 1
+                || event.worker_id.is_empty()
+            {
+                return Err("external Control Event evidence is invalid".into());
+            }
+            digest::validate_sha256(&event.input_digest, "event.input_digest")?;
+            digest::validate_sha256(&event.output_digest, "event.output_digest")?;
+            digest::validate_sha256(&event.worker_digest, "event.worker_digest")?;
+            return Ok(event);
+        }
+        if Instant::now() >= deadline {
+            return Err("timed out waiting for real Go/PostgreSQL Event commit".into());
+        }
+        sleep(Duration::from_millis(50)).await;
+    }
+}
+
 async fn wait_for_target_state(
     client: &mut EdgeControlClient<Channel>,
     target_id: &str,
@@ -1202,6 +1470,615 @@ async fn terminate(child: &mut Child) -> Result<(), Box<dyn Error>> {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn real_edge_routes_to_real_central_triton() -> Result<(), Box<dyn Error>> {
+    let Some(runtime_path) = std::env::var_os("MASI_EDGE_REAL_CENTRAL_RUNTIME") else {
+        return Ok(());
+    };
+    let evidence_path = std::env::var_os("MASI_EDGE_REAL_CENTRAL_EVIDENCE")
+        .map(PathBuf::from)
+        .ok_or("MASI_EDGE_REAL_CENTRAL_EVIDENCE is required")?;
+    if evidence_path.exists() || evidence_path.is_symlink() {
+        return Err("real Central evidence path must be fresh".into());
+    }
+    let keep_alive = std::env::var_os("MASI_EDGE_KEEP_ALIVE_TOKEN")
+        .map(PathBuf::from)
+        .map(|stop_token| {
+            if !stop_token.is_absolute() {
+                return Err("MASI_EDGE_KEEP_ALIVE_TOKEN must be absolute".into());
+            }
+            if stop_token.exists() || stop_token.is_symlink() {
+                return Err("Edge keep-alive stop token must be fresh".into());
+            }
+            let seconds = std::env::var("MASI_EDGE_KEEP_ALIVE_SECONDS")
+                .map_err(|_| "MASI_EDGE_KEEP_ALIVE_SECONDS is required with a stop token")?
+                .parse::<u64>()?;
+            if !(60..=22_800).contains(&seconds) {
+                return Err("MASI_EDGE_KEEP_ALIVE_SECONDS must be in 60..22800".into());
+            }
+            Ok::<_, Box<dyn Error>>((stop_token, Duration::from_secs(seconds)))
+        })
+        .transpose()?;
+    let runtime: ExternalCentralRuntime =
+        serde_json::from_slice(&fs::read(PathBuf::from(runtime_path))?)?;
+    let external_control = std::env::var_os("MASI_EDGE_REAL_CONTROL_RUNTIME")
+        .map(PathBuf::from)
+        .map(fs::read)
+        .transpose()?
+        .map(|raw| serde_json::from_slice::<ExternalControlRuntime>(&raw))
+        .transpose()?;
+    let external_p4 = std::env::var_os("MASI_EDGE_REAL_P4_RUNTIME")
+        .map(PathBuf::from)
+        .map(fs::read)
+        .transpose()?
+        .map(|raw| serde_json::from_slice::<ExternalP4Runtime>(&raw))
+        .transpose()?;
+    let exact_route = external_central_route(0, &runtime)?;
+    let topology = Topology::new(1, 0, 0).await?;
+    topology.rewrite_config(|config| {
+        config.feature_profile_digest = runtime.binding_readback.feature_contract_digest.clone();
+        config.client_identities.insert(
+            "inference-client".into(),
+            ClientTlsConfig {
+                ca_path: runtime.tls.ca_path.clone(),
+                certificate_path: runtime.tls.client_cert_path.clone(),
+                private_key_path: runtime.tls.client_key_path.clone(),
+                server_name: runtime.tls.server_name.clone(),
+                identity_ref: "inference-client".into(),
+            },
+        );
+        if let Some(control) = external_control.as_ref() {
+            config.limits.telemetry_poll_interval_ms = 1_000;
+            config.control_sink = ControlSinkConfig {
+                endpoint: control.grpc_endpoint.clone(),
+                tls: ClientTlsConfig {
+                    ca_path: control.tls.ca_path.clone(),
+                    certificate_path: control.tls.client_cert_path.clone(),
+                    private_key_path: control.tls.client_key_path.clone(),
+                    server_name: control.tls.server_name.clone(),
+                    identity_ref: "control-client".into(),
+                },
+            };
+        }
+        if let Some(p4) = external_p4.as_ref() {
+            config.limits.telemetry_poll_interval_ms = 5_000;
+            config.client_identities.insert(
+                "p4-client".into(),
+                ClientTlsConfig {
+                    ca_path: p4.tls.ca_path.clone(),
+                    certificate_path: p4.tls.client_cert_path.clone(),
+                    private_key_path: p4.tls.client_key_path.clone(),
+                    server_name: p4.tls.server_name.clone(),
+                    identity_ref: "p4-client".into(),
+                },
+            );
+        }
+    })?;
+    let mut child = topology.spawn_edge_inherited_output()?;
+    let mut client = topology.client().await?;
+    let mut assigned = if let Some(p4) = external_p4.as_ref() {
+        external_p4_assignment(p4)?
+    } else {
+        assignment(0, topology.p4_server.address)
+    };
+    let assignment_reply = client
+        .assign_target(AssignTargetRequest {
+            assignment: Some(assigned.clone()),
+        })
+        .await?
+        .into_inner();
+    if assignment_reply.state != ActorState::Primary as i32 {
+        return Err(format!(
+            "real Central target did not become primary: {}",
+            assignment_reply.reason_code
+        )
+        .into());
+    }
+    assigned
+        .fence
+        .as_mut()
+        .ok_or("real Central assignment fence missing")?
+        .actor_runtime_epoch = assignment_reply.actor_runtime_epoch;
+    client
+        .prepare_route(PrepareRouteRequest {
+            schema_version: "inference-route-prepare/v1".into(),
+            shard_id: assigned.target_id.clone(),
+            current_model_control_incarnation_id: String::new(),
+            current_route_epoch: 0,
+            proposed_route_epoch: 1,
+            trace_id: "real-central-prepare".into(),
+        })
+        .await?;
+    let commit = client
+        .commit_route(CommitRouteRequest {
+            route: Some(exact_route.clone()),
+            trace_id: "real-central-commit".into(),
+        })
+        .await?
+        .into_inner();
+    if commit.state != "ready" {
+        return Err(format!("real Central route commit state={}", commit.state).into());
+    }
+    let resume = client
+        .resume_route(resume_request(&exact_route, "real-central-resume"))
+        .await?
+        .into_inner();
+    if resume.state != "active" {
+        return Err(format!("real Central route resume state={}", resume.state).into());
+    }
+    let external_traffic = if let Some(p4) = external_p4.as_ref() {
+        let mut ready = OpenOptions::new()
+            .create_new(true)
+            .write(true)
+            .open(&p4.edge_ready_path)?;
+        ready.write_all(b"READY\n")?;
+        ready.sync_all()?;
+        let traffic_deadline = Instant::now() + Duration::from_secs(30);
+        while !p4.traffic_done_path.is_file() {
+            if Instant::now() >= traffic_deadline {
+                return Err("connected detection traffic sender did not complete".into());
+            }
+            sleep(Duration::from_millis(20)).await;
+        }
+        let traffic: ExternalTrafficReceipt =
+            serde_json::from_slice(&fs::read(&p4.traffic_done_path)?)?;
+        if traffic.schema_version != "bmv2-traffic-sender/v1"
+            || traffic.packet_count != p4.expected_traffic_packets
+            || traffic.peer_packet_count < p4.expected_traffic_packets
+            || traffic.p4runtime_credentials_present
+        {
+            return Err("connected detection traffic receipt is invalid".into());
+        }
+        let source_wal_at_traffic_done = client
+            .get_status(GetStatusRequest {
+                target_id: assigned.target_id.clone(),
+                trace_id: "connected-traffic-done".into(),
+            })
+            .await?
+            .into_inner()
+            .targets
+            .into_iter()
+            .next()
+            .ok_or("connected traffic-done target status missing")?
+            .source_wal_bytes;
+        wait_for_source_wal_growth(&mut client, &assigned.target_id, source_wal_at_traffic_done)
+            .await?;
+        Some(traffic)
+    } else {
+        None
+    };
+    let (
+        canonical_commit_batches,
+        canonical_commit_attempts,
+        worker_id,
+        worker_digest,
+        output_digest,
+        control_sink_kind,
+    ) = if let Some(control) = external_control.as_ref() {
+        let event = match wait_for_external_control_event(control).await {
+            Ok(event) => event,
+            Err(wait_error) => {
+                let status = client
+                    .get_status(GetStatusRequest {
+                        target_id: assigned.target_id.clone(),
+                        trace_id: "real-control-timeout-status".into(),
+                    })
+                    .await?
+                    .into_inner();
+                return Err(format!("{wait_error}; Edge status at timeout: {status:?}").into());
+            }
+        };
+        if !topology.control.committed_batches().is_empty() {
+            return Err("fake Control unexpectedly received a real Go-bound result".into());
+        }
+        (
+            event.event_count as usize,
+            event.event_count as usize,
+            event.worker_id,
+            event.worker_digest,
+            event.output_digest,
+            "real-go-postgresql",
+        )
+    } else {
+        if let Err(wait_error) = wait_for_commits(&topology.control, 1).await {
+            let status = client
+                .get_status(GetStatusRequest {
+                    target_id: assigned.target_id.clone(),
+                    trace_id: "real-central-timeout-status".into(),
+                })
+                .await?
+                .into_inner();
+            terminate(&mut child).await?;
+            topology.shutdown().await?;
+            return Err(format!("{wait_error}; Edge status at timeout: {status:?}").into());
+        }
+        let committed = topology.control.committed_batches();
+        let record = committed
+            .iter()
+            .flat_map(|batch| batch.records.iter())
+            .find(|record| record.execution_status == InferenceExecutionStatus::Ok as i32)
+            .ok_or("real Central produced no canonically committed OK result")?;
+        (
+            committed.len(),
+            topology.control.commit_attempts().len(),
+            record.worker_id.clone(),
+            record.worker_digest.clone(),
+            record.output_digest.clone(),
+            "deterministic-mtls-fake",
+        )
+    };
+    if worker_id != runtime.binding_readback.worker_id
+        || worker_digest != runtime.binding_readback.worker_digest
+        || output_digest.is_empty()
+    {
+        return Err("real Central committed result worker/output identity mismatch".into());
+    }
+    if !topology.inference.calls().is_empty() {
+        return Err("fake inference unexpectedly handled a real Central request".into());
+    }
+    let (p4runtime_kind, fake_p4_stream_opens, traffic_packets) =
+        if let Some(p4) = external_p4.as_ref() {
+            let status = client
+                .get_status(GetStatusRequest {
+                    target_id: assigned.target_id.clone(),
+                    trace_id: "connected-final-p4-status".into(),
+                })
+                .await?
+                .into_inner()
+                .targets
+                .into_iter()
+                .next()
+                .ok_or("connected final P4 status missing")?;
+            if status.actor_state != ActorState::Primary as i32
+                || !status.p4_connected
+                || !status.primary
+                || !status.pipeline_exact
+                || status.p4info_digest != p4.pipeline.p4info_digest
+                || status.source_wal_bytes == 0
+                || topology.p4.stream_opens(1) != 0
+            {
+                return Err(format!("connected real P4 status mismatch: {status:?}").into());
+            }
+            (
+                "real-bmv2",
+                0,
+                external_traffic
+                    .as_ref()
+                    .map_or(0, |traffic| traffic.packet_count),
+            )
+        } else {
+            ("deterministic-mtls-fake", topology.p4.stream_opens(1), 0)
+        };
+    let evidence = json!({
+        "schema_version":"edge-real-central-pairwise-rehearsal/v1",
+        "target_id":assigned.target_id.clone(),
+        "logical_pool_id":runtime.binding_readback.logical_pool_id,
+        "binding_digest":runtime.binding_readback.binding_digest,
+        "pool_observation_digest":runtime.binding_readback.pool_observation_digest,
+        "worker_id":worker_id,
+        "worker_digest":worker_digest,
+        "output_digest":output_digest,
+        "canonical_commit_batches":canonical_commit_batches,
+        "canonical_commit_attempts":canonical_commit_attempts,
+        "control_sink_kind":control_sink_kind,
+        "p4runtime_kind":p4runtime_kind,
+        "fake_p4_stream_opens":fake_p4_stream_opens,
+        "traffic_packets":traffic_packets,
+        "fake_inference_calls":0,
+        "result":"PASS"
+    });
+    let mut evidence_file = OpenOptions::new()
+        .create_new(true)
+        .write(true)
+        .open(&evidence_path)?;
+    serde_json::to_writer_pretty(&mut evidence_file, &evidence)?;
+    evidence_file.write_all(b"\n")?;
+    evidence_file.sync_all()?;
+    if let Some((stop_token, keep_alive_duration)) = keep_alive {
+        let keep_started = Instant::now();
+        let keep_deadline = keep_started + keep_alive_duration;
+        let mut next_lease_renewal = Instant::now() + Duration::from_secs(120);
+        let mut last_observed_wall_ms = unix_ms();
+        let mut trace_sequence = 0_u64;
+        while Instant::now() < keep_deadline {
+            if stop_token.is_file() && !stop_token.is_symlink() {
+                break;
+            }
+            if stop_token.exists() || stop_token.is_symlink() {
+                return Err("Edge keep-alive stop token must be a regular file".into());
+            }
+            if child.try_wait()?.is_some() {
+                return Err("Edge process exited during connected keep-alive".into());
+            }
+            trace_sequence = trace_sequence.saturating_add(1);
+            let _renewal = renew_soak_lease_if_needed(
+                &mut client,
+                &mut assigned,
+                trace_sequence,
+                &keep_started,
+                &mut next_lease_renewal,
+                &mut last_observed_wall_ms,
+            )
+            .await?;
+            let target = client
+                .get_status(GetStatusRequest {
+                    target_id: assigned.target_id.clone(),
+                    trace_id: format!("connected-keep-alive-{trace_sequence}"),
+                })
+                .await?
+                .into_inner()
+                .targets
+                .into_iter()
+                .next()
+                .ok_or("connected keep-alive target status missing")?;
+            if target.actor_state != ActorState::Primary as i32
+                || !target.lease_valid
+                || external_p4.as_ref().is_some_and(|p4| {
+                    !target.p4_connected
+                        || !target.primary
+                        || !target.pipeline_exact
+                        || target.p4info_digest != p4.pipeline.p4info_digest
+                })
+            {
+                return Err(format!(
+                    "connected keep-alive target lost exact PRIMARY state: {target:?}"
+                )
+                .into());
+            }
+            sleep(Duration::from_secs(1)).await;
+        }
+    }
+    terminate(&mut child).await?;
+    topology.shutdown().await?;
+    Ok(())
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn real_edge_reads_real_bmv2() -> Result<(), Box<dyn Error>> {
+    let Some(runtime_path) = std::env::var_os("MASI_EDGE_REAL_P4_RUNTIME") else {
+        return Ok(());
+    };
+    let evidence_path = std::env::var_os("MASI_EDGE_REAL_P4_EVIDENCE")
+        .map(PathBuf::from)
+        .ok_or("MASI_EDGE_REAL_P4_EVIDENCE is required")?;
+    if evidence_path.exists() || evidence_path.is_symlink() {
+        return Err("real BMv2 evidence path must be fresh".into());
+    }
+    let runtime: ExternalP4Runtime =
+        serde_json::from_slice(&fs::read(PathBuf::from(runtime_path))?)?;
+    let mut assigned = external_p4_assignment(&runtime)?;
+    let topology = Topology::new(1, 0, 0).await?;
+    topology.rewrite_config(|config| {
+        config.limits.telemetry_poll_interval_ms = 1_000;
+        config.client_identities.insert(
+            "p4-client".into(),
+            ClientTlsConfig {
+                ca_path: runtime.tls.ca_path.clone(),
+                certificate_path: runtime.tls.client_cert_path.clone(),
+                private_key_path: runtime.tls.client_key_path.clone(),
+                server_name: runtime.tls.server_name.clone(),
+                identity_ref: "p4-client".into(),
+            },
+        );
+    })?;
+    let mut child = topology.spawn_edge_inherited_output()?;
+    let mut client = topology.client().await?;
+    let assignment_reply = client
+        .assign_target(AssignTargetRequest {
+            assignment: Some(assigned.clone()),
+        })
+        .await?
+        .into_inner();
+    if assignment_reply.state != ActorState::Primary as i32 {
+        return Err(format!(
+            "real BMv2 target did not become primary: {}",
+            assignment_reply.reason_code
+        )
+        .into());
+    }
+    assigned
+        .fence
+        .as_mut()
+        .ok_or("real BMv2 assignment fence missing")?
+        .actor_runtime_epoch = assignment_reply.actor_runtime_epoch;
+    client
+        .prepare_route(PrepareRouteRequest {
+            schema_version: "inference-route-prepare/v1".into(),
+            shard_id: assigned.target_id.clone(),
+            current_model_control_incarnation_id: String::new(),
+            current_route_epoch: 0,
+            proposed_route_epoch: 1,
+            trace_id: "real-bmv2-prepare".into(),
+        })
+        .await?;
+    let exact_route = route(0, &topology.inference_server.address);
+    client
+        .commit_route(CommitRouteRequest {
+            route: Some(exact_route.clone()),
+            trace_id: "real-bmv2-commit".into(),
+        })
+        .await?;
+    client
+        .resume_route(resume_request(&exact_route, "real-bmv2-resume"))
+        .await?;
+    let mut ready = OpenOptions::new()
+        .create_new(true)
+        .write(true)
+        .open(&runtime.edge_ready_path)?;
+    ready.write_all(b"READY\n")?;
+    ready.sync_all()?;
+    let source_wal_before_traffic = client
+        .get_status(GetStatusRequest {
+            target_id: assigned.target_id.clone(),
+            trace_id: "real-bmv2-before-traffic".into(),
+        })
+        .await?
+        .into_inner()
+        .targets
+        .into_iter()
+        .next()
+        .ok_or("real BMv2 pre-traffic target status missing")?
+        .source_wal_bytes;
+    let traffic_deadline = Instant::now() + Duration::from_secs(30);
+    while !runtime.traffic_done_path.is_file() {
+        if Instant::now() >= traffic_deadline {
+            return Err("real BMv2 traffic sender did not complete".into());
+        }
+        sleep(Duration::from_millis(20)).await;
+    }
+    let traffic: ExternalTrafficReceipt =
+        serde_json::from_slice(&fs::read(&runtime.traffic_done_path)?)?;
+    if traffic.schema_version != "bmv2-traffic-sender/v1"
+        || traffic.packet_count != runtime.expected_traffic_packets
+        || traffic.peer_packet_count < runtime.expected_traffic_packets
+        || traffic.p4runtime_credentials_present
+        || traffic.started_at_unix_ns == 0
+        || traffic.finished_at_unix_ns < traffic.started_at_unix_ns
+    {
+        return Err("real BMv2 traffic receipt is invalid".into());
+    }
+    let commits_at_traffic_done = topology.control.committed_batches().len();
+    let source_wal_at_traffic_done = client
+        .get_status(GetStatusRequest {
+            target_id: assigned.target_id.clone(),
+            trace_id: "real-bmv2-traffic-done".into(),
+        })
+        .await?
+        .into_inner()
+        .targets
+        .into_iter()
+        .next()
+        .ok_or("real BMv2 traffic-done target status missing")?
+        .source_wal_bytes;
+    sleep(Duration::from_millis(1_200)).await;
+    let source_wal_after_traffic = match wait_for_source_wal_growth(
+        &mut client,
+        &assigned.target_id,
+        source_wal_at_traffic_done,
+    )
+    .await
+    {
+        Ok(bytes) => bytes,
+        Err(wait_error) => {
+            let status = client
+                .get_status(GetStatusRequest {
+                    target_id: assigned.target_id.clone(),
+                    trace_id: "real-bmv2-source-timeout-status".into(),
+                })
+                .await?
+                .into_inner();
+            return Err(format!("{wait_error}; Edge status at timeout: {status:?}").into());
+        }
+    };
+    if let Err(wait_error) =
+        wait_for_commits(&topology.control, commits_at_traffic_done.saturating_add(1)).await
+    {
+        let status = client
+            .get_status(GetStatusRequest {
+                target_id: assigned.target_id.clone(),
+                trace_id: "real-bmv2-timeout-status".into(),
+            })
+            .await?
+            .into_inner();
+        terminate(&mut child).await?;
+        topology.shutdown().await?;
+        return Err(format!("{wait_error}; Edge status at timeout: {status:?}").into());
+    }
+    let status = client
+        .get_status(GetStatusRequest {
+            target_id: assigned.target_id.clone(),
+            trace_id: "real-bmv2-final-status".into(),
+        })
+        .await?
+        .into_inner()
+        .targets
+        .into_iter()
+        .next()
+        .ok_or("real BMv2 final target status missing")?;
+    if !status.p4_connected
+        || !status.primary
+        || !status.pipeline_exact
+        || status.p4info_digest != runtime.pipeline.p4info_digest
+        || status.actor_state != ActorState::Primary as i32
+        || status.source_wal_bytes < source_wal_after_traffic
+    {
+        return Err(format!("real BMv2 Edge status is not exact: {status:?}").into());
+    }
+    if topology.p4.stream_opens(1) != 0 {
+        return Err("deterministic fake P4 unexpectedly received a StreamChannel".into());
+    }
+    terminate(&mut child).await?;
+    let traffic_started_ms = i64::try_from(traffic.started_at_unix_ns / 1_000_000)?;
+    let post_traffic_inputs = topology
+        .inference
+        .input_batches()
+        .into_iter()
+        .flat_map(|batch| batch.records)
+        .filter(|record| record.finalized_at_unix_ms >= traffic_started_ms)
+        .collect::<Vec<_>>();
+    let traffic_observed_packets = post_traffic_inputs
+        .iter()
+        .map(|record| {
+            let bytes: [u8; 8] = record
+                .feature_tensor
+                .get(..8)
+                .ok_or("post-traffic inference tensor is shorter than one uint64")?
+                .try_into()?;
+            Ok::<u64, Box<dyn Error>>(u64::from_le_bytes(bytes))
+        })
+        .collect::<Result<Vec<_>, _>>()?
+        .into_iter()
+        .sum::<u64>();
+    if traffic_observed_packets < runtime.expected_traffic_packets {
+        let observations = post_traffic_inputs
+            .iter()
+            .map(|record| {
+                let packets = record.feature_tensor.get(..8).map(|bytes| {
+                    let mut value = [0_u8; 8];
+                    value.copy_from_slice(bytes);
+                    u64::from_le_bytes(value)
+                });
+                (
+                    record.finalized_at_unix_ms,
+                    record.window_id.clone(),
+                    packets,
+                )
+            })
+            .collect::<Vec<_>>();
+        return Err(format!(
+            "inference inputs observed {traffic_observed_packets} packets after sender start; expected at least {}; observations={observations:?}",
+            runtime.expected_traffic_packets
+        )
+        .into());
+    }
+    let committed = topology.control.committed_batches();
+    let evidence = json!({
+        "schema_version":"edge-real-bmv2-pairwise-rehearsal/v1",
+        "target_id":assigned.target_id,
+        "p4runtime_api_version":runtime.pipeline.p4runtime_api_version,
+        "p4info_digest":runtime.pipeline.p4info_digest,
+        "device_config_digest":runtime.pipeline.device_config_digest,
+        "pipeline_cookie":runtime.pipeline.cookie,
+        "source_wal_bytes_before_traffic":source_wal_before_traffic,
+        "source_wal_bytes_after_traffic":status.source_wal_bytes,
+        "source_wal_bytes":status.source_wal_bytes,
+        "post_traffic_inference_records":post_traffic_inputs.len(),
+        "traffic_observed_packets":traffic_observed_packets,
+        "input_wal_bytes":status.input_wal_bytes,
+        "canonical_commit_batches":committed.len(),
+        "fake_p4_stream_opens":0,
+        "result":"PASS"
+    });
+    let mut evidence_file = OpenOptions::new()
+        .create_new(true)
+        .write(true)
+        .open(&evidence_path)?;
+    serde_json::to_writer_pretty(&mut evidence_file, &evidence)?;
+    evidence_file.write_all(b"\n")?;
+    topology.shutdown().await?;
+    Ok(())
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn real_binary_runs_public_mtls_multi_target_pipeline() -> Result<(), Box<dyn Error>> {
     let topology = Topology::new(2, 1, 1).await?;
     topology.touch_fields();
@@ -1307,9 +2184,36 @@ async fn real_binary_runs_public_mtls_multi_target_pipeline() -> Result<(), Box<
             break;
         }
         if Instant::now() >= equivalent_worker_deadline {
-            return Err(
-                "same-generation equivalent worker result was not canonically committed".into(),
-            );
+            let status0 = client
+                .get_status(GetStatusRequest {
+                    target_id: assignment0.target_id.clone(),
+                    trace_id: "equivalent-worker-timeout-0".into(),
+                })
+                .await?
+                .into_inner();
+            let status1 = client
+                .get_status(GetStatusRequest {
+                    target_id: assignment1.target_id.clone(),
+                    trace_id: "equivalent-worker-timeout-1".into(),
+                })
+                .await?
+                .into_inner();
+            let committed_workers = committed
+                .iter()
+                .flat_map(|batch| &batch.records)
+                .map(|record| {
+                    (
+                        record.target_id.clone(),
+                        record.worker_id.clone(),
+                        record.worker_attempt_id.clone(),
+                    )
+                })
+                .collect::<Vec<_>>();
+            return Err(format!(
+                "same-generation equivalent worker result was not canonically committed; \
+                 committed_workers={committed_workers:?}; status0={status0:?}; status1={status1:?}"
+            )
+            .into());
         }
         sleep(Duration::from_millis(50)).await;
     }
@@ -2380,6 +3284,49 @@ async fn pipeline_mismatch_reconnect_does_not_leak_streamchannel() -> Result<(),
             "active_streams_after_failed_connect": topology.p4.active_streams(1),
             "maximum_active_streams": topology.p4.max_active_streams(1),
             "second_writer_or_session": false
+        }),
+    )?;
+    terminate(&mut child).await?;
+    topology.shutdown().await
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn p4runtime_1_3_target_is_held_before_stream_or_write() -> Result<(), Box<dyn Error>> {
+    let topology = Topology::new(1, 0, 0).await?;
+    topology.p4.set_p4runtime_api_version("1.3.0");
+    let mut child = topology.spawn_edge()?;
+    let mut client = topology.client().await?;
+
+    let reply = client
+        .assign_target(AssignTargetRequest {
+            assignment: Some(assignment(0, topology.p4_server.address)),
+        })
+        .await?
+        .into_inner();
+    assert_eq!(ActorState::Hold as i32, reply.state);
+    assert!(reply.reason_code.contains("CAPABILITY_DRIFT"));
+    assert_eq!(0, topology.p4.stream_opens(1));
+    assert_eq!(0, topology.p4.effect_write_attempts());
+
+    write_evidence(
+        topology.root.path(),
+        "p4runtime-version-fence.json",
+        &json!({
+            "schema_version": "edge-fault-evidence/v1",
+            "test_id": "TEST-EDGE-P4RUNTIME-VERSION-FENCE-001",
+            "requirement_ids": [
+                "MOD-EDGE-001", "CONTRACT-P4-001", "TEST-003", "TEST-007"
+            ],
+            "level": "MODULE",
+            "applicability": "APPLICABLE",
+            "result": "PASS",
+            "qualification": "QUALIFIED",
+            "fault": "P4Runtime Capabilities advertised 1.3.0 while the assignment required exact 1.4.1",
+            "reason": "expected=1.4.1 observed=1.3.0; rejected before StreamChannel",
+            "reason_code": "CAPABILITY_DRIFT",
+            "p4_stream_opens": topology.p4.stream_opens(1),
+            "p4_effect_write_attempts": topology.p4.effect_write_attempts(),
+            "fail_closed": true
         }),
     )?;
     terminate(&mut child).await?;

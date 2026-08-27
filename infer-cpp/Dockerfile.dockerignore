@@ -6,6 +6,8 @@
 !infer-cpp/src/**
 !infer-cpp/Dockerfile
 !infer-cpp/Dockerfile.dockerignore
+infer-cpp/build
+infer-cpp/evidence
 !contracts/
 !contracts/**
 !testkit/

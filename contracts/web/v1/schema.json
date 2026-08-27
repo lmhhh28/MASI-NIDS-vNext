@@ -8,7 +8,6 @@
     "schema_version",
     "projection_type",
     "resource_kind",
-    "resource_id",
     "cursor",
     "page_size",
     "total_count",
@@ -43,6 +42,16 @@
         "plugin-binding",
         "plugin-statistics-run",
         "plugin-statistics-current",
+        "bounded-capture",
+        "firewall-binding",
+        "model-rollout-group",
+        "model-pool",
+        "plugin",
+        "plugin-statistics-definition",
+        "plugin-statistics-schedule",
+        "analysis-task",
+        "analysis-artifact",
+        "audit",
         "system-health"
       ]
     },
@@ -61,8 +70,8 @@
       "items": {"type": "object"}
     },
     "generation": {"type": "integer", "minimum": 1},
-    "session_scope": {"$ref": "#/$defs/identity"},
-    "authorized_scope": {"$ref": "#/$defs/identity"},
+    "session_scope": {"type": "string", "minLength": 1, "maxLength": 4096},
+    "authorized_scope": {"type": "string", "minLength": 1, "maxLength": 4096},
     "sse_event": {
       "oneOf": [
         {"type": "null"},
@@ -71,7 +80,7 @@
     },
     "actor_ref": {"$ref": "#/$defs/identity"},
     "reason_code": {"$ref": "#/$defs/reason_code"},
-    "trace_id": {"$ref": "#/$defs/identity"}
+    "trace_id": {"type": "string", "maxLength": 128}
   },
   "$defs": {
     "identity": {

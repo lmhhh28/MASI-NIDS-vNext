@@ -1,7 +1,7 @@
 # MASI-NIDS-vNext 模块独立 E2E 验收设计
 
 - 文档状态：`DRAFT`
-- 日期：2026-08-14
+- 日期：2026-08-22
 - 需求基线：`vNext-requirements-1.19`
 - 主要需求：`TEST-002`、`TEST-003`、`TEST-INF-001`、`TEST-WEB-001`、`TEST-PLUGIN-001`、`TEST-PLUGIN-STAT-001`、`TEST-GATE-001`、`TEST-REAL-E2E-001`、`TEST-007`、`TEST-008`、`TEST-009`、`TEST-010`、`TEST-RULE-001`、`TEST-P4-FW-001`、`TEST-TARGET-FLEET-001`、`TEST-TRAFFIC-001`、`TEST-REUSE-001`、`TEST-TEL-INF-001`
 - 证据语义：ADR-0006
@@ -276,6 +276,7 @@ Wasm hello-world、无sandbox负例、只校验manifest、Fake Host、或未证�
 - A2A version/task/polling/no-push/no-streaming/identity/idempotency；
 - restricted MCP allowlist/read-only/scope/provenance/timeout和mutation拒绝；
 - evidence sufficient、bounded tool补证、insufficient evidence、low quality、provider/tool timeout/malformed；
+- Go授权的model result事实、可选offline explanation引用、只有结果时的非XAI解读、缺失/过期/低coverage/truncated explanation和伪造attribution拒绝；
 - facts/inferences/unknown/citations/limitations/outcome和Artifact digest；
 - prompt injection/oversize/secret leakage/data exfiltration；
 - Manager binding/revoke/fence和direct path不经Host；
@@ -286,12 +287,19 @@ Wasm hello-world、无sandbox负例、只校验manifest、Fake Host、或未证�
 - Artifact不可执行且不能创建Proposal/Decision/Intent/P4 action；
 - Analysis只写隔离自有schema或无状态，不写核心DB；
 - LLM/MCP/A2A不进入实时检测/effect；
+- model result/explanation facts与LLM inference分层；Analysis不重跑模型、不生成SHAP/残差、不把attribution写成因果；
 - Provider fixture证据不冒充真实provider qualification；
 - 未完成compatibility matrix不声称完整兼容。
 
 ### 11.4 阻断条件
 
 只测graph节点、只生成文本、未真实启动A2A/MCP边界、缺grounding/安全负例或使用pytest违反项目约束，均阻断完成。
+
+### 11.5 当前 operational 证据
+
+截至2026-08-22，`analysis-py/evidence/module-gates/latest.json`指向immutable run `analysis-formal-20260822-004`，summary digest为`sha256:fe07406b4e0ab2d8a57bc4ad8245ef0035b3fcfc3e996d09f1ec2c07a583049e`，source-tree digest为`sha256:9194f01dd5f3e6c040b0a10e4a015d9476eb2f47d3ecc69b45182f2aa76a8d0d`。19项required gate全部PASS，真实release process与immutable image `sha256:7d699ab2825f4c29a2d7f2cde72fa0cb384cbdee5415860f7e9b047810bec9ce`实际启动；A2A/MCP/provider边界、compatibility、fault、performance、OCI最小权限、供应链、55条需求追踪与negative evidence-integrity self-test均通过，open finding/open P0为0。
+
+正式soak完成60秒warmup和steady/peak/saturation/recovery各900秒，记录10,252个completed task、6,040个typed rejection、0 failed、0 HTTP error、0 unclassified error；计划内crash/restart、未完成任务fence、queue/in-flight最终归零、RSS/FD增长和cleanup均通过。summary机器派生`overall_module_complete=true`，但保持`qualification=NOT_QUALIFIED`：deterministic provider fixture不替代真实外部provider资格，P10/P11、Web展示、protected baseline、production-ha和九模块global gate仍为`HOLD/NOT_RUN`。失败的`-001/-002/-003`证据原样保留，只有从零重跑成功的`-004`是当前latest。
 
 <a id="module-web"></a>
 
@@ -309,6 +317,7 @@ Wasm hello-world、无sandbox负例、只校验manifest、Fake Host、或未证�
 - Rule Effectiveness三层、formula/coverage/no traffic/reset/gap/not measurable；
 - Managed Targets和Fleet target×stage/wave/partial/reconciling；
 - Model Pool desired/selected/observed CPU/CUDA、single/HA、route/readback/CAS/gap/no fallback；
+- ADR-0019 training recipe/data provenance/quality摘要及“模型结果事实/离线解释证据/Agent辅助解读”分层、non-causal copy与等价table；
 - Plugin lifecycle、statistics八种fixed renderer/current/history/quality/truncation、AnalysisArtifact；
 - duplicate/out-of-order/SSE gap/429/5xx/timeout/offline polling和零重复mutation；
 - WCAG 2.2 AA、keyboard/screen reader/zoom/reflow/chart equivalent table；
@@ -338,10 +347,15 @@ Wasm hello-world、无sandbox负例、只校验manifest、Fake Host、或未证�
 ### 13.2 必验能力与场景
 
 - dataset/split/seed/toolchain/digest/license/privacy/ground truth；
+- source-selection/dataset-revision/winner-selection状态分列；`dataset-p4-window-binary/v1` official fetch、legacy direct-import拒绝、CIC-DDoS2019 official-test sealed blind、CSE-CIC-IDS2018/CIC-IDS2017/UNSW/TON/CICIoT条件OOC、capture-family四split与mixed/ambiguous/not-covered coverage；
+- synthetic `60/15/15/10`、CIC training `70/15/15/0`、official-test sealed的确定性group hash；packet timestamp+directional tuple join、半开窗口、100%拟合coverage、attack-share denominator和source×label/family等权；
 - reproducibility、feature extraction与online golden一致；
+- exact BMv2/P4与offline reference extractor的10秒六维逐字段golden；
+- seeds `17,29,43`下Logistic/XGBoost/benign-only Autoencoder三个mandatory execution与exact bounded grid、Platt/`τ_alert|τ_conf`、absolute quality/calibration/abstain门槛、candidate reject、fail-closed `winner=none`、bounded winner selection和最多一个bundle；
 - single/multi-label、anomaly/open-set、taxonomy evolution、unknown/OOD/abstain；
 - ONNX export/metadata、scaler/config/output adapter和repository exact closure；
-- raw/optimized profile、CPU/CUDA numeric/tolerance和reader/rollback matrix；
+- XGBoost CPU ONNX-ML no-ZipMap/no-custom-op、三个候选标准算子calibrated `[N,2]` probability、Logistic raw-margin contribution/TreeSHAP raw-margin additivity/AE scaled-log residual-mean offline explanation evidence；
+- raw/optimized profile、CPU numeric/tolerance和reader/rollback matrix；CUDA只有bundle显式声明时适用，否则以稳定理由`NOT_APPLICABLE`；
 - malformed archive/path traversal/symlink/executable/custom op/oversize；
 - crash/OOM/disk/partial staging/cleanup、resource/performance/supply-chain。
 
@@ -351,11 +365,12 @@ Wasm hello-world、无sandbox负例、只校验manifest、Fake Host、或未证�
 - experiment alias/stage不成为production current；
 - Offline evidence不激活模型、不写core DB/P4；
 - feature/label/output语义只有一份contract/golden；
+- public/legacy flow CSV不能绕过canonical P4-window extractor；blind test不能反向影响训练/Platt/threshold；explanation不进入实时result/effect；
 - 新label不自动获得effect eligibility。
 
 ### 13.4 阻断条件
 
-脚本能训练、accuracy单项达标、ONNX能加载、没有可重现run/兼容/安全证据，或依赖mutable external registry，均阻断完成。
+脚本能训练、accuracy单项达标、ONNX能加载、任一mandatory candidate/seed/split未运行、blind泄漏/回调阈值、只报pooled score、没有eligible winner、没有可重现run/解释/兼容/安全证据，或依赖mutable external registry，均阻断完成。已完整执行但质量未达门槛的候选必须保留`REJECTED`原始结果；不得省略，也不要求把三候选都伪装为通过。
 
 ## 14. Cross-cutting Fault Acceptance
 
@@ -412,4 +427,4 @@ Operational module aggregate 只有在以下全部成立时才能标记完成：
 
 ## 18. 当前状态
 
-截至 2026-08-21，P4/Switch、Rust Edge、Central Inference、Go Control、PostgreSQL State、Plugin Runtime Host 已建立实现、runner、真实 binary/OCI 与独立模块证据。P4/Switch 已 `PASS/QUALIFIED`；其余五者已 operational Module Complete（`overall_module_complete=true`、open P0=0），qualification 仍 `HOLD/NOT_QUALIFIED`（`DEC-001`/protected release基线及未来正式集成门禁仍未满足；PostgreSQL另限于single-domain/manual-promotion，Plugin Host另限于single-domain Host与尚未开始的Go/DB pairwise）。各模块 operational completion 只以自身 `evidence/module-gates/latest.json` 指向且通过公开语义 validator 的summary为准，不得从其他模块继承完成或资格。Python Analysis、Web、Offline ML尚未开始实现，因此九模块global gate及全部正式pairwise/system仍为`HOLD/NOT_RUN`。本文本身不授予任何资格PASS。
+截至2026-08-27，九个首期模块均有机器派生的operational-completion历史；Web `20260827T020500Z-formal-002`和Offline ML summary补齐原先两个空缺，Go `20260827T041200Z-formal-003`和Analysis `analysis-formal-20260827-011`完成各自当时source scope的正式门禁。startup rehearsal `20260827T062000Z-rehearsal-004`实际启动九个runtime gate；connected rehearsal `20260827T023500Z-rehearsal-005`又在同一PG/Control拓扑运行真实检测、Host/Wasm statistics、Analysis和production Web三浏览器并验证清理。后者仍只覆盖64包happy path且保留明确fixtures/dirty-tree Central HOLD，不能替代正式pairwise/system。本次联调修改的Go/Edge/Inference/P4 source须按第17节退出current Module Complete并重跑完整module gate；语言级回归和rehearsal不能代替。正式pairwise/system仍为`HOLD/NOT_RUN`；本文本身不授予任何资格PASS。

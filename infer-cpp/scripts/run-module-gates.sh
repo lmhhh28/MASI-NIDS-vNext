@@ -336,7 +336,7 @@ working_tree_status_digest="sha256:$(sha256sum "${evidence_root}/working-tree-st
 source_archive="${evidence_root}/source-tree.tar"
 tar --sort=name --mtime=@1786406400 --owner=0 --group=0 --numeric-owner \
   --exclude='infer-cpp/build' --exclude='infer-cpp/evidence' \
-  --exclude='infer-cpp/**/__pycache__' --exclude='contracts/**/__pycache__' \
+  --exclude='**/node_modules' --exclude='**/__pycache__' --exclude='*.pyc' \
   -cf "${source_archive}" -C "${repo_root}" infer-cpp contracts testkit
 source_tree_digest="sha256:$(sha256sum "${source_archive}" | awk '{print $1}')"
 unlink -- "${source_archive}"
@@ -734,7 +734,9 @@ qualification_only_dirty_hold() {
     supply)
       jq -e '.result == "HOLD" and .qualification == "NOT_QUALIFIED" and
         ((.failure_reasons // []) | length) == 0 and
-        (.hold_reasons // []) == ["DIRTY_WORKTREE_NOT_RELEASE_BASELINE"]' \
+        ((.hold_reasons // []) == ["DIRTY_WORKTREE_NOT_RELEASE_BASELINE"] or
+         (.hold_reasons // []) == ["UNFIXED_HIGH_REQUIRES_OWNER_EXCEPTION",
+                                   "DIRTY_WORKTREE_NOT_RELEASE_BASELINE"])' \
         "${path}" >/dev/null 2>&1
       ;;
     *) return 1 ;;

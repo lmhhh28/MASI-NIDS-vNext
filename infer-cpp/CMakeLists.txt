@@ -245,6 +245,12 @@ set_target_properties(masi_inference_gateway PROPERTIES
 add_executable(masi_inference_probe src/probe.cpp)
 target_link_libraries(masi_inference_probe PRIVATE masi_inf_proto)
 
+# Read-only qualification utility used by the Offline ML producer gate. It
+# invokes the exact Gateway repository/bundle validators and has no serving,
+# database, model-control, or runtime-execution authority.
+add_executable(masi_repository_validator src/repository_validator.cpp)
+target_link_libraries(masi_repository_validator PRIVATE masi_inf_gateway_lib)
+
 # ---------------------------------------------------------------------------
 # Tests
 # ---------------------------------------------------------------------------

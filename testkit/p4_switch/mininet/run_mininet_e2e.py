@@ -21,10 +21,10 @@ from mininet.node import Switch
 
 RUNTIME_IMAGE = (
     "masi-nids/p4-switch-runtime@sha256:"
-    "8b8655c2fb7bc5563706ee853fb668ba70457633cda7d93633d022b30b7ead42"
+    "24669f08df3583b0d170226f6969f1090235604ef6d5bb5e2b2bb06062d9a571"
 )
 RUNTIME_DIGEST = (
-    "sha256:8b8655c2fb7bc5563706ee853fb668ba70457633cda7d93633d022b30b7ead42"
+    "sha256:24669f08df3583b0d170226f6969f1090235604ef6d5bb5e2b2bb06062d9a571"
 )
 SRC_MAC = bytes.fromhex("000000000101")
 DST_MAC = bytes.fromhex("000000000202")

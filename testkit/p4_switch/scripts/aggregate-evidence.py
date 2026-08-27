@@ -14,6 +14,58 @@ from testkit.p4_switch.lib.p4runtime_client import bmv2_device_config
 
 
 COMPILER_IMAGE = "masi-nids/p4-switch-p4c@sha256:8c26666dfa1041b0f9a29b5051c92dbf4ce5df807273f80dd54b3aff5412c926"
+EXCLUDED_TREE_PARTS = {
+    "node_modules",
+    "__pycache__",
+    ".pytest_cache",
+    ".mypy_cache",
+    ".ruff_cache",
+}
+MANDATORY_OPERATIONAL_TEST_IDS = frozenset(
+    {
+        "TEST-P4-STATIC-CONTRACT-001",
+        "TEST-TRAFFIC-001-runner-runtime-version",
+        "TEST-P4-COMPILE-001",
+        "TEST-P4TESTGEN-001",
+        "TEST-P4-MININET-001",
+        "TEST-P4-STARTUP-001",
+        "TEST-P4-SECURITY-001",
+        "TEST-P4-FW-001-capacity-activation",
+        "TEST-P4-RESOURCE-001",
+        "TEST-P4-FW-001-priority-conflict-shadow",
+        "TEST-P4-FW-001-partial-selector-loss",
+        "TEST-P4-COMPAT-001-pipeline-drift",
+        "TEST-P4-FW-001-overlay-order-default",
+        "TEST-P4-FW-001-fragment-malformed",
+        "TEST-TRAFFIC-001-four-modes",
+        "TEST-P4-OBS-001-counter-readback",
+        "TEST-TEL-INF-001-bounded-snapshot",
+        "TEST-TEL-INF-001-best-effort-hints",
+        "TEST-TEL-INF-001-hint-loss",
+        "TEST-P4-FW-001-host-filter-contamination",
+        "TEST-P4-FAULT-001-link-recovery",
+        "TEST-P4-FAULT-003-netem-recovery",
+        "TEST-P4-PERF-ABSOLUTE-001",
+        "TEST-P4-FAULT-002-sigkill-orchestration",
+        "TEST-P4-FAULT-002-process-crash-recovery",
+        "TEST-P4-LIFECYCLE-001",
+        "TEST-P4-SOAK-3600S-001",
+        "TEST-P4-SUPPLY-001",
+        "TEST-P4-FW-001-host-filter-negative",
+        "TEST-P4-ARTIFACT-BINDING-001",
+        "TEST-TRAFFIC-001-runner-binding",
+        "TEST-P4-RUNTIME-BINDING-001",
+        "TEST-P4-FINDINGS-001",
+    }
+)
+CONTRACT_BINDING_TEST_IDS = frozenset(
+    {
+        "TEST-P4-STATIC-CONTRACT-001",
+        "TEST-P4-ARTIFACT-BINDING-001",
+        "TEST-TRAFFIC-001-runner-binding",
+        "TEST-P4-RUNTIME-BINDING-001",
+    }
+)
 
 
 def sha256_bytes(payload: bytes) -> str:
@@ -26,7 +78,17 @@ def sha256(path: Path) -> str:
 
 def tree_digest(root: Path) -> str:
     digest = hashlib.sha256()
-    for path in sorted(item for item in root.rglob("*") if item.is_file()):
+    paths = []
+    for path in root.rglob("*"):
+        if not path.is_file():
+            continue
+        relative_path = path.relative_to(root)
+        if any(part in EXCLUDED_TREE_PARTS for part in relative_path.parts):
+            continue
+        if path.suffix in {".pyc", ".pyo"}:
+            continue
+        paths.append(path)
+    for path in sorted(paths):
         relative = path.relative_to(root).as_posix().encode()
         payload = path.read_bytes()
         digest.update(len(relative).to_bytes(4, "big"))
@@ -83,6 +145,105 @@ def object_list(value: object) -> list[dict[str, object]]:
     if not isinstance(value, list):
         return []
     return [item for item in value if isinstance(item, dict)]
+
+
+def module_findings_summary(repo: Path) -> dict[str, object]:
+    registry_path = repo / "p4/module-findings.json"
+    schema_path = repo / "contracts/evidence/module-findings/v1/schema.json"
+    if not registry_path.is_file():
+        raise ValueError(f"missing P4 module findings registry: {registry_path}")
+    registry = json.loads(registry_path.read_text(encoding="utf-8"))
+    schema = json.loads(schema_path.read_text(encoding="utf-8"))
+    validator = Draft202012Validator(schema, format_checker=FormatChecker())
+    errors = sorted(validator.iter_errors(registry), key=lambda item: list(item.path))
+    if errors:
+        raise ValueError("; ".join(error.message for error in errors))
+    if registry.get("module_id") != "MOD-SW-001":
+        raise ValueError("P4 module findings registry has the wrong module_id")
+    findings = object_list(registry.get("findings", []))
+    open_findings = [item for item in findings if item.get("status") == "OPEN"]
+    return {
+        "open_total": len(open_findings),
+        "open_p0": sum(item.get("severity") == "P0" for item in open_findings),
+        "registry_digest": sha256(registry_path),
+    }
+
+
+def derive_operational_completion(
+    tests: list[dict[str, object]], findings: dict[str, object]
+) -> tuple[dict[str, bool], bool]:
+    records_by_id: dict[str, list[dict[str, object]]] = {}
+    for record in tests:
+        test_id = record.get("id")
+        if isinstance(test_id, str):
+            records_by_id.setdefault(test_id, []).append(record)
+
+    def passed(test_id: str) -> bool:
+        records = records_by_id.get(test_id, [])
+        return (
+            len(records) == 1
+            and records[0].get("applicability") == "APPLICABLE"
+            and records[0].get("result") == "PASS"
+        )
+
+    applicable_tests = [
+        record for record in tests if record.get("applicability") == "APPLICABLE"
+    ]
+    mandatory_tests_executed = all(
+        passed(test_id) for test_id in MANDATORY_OPERATIONAL_TEST_IDS
+    )
+    contracts_frozen = all(passed(test_id) for test_id in CONTRACT_BINDING_TEST_IDS)
+    no_required_not_run = bool(applicable_tests) and all(
+        record.get("result") not in {"HOLD", "NOT_RUN"} for record in applicable_tests
+    )
+    operational_gates_pass = bool(applicable_tests) and all(
+        record.get("result") == "PASS" for record in applicable_tests
+    )
+    real_runtime_started = all(
+        passed(test_id)
+        for test_id in (
+            "TEST-P4-STARTUP-001",
+            "TEST-P4-FW-001-capacity-activation",
+            "TEST-P4-RUNTIME-BINDING-001",
+        )
+    )
+
+    formal_soak_executed = False
+    soak_records = records_by_id.get("TEST-P4-SOAK-3600S-001", [])
+    if len(soak_records) == 1 and passed("TEST-P4-SOAK-3600S-001"):
+        evidence = soak_records[0].get("evidence", {})
+        if isinstance(evidence, dict):
+            cleanup = evidence.get("cleanup", {})
+            summary = evidence.get("summary", {})
+            module_metrics = (
+                summary.get("module_metrics", {}) if isinstance(summary, dict) else {}
+            )
+            formal_soak_executed = (
+                isinstance(cleanup, dict)
+                and isinstance(summary, dict)
+                and isinstance(module_metrics, dict)
+                and evidence.get("qualified_elapsed_ms", 0) >= 3_600_000
+                and cleanup.get("completed") is True
+                and cleanup.get("remaining_resources") == []
+                and summary.get("error_count") == 0
+                and summary.get("container_restarts") == 0
+                and summary.get("oom_events") == 0
+                and summary.get("oracle_mismatches") == 0
+                and summary.get("resource_limit_violations") == 0
+                and summary.get("unclassified_gap_count") == 0
+                and module_metrics.get("formal_schedule_executed") is True
+            )
+
+    completion = {
+        "contracts_frozen": contracts_frozen,
+        "mandatory_tests_executed": mandatory_tests_executed,
+        "formal_soak_executed": formal_soak_executed,
+        "no_required_not_run": no_required_not_run,
+        "open_p0_zero": findings.get("open_p0") == 0,
+        "operational_gates_pass": operational_gates_pass,
+        "real_runtime_started": real_runtime_started,
+    }
+    return completion, all(completion.values())
 
 
 def main() -> int:
@@ -230,6 +391,26 @@ def main() -> int:
     )
     failed = failed or not artifacts_match or not runner_matches or not runtime_matches
 
+    try:
+        findings = module_findings_summary(repo)
+    except (OSError, ValueError, json.JSONDecodeError) as error:
+        raise SystemExit(f"invalid P4 module findings registry: {error}") from error
+    findings_gate_passed = findings["open_p0"] == 0
+    tests.append(
+        test_record(
+            "TEST-P4-FINDINGS-001",
+            ["DEC-044", "MOD-SW-001", "TEST-GATE-001"],
+            "PASS" if findings_gate_passed else "FAIL",
+            {
+                "registry": "p4/module-findings.json",
+                "registry_digest": findings["registry_digest"],
+                "open_total": findings["open_total"],
+                "open_p0": findings["open_p0"],
+            },
+        )
+    )
+    failed = failed or not findings_gate_passed
+
     tests.extend(
         [
             test_record(
@@ -277,6 +458,9 @@ def main() -> int:
         and test.get("result") in {"HOLD", "NOT_RUN"}
     ]
     overall_result = "FAIL" if failed else "HOLD" if blocked or holds else "PASS"
+    completion, overall_module_complete = derive_operational_completion(tests, findings)
+    if overall_result == "PASS" and not overall_module_complete:
+        overall_result = "FAIL"
     json_bytes = compiled_json
     p4info_path = artifacts / "masi_switch.p4info.txtpb"
     document = {
@@ -326,6 +510,9 @@ def main() -> int:
         "tests": tests,
         "performance": performance,
         "remaining_holds": holds,
+        "findings": findings,
+        "completion": completion,
+        "overall_module_complete": overall_module_complete,
     }
 
     schema = json.loads(

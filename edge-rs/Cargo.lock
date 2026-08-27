@@ -970,6 +970,7 @@ dependencies = [
  "parking_lot",
  "proptest",
  "prost",
+ "prost-types",
  "protoc-bin-vendored",
  "rand 0.10.2",
  "rcgen",

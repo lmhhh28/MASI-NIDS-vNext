@@ -45,7 +45,7 @@ func (e *StatisticsExecutor) ExecuteStatistics(ctx context.Context, token plugin
 	if err != nil {
 		return pluginstat.Artifact{}, fmt.Errorf("grpcapi: execute statistics: %w", err)
 	}
-	if reply.SchemaVersion != "control-plugin-statistics-result/v1" || reply.RunId != token.RunID ||
+	if reply == nil || reply.SchemaVersion != "control-plugin-statistics-result/v1" || reply.RunId != token.RunID ||
 		reply.ResultFence != token.ResultFence || reply.Status != "succeeded" ||
 		len(reply.ArtifactJson) == 0 || len(reply.ArtifactJson) > pluginstat.MaxArtifactBytes {
 		return pluginstat.Artifact{}, errors.New("grpcapi: statistics result identity/status/size mismatch")
@@ -59,7 +59,8 @@ func (e *StatisticsExecutor) ExecuteStatistics(ctx context.Context, token plugin
 	if err := decoder.Decode(&struct{}{}); err != io.EOF {
 		return pluginstat.Artifact{}, errors.New("grpcapi: trailing statistics artifact content")
 	}
-	if artifact.ArtifactDigest != reply.ArtifactDigest || pluginstat.ComputeArtifactDigest(artifact) != artifact.ArtifactDigest {
+	if artifact.Bytes != len(reply.ArtifactJson) || artifact.ArtifactDigest != reply.ArtifactDigest ||
+		pluginstat.ComputeArtifactDigest(artifact) != artifact.ArtifactDigest {
 		return pluginstat.Artifact{}, errors.New("grpcapi: statistics artifact digest mismatch")
 	}
 	return artifact, nil

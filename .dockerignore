@@ -4,9 +4,17 @@
 # infer-cpp/build/cpu-release/CMakeCache.txt (referencing the host source path
 # /home/.../MASI-NIDS-vNext/infer-cpp) breaks the in-image cmake configure with
 # "source does not match the source ... used to generate cache".
-**/build/
-**/evidence/
-**/__pycache__/
-**/target/
-.git/
-out/
+**/build
+evidence
+**/evidence
+**/__pycache__
+**/.venv
+**/dist
+**/.ruff_cache
+**/.pyright
+**/target
+**/node_modules
+**/output
+**/.playwright-cli
+.git
+out

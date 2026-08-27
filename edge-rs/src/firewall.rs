@@ -528,12 +528,22 @@ pub fn exact_readback(expected: &[Entity], observed: &[Entity]) -> EdgeResult<St
     let expected_set = digest_set(expected)?;
     let observed_set = digest_set(observed)?;
     if expected_set != observed_set {
+        let expected_wire = expected
+            .first()
+            .map(|entity| hex::encode(entity.encode_to_vec()))
+            .unwrap_or_default();
+        let observed_wire = observed
+            .first()
+            .map(|entity| hex::encode(entity.encode_to_vec()))
+            .unwrap_or_default();
         return Err(EdgeError::precondition(
             "READBACK_MISMATCH",
             format!(
-                "expected {} canonical entries, observed {}",
+                "expected {} canonical entries, observed {}; first expected wire {}, first observed wire {}",
                 expected_set.len(),
-                observed_set.len()
+                observed_set.len(),
+                expected_wire,
+                observed_wire,
             ),
         ));
     }
@@ -909,11 +919,29 @@ fn canonical_table_entry(mut entry: TableEntry) -> EdgeResult<TableEntry> {
             "duplicate match field ID",
         ));
     }
+    for field in &mut entry.r#match {
+        match field.field_match_type.as_mut() {
+            Some(field_match::FieldMatchType::Exact(value)) => {
+                canonicalize_p4runtime_integer(&mut value.value);
+            }
+            Some(field_match::FieldMatchType::Ternary(value)) => {
+                canonicalize_p4runtime_integer(&mut value.value);
+                canonicalize_p4runtime_integer(&mut value.mask);
+            }
+            Some(field_match::FieldMatchType::Lpm(value)) => {
+                canonicalize_p4runtime_integer(&mut value.value);
+            }
+            None => {}
+        }
+    }
     if let Some(TableAction {
         r#type: Some(table_action::Type::Action(action)),
     }) = entry.action.as_mut()
     {
         action.params.sort_by_key(|param| param.param_id);
+        for param in &mut action.params {
+            canonicalize_p4runtime_integer(&mut param.value);
+        }
     }
     entry.controller_metadata = 0;
     entry.counter_data = None;
@@ -921,6 +949,20 @@ fn canonical_table_entry(mut entry: TableEntry) -> EdgeResult<TableEntry> {
     entry.metadata.clear();
     entry.is_const = false;
     Ok(entry)
+}
+
+fn canonicalize_p4runtime_integer(value: &mut Vec<u8>) {
+    let first_nonzero = value.iter().position(|byte| *byte != 0);
+    match first_nonzero {
+        Some(0) => {}
+        Some(index) => {
+            value.drain(..index);
+        }
+        None => {
+            value.clear();
+            value.push(0);
+        }
+    }
 }
 
 fn digest_set(entities: &[Entity]) -> EdgeResult<BTreeSet<String>> {
@@ -957,6 +999,27 @@ mod tests {
     use crate::contract::edge::{Fence, Ipv4Prefix, OptionalUint32};
 
     use super::*;
+
+    #[test]
+    fn p4runtime_shortest_integer_readback_is_canonically_equal() {
+        let expected = telemetry_selector(1, 2)
+            .unwrap_or_else(|error| unreachable!("test selector is valid: {error}"));
+        let mut observed = expected.clone();
+        let entry = match observed.entity.as_mut() {
+            Some(entity::Entity::TableEntry(entry)) => entry,
+            _ => unreachable!("test selector is a table entry"),
+        };
+        let action = match entry
+            .action
+            .as_mut()
+            .and_then(|action| action.r#type.as_mut())
+        {
+            Some(table_action::Type::Action(action)) => action,
+            _ => unreachable!("test selector has a direct action"),
+        };
+        action.params[0].value = vec![2];
+        assert!(exact_readback(&[expected], &[observed]).is_ok());
+    }
 
     fn optional(value: Option<u32>) -> OptionalUint32 {
         OptionalUint32 {

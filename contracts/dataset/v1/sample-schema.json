@@ -1,0 +1,135 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://masi-nids.example/contracts/dataset/v1/sample-schema.json",
+  "title": "MASI P4 Window Dataset Sample Index V1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "sample_id",
+    "dataset_id",
+    "dataset_revision",
+    "source_profile",
+    "source_revision",
+    "capture_family_id",
+    "raw_capture_digest",
+    "scenario_id",
+    "session_id",
+    "topology_id",
+    "window",
+    "snapshot_references",
+    "feature_offset",
+    "feature_length",
+    "feature_tensor_digest",
+    "feature_values",
+    "label",
+    "split",
+    "sample_weight",
+    "quality",
+    "sort_key",
+    "raw_payload_included"
+  ],
+  "properties": {
+    "schema_version": {"const": "dataset-p4-window-sample/v1"},
+    "sample_id": {"type": "string", "pattern": "^[a-z0-9][a-z0-9._:-]{7,127}$"},
+    "dataset_id": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]{1,127}$"},
+    "dataset_revision": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "source_profile": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]*/v1$"},
+    "source_revision": {"type": "string", "minLength": 1, "maxLength": 256},
+    "capture_family_id": {"type": "string", "pattern": "^[a-z0-9][a-z0-9._:-]{7,127}$"},
+    "raw_capture_digest": {"$ref": "#/$defs/digest"},
+    "scenario_id": {"type": "string", "pattern": "^[a-z0-9][a-z0-9._:-]{1,127}$"},
+    "session_id": {"type": "string", "pattern": "^[a-z0-9][a-z0-9._:-]{1,127}$"},
+    "topology_id": {"type": "string", "pattern": "^[a-z0-9][a-z0-9._:-]{1,127}$"},
+    "window": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["window_id", "start", "end", "duration_ms", "final", "status", "event_time_basis"],
+      "properties": {
+        "window_id": {"type": "string", "minLength": 1, "maxLength": 128},
+        "start": {"type": "string", "format": "date-time"},
+        "end": {"type": "string", "format": "date-time"},
+        "duration_ms": {"const": 10000},
+        "final": {"const": true},
+        "status": {"const": "valid"},
+        "event_time_basis": {"const": "target-aggregate-export-time"}
+      }
+    },
+    "snapshot_references": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 4096,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["target_id", "source_runtime_epoch", "bank", "epoch", "sequence_start", "sequence_end", "snapshot_digest", "quality"],
+        "properties": {
+          "target_id": {"type": "string", "minLength": 1, "maxLength": 128},
+          "source_runtime_epoch": {"type": "string", "minLength": 1, "maxLength": 128},
+          "bank": {"type": "integer", "minimum": 0, "maximum": 1},
+          "epoch": {"type": "integer", "minimum": 1},
+          "sequence_start": {"type": "integer", "minimum": 0},
+          "sequence_end": {"type": "integer", "minimum": 0},
+          "snapshot_digest": {"$ref": "#/$defs/digest"},
+          "quality": {"const": "valid"}
+        }
+      }
+    },
+    "feature_offset": {"type": "integer", "minimum": 0, "multipleOf": 48},
+    "feature_length": {"const": 48},
+    "feature_tensor_digest": {"$ref": "#/$defs/digest"},
+    "feature_values": {
+      "type": "array",
+      "prefixItems": [
+        {"type": "integer", "minimum": 0},
+        {"type": "integer", "minimum": 0},
+        {"type": "integer", "minimum": 0, "maximum": 1048576},
+        {"type": "integer", "minimum": 0},
+        {"type": "integer", "minimum": 0},
+        {"type": "integer", "minimum": 1, "maximum": 4096}
+      ],
+      "items": false
+    },
+    "label": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["binary_label", "family", "coverage", "eligible_packets", "labeled_eligible_packets", "supported_attack_packets", "attack_share", "purity", "join_digest"],
+      "properties": {
+        "binary_label": {"type": ["integer", "null"], "enum": [0, 1, null]},
+        "family": {"type": "string", "minLength": 1, "maxLength": 128},
+        "coverage": {"type": "number", "minimum": 0, "maximum": 1},
+        "eligible_packets": {"type": "integer", "minimum": 0},
+        "labeled_eligible_packets": {"type": "integer", "minimum": 0},
+        "supported_attack_packets": {"type": "integer", "minimum": 0},
+        "attack_share": {"type": "number", "minimum": 0, "maximum": 1},
+        "purity": {"enum": ["fit_benign", "fit_attack", "mixed", "ambiguous", "unknown", "not_covered"]},
+        "join_digest": {"$ref": "#/$defs/digest"}
+      }
+    },
+    "split": {"enum": ["train", "early_stop", "calibration", "blind_test", "evaluation_only"]},
+    "sample_weight": {"type": "number", "exclusiveMinimum": 0, "maximum": 1000000},
+    "quality": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "sampling_coverage", "gap_count", "late_after_final", "selector_collision_quality"],
+      "properties": {
+        "status": {"const": "valid"},
+        "sampling_coverage": {"type": "number", "minimum": 0, "maximum": 1},
+        "gap_count": {"const": 0},
+        "late_after_final": {"const": 0},
+        "selector_collision_quality": {"enum": ["exact-bmv2-golden", "approximate-hash-qualified"]}
+      }
+    },
+    "sort_key": {"type": "string", "minLength": 1, "maxLength": 512},
+    "raw_payload_included": {"const": false}
+  },
+  "$defs": {
+    "digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}
+  },
+  "x-masi-semantic-constraints": [
+    {"constraint_id": "DATASET-SAMPLE-WINDOW", "operator": "strict-time-order", "fields": ["/window/start", "/window/end"]},
+    {"constraint_id": "DATASET-SAMPLE-FEATURE-DIGEST", "operator": "uint64-le-sha256", "fields": ["/feature_values", "/feature_tensor_digest"]},
+    {"constraint_id": "DATASET-SAMPLE-LABEL-COVERAGE", "operator": "packet-label-semantics", "fields": ["/label"]},
+    {"constraint_id": "DATASET-SAMPLE-SPLIT", "operator": "capture-family-hash", "fields": ["/source_revision", "/capture_family_id", "/split"]}
+  ]
+}

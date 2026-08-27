@@ -4,7 +4,7 @@
 - 目录：`infer-cpp/`
 - 文档状态：`DRAFT`
 - 主要需求：`ARCH-005`、`ARCH-MODEL-001`、`CONTRACT-INFERENCE-001`、`CONTRACT-MODEL-001`、`FUNC-INF-001`、`FUNC-INF-MODEL-001`、`PERF-INF-001`、`PERF-TEL-INF-001`、`REL-INF-001`、`REL-INF-POOL-001`、`SEC-TEL-INF-001`、`DEP-INF-001`、`TEST-003`、`TEST-INF-001`、`TEST-TEL-INF-001`、`TEST-REAL-E2E-001`
-- 主要 ADR：ADR-0005、ADR-0006、ADR-0009、ADR-0013、ADR-0017；ADR-0016 仅作被部分替代的历史背景
+- 主要 ADR：ADR-0005、ADR-0006、ADR-0009、ADR-0013、ADR-0017、ADR-0019；ADR-0016 仅作被部分替代的历史背景
 
 ## 1. 模块目标
 
@@ -99,6 +99,14 @@ Gateway、Triton和ORT的queue/in-flight/message/result/timeout都有硬上限�
 
 同identity不同input digest、同generation冲突output或wrong route/binding必须稳定冲突/HOLD；不能“最后返回者覆盖”。
 
+### 5.4 ADR-0019 模型候选兼容边界
+
+Central不解析训练数据集、超参、SHAP或模型业务名称；这些由Offline ML qualification和bundle digest绑定。ADR-0019首期Logistic、XGBoost和Autoencoder candidate都必须保持现有`[N,6] uint64-le -> [N,2] probability`公开合同；logit/margin/residual只允许作为ONNX图内Platt校准前的中间量。Gateway只执行同一shape/numeric/class-order/threshold/fence校验，不在运行时拟合校准器或阈值。
+
+`xgb-window-binary/v1`只有在无ZipMap/custom op的ONNX-ML graph、标准算子Platt校准、Triton config、ORT operator closure与actual output tensor通过真实CPU profile测试后才能进入repository。ADR-0019首期三个recipe均只声明CPU；该exact bundle的CUDA适用性必须记录为`NOT_APPLICABLE`，不能用CPU operator placement冒充CUDA evidence。未来bundle显式声明CUDA时才增加独立CUDA门禁。Autoencoder必须在模型graph/bundle中完成scaled-log residual mean、Platt映射和两类概率输出，Gateway不实现第二套anomaly adapter。
+
+ADR-0019的coefficient/TreeSHAP/reconstruction-residual是offline只读qualification evidence，不进入本模块实时result、response digest或readiness。未来逐Event explanation必须先有新contract/profile并重新验收，不能塞入`scores`、日志、metadata或任意额外Triton output绕过公开wire。
+
 ## 6. 只读状态边界
 
 模块公开受限的 `GetLoadedModel`/`GetPoolStatus` 等价方法，返回：
@@ -167,6 +175,7 @@ Gateway、Triton和ORT的queue/in-flight/message/result/timeout都有硬上限�
 - explicit CPU或CUDA选择、selected=observed、wrong hardware/config负例；
 - exact repository/NONE/instance group/load/warmup/readback；
 - numeric/class order/OOD/NaN/Inf/output adapter；
+- ADR-0019 candidate的现有wire兼容性：Logistic/XGBoost/Autoencoder `[N,2]`、XGBoost CPU ONNX-ML no-ZipMap/no-custom-op、离线解释零实时输出；
 - dynamic batching、queue saturation、retry conflict、copy和资源；
 - crash/hang/OOM/response loss/full-pool unavailable/no fallback；
 - cold/warm/steady/peak/rolling/soak绝对性能；

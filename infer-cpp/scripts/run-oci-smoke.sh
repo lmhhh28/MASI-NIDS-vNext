@@ -21,14 +21,42 @@ inf_root="${repo_root}/infer-cpp"
 evidence_dir="${MASI_INF_EVIDENCE_DIR:-${inf_root}/evidence/oci-smoke}"
 image_ref="${MASI_INF_IMAGE_REF:-masi-inference:module-smoke}"
 builder_ref="${MASI_INF_BUILDER_IMAGE_REF:-masi-inference-builder:module-gates}"
+runtime_export_dir="${MASI_INF_EXPORT_RUNTIME_DIR:-}"
+hold_seconds="${MASI_INF_HOLD_SECONDS:-0}"
 source_revision="$(git -C "${repo_root}" rev-parse HEAD)"
 temporary_root="$(mktemp -d /tmp/masi-inf-oci-smoke.XXXXXX)"
 container_name="masi-inf-oci-smoke-${$}"
 triton_container="masi-inf-oci-smoke-triton-${$}"
 smoke_network="masi-inf-oci-smoke-net-${$}"
 
+if [[ ! "${hold_seconds}" =~ ^[0-9]+$ ]] || (( hold_seconds > 28800 )); then
+  echo "MASI_INF_HOLD_SECONDS must be an integer in 0..28800" >&2
+  exit 64
+fi
+if (( hold_seconds > 0 )); then
+  if [[ -z "${runtime_export_dir}" || "${runtime_export_dir}" != /* \
+    || ! -d "${runtime_export_dir}" || -L "${runtime_export_dir}" \
+    || -n "$(find "${runtime_export_dir}" -mindepth 1 -maxdepth 1 -print -quit)" ]]; then
+    echo "hold mode requires an absolute, empty, non-symlink MASI_INF_EXPORT_RUNTIME_DIR" >&2
+    exit 64
+  fi
+  chmod 0700 "${runtime_export_dir}"
+elif [[ -n "${runtime_export_dir}" ]]; then
+  echo "MASI_INF_EXPORT_RUNTIME_DIR requires MASI_INF_HOLD_SECONDS>0" >&2
+  exit 64
+fi
+
 # Pinned Triton sidecar (contracts/profiles/v1/central-inference-cpu.json#triton).
-triton_image="nvcr.io/nvidia/tritonserver@sha256:75bcfa5b0043898ece3e603c17a5bbbb1c9bddc390563db24312ef59d83735e5"
+# Derive both the immutable image reference and the expected live metadata
+# version from the same public profile so a stale duplicated literal cannot
+# silently qualify a different server build.
+central_cpu_profile="${repo_root}/contracts/profiles/v1/central-inference-cpu.json"
+triton_repository="$(jq -er '.triton.image | sub(":[^/:]+$"; "")' "${central_cpu_profile}")"
+triton_image_digest="$(jq -er '.triton.image_digest' "${central_cpu_profile}")"
+expected_triton_version="$(jq -er '.triton.triton_version' "${central_cpu_profile}")"
+triton_image="${triton_repository}@${triton_image_digest}"
+[[ "${triton_image}" =~ ^[^[:space:]@]+@sha256:[0-9a-f]{64}$ ]] \
+  || { echo "central CPU profile has an invalid Triton image binding" >&2; exit 1; }
 fixture_repo="${repo_root}/testkit/fixtures/repositories/masi-ids-window-v1-r3"
 proto_dir="${inf_root}/proto/vendor/triton"
 
@@ -156,7 +184,7 @@ working_tree_status_digest="sha256:$(sha256sum "${evidence_dir}/working-tree-sta
 source_archive="${temporary_root}/source-tree.tar"
 tar --sort=name --mtime=@1786406400 --owner=0 --group=0 --numeric-owner \
   --exclude='infer-cpp/build' --exclude='infer-cpp/evidence' \
-  --exclude='infer-cpp/**/__pycache__' --exclude='contracts/**/__pycache__' \
+  --exclude='**/node_modules' --exclude='**/__pycache__' --exclude='*.pyc' \
   -cf "${source_archive}" -C "${repo_root}" infer-cpp contracts testkit
 source_tree_digest="sha256:$(sha256sum "${source_archive}" | awk '{print $1}')"
 if [[ -n "${MASI_INF_EXPECTED_SOURCE_TREE_DIGEST:-}" \
@@ -315,6 +343,11 @@ if [[ "${triton_ready}" != "true" ]]; then
   echo "Triton sidecar or model never became ready" >&2
   exit 1
 fi
+if [[ "${triton_version}" != "${expected_triton_version}" ]]; then
+  docker logs "${triton_container}" >"${evidence_dir}/triton-oci.log" 2>&1 || true
+  echo "live Triton version mismatch: expected ${expected_triton_version}, observed ${triton_version}" >&2
+  exit 1
+fi
 
 # Build the real startup envelope. The envelope_digest preimage must be
 # byte-identical to compute_envelope_body_digest (envelope.cc:31-61): the 26
@@ -451,6 +484,7 @@ for _port_attempt in $(seq 1 50); do
 done
 if [[ ! "${host_port}" =~ ^[0-9]+$ ]]; then
   docker logs "${container_name}" >"${evidence_dir}/inference-oci.log" 2>&1 || true
+  docker inspect "${container_name}" >"${evidence_dir}/inference-oci-inspect.json" 2>&1 || true
   echo "OCI container did not publish a usable 7443/tcp host port" >&2
   exit 1
 fi
@@ -481,6 +515,77 @@ cp -- "${temporary_root}/probe.json" "${evidence_dir}/oci-probe.json"
 if [[ "${probe_succeeded}" != "true" ]]; then
   echo "OCI mTLS probe failed" >&2
   exit 1
+fi
+
+if (( hold_seconds > 0 )); then
+  mkdir -p -- "${runtime_export_dir}/gateway-tls" "${runtime_export_dir}/triton-tls" \
+    "${runtime_export_dir}/config"
+  cp -- "${temporary_root}/probe/ca.pem" "${runtime_export_dir}/gateway-tls/ca.pem"
+  cp -- "${temporary_root}/probe/inference-probe.pem" \
+    "${runtime_export_dir}/gateway-tls/edge-client.pem"
+  cp -- "${temporary_root}/probe/inference-probe.key" \
+    "${runtime_export_dir}/gateway-tls/edge-client.key"
+  cp -- "${temporary_root}/triton-client/ca.pem" "${runtime_export_dir}/triton-tls/ca.pem"
+  cp -- "${temporary_root}/triton-client/triton-client.pem" \
+    "${runtime_export_dir}/triton-tls/client.pem"
+  cp -- "${temporary_root}/triton-client/triton-client.key" \
+    "${runtime_export_dir}/triton-tls/client.key"
+  cp -- "${temporary_root}/config/envelope.json" "${runtime_export_dir}/config/envelope.json"
+  cp -- "${temporary_root}/config/gateway.json" "${runtime_export_dir}/config/gateway.json"
+  cp -- "${temporary_root}/probe.json" "${runtime_export_dir}/binding-readback.json"
+  chmod 0600 "${runtime_export_dir}/gateway-tls/edge-client.key" \
+    "${runtime_export_dir}/triton-tls/client.key"
+  jq -e '.schema_version == "inference-committed-binding/v1"' \
+    "${temporary_root}/probe.json" >/dev/null
+  readback="$(jq -c . "${temporary_root}/probe.json")"
+  runtime_manifest_tmp="${runtime_export_dir}/.runtime.json.${$}"
+  jq -n \
+    --arg gateway_endpoint "https://127.0.0.1:${host_port}" \
+    --arg triton_host_endpoint "127.0.0.1:${triton_host_port}" \
+    --arg gateway_container "${container_name}" \
+    --arg triton_container "${triton_container}" \
+    --arg network "${smoke_network}" \
+    --arg image_ref "${image_ref}" \
+    --arg image_manifest_digest "${image_manifest_digest}" \
+    --arg config_digest "${config_digest}" \
+    --arg startup_envelope_digest "${envelope_digest}" \
+    --arg gateway_ca_path "${runtime_export_dir}/gateway-tls/ca.pem" \
+    --arg gateway_client_cert_path "${runtime_export_dir}/gateway-tls/edge-client.pem" \
+    --arg gateway_client_key_path "${runtime_export_dir}/gateway-tls/edge-client.key" \
+    --arg triton_ca_path "${runtime_export_dir}/triton-tls/ca.pem" \
+    --arg triton_client_cert_path "${runtime_export_dir}/triton-tls/client.pem" \
+    --arg triton_client_key_path "${runtime_export_dir}/triton-tls/client.key" \
+    --arg envelope_path "${runtime_export_dir}/config/envelope.json" \
+    --arg gateway_config_path "${runtime_export_dir}/config/gateway.json" \
+    --arg binding_readback_path "${runtime_export_dir}/binding-readback.json" \
+    --arg consumer_done_path "${runtime_export_dir}/consumer.done" \
+    --argjson readback "${readback}" '{
+      schema_version:"central-inference-oci-runtime-export/v1",state:"READY",
+      gateway_endpoint:$gateway_endpoint,triton_host_endpoint:$triton_host_endpoint,
+      triton_internal_endpoint:"triton:8001",gateway_container:$gateway_container,
+      triton_container:$triton_container,network:$network,image_ref:$image_ref,
+      image_manifest_digest:$image_manifest_digest,config_digest:$config_digest,
+      startup_envelope_digest:$startup_envelope_digest,
+      tls:{server_name:"inference.test",client_san:"masi-edge.test",ca_path:$gateway_ca_path,
+        client_cert_path:$gateway_client_cert_path,client_key_path:$gateway_client_key_path},
+      triton_tls:{server_name:"triton",ca_path:$triton_ca_path,
+        client_cert_path:$triton_client_cert_path,client_key_path:$triton_client_key_path},
+      artifacts:{envelope_path:$envelope_path,gateway_config_path:$gateway_config_path,
+        binding_readback_path:$binding_readback_path},consumer_done_path:$consumer_done_path,
+      binding_readback:$readback
+    }' >"${runtime_manifest_tmp}"
+  mv -- "${runtime_manifest_tmp}" "${runtime_export_dir}/runtime.json"
+  for _hold_elapsed in $(seq 1 "${hold_seconds}"); do
+    if [[ -f "${runtime_export_dir}/consumer.done" ]]; then
+      break
+    fi
+    if [[ "$(docker inspect --format '{{.State.Running}}' "${container_name}")" != "true" \
+      || "$(docker inspect --format '{{.State.Running}}' "${triton_container}")" != "true" ]]; then
+      echo "exported Central runtime exited during bounded hold" >&2
+      exit 1
+    fi
+    sleep 1
+  done
 fi
 
 container_read_only="$(docker inspect --format '{{.HostConfig.ReadonlyRootfs}}' "${container_name}")"

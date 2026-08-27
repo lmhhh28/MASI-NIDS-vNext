@@ -1,0 +1,385 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://masi-nids.example/contracts/evidence/connected-system-web-rehearsal/v1/schema.json",
+  "title": "Connected detection, plugin statistics, Analysis, and Web rehearsal",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "run_id", "started_at", "finished_at", "participants",
+    "real_boundaries", "fixtures", "pipeline_loader", "traffic", "triton_statistics",
+    "edge_evidence", "event_evidence", "plugin_statistics_evidence", "plugin_runtime", "analysis_evidence",
+    "analysis_runtime", "web_observations", "central_oci_result", "process_logs",
+    "level", "applicability", "result", "qualification", "qualification_scope"
+  ],
+  "properties": {
+    "schema_version": {"const": "connected-system-web-rehearsal/v1"},
+    "run_id": {"type": "string", "minLength": 8, "maxLength": 128},
+    "started_at": {"type": "string", "format": "date-time"},
+    "finished_at": {"type": "string", "format": "date-time"},
+    "participants": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "edge_binary_digest", "gateway_image_manifest_digest", "triton_image_digest",
+        "startup_envelope_digest", "control_binary_digest", "bmv2_image_digest",
+        "p4_source_digest", "bmv2_json_digest", "web_image_digest",
+        "statistics_go_dispatcher_binary_digest", "plugin_host_binary_digest",
+        "wasm_artifact_digest", "analysis_binary_digest"
+      ],
+      "properties": {
+        "edge_binary_digest": {"$ref": "#/$defs/digest"},
+        "gateway_image_manifest_digest": {"$ref": "#/$defs/digest"},
+        "triton_image_digest": {"$ref": "#/$defs/digest"},
+        "startup_envelope_digest": {"$ref": "#/$defs/digest"},
+        "control_binary_digest": {"$ref": "#/$defs/digest"},
+        "bmv2_image_digest": {"$ref": "#/$defs/digest"},
+        "p4_source_digest": {"$ref": "#/$defs/digest"},
+        "bmv2_json_digest": {"$ref": "#/$defs/digest"},
+        "web_image_digest": {"$ref": "#/$defs/digest"},
+        "statistics_go_dispatcher_binary_digest": {"$ref": "#/$defs/digest"},
+        "plugin_host_binary_digest": {"$ref": "#/$defs/digest"},
+        "wasm_artifact_digest": {"$ref": "#/$defs/digest"},
+        "analysis_binary_digest": {"$ref": "#/$defs/digest"}
+      }
+    },
+    "real_boundaries": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "bmv2_edge_p4runtime_mtls", "edge_streamchannel_mastership",
+        "edge_gateway_infer_mtls", "gateway_triton_model_infer", "edge_control_sink_mtls",
+        "control_postgresql_event_commit", "postgresql_commit_edge_ack", "go_web_same_origin",
+        "browser_event_incident_readback", "go_statistics_dispatcher_plugin_host_mtls",
+        "plugin_statistics_postgresql_web_readback", "go_analysis_a2a_mtls",
+        "analysis_postgresql_web_readback"
+      ],
+      "properties": {
+        "bmv2_edge_p4runtime_mtls": {"const": true},
+        "edge_streamchannel_mastership": {"const": true},
+        "edge_gateway_infer_mtls": {"const": true},
+        "gateway_triton_model_infer": {"const": true},
+        "edge_control_sink_mtls": {"const": true},
+        "control_postgresql_event_commit": {"const": true},
+        "postgresql_commit_edge_ack": {"const": true},
+        "go_web_same_origin": {"const": true},
+        "browser_event_incident_readback": {"const": true},
+        "go_statistics_dispatcher_plugin_host_mtls": {"const": true},
+        "plugin_statistics_postgresql_web_readback": {"const": true},
+        "go_analysis_a2a_mtls": {"const": true},
+        "analysis_postgresql_web_readback": {"const": true}
+      }
+    },
+    "fixtures": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["pipeline_loader", "traffic_sender", "analysis_provider", "analysis_mcp"],
+      "properties": {
+        "pipeline_loader": {"const": "isolated-one-shot-closed-before-edge"},
+        "traffic_sender": {"const": "packet-only-no-p4runtime-credentials"},
+        "analysis_provider": {"const": "deterministic-tls13-mtls-fixture"},
+        "analysis_mcp": {"const": "deterministic-tls13-mtls-fixture"}
+      }
+    },
+    "pipeline_loader": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema_version", "loader_closed_before_edge", "p4runtime_api_version", "p4info_digest", "device_config_digest", "cookie"],
+      "properties": {
+        "schema_version": {"const": "bmv2-pipeline-loader/v1"},
+        "cookie": {"type": "integer", "minimum": 1},
+        "device_config_digest": {"$ref": "#/$defs/digest"},
+        "initial_infrastructure": {"type": "array", "minItems": 1, "maxItems": 16, "items": {"type": "string", "minLength": 1}},
+        "initial_selector_readback": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["action_id", "epoch_value_hex", "match_value_hex", "table_entry_wire_hex"],
+          "properties": {
+            "action_id": {"type": "integer", "minimum": 1},
+            "epoch_value_hex": {"type": "string", "pattern": "^[0-9a-f]+$"},
+            "match_value_hex": {"type": "string", "pattern": "^[0-9a-f]+$"},
+            "table_entry_wire_hex": {"type": "string", "pattern": "^[0-9a-f]+$"}
+          }
+        },
+        "loader_closed_before_edge": {"const": true},
+        "loader_election_id": {"type": "integer", "minimum": 1},
+        "p4info_digest": {"$ref": "#/$defs/digest"},
+        "p4runtime_api_version": {"const": "1.4.1"},
+        "profile_digest": {"$ref": "#/$defs/digest"},
+        "supported_write_atomicity": {"type": "array", "minItems": 1, "maxItems": 4, "items": {"const": "CONTINUE_ON_ERROR"}}
+      }
+    },
+    "traffic": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema_version", "packet_count", "peer_packet_count", "p4runtime_credentials_present"],
+      "properties": {
+        "schema_version": {"const": "bmv2-traffic-sender/v1"},
+        "started_at_unix_ns": {"type": "integer", "minimum": 1},
+        "finished_at_unix_ns": {"type": "integer", "minimum": 1},
+        "interface": {"type": "string", "minLength": 1, "maxLength": 64},
+        "packet_count": {"const": 64},
+        "peer_packet_count": {"type": "integer", "minimum": 64},
+        "p4runtime_credentials_present": {"const": false}
+      }
+    },
+    "triton_statistics": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["inference_count_before", "inference_count_after", "inference_count_delta"],
+      "properties": {
+        "inference_count_before": {"type": "integer", "minimum": 0},
+        "inference_count_after": {"type": "integer", "minimum": 1},
+        "inference_count_delta": {"type": "integer", "minimum": 1}
+      }
+    },
+    "edge_evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema_version", "p4runtime_kind", "control_sink_kind", "fake_p4_stream_opens", "fake_inference_calls", "traffic_packets", "canonical_commit_batches", "result"],
+      "properties": {
+        "schema_version": {"const": "edge-real-central-pairwise-rehearsal/v1"},
+        "binding_digest": {"$ref": "#/$defs/digest"},
+        "canonical_commit_attempts": {"type": "integer", "minimum": 1},
+        "p4runtime_kind": {"const": "real-bmv2"},
+        "control_sink_kind": {"const": "real-go-postgresql"},
+        "fake_p4_stream_opens": {"const": 0},
+        "fake_inference_calls": {"const": 0},
+        "traffic_packets": {"const": 64},
+        "canonical_commit_batches": {"type": "integer", "minimum": 1},
+        "logical_pool_id": {"type": "string", "minLength": 1},
+        "output_digest": {"$ref": "#/$defs/digest"},
+        "pool_observation_digest": {"$ref": "#/$defs/digest"},
+        "target_id": {"type": "string", "minLength": 1},
+        "worker_digest": {"$ref": "#/$defs/digest"},
+        "worker_id": {"$ref": "#/$defs/digest"},
+        "result": {"const": "PASS"}
+      }
+    },
+    "event_evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema_version", "event_id", "event_idempotency_key", "input_digest", "output_digest", "worker_id", "worker_digest", "decision", "commit_status", "event_count", "incident_count", "incident_id"],
+      "properties": {
+        "schema_version": {"const": "go-event-commit-observation/v1"},
+        "event_id": {"type": "string", "minLength": 1},
+        "event_idempotency_key": {"type": "string", "minLength": 1},
+        "input_digest": {"$ref": "#/$defs/digest"},
+        "output_digest": {"$ref": "#/$defs/digest"},
+        "worker_id": {"type": "string", "minLength": 1},
+        "worker_digest": {"$ref": "#/$defs/digest"},
+        "decision": {"const": "alert"},
+        "commit_status": {"const": "committed"},
+        "event_count": {"const": 1},
+        "incident_count": {"const": 1},
+        "incident_id": {"type": "string", "minLength": 1}
+      }
+    },
+    "plugin_statistics_evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema_version", "participants", "transport", "core_evidence", "result", "qualification"],
+      "properties": {
+        "schema_version": {"const": "go-plugin-host-control-process-evidence/v1"},
+        "level": {"const": "REHEARSAL"},
+        "applicability": {"const": "APPLICABLE"},
+        "result": {"const": "PASS"},
+        "qualification": {"const": "NOT_QUALIFIED"},
+        "qualification_scope": {"type": "string", "minLength": 1, "maxLength": 512},
+        "participants": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["control_binary_digest", "go_seed_test_binary_digest", "plugin_host_binary_digest", "plugin_hostctl_binary_digest", "wasm_artifact_digest"],
+          "properties": {
+            "control_binary_digest": {"$ref": "#/$defs/digest"},
+            "go_seed_test_binary_digest": {"$ref": "#/$defs/digest"},
+            "plugin_host_binary_digest": {"$ref": "#/$defs/digest"},
+            "plugin_hostctl_binary_digest": {"$ref": "#/$defs/digest"},
+            "wasm_artifact_digest": {"$ref": "#/$defs/digest"}
+          }
+        },
+        "transport": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["protocol", "tls_version", "mutual_tls", "server_name", "ca_digest", "manager_certificate_digest"],
+          "properties": {
+            "protocol": {"const": "grpc"},
+            "tls_version": {"const": "TLSv1.3"},
+            "mutual_tls": {"const": true},
+            "server_name": {"const": "plugin-host.test"},
+            "ca_digest": {"$ref": "#/$defs/digest"},
+            "manager_certificate_digest": {"$ref": "#/$defs/digest"}
+          }
+        },
+        "core_evidence": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["definition_id", "artifact_id", "artifact_digest", "run_status", "history_count", "metric_id", "metric_value", "external_dispatcher", "dispatcher_owner", "result"],
+          "properties": {
+            "definition_id": {"const": "fixture.row-count"},
+            "schema_version": {"const": "go-plugin-host-real-process-evidence/v1"},
+            "run_id": {"type": "string", "minLength": 1},
+            "plugin_id": {"const": "plugin.wasm.statistics.fixture"},
+            "binding_generation": {"const": 1},
+            "definition_digest": {"$ref": "#/$defs/digest"},
+            "host_envelope_digest": {"$ref": "#/$defs/digest"},
+            "host_artifact_digest": {"$ref": "#/$defs/digest"},
+            "artifact_id": {"type": "string", "minLength": 1},
+            "artifact_digest": {"$ref": "#/$defs/digest"},
+            "run_status": {"const": "succeeded"},
+            "current_run_id": {"type": "string", "minLength": 1},
+            "history_count": {"const": 1},
+            "artifact_count": {"const": 1},
+            "metric_id": {"const": "row-count"},
+            "metric_value": {"const": 2},
+            "tls_version": {"const": "TLSv1.3"},
+            "mutual_tls": {"const": true},
+            "external_dispatcher": {"const": true},
+            "dispatcher_owner": {"const": "control-core-maintenance"},
+            "result": {"const": "PASS"}
+          }
+        }
+      }
+    },
+    "plugin_runtime": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema_version", "state", "plugin_id", "binding_generation", "host_envelope_digest", "wasm_artifact_digest", "tls_version", "mutual_tls", "ca_digest", "manager_certificate_digest", "clean_shutdown"],
+      "properties": {
+        "schema_version": {"const": "plugin-host-runtime-export/v1"},
+        "state": {"const": "READY"},
+        "plugin_id": {"const": "plugin.wasm.statistics.fixture"},
+        "binding_generation": {"const": 1},
+        "host_envelope_digest": {"$ref": "#/$defs/digest"},
+        "wasm_artifact_digest": {"$ref": "#/$defs/digest"},
+        "tls_version": {"const": "TLSv1.3"},
+        "mutual_tls": {"const": true},
+        "ca_digest": {"$ref": "#/$defs/digest"},
+        "manager_certificate_digest": {"$ref": "#/$defs/digest"},
+        "clean_shutdown": {"const": true}
+      }
+    },
+    "analysis_evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema_version", "task_id", "artifact_id", "artifact_digest", "final_status", "artifact_count", "non_executable", "deployment_eligible", "external_control", "result"],
+      "properties": {
+        "schema_version": {"const": "go-analysis-real-process-evidence/v1"},
+        "task_id": {"type": "string", "minLength": 1},
+        "plugin_id": {"const": "masi.analysis.langgraph"},
+        "binding_generation": {"const": 1},
+        "submit_status": {"const": 202},
+        "poll_count": {"type": "integer", "minimum": 0, "maximum": 3},
+        "artifact_id": {"type": "string", "minLength": 1},
+        "artifact_digest": {"$ref": "#/$defs/digest"},
+        "analysis_outcome": {"enum": ["succeeded", "limited", "insufficient_evidence"]},
+        "final_status": {"enum": ["succeeded", "limited"]},
+        "artifact_count": {"const": 1},
+        "non_executable": {"const": true},
+        "deployment_eligible": {"const": false},
+        "external_control": {"const": true},
+        "result": {"const": "PASS"}
+      }
+    },
+    "analysis_runtime": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema_version", "state", "plugin_id", "binding_generation", "binding_digest", "tls_version", "mutual_tls", "server_certificate_digest", "control_certificate_digest", "ca_digest", "clean_shutdown"],
+      "properties": {
+        "schema_version": {"const": "analysis-a2a-runtime-export/v1"},
+        "state": {"const": "READY"},
+        "plugin_id": {"const": "masi.analysis.langgraph"},
+        "binding_generation": {"const": 1},
+        "binding_digest": {"$ref": "#/$defs/digest"},
+        "tls_version": {"const": "TLSv1.3"},
+        "mutual_tls": {"const": true},
+        "server_certificate_digest": {"$ref": "#/$defs/digest"},
+        "control_certificate_digest": {"$ref": "#/$defs/digest"},
+        "ca_digest": {"$ref": "#/$defs/digest"},
+        "clean_shutdown": {"const": true}
+      }
+    },
+    "web_observations": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 3,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "schema_version", "browser", "event_id", "decision", "incident_id",
+          "statistics_definition_id", "statistics_artifact_id", "statistics_metric_value",
+          "analysis_task_id", "analysis_artifact_id", "analysis_outcome", "non_executable",
+          "deployment_eligible", "session_schema", "csrf_present", "sse_connections",
+          "console_errors", "page_errors", "request_failures", "response_errors",
+          "screenshot_digest", "started_at", "finished_at", "result"
+        ],
+        "properties": {
+          "schema_version": {"const": "connected-web-browser-observation/v1"},
+          "browser": {"enum": ["chromium", "firefox", "webkit"]},
+          "event_id": {"type": "string", "minLength": 1},
+          "decision": {"const": "alert"},
+          "incident_id": {"type": "string", "minLength": 1},
+          "statistics_definition_id": {"const": "fixture.row-count"},
+          "statistics_artifact_id": {"type": "string", "minLength": 1},
+          "statistics_metric_value": {"const": 2},
+          "analysis_task_id": {"type": "string", "minLength": 1},
+          "analysis_artifact_id": {"type": "string", "minLength": 1},
+          "analysis_outcome": {"enum": ["succeeded", "limited", "insufficient_evidence"]},
+          "non_executable": {"const": true},
+          "deployment_eligible": {"const": false},
+          "session_schema": {"const": "masi-web-projection/v1"},
+          "csrf_present": {"const": true},
+          "sse_connections": {"const": 1},
+          "console_errors": {"type": "array", "maxItems": 0},
+          "page_errors": {"type": "array", "maxItems": 0},
+          "request_failures": {"type": "array", "maxItems": 0},
+          "response_errors": {"type": "array", "maxItems": 0},
+          "screenshot_digest": {"$ref": "#/$defs/digest"},
+          "started_at": {"type": "string", "format": "date-time"},
+          "finished_at": {"type": "string", "format": "date-time"},
+          "result": {"const": "PASS"}
+        }
+      }
+    },
+    "central_oci_result": {"enum": ["PASS", "HOLD"]},
+    "process_logs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "edge", "central", "gateway", "triton", "control", "bmv2", "p4_compiler",
+        "p4_loader", "p4_traffic", "web", "web_forwarder", "plugin_host",
+        "plugin_hostctl", "plugin_host_export", "plugin_go_test", "analysis", "analysis_external_fixtures",
+        "analysis_export", "analysis_go_test"
+      ],
+      "properties": {
+        "edge": {"$ref": "#/$defs/digest"},
+        "central": {"$ref": "#/$defs/digest"},
+        "gateway": {"$ref": "#/$defs/digest"},
+        "triton": {"$ref": "#/$defs/digest"},
+        "control": {"$ref": "#/$defs/digest"},
+        "bmv2": {"$ref": "#/$defs/digest"},
+        "p4_compiler": {"$ref": "#/$defs/digest"},
+        "p4_loader": {"$ref": "#/$defs/digest"},
+        "p4_traffic": {"$ref": "#/$defs/digest"},
+        "web": {"$ref": "#/$defs/digest"},
+        "web_forwarder": {"$ref": "#/$defs/digest"},
+        "plugin_host": {"$ref": "#/$defs/digest"},
+        "plugin_hostctl": {"$ref": "#/$defs/digest"},
+        "plugin_host_export": {"$ref": "#/$defs/digest"},
+        "plugin_go_test": {"$ref": "#/$defs/digest"},
+        "analysis": {"$ref": "#/$defs/digest"},
+        "analysis_external_fixtures": {"$ref": "#/$defs/digest"},
+        "analysis_export": {"$ref": "#/$defs/digest"},
+        "analysis_go_test": {"$ref": "#/$defs/digest"}
+      }
+    },
+    "level": {"const": "REHEARSAL"},
+    "applicability": {"const": "APPLICABLE"},
+    "result": {"const": "PASS"},
+    "qualification": {"const": "NOT_QUALIFIED"},
+    "qualification_scope": {"type": "string", "minLength": 1, "maxLength": 512}
+  },
+  "$defs": {
+    "digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}
+  }
+}

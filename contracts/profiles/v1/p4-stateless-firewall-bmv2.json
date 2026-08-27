@@ -6,8 +6,8 @@
     "architecture": "v1model",
     "language": "P4_16",
     "runtime": "simple_switch_grpc",
-    "runtime_version": "1.15.5+masi.shutdown.1.testtiming.2",
-    "runtime_image": "masi-nids/p4-switch-runtime@sha256:8b8655c2fb7bc5563706ee853fb668ba70457633cda7d93633d022b30b7ead42",
+    "runtime_version": "1.15.5+masi.shutdown.1.testtiming.2.pi-p4runtime-1.4.1.1",
+    "runtime_image": "masi-nids/p4-switch-runtime@sha256:24669f08df3583b0d170226f6969f1090235604ef6d5bb5e2b2bb06062d9a571",
     "upstream_source_commit": "693e69e634fedf007964a069fdd69acc441a5f80",
     "source_archive_sha256": "sha256:4bb79a5fd931dbe9d5e5539f8763498d87af9ddae9495f0dd45e849b0481672f",
     "qualified_source_patch_sha256": "sha256:0f0665b4db472680e17c5f2d9f5eddfa1e78201f4097f7cf5dd614a690b2597a",
@@ -15,7 +15,15 @@
       "bounded-graceful-shutdown",
       "virtualized-builder-synchronization-test-timing"
     ],
-    "p4runtime_capabilities_version": "1.3.0",
+    "pi_upstream_source_commit": "577b502da91b7d17e4be5821d49d481dc2e1bb7a",
+    "pi_source_archive_sha256": "sha256:d0baa762e588b1bbd0e43009e3131c919ac0722f2a6ed7bffbed4fe8b48419ba",
+    "p4runtime_source_commit": "36e8b46e406530d12e89cafbf466e368244ac2a0",
+    "p4runtime_source_release": "v1.4.1",
+    "qualified_pi_patch_sha256": "sha256:c6bdd909599c01a9afdd921352b8c61a1a4ed0368ef68f759d3ecca6cd521f45",
+    "qualified_pi_patch_scopes": [
+      "p4runtime-capabilities-1.4.1"
+    ],
+    "p4runtime_capabilities_version": "1.4.1",
     "test_client_proto_package_version": "1.4.1",
     "compiler": "p4c-bm2-ss 1.2.5.14",
     "compiler_image": "masi-nids/p4-switch-p4c@sha256:8c26666dfa1041b0f9a29b5051c92dbf4ce5df807273f80dd54b3aff5412c926",

@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://masi-nids.example/contracts/evidence/offline-ml-image-build/v1/schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "module_id", "level", "applicability", "result", "qualification", "source_revision", "source_tree_digest", "working_tree_status_digest", "working_tree_dirty", "image_ref", "image_id", "image_user", "python_builder_image_digest", "runtime_libraries_image_digest", "runtime_base_image_digest", "runtime_library_digests", "wheelhouse_digest", "lock_digest", "offline_image_build", "runtime_download"],
+  "properties": {
+    "schema_version": {"const": "offline-ml-image-build-evidence/v1"},
+    "module_id": {"const": "MOD-ML-001"},
+    "level": {"const": "MODULE"},
+    "applicability": {"const": "APPLICABLE"},
+    "result": {"const": "PASS"},
+    "qualification": {"const": "NOT_QUALIFIED"},
+    "source_revision": {"type": "string", "pattern": "^[0-9a-f]{40,64}$"},
+    "source_tree_digest": {"$ref": "#/$defs/digest"},
+    "working_tree_status_digest": {"$ref": "#/$defs/digest"},
+    "working_tree_dirty": {"type": "boolean"},
+    "image_ref": {"type": "string", "minLength": 1, "maxLength": 256},
+    "image_id": {"$ref": "#/$defs/digest"},
+    "image_user": {"const": "65532:65532"},
+    "python_builder_image_digest": {"const": "sha256:4766d8b510c428e595d74b9cc5bbb2fae8e26316fffb4adc89908d79aacd58a2"},
+    "runtime_libraries_image_digest": {"const": "sha256:d812438658b47b73cb4c089f4cca09bca1ba50f6cd1843133864ee074d9ec49b"},
+    "runtime_base_image_digest": {"const": "sha256:adcd20c7b4c988b73cbfbddb26d2eee574571e6d7c9ffea29b3821e0690efb77"},
+    "runtime_library_digests": {"type": "object", "additionalProperties": false, "required": ["zlib", "libffi"], "properties": {"zlib": {"const": "sha256:cd0d4cbe528e1d83875605c2aa10f0a9ea2d34a055d24db96642e6f78ad7206d"}, "libffi": {"const": "sha256:baae077ca48493f45210ce490bb281403b1d68362adef95495f5e0bc28e70eaa"}}},
+    "wheelhouse_digest": {"$ref": "#/$defs/digest"},
+    "lock_digest": {"$ref": "#/$defs/digest"},
+    "offline_image_build": {"const": true},
+    "runtime_download": {"const": false}
+  },
+  "$defs": {"digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}}
+}

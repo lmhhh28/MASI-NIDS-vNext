@@ -3,7 +3,7 @@
   "fixture_id": "live-session-v1",
   "fixture_revision": 1,
   "fixture_class": "live-session",
-  "manifest_digest": "sha256:599d320f96f8223d076b38c16119dfe7301e13353da7451904dfcdd42c557107",
+  "manifest_digest": "sha256:305e75172438bc093fb544420df6bf08d8f43c767acb69c9fd7d9e479693e69f",
   "source": {
     "reference": "repo-generated://testkit/p4_switch/ptf/bounded-live-session",
     "acquired_at": "2026-08-12T00:00:00Z",
@@ -92,7 +92,7 @@
         "package_version": "4.5.2-r1"
       }
     },
-    "bmv2_image_digest": "sha256:8b8655c2fb7bc5563706ee853fb668ba70457633cda7d93633d022b30b7ead42",
+    "bmv2_image_digest": "sha256:24669f08df3583b0d170226f6969f1090235604ef6d5bb5e2b2bb06062d9a571",
     "mininet_version": null,
     "veth": true,
     "offloads": "disabled-or-not-applicable-to-raw-veth",

@@ -1,0 +1,27 @@
+{
+  "schema_version": "third-party-notices/v1",
+  "module": "offline-ml",
+  "notices": [
+    {"component": "CPython runtime", "license": "PSF-2.0", "source": "https://github.com/python/cpython"},
+    {"component": "Python 3.12.13 slim-bookworm offline builder", "license": "aggregate-see-generated-SPDX", "source": "https://hub.docker.com/_/python"},
+    {"component": "Distroless cc Debian 12 OCI runtime base", "license": "aggregate-see-generated-SPDX", "source": "https://github.com/GoogleContainerTools/distroless"},
+    {"component": "Chainguard Wolfi runtime-library source image", "license": "aggregate-see-generated-SPDX", "source": "https://github.com/chainguard-images/images/tree/main/images/python"},
+    {"component": "Wolfi zlib runtime library", "license": "MPL-2.0 AND MIT", "source": "https://github.com/madler/zlib/tree/v1.3.2"},
+    {"component": "Wolfi libffi runtime library", "license": "MIT", "source": "https://github.com/libffi/libffi/tree/v3.8.0"},
+    {"component": "uv build and lock tool", "license": "Apache-2.0 OR MIT", "source": "https://github.com/astral-sh/uv"},
+    {"component": "Offline ML uv.lock dependency closure", "license": "per-package SPDX", "source": "ml-py/uv.lock"},
+    {"component": "jsonschema", "license": "MIT", "source": "https://github.com/python-jsonschema/jsonschema"},
+    {"component": "NumPy", "license": "BSD-3-Clause plus bundled-library notices", "source": "https://github.com/numpy/numpy"},
+    {"component": "ONNX", "license": "Apache-2.0", "source": "https://github.com/onnx/onnx"},
+    {"component": "ONNXMLTools", "license": "Apache-2.0", "source": "https://github.com/onnx/onnxmltools"},
+    {"component": "ONNX Runtime CPU", "license": "MIT", "source": "https://github.com/microsoft/onnxruntime"},
+    {"component": "scikit-learn", "license": "BSD-3-Clause", "source": "https://github.com/scikit-learn/scikit-learn"},
+    {"component": "SHAP", "license": "MIT", "source": "https://github.com/shap/shap"},
+    {"component": "skl2onnx", "license": "Apache-2.0", "source": "https://github.com/onnx/sklearn-onnx"},
+    {"component": "XGBoost CPU", "license": "Apache-2.0", "source": "https://github.com/dmlc/xgboost"},
+    {"component": "Pinned Triton consumer smoke image", "license": "NVIDIA Triton container terms plus generated SPDX", "source": "https://github.com/triton-inference-server/server"},
+    {"component": "Syft", "license": "Apache-2.0", "source": "https://github.com/anchore/syft"},
+    {"component": "Trivy", "license": "Apache-2.0", "source": "https://github.com/aquasecurity/trivy"},
+    {"component": "Cosign", "license": "Apache-2.0", "source": "https://github.com/sigstore/cosign"}
+  ]
+}

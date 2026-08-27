@@ -4,7 +4,7 @@
 - 日期：2026-08-14
 - 需求基线：`vNext-requirements-1.19`
 - 核心需求：`ARCH-001`、`ARCH-002`、`ARCH-003`、`MOD-REGISTRY-001`、`TEST-003`、`TEST-GATE-001`、`TEST-REAL-E2E-001`、`TEST-004`、`TEST-005`、`TEST-006`、`TEST-010`、`ACCEPT-001`、`DEC-044`
-- 主要 ADR：ADR-0001、ADR-0003、ADR-0004、ADR-0005、ADR-0006、ADR-0009、ADR-0013、ADR-0014、ADR-0015、ADR-0017、ADR-0018
+- 主要 ADR：ADR-0001、ADR-0003、ADR-0004、ADR-0005、ADR-0006、ADR-0009、ADR-0013、ADR-0014、ADR-0015、ADR-0017、ADR-0018、ADR-0019
 
 ## 1. 设计结论
 
@@ -38,7 +38,7 @@ Target/Fleet、Model Manager、Plugin Manager、Plugin Statistics、rule observa
 | Plugin Runtime Host | `plugin-host-rs/` | 独立 Rust OCI/binary + pinned Wasmtime/WASI profile | 实例化已准入 Wasm，受控连接已部署的显式 Host-managed service，强制能力与资源 | Manager/Statistics gRPC、WIT、Host-managed service boundary |
 | Python Analysis Plugin | `analysis-py/` | 独立 Python 3.12+ OCI/process | LangGraph/LLM/MCP/A2A 有界证据分析，生成不可执行 Artifact | A2A、restricted MCP client、provider adapter、自有 schema |
 | Web SOC SPA | `web/` | production Vue 3/Vite 静态 artifact/OCI + 资格化浏览器 | SOC 展示、输入、可访问交互；不拥有事实或授权 | 同源 HTTPS `/api`、`/events`、OIDC callback |
-| Offline ML Pipeline | `ml-py/` | 可重复执行的 Python artifact pipeline 资格主体 | 训练、评估、导出 immutable model bundle 与证据 | dataset/model contracts、bundle/manifest/golden output |
+| Offline ML Pipeline | `ml-py/` | 可重复执行的 Python artifact pipeline 资格主体 | ADR-0019 synthetic+CIC-DDoS2019重摄取、canonical P4-window训练、LR/XGBoost/AE评估、导出 immutable model bundle/解释与资格证据 | dataset/model contracts、bundle/manifest/golden/explanation output |
 
 P4、PostgreSQL 与 Offline ML 虽不是普通长期业务服务，仍必须分别形成与可部署模块同等级的独立资格证据，不得遗漏。
 
@@ -103,6 +103,7 @@ contracts / profiles / cross-language golden
 ├── Python Analysis
 ├── Web SOC SPA
 └── Offline ML ── model bundle ──► Central Inference / Go Model Manager
+               └─ offline explanation evidence refs ──► Go / Analysis / Web（非实时、不可执行）
 
 testkit + deploy + evidence tooling
 └── each module black-box ──► all-module gate ──► pairwise ──► system waves ──► full E2E
@@ -179,4 +180,4 @@ Module Complete 的含义是该模块被分配的首期功能全部实现；邻�
 
 ## 12. 当前状态
 
-截至2026-08-21，P4/Switch、Rust Edge、Central Inference、Go Control、PostgreSQL State、Plugin Runtime Host六个独立模块已形成各自实现与证据；每个operational completion都只由本模块latest module-gate evidence独立判定。P4/Switch已`PASS/QUALIFIED`，其余五个只达到operational Module Complete并保持各自`HOLD/NOT_QUALIFIED`；Python Analysis、Web、Offline ML仍未开始实现。任何单模块完成都不授予其他模块或系统aggregate资格；九个模块各自完成后，才依[`../integration/pairwise-and-system-integration-design.md`](../integration/pairwise-and-system-integration-design.md)进入正式集成。
+截至2026-08-27，P4/Switch、Rust Edge、Central Inference、Go Control、PostgreSQL State、Plugin Runtime Host、Python Analysis、Offline ML和Web九个模块均有operational-completion历史。Web `20260827T020500Z-formal-002`通过production OCI、三浏览器、性能与3600秒soak；Go `20260827T041200Z-formal-003`与Analysis `analysis-formal-20260827-011`完成各自当时source scope的正式门禁。九组件startup rehearsal `20260827T062000Z-rehearsal-004`为所有实际runtime得到`operational_startup_result=PASS`；connected run `20260827T023500Z-rehearsal-005`进一步在单一PG/Control拓扑运行真实检测链、Control statistics dispatcher→Host/Wasm、Analysis与production Web三浏览器。该run是fixture-assisted 64包happy-path rehearsal，明确`NOT_QUALIFIED`。本次联调修改的Go/Edge/Inference/P4 source须重跑完整module gates后才能恢复current completion；正式十二pairwise、十system waves及fault/performance/soak未完成前，global integration继续`HOLD`，状态与后续入口以[`../integration/pairwise-and-system-integration-design.md`](../integration/pairwise-and-system-integration-design.md)为准。

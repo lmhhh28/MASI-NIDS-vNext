@@ -225,6 +225,7 @@
     "LEASE_EXPIRED",
     "NONE",
     "NOT_PRIMARY",
+    "OK",
     "P4_STREAM_CLOSED",
     "P4_STREAM_ERROR",
     "PACKET_HINT_DURABLE",

@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://masi-nids.example/contracts/evidence/offline-ml-triton/v1/schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "module_id", "level", "applicability", "result", "qualification", "triton_image", "triton_image_id", "triton_server_version", "model_control_mode", "strict_readiness", "repository_read_only", "network_external", "container_id", "startup_elapsed_ms", "model_metadata", "model_config", "inference", "numeric", "model_digest", "repository_closure_digest", "logs_digest"],
+  "properties": {
+    "schema_version": {"const": "offline-ml-triton-smoke-evidence/v1"},
+    "module_id": {"const": "MOD-ML-001"},
+    "level": {"const": "MODULE"},
+    "applicability": {"const": "APPLICABLE"},
+    "result": {"const": "PASS"},
+    "qualification": {"const": "NOT_QUALIFIED"},
+    "triton_image": {"const": "nvcr.io/nvidia/tritonserver@sha256:75bcfa5b0043898ece3e603c17a5bbbb1c9bddc390563db24312ef59d83735e5"},
+    "triton_image_id": {"const": "sha256:75bcfa5b0043898ece3e603c17a5bbbb1c9bddc390563db24312ef59d83735e5"},
+    "triton_server_version": {"const": "2.59.0"},
+    "model_control_mode": {"const": "none"},
+    "strict_readiness": {"const": true},
+    "repository_read_only": {"const": true},
+    "network_external": {"const": false},
+    "container_id": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "startup_elapsed_ms": {"type": "number", "maximum": 30000},
+    "model_metadata": {"type": "object"},
+    "model_config": {"type": "object"},
+    "inference": {"type": "object"},
+    "numeric": {"type": "object", "properties": {"records": {"const": 3}, "finite": {"const": true}}, "required": ["records", "finite"]},
+    "model_digest": {"$ref": "#/$defs/digest"},
+    "repository_closure_digest": {"$ref": "#/$defs/digest"},
+    "logs_digest": {"$ref": "#/$defs/digest"}
+  },
+  "$defs": {"digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}}
+}

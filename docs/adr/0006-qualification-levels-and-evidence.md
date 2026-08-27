@@ -1,7 +1,7 @@
 # ADR-0006：资格等级、早期 Boundary Rehearsal 与机器可读证据
 
 - 状态：Accepted
-- 日期：2026-08-14
+- 日期：2026-08-14；最近复核：2026-08-22（同步ADR-0019 Offline ML recipe/evidence）
 - 决策者：Owner
 - 需求基线：`vNext-requirements-1.19`
 - 关联需求：`ARCH-TARGET-FLEET-001`、`CONTRACT-TARGET-001`、`CONTRACT-FLEET-EFFECT-001`、`CONTRACT-PROFILE-001`、`MOD-DB-001`、`MOD-INF-001`、`MOD-ML-001`、`MOD-TARGET-FLEET-001`、`DB-TARGET-FLEET-001`、`PERF-001`、`PERF-002`、`PERF-INF-001`、`PERF-TEL-INF-001`、`PERF-RULE-001`、`PERF-TRAFFIC-001`、`PERF-TARGET-FLEET-001`、`REL-INF-POOL-001`、`REL-TARGET-FLEET-001`、`SEC-TARGET-FLEET-001`、`DEP-TARGET-FLEET-001`、`OBS-TARGET-FLEET-001`、`WEB-PERF-001`、`WEB-A11Y-001`、`WEB-SUPPLY-001`、`WEB-TARGET-FLEET-001`、`TEST-002` 至 `TEST-010`、`TEST-GATE-001`、`TEST-REAL-E2E-001`、`TEST-INF-001`、`TEST-TEL-INF-001`、`TEST-PLUGIN-001`、`TEST-WEB-001`、`TEST-RULE-001`、`TEST-TRAFFIC-001`、`TEST-REUSE-001`、`TEST-TARGET-FLEET-001`、`ACCEPT-001`、`DEC-001`、`DEC-019`、`DEC-020`、`DEC-021`、`DEC-023`、`DEC-024`、`DEC-025`、`DEC-026`、`DEC-027`、`DEC-028`、`DEC-029`、`DEC-030`、`DEC-032`、`DEC-033`、`DEC-034`、`DEC-035`、`DEC-036`、`DEC-037`、`DEC-038`、`DEC-044`
@@ -182,14 +182,20 @@ PostgreSQL State/Migration 作为独立 qualification target，必须证明：
 
 Offline ML Artifact Pipeline 不是在线服务，但必须有独立 qualification manifest：
 
-- train/validation/test dataset 与 preprocessing digest；
+- ADR-0019 `dataset-p4-window-binary/v1` official source/fetch/raw-capture/citation/license/privacy/ground-truth、P4/reference-extractor golden、`train|early_stop|calibration|blind_test` capture-family split 与 preprocessing digest；
+- source-selection、dataset-revision与winner-selection三种状态分列；legacy direct-import拒绝、CIC-DDoS2019 official test sealed blind、CSE-CIC-IDS2018/CIC-IDS2017/UNSW/TON/CICIoT条件OOC边界、mixed/ambiguous/not-covered coverage和source/scenario分列结果；
+- synthetic `60/15/15/10`、CIC official-training `70/15/15/0`、official-test sealed blind的capture-family hash清单，packet timestamp+directional tuple join、`[start,end)`、100% label coverage、attack share denominator和source×label/family等权训练规则；
 - feature schema、label taxonomy、output adapter、class order/mode/unknown/OOD/abstain、seed、toolchain/config；
+- 固定seed `17,29,43`下Logistic/XGBoost/Autoencoder三个mandatory execution、ADR-0019 exact bounded grid、deterministic order/runtime、candidate eligible/rejected、fail-closed `winner=none`、single exact winner及零ensemble/fallback；
 - model bundle/manifest/scaler/export/runtime profile digest、ONNX metadata 对照和跨 Python/C++ numeric tolerance；
-- model profile 中具体 precision/recall/FPR/FNR、OOD/NaN/Inf threshold；
+- model profile 中具体 precision/recall/FPR/FNR、Platt参数、`τ_alert/τ_conf`、score-domain、OOD/abstain/NaN/Inf threshold与决策precedence；
+- `PR-AUC/precision/recall/macro-F1/FPR/ECE/Brier/per-family recall/non-abstained coverage/benign abstain`绝对门槛，以及Logistic raw-margin contribution、XGBoost interventional raw-margin TreeSHAP、Autoencoder scaled-log residual的additivity/mean identity、method/background/sample/tool/digest、coverage、truncation、跨seed稳定性与限制；
 - offline replay、性能/资源、rollback/previous-reader compatibility；
 - data/license/privacy/retention 与 accepted difference。
 
-任一阈值缺失、数据无法重建、label/output 语义不明确、numeric golden 或目标分布不通过时为`result=HOLD|FAIL, qualification=NOT_QUALIFIED`；签名、SBOM、provenance 或 SHA-256 不代替模型质量。
+任一阈值缺失、数据无法重建、capture-family泄漏、blind test被训练/调参读取、mandatory candidate未运行、label/output 语义不明确、没有eligible winner、numeric/explanation golden 或目标分布不通过时为`result=HOLD|FAIL, qualification=NOT_QUALIFIED`；候选真实执行后质量未达标必须保留`REJECTED`结果，不要求伪造三候选都通过。签名、SBOM、provenance、SHA-256、公开benchmark或pooled accuracy不代替模型质量。
+
+ADR-0019首期exact recipe只声明`model-runtime-central-cpu/v1`。CPU numeric/runtime证据是required；CUDA使用`applicability=NOT_APPLICABLE`并绑定“该bundle未声明CUDA”的稳定理由。未来bundle若声明CUDA，则该scope立即变为APPLICABLE并必须独立执行，不能继承CPU结果。
 
 ### 8.1 Online Model Lifecycle Qualification
 
@@ -243,6 +249,7 @@ startup/readiness/liveness 必须分别故障注入。startup 成功前不执行
 - 正式 pairwise 在全模块 gate 前无法调度或记 PASS；
 - Module、pairwise和system调度器分别验证真实service inventory；缺进程/container、runtime、公开边界、start/stop timeline或使用内部fake时无法记PASS；
 - fault envelope、performance samples、DB restore、ML manifest 与 model pool rollout/startup-readback/offline-comparison evidence 均通过 schema/golden；
+- Offline ML按ADR-0019真实重摄取/重提取六维窗口，四split/三seed/三mandatory candidate、blind-test封存、Platt/threshold/abstain、绝对quality/calibration、source/family coverage与offline explanation evidence通过；legacy CSV/NPY直接导入、row随机切分、blind回调阈值或LLM伪造attribution稳定失败；
 - probe/restart/quarantine、deployment action/termination、model incarnation/pool/route/commit状态机、CPU/CUDA显式选择与mismatch、single/HA availability、所选profile的绝对rolling capacity，以及HA profile适用的failure-domain/N+1通过真实启动、故障注入与benchmark。
 - Web rehearsal 不能被改名为 browser/E2E/performance PASS；production build、资格化 browser、a11y 人工复核、dependency/license 和 current/previous Go/Web rollback evidence 缺一均为 `HOLD`。
 - statistics conformance plugin 必须以真实 Host/direct typed boundary 运行，并贯通 immutable definition qualification→Go frozen input→durable run→Artifact validation→PostgreSQL projection→OpenAPI/SSE→production Web/Playwright；同一场景还要验证 on-demand 与 append-only schedule 的授权、幂等、每次执行重新 fence、宿主固定控件和插件 action 负例。仅 schema test、fixture JSON、组件 story 或直接把插件输出交给浏览器不能形成 `TEST-PLUGIN-STAT-001` PASS。
@@ -278,4 +285,5 @@ startup/readiness/liveness 必须分别故障注入。startup 成功前不执行
 - BMv2 无状态防火墙决策：`0014-bmv2-stateless-firewall-policy-and-activation.md`
 - 多 target/fleet 与设备管理决策：`0015-multi-target-p4-fleet-and-device-management-boundary.md`
 - 插件统计与声明式 Web 投影：`0018-plugin-statistics-and-declarative-web-projection.md`
+- Offline ML 数据集、模型候选与解释边界：`0019-offline-ml-dataset-training-and-explanation-boundary.md`
 - 插件统计专项调研：`../research/plugin-statistics-and-declarative-web-assessment-2026-08-12.md`

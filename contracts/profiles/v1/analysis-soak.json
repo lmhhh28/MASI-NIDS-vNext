@@ -1,0 +1,25 @@
+{
+  "schema_version": "masi-profile/v1",
+  "profile_id": "analysis-soak/v1",
+  "runtime": "real CPython 3.12 release process with mTLS A2A/MCP/provider fixture boundaries",
+  "warmup_seconds": 60,
+  "phases": [
+    {"phase_id": "steady", "seconds": 900, "target_tasks_per_second": 1},
+    {"phase_id": "peak", "seconds": 900, "target_tasks_per_second": 5},
+    {"phase_id": "saturation", "seconds": 900, "burst_tasks": 64, "burst_interval_seconds": 5, "typed_rejection_required": true},
+    {"phase_id": "recovery", "seconds": 900, "target_tasks_per_second": 2, "process_crash_restart_required": true}
+  ],
+  "formal_seconds": 3600,
+  "resource_sample_seconds": 10,
+  "thresholds": {
+    "unclassified_errors": 0,
+    "typed_saturation_rejections_min": 1,
+    "crash_restart_recovered": true,
+    "final_queue_depth": 0,
+    "final_in_flight": 0,
+    "rss_growth_bytes_max": 67108864,
+    "fd_growth_max": 32,
+    "cleanup_required": true
+  },
+  "qualification_limit": "deterministic fixture is not real-provider, pairwise, system, production performance, or production-ha qualification"
+}

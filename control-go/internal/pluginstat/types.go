@@ -20,6 +20,7 @@
 package pluginstat
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -27,6 +28,8 @@ import (
 	"fmt"
 	"math"
 	"regexp"
+	"sort"
+	"strconv"
 	"strings"
 )
 
@@ -471,10 +474,7 @@ func ValidateArtifact(a Artifact) error {
 			}
 		}
 	}
-	raw, err := json.Marshal(a)
-	if err != nil {
-		return err
-	}
+	raw := canonicalJSONBytes(a)
 	if len(raw) > MaxArtifactBytes {
 		return fmt.Errorf("pluginstat: artifact bytes > %d", MaxArtifactBytes)
 	}
@@ -490,9 +490,74 @@ func ValidateArtifact(a Artifact) error {
 func ComputeArtifactDigest(a Artifact) string {
 	a.ArtifactDigest = ""
 	a.Bytes = 0
-	raw, _ := json.Marshal(a)
-	sum := sha256.Sum256(raw)
+	return canonicalJSONDigest(a)
+}
+
+func canonicalJSONDigest(value any) string {
+	canonical := canonicalJSONBytes(value)
+	sum := sha256.Sum256(canonical)
 	return "sha256:" + hex.EncodeToString(sum[:])
+}
+
+func canonicalJSONBytes(value any) []byte {
+	raw, _ := json.Marshal(value)
+	decoder := json.NewDecoder(bytes.NewReader(raw))
+	decoder.UseNumber()
+	var document any
+	_ = decoder.Decode(&document)
+	var canonical bytes.Buffer
+	writeCanonicalJSON(&canonical, document)
+	return canonical.Bytes()
+}
+
+func writeCanonicalJSON(buffer *bytes.Buffer, value any) {
+	switch typed := value.(type) {
+	case nil:
+		buffer.WriteString("null")
+	case bool:
+		if typed {
+			buffer.WriteString("true")
+		} else {
+			buffer.WriteString("false")
+		}
+	case string:
+		var encoded bytes.Buffer
+		encoder := json.NewEncoder(&encoded)
+		encoder.SetEscapeHTML(false)
+		_ = encoder.Encode(typed)
+		buffer.Write(bytes.TrimSuffix(encoded.Bytes(), []byte{'\n'}))
+	case json.Number:
+		if integer, err := typed.Int64(); err == nil {
+			buffer.WriteString(strconv.FormatInt(integer, 10))
+		} else if number, err := typed.Float64(); err == nil && !math.IsNaN(number) && !math.IsInf(number, 0) {
+			buffer.WriteString(strconv.FormatFloat(number, 'g', -1, 64))
+		}
+	case []any:
+		buffer.WriteByte('[')
+		for index, item := range typed {
+			if index > 0 {
+				buffer.WriteByte(',')
+			}
+			writeCanonicalJSON(buffer, item)
+		}
+		buffer.WriteByte(']')
+	case map[string]any:
+		keys := make([]string, 0, len(typed))
+		for key := range typed {
+			keys = append(keys, key)
+		}
+		sort.Strings(keys)
+		buffer.WriteByte('{')
+		for index, key := range keys {
+			if index > 0 {
+				buffer.WriteByte(',')
+			}
+			writeCanonicalJSON(buffer, key)
+			buffer.WriteByte(':')
+			writeCanonicalJSON(buffer, typed[key])
+		}
+		buffer.WriteByte('}')
+	}
 }
 
 // FinalizeArtifact fills the public wire envelope, semantic digest, derived
@@ -511,7 +576,7 @@ func FinalizeArtifact(a Artifact) Artifact {
 	}
 	a.ArtifactDigest = ComputeArtifactDigest(a)
 	for i := 0; i < 4; i++ {
-		raw, _ := json.Marshal(a)
+		raw := canonicalJSONBytes(a)
 		if a.Bytes == len(raw) {
 			break
 		}

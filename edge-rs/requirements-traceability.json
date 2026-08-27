@@ -48,6 +48,7 @@
         "p4_pipeline_read_deadline_fails_before_write_and_recovers",
         "p4_read_response_entity_amplification_fails_closed",
         "p4_reconnect_storm_is_backed_off_and_target_isolated",
+        "p4runtime_1_3_target_is_held_before_stream_or_write",
         "p4_stream_reconnect_is_target_isolated",
         "pipeline_mismatch_reconnect_does_not_leak_streamchannel",
         "real_binary_runs_public_mtls_multi_target_pipeline",
@@ -226,6 +227,7 @@
     {"path":"module-blackbox/p4-read-deadline.json","schema_version":"edge-fault-evidence/v1","test_id":"TEST-EDGE-P4-DEADLINE-001","requirement_ids":["MOD-EDGE-001","TEST-007"],"producer_command_ids":["tests"],"producer_test_targets":["p4_pipeline_read_deadline_fails_before_write_and_recovers"],"required":true},
     {"path":"module-blackbox/p4-read-entity-bound.json","schema_version":"edge-resource-bound-evidence/v1","test_id":"TEST-EDGE-P4-READ-BOUND-001","requirement_ids":["MOD-EDGE-001","TEST-003","TEST-007"],"producer_command_ids":["tests"],"producer_test_targets":["p4_read_response_entity_amplification_fails_closed"],"required":true},
     {"path":"module-blackbox/p4-reconnect-storm.json","schema_version":"edge-fault-evidence/v1","test_id":"TEST-EDGE-P4-RECONNECT-STORM-001","requirement_ids":["MOD-EDGE-001","ARCH-TARGET-FLEET-001","TEST-007","TEST-TARGET-FLEET-001"],"producer_command_ids":["tests"],"producer_test_targets":["p4_reconnect_storm_is_backed_off_and_target_isolated"],"required":true},
+    {"path":"module-blackbox/p4runtime-version-fence.json","schema_version":"edge-fault-evidence/v1","test_id":"TEST-EDGE-P4RUNTIME-VERSION-FENCE-001","requirement_ids":["MOD-EDGE-001","CONTRACT-P4-001","TEST-003","TEST-007"],"producer_command_ids":["tests"],"producer_test_targets":["p4runtime_1_3_target_is_held_before_stream_or_write"],"required":true},
     {"path":"module-blackbox/p4-stream-reconnect.json","schema_version":"edge-fault-evidence/v1","test_id":"TEST-EDGE-P4-RECONNECT-001","requirement_ids":["MOD-EDGE-001","ARCH-004","TEST-003","TEST-007"],"producer_command_ids":["tests"],"producer_test_targets":["p4_stream_reconnect_is_target_isolated"],"required":true},
     {"path":"module-blackbox/performance-rehearsal.json","schema_version":"edge-performance-rehearsal/v1","test_id":"TEST-EDGE-FW-CAPACITY-001","requirement_ids":["MOD-EDGE-001","CONTRACT-P4-FW-001","FUNC-EFFECT-001","TEST-P4-FW-001","TEST-008"],"producer_command_ids":["performance-rehearsal"],"producer_test_targets":["bounded_rule_activation_matrix_rehearsal"],"required":true},
     {"path":"module-blackbox/resource-profile-ceilings.json","schema_version":"edge-resource-bound-evidence/v1","test_id":"TEST-EDGE-RESOURCE-PROFILE-001","requirement_ids":["MOD-EDGE-001","TEST-003","TEST-007"],"producer_command_ids":["tests"],"producer_test_targets":["frozen_profile_resource_ceilings_are_rejected"],"required":true},
@@ -308,9 +310,9 @@
     },
     {
       "requirement_id": "CONTRACT-P4-001",
-      "scenario_ids": ["CONTRACT-EDGE-P4-GOLDEN-001"],
-      "test_targets": ["p4_digest_response_bytes_are_frozen", "p4_digest_ack_request_bytes_are_frozen", "p4_packet_response_bytes_are_frozen"],
-      "evidence_files": ["tests.log"],
+      "scenario_ids": ["CONTRACT-EDGE-P4-GOLDEN-001", "TEST-EDGE-P4RUNTIME-VERSION-FENCE-001"],
+      "test_targets": ["p4_digest_response_bytes_are_frozen", "p4_digest_ack_request_bytes_are_frozen", "p4_packet_response_bytes_are_frozen", "p4runtime_1_3_target_is_held_before_stream_or_write"],
+      "evidence_files": ["module-blackbox/p4runtime-version-fence.json", "tests.log"],
       "qualification_limit": "generated Rust adapter and exact golden bytes"
     },
     {
@@ -371,16 +373,16 @@
     },
     {
       "requirement_id": "TEST-003",
-      "scenario_ids": ["TEST-EDGE-MODULE-E2E-001", "TEST-EDGE-EFFECT-RECOVERY-001"],
-      "test_targets": ["real_binary_runs_public_mtls_multi_target_pipeline", "response_loss_reconciles_and_route_recovers_after_crash"],
-      "evidence_files": ["module-blackbox/module-blackbox-e2e.json", "module-blackbox/effect-journal-recovery.json"],
+      "scenario_ids": ["TEST-EDGE-MODULE-E2E-001", "TEST-EDGE-EFFECT-RECOVERY-001", "TEST-EDGE-P4RUNTIME-VERSION-FENCE-001"],
+      "test_targets": ["real_binary_runs_public_mtls_multi_target_pipeline", "response_loss_reconciles_and_route_recovers_after_crash", "p4runtime_1_3_target_is_held_before_stream_or_write"],
+      "evidence_files": ["module-blackbox/module-blackbox-e2e.json", "module-blackbox/effect-journal-recovery.json", "module-blackbox/p4runtime-version-fence.json"],
       "qualification_limit": "real Edge binary with deterministic public-boundary fakes"
     },
     {
       "requirement_id": "TEST-007",
-      "scenario_ids": ["TEST-EDGE-OS-ENOSPC-001", "TEST-EDGE-OS-FD-EXHAUSTION-001", "TEST-EDGE-ACTOR-QUEUE-001", "TEST-EDGE-P4-PIPELINE-SESSION-FENCE-001", "TEST-EDGE-WAL-RETENTION-001", "TEST-EDGE-GATE-RUNNER-001"],
-      "test_targets": ["os_enospc_fails_closed_without_process_loss", "os_fd_exhaustion_rejects_new_target_without_overcommit", "actor_command_queue_saturation_rejects_admission", "pipeline_mismatch_reconnect_does_not_leak_streamchannel", "expired_wal_starts_real_actor_in_sticky_hold_without_external_advance", "scripts/test-module-gate-runner.py"],
-      "evidence_files": ["module-blackbox/os-enospc.json", "module-blackbox/os-fd-exhaustion.json", "module-blackbox/actor-queue-saturation.json", "module-blackbox/p4-pipeline-mismatch-no-session-leak.json", "module-blackbox/wal-retention-expiry.json", "module-gate-runner-negative-cases.log"],
+      "scenario_ids": ["TEST-EDGE-OS-ENOSPC-001", "TEST-EDGE-OS-FD-EXHAUSTION-001", "TEST-EDGE-ACTOR-QUEUE-001", "TEST-EDGE-P4-PIPELINE-SESSION-FENCE-001", "TEST-EDGE-P4RUNTIME-VERSION-FENCE-001", "TEST-EDGE-WAL-RETENTION-001", "TEST-EDGE-GATE-RUNNER-001"],
+      "test_targets": ["os_enospc_fails_closed_without_process_loss", "os_fd_exhaustion_rejects_new_target_without_overcommit", "actor_command_queue_saturation_rejects_admission", "pipeline_mismatch_reconnect_does_not_leak_streamchannel", "p4runtime_1_3_target_is_held_before_stream_or_write", "expired_wal_starts_real_actor_in_sticky_hold_without_external_advance", "scripts/test-module-gate-runner.py"],
+      "evidence_files": ["module-blackbox/os-enospc.json", "module-blackbox/os-fd-exhaustion.json", "module-blackbox/actor-queue-saturation.json", "module-blackbox/p4-pipeline-mismatch-no-session-leak.json", "module-blackbox/p4runtime-version-fence.json", "module-blackbox/wal-retention-expiry.json", "module-gate-runner-negative-cases.log"],
       "qualification_limit": "module fault and resource boundaries"
     },
     {

@@ -351,12 +351,16 @@ pub fn validate_input_bundle(
             validate_scalar(value)?;
         }
     }
-    if compute_frozen_input_digest(&bundle)? != bundle.frozen_input_digest
-        || compute_input_bundle_digest(&bundle)? != bundle.bundle_digest
-    {
+    if compute_frozen_input_digest(&bundle)? != bundle.frozen_input_digest {
         return Err(HostError::new(
             ReasonCode::DigestMismatch,
-            "statistics frozen-input or full-bundle digest mismatch",
+            "statistics frozen-input digest mismatch",
+        ));
+    }
+    if compute_input_bundle_digest(&bundle)? != bundle.bundle_digest {
+        return Err(HostError::new(
+            ReasonCode::DigestMismatch,
+            "statistics full-bundle digest mismatch",
         ));
     }
     Ok(bundle)
@@ -415,12 +419,13 @@ pub fn compute_frozen_input_digest(bundle: &FrozenInputBundle) -> HostResult<Str
 pub fn compute_input_bundle_digest(bundle: &FrozenInputBundle) -> HostResult<String> {
     let mut canonical = bundle.clone();
     canonical.bundle_digest.clear();
-    let encoded = serde_json::to_vec(&canonical).map_err(|error| {
+    let value = serde_json::to_value(&canonical).map_err(|error| {
         HostError::new(
             ReasonCode::InvalidArgument,
             format!("statistics input bundle canonicalization: {error}"),
         )
     })?;
+    let encoded = canonical_json_bytes(&value)?;
     Ok(sha256_bytes(&encoded))
 }
 
@@ -508,9 +513,10 @@ pub fn finalize_artifact(
     validate_digest_text(definition_digest)?;
     artifact.artifact_digest = compute_artifact_digest(&artifact)?;
     for _ in 0..4 {
-        let raw = serde_json::to_vec(&artifact).map_err(|error| {
+        let value = serde_json::to_value(&artifact).map_err(|error| {
             HostError::new(ReasonCode::Internal, format!("artifact encode: {error}"))
         })?;
+        let raw = canonical_json_bytes(&value)?;
         if artifact.bytes == raw.len() {
             if raw.len() > 1024 * 1024 {
                 return Err(HostError::new(
@@ -533,13 +539,69 @@ pub fn compute_artifact_digest(artifact: &StatisticsArtifact) -> HostResult<Stri
     let mut canonical = artifact.clone();
     canonical.artifact_digest.clear();
     canonical.bytes = 0;
-    let raw = serde_json::to_vec(&canonical).map_err(|error| {
+    let value = serde_json::to_value(&canonical).map_err(|error| {
         HostError::new(
             ReasonCode::Internal,
             format!("artifact digest encode: {error}"),
         )
     })?;
+    let raw = canonical_json_bytes(&value)?;
     Ok(sha256_bytes(&raw))
+}
+
+fn canonical_json_bytes(value: &serde_json::Value) -> HostResult<Vec<u8>> {
+    fn append(value: &serde_json::Value, output: &mut String) -> Result<(), serde_json::Error> {
+        match value {
+            serde_json::Value::Null => output.push_str("null"),
+            serde_json::Value::Bool(value) => {
+                output.push_str(if *value { "true" } else { "false" })
+            }
+            serde_json::Value::Number(number) => {
+                if let Some(value) = number.as_i64() {
+                    output.push_str(&value.to_string());
+                } else if let Some(value) = number.as_u64() {
+                    output.push_str(&value.to_string());
+                } else if let Some(value) = number.as_f64() {
+                    output.push_str(&value.to_string());
+                }
+            }
+            serde_json::Value::String(value) => output.push_str(&serde_json::to_string(value)?),
+            serde_json::Value::Array(values) => {
+                output.push('[');
+                for (index, item) in values.iter().enumerate() {
+                    if index > 0 {
+                        output.push(',');
+                    }
+                    append(item, output)?;
+                }
+                output.push(']');
+            }
+            serde_json::Value::Object(values) => {
+                let mut keys: Vec<_> = values.keys().collect();
+                keys.sort();
+                output.push('{');
+                for (index, key) in keys.into_iter().enumerate() {
+                    if index > 0 {
+                        output.push(',');
+                    }
+                    output.push_str(&serde_json::to_string(key)?);
+                    output.push(':');
+                    append(&values[key], output)?;
+                }
+                output.push('}');
+            }
+        }
+        Ok(())
+    }
+
+    let mut output = String::new();
+    append(value, &mut output).map_err(|error| {
+        HostError::new(
+            ReasonCode::Internal,
+            format!("canonical JSON encode: {error}"),
+        )
+    })?;
+    Ok(output.into_bytes())
 }
 
 fn validate_candidate(candidate: &mut StatisticsCandidate) -> HostResult<()> {

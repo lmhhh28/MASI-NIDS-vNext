@@ -23,6 +23,72 @@ func TestTestProfileValidation(t *testing.T) {
 		t.Fatal("test in username must not make a production DB test-named")
 	}
 }
+
+func TestAcceptanceProfileRequiresLoopbackMTLSAnalysis(t *testing.T) {
+	c := testConfig()
+	c.RuntimeProfile = "acceptance"
+	c.TLS = TLS{GRPCCertFile: "grpc.crt", GRPCKeyFile: "grpc.key", GRPCClientCAFile: "clients.ca",
+		GRPCAllowedClientSANs: []string{"edge-acceptance"}}
+	c.Outbound.Analysis = []A2APeer{{
+		PeerID: "analysis-acceptance", PluginID: "masi.analysis.langgraph",
+		BaseURL: "https://127.0.0.1:17446", ServerName: "localhost",
+		CAFile: "ca.pem", CertFile: "client.pem", KeyFile: "client.key",
+		AllowedIPs: []string{"127.0.0.1"}, MaxResponseBytes: 128 << 10,
+	}}
+	if err := c.validate(); err != nil {
+		t.Fatalf("bounded acceptance mTLS peer rejected: %v", err)
+	}
+	c.Outbound.Analysis[0].BaseURL = "http://127.0.0.1:17446"
+	if err := c.validate(); err == nil {
+		t.Fatal("acceptance plaintext Analysis peer must fail")
+	}
+	c = testConfig()
+	c.RuntimeProfile = "acceptance"
+	c.TLS = TLS{GRPCCertFile: "grpc.crt", GRPCKeyFile: "grpc.key", GRPCClientCAFile: "clients.ca",
+		GRPCAllowedClientSANs: []string{"edge-acceptance"}}
+	c.ExternalClients = "production-mtls"
+	if err := c.validate(); err == nil {
+		t.Fatal("acceptance must not enable the production outbound client set")
+	}
+}
+
+func TestAcceptanceProfileRequiresInboundGRPCMTLS(t *testing.T) {
+	c := testConfig()
+	c.RuntimeProfile = "acceptance"
+	if err := c.validate(); err == nil {
+		t.Fatal("acceptance without inbound gRPC mTLS must fail")
+	}
+	c.TLS = TLS{GRPCCertFile: "grpc.crt", GRPCKeyFile: "grpc.key", GRPCClientCAFile: "clients.ca",
+		GRPCAllowedClientSANs: []string{"edge-acceptance"}}
+	if err := c.validate(); err != nil {
+		t.Fatalf("acceptance inbound gRPC mTLS rejected: %v", err)
+	}
+	c.TLS.GRPCAllowedClientSANs = []string{"edge-acceptance", "edge-acceptance"}
+	if err := c.validate(); err == nil {
+		t.Fatal("acceptance duplicate gRPC client SAN must fail")
+	}
+}
+
+func TestAcceptancePluginStatisticsRequiresLoopbackMTLS(t *testing.T) {
+	c := testConfig()
+	c.RuntimeProfile = "acceptance"
+	c.TLS = TLS{GRPCCertFile: "grpc.crt", GRPCKeyFile: "grpc.key", GRPCClientCAFile: "clients.ca",
+		GRPCAllowedClientSANs: []string{"edge-acceptance"}}
+	c.Outbound.PluginStatistics = MTLSClient{Endpoint: "127.0.0.1:19443", ServerName: "plugin-host.test",
+		CAFile: "ca.pem", CertFile: "manager.pem", KeyFile: "manager.key", MaxMessageBytes: 4 << 20}
+	if err := c.validate(); err != nil {
+		t.Fatalf("bounded acceptance statistics mTLS adapter rejected: %v", err)
+	}
+	c.Outbound.PluginStatistics.Endpoint = "192.0.2.1:19443"
+	if err := c.validate(); err == nil {
+		t.Fatal("acceptance non-loopback statistics adapter must fail")
+	}
+	c.Outbound.PluginStatistics.Endpoint = "127.0.0.1:not-a-port"
+	if err := c.validate(); err == nil {
+		t.Fatal("acceptance non-numeric statistics port must fail")
+	}
+}
+
 func TestProductionFailsWithoutTLSAndOIDC(t *testing.T) {
 	c := testConfig()
 	c.RuntimeProfile = "production"

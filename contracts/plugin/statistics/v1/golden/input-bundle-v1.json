@@ -2,7 +2,7 @@
   "schema_version": "masi-plugin-statistics/v1",
   "record_type": "input-bundle",
   "record_id": "bundle-run-1",
-  "bundle_digest": "sha256:fc84828e1be73266f31d69ae0d486dad54c874e07a57fca0a3ebef5986858653",
+  "bundle_digest": "sha256:90b5b3111eaa24b33015133e77ab8dee28b50fdbd2d71668e64eb81b7d7450e1",
   "run_id": "statistics-run-1",
   "request_digest": "sha256:190eb9e507606512b004fe56f9f6953f20fbf067248c54b38ee724b39aeab8bc",
   "plugin_id": "plugin.wasm.statistics.fixture",

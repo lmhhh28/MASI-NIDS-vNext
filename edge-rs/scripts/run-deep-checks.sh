@@ -26,7 +26,7 @@ printf '%s\n' "${working_tree_status}" >"${evidence_dir}/working-tree-status.txt
 working_tree_status_digest="sha256:$(sha256sum "${evidence_dir}/working-tree-status.txt" | awk '{print $1}')"
 tar --sort=name --mtime=@1786406400 --owner=0 --group=0 --numeric-owner \
   --exclude='edge-rs/target' --exclude='edge-rs/evidence' \
-  --exclude='edge-rs/**/__pycache__' --exclude='contracts/**/__pycache__' \
+  --exclude='**/node_modules' --exclude='**/__pycache__' --exclude='*.pyc' \
   -cf "${source_archive}" -C "${repo_root}" edge-rs contracts
 source_tree_digest="sha256:$(sha256sum "${source_archive}" | awk '{print $1}')"
 if [[ -n "${MASI_EDGE_EXPECTED_SOURCE_TREE_DIGEST:-}" \

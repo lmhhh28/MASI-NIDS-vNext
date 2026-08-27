@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://masi-nids.example/contracts/analysis/a2a/v1/send-request.schema.json",
+  "title": "MASI A2A 1.0 Analysis Send Request",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["message", "configuration", "metadata"],
+  "properties": {
+    "message": {
+      "type": "object", "additionalProperties": false, "required": ["messageId", "role", "parts", "metadata"],
+      "properties": {
+        "messageId": {"$ref": "#/$defs/identity"}, "role": {"const": "ROLE_USER"},
+        "parts": {"type": "array", "minItems": 1, "maxItems": 1, "items": {"$ref": "#/$defs/input_part"}},
+        "metadata": {
+          "type": "object", "additionalProperties": false,
+          "required": ["schemaVersion", "inputDigest", "pluginId", "bindingGeneration", "deadlineUnixMs"],
+          "properties": {
+            "schemaVersion": {"const": "masi-analysis-input/v1"}, "inputDigest": {"$ref": "#/$defs/digest"},
+            "pluginId": {"const": "masi.analysis.langgraph"}, "bindingGeneration": {"type": "integer", "minimum": 1}, "deadlineUnixMs": {"type": "integer", "minimum": 1}
+          }
+        }
+      }
+    },
+    "configuration": {
+      "type": "object", "additionalProperties": false, "required": ["acceptedOutputModes"],
+      "properties": {"acceptedOutputModes": {"const": ["application/json"]}}
+    },
+    "metadata": {
+      "type": "object", "additionalProperties": false,
+      "required": ["traceId", "noPush", "noStreaming", "delegationDepth", "delegationPath"],
+      "properties": {
+        "traceId": {"$ref": "#/$defs/identity"}, "noPush": {"const": true}, "noStreaming": {"const": true},
+        "delegationDepth": {"type": "integer", "minimum": 0, "maximum": 1},
+        "delegationPath": {"type": "array", "maxItems": 2, "uniqueItems": true, "items": {"$ref": "#/$defs/identity"}}
+      }
+    }
+  },
+  "$defs": {
+    "identity": {"type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"},
+    "digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "input_part": {
+      "type": "object", "additionalProperties": false, "required": ["data", "mediaType"],
+      "properties": {"data": {"$ref": "../../input/v1/schema.json"}, "mediaType": {"const": "application/json"}}
+    }
+  },
+  "x-masi-semantic-constraints": [
+    {"constraint_id": "A2A-SEND-IDENTITY-MATCH", "fields": ["/message/metadata", "/message/parts/0/data", "/metadata"], "operator": "exact-input-identity-match"},
+    {"constraint_id": "A2A-SEND-NO-LOOP", "fields": ["/metadata/delegationPath", "/message/parts/0/data/plugin_id"], "operator": "plugin-not-in-delegation-path"}
+  ]
+}

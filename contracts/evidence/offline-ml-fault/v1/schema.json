@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://masi-nids.example/contracts/evidence/offline-ml-fault/v1/schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "module_id", "level", "applicability", "result", "qualification", "scenarios", "scenario_count", "unexpected_errors", "atomic_publication", "cleanup_complete", "artifact_identity"],
+  "properties": {
+    "schema_version": {"const": "offline-ml-fault-evidence/v1"},
+    "module_id": {"const": "MOD-ML-001"},
+    "level": {"const": "MODULE"},
+    "applicability": {"const": "APPLICABLE"},
+    "result": {"const": "PASS"},
+    "qualification": {"const": "NOT_QUALIFIED"},
+    "scenarios": {"type": "object", "minProperties": 9, "maxProperties": 32, "additionalProperties": {"type": "object", "required": ["result"], "properties": {"result": {"const": "PASS"}}}},
+    "scenario_count": {"type": "integer", "minimum": 9, "maximum": 32},
+    "unexpected_errors": {"const": 0},
+    "atomic_publication": {"const": true},
+    "cleanup_complete": {"const": true},
+    "artifact_identity": {"type": "object", "minProperties": 3, "additionalProperties": {"$ref": "#/$defs/digest"}}
+  },
+  "$defs": {"digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}}
+}

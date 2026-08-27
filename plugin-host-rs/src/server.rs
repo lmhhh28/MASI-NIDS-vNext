@@ -18,6 +18,7 @@ use tonic::service::interceptor::InterceptedService;
 use tonic::transport::Server;
 use tonic::transport::server::Connected;
 use tonic::{Request, Response, Status};
+use tonic_health::ServingStatus;
 
 use crate::admission::sha256_bytes;
 use crate::config::read_secure_file;
@@ -72,6 +73,7 @@ pub async fn serve(
     .max_decoding_message_size(max)
     .max_encoding_message_size(max);
     let control_allowed = allowed.clone();
+    let health_allowed = allowed.clone();
     let control = InterceptedService::new(control, move |request: Request<()>| {
         authorize_peer(request, &control_allowed)
     });
@@ -82,6 +84,19 @@ pub async fn serve(
     .max_encoding_message_size(max);
     let statistics = InterceptedService::new(statistics, move |request: Request<()>| {
         authorize_peer(request, &allowed)
+    });
+    let (health_reporter, health) = tonic_health::server::health_reporter();
+    health_reporter
+        .set_service_status("", ServingStatus::Serving)
+        .await;
+    health_reporter
+        .set_service_status(
+            "masi.control.adapter.v1.PluginStatisticsExecutor",
+            ServingStatus::Serving,
+        )
+        .await;
+    let health = InterceptedService::new(health, move |request: Request<()>| {
+        authorize_peer(request, &health_allowed)
     });
     let listener = tokio::net::TcpListener::bind(address)
         .await
@@ -132,6 +147,7 @@ pub async fn serve(
         .max_concurrent_streams(max_streams)
         .load_shed(true)
         .timeout(Duration::from_millis(state.config().limits.max_deadline_ms))
+        .add_service(health)
         .add_service(control)
         .add_service(statistics)
         .serve_with_incoming_shutdown(incoming, async move {

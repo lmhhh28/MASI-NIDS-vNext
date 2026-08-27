@@ -4,12 +4,15 @@
   "title": "Frozen Analysis Input Bundle V1",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema_version", "task_id", "skill", "plugin_id", "binding_generation", "scope", "target_set_digest", "event_refs", "incident_refs", "evidence_refs", "runtime_refs", "input_digest", "deadline_unix_ms", "locale", "content_request", "idempotency_key", "trace_id"],
+  "required": ["schema_version", "task_id", "run_id", "skill", "plugin_id", "plugin_revision", "config_digest", "binding_generation", "scope", "target_set_digest", "event_refs", "incident_refs", "evidence_refs", "runtime_refs", "model_result_evidence_refs", "model_explanation_evidence_refs", "quality", "provider_profile_digest", "prompt_profile_digest", "tool_policy_digest", "redaction_profile_digest", "provenance_digest", "budgets", "input_digest", "deadline_unix_ms", "expires_at_unix_ms", "locale", "content_request", "idempotency_key", "delegation_path", "trace_id"],
   "properties": {
     "schema_version": {"const": "masi-analysis-input/v1"},
     "task_id": {"$ref": "#/$defs/identity"},
+    "run_id": {"$ref": "#/$defs/identity"},
     "skill": {"enum": ["analyze_nids_incident", "compare_event_windows", "draft_mitigation_advice", "generate_incident_content"]},
     "plugin_id": {"$ref": "#/$defs/identity"},
+    "plugin_revision": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "config_digest": {"$ref": "#/$defs/digest"},
     "binding_generation": {"type": "integer", "minimum": 1},
     "scope": {"type": "string", "minLength": 1, "maxLength": 256},
     "target_set_digest": {"$ref": "#/$defs/digest"},
@@ -17,25 +20,61 @@
     "incident_refs": {"type": "array", "maxItems": 32, "uniqueItems": true, "items": {"$ref": "#/$defs/fact_ref"}},
     "evidence_refs": {"type": "array", "maxItems": 128, "uniqueItems": true, "items": {"$ref": "#/$defs/fact_ref"}},
     "runtime_refs": {"type": "array", "maxItems": 64, "uniqueItems": true, "items": {"$ref": "#/$defs/fact_ref"}},
+    "model_result_evidence_refs": {"$ref": "#/$defs/identity_array"},
+    "model_explanation_evidence_refs": {"$ref": "#/$defs/identity_array"},
+    "quality": {"enum": ["valid", "partial", "low", "stale", "invalid"]},
+    "provider_profile_digest": {"$ref": "#/$defs/digest"},
+    "prompt_profile_digest": {"$ref": "#/$defs/digest"},
+    "tool_policy_digest": {"$ref": "#/$defs/digest"},
+    "redaction_profile_digest": {"$ref": "#/$defs/digest"},
+    "provenance_digest": {"$ref": "#/$defs/digest"},
+    "budgets": {"$ref": "#/$defs/budgets"},
     "input_digest": {"$ref": "#/$defs/digest"},
     "deadline_unix_ms": {"type": "integer", "minimum": 1},
+    "expires_at_unix_ms": {"type": "integer", "minimum": 1},
     "locale": {"type": "string", "minLength": 1, "maxLength": 32},
     "content_request": {"type": "string", "maxLength": 2048},
     "idempotency_key": {"$ref": "#/$defs/identity"},
+    "delegation_path": {"type": "array", "maxItems": 2, "uniqueItems": true, "items": {"$ref": "#/$defs/identity"}},
     "trace_id": {"$ref": "#/$defs/identity"}
   },
   "$defs": {
     "identity": {"type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"},
     "digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "identity_array": {"type": "array", "maxItems": 128, "uniqueItems": true, "items": {"$ref": "#/$defs/identity"}},
     "fact_ref": {
       "type": "object",
       "additionalProperties": false,
       "required": ["id", "digest"],
       "properties": {"id": {"$ref": "#/$defs/identity"}, "digest": {"$ref": "#/$defs/digest"}}
+    },
+    "budgets": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["llm_calls", "mcp_rounds", "tool_calls", "tool_parallelism", "tool_timeout_ms", "tool_response_bytes", "tool_total_response_bytes", "llm_timeout_ms", "result_budget_ms", "graph_deadline_ms", "artifact_bytes", "outbound_delegations", "delegation_depth", "polls_per_task", "a2a_response_bytes"],
+      "properties": {
+        "llm_calls": {"type": "integer", "minimum": 0, "maximum": 2},
+        "mcp_rounds": {"type": "integer", "minimum": 0, "maximum": 2},
+        "tool_calls": {"type": "integer", "minimum": 0, "maximum": 6},
+        "tool_parallelism": {"type": "integer", "minimum": 1, "maximum": 4},
+        "tool_timeout_ms": {"type": "integer", "minimum": 1, "maximum": 5000},
+        "tool_response_bytes": {"type": "integer", "minimum": 1, "maximum": 65536},
+        "tool_total_response_bytes": {"type": "integer", "minimum": 1, "maximum": 262144},
+        "llm_timeout_ms": {"type": "integer", "minimum": 1, "maximum": 6000},
+        "result_budget_ms": {"type": "integer", "minimum": 1, "maximum": 8000},
+        "graph_deadline_ms": {"type": "integer", "minimum": 1, "maximum": 30000},
+        "artifact_bytes": {"type": "integer", "minimum": 1024, "maximum": 65536},
+        "outbound_delegations": {"type": "integer", "minimum": 0, "maximum": 2},
+        "delegation_depth": {"type": "integer", "minimum": 0, "maximum": 1},
+        "polls_per_task": {"type": "integer", "minimum": 0, "maximum": 3},
+        "a2a_response_bytes": {"type": "integer", "minimum": 1024, "maximum": 131072}
+      }
     }
   },
   "x-masi-semantic-constraints": [
     {"constraint_id": "ANALYSIS-INPUT-GO-FROZEN", "fields": ["/input_digest", "/event_refs", "/incident_refs", "/evidence_refs", "/runtime_refs"], "operator": "canonical-fact-read-and-digest"},
+    {"constraint_id": "ANALYSIS-INPUT-MODEL-REFS-FROZEN", "fields": ["/model_result_evidence_refs", "/model_explanation_evidence_refs", "/evidence_refs"], "operator": "identity-subset-of-evidence-refs"},
+    {"constraint_id": "ANALYSIS-INPUT-DEADLINE-EXPIRY", "fields": ["/deadline_unix_ms", "/expires_at_unix_ms"], "operator": "deadline-not-after-expiry"},
     {"constraint_id": "ANALYSIS-INPUT-NO-CREDENTIAL", "operator": "no-endpoint-credential-prompt-packet-payload"}
   ]
 }

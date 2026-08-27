@@ -641,7 +641,7 @@ func soakBatch(eventKey string, worker int, seq int64) *edgev1.InferenceResultBa
 	// (a fixed 2023 timestamp would be swept as expired by the retention loop).
 	now := time.Now().UnixMilli()
 	route := &edgev1.InferenceRoute{
-		SchemaVersion: "inference-central-grpc-batch/v1", ShardId: "shard-e2e",
+		SchemaVersion: "inference-route/v1", ShardId: "shard-e2e",
 		ModelControlIncarnationId: "inc-e2e", LogicalPoolId: "pool-e2e", PoolGeneration: 1,
 		BindingGeneration: 1, RouteEpoch: 1, ModelRevisionDigest: d, ModelBundleDigest: d,
 		FeatureContractDigest: d, LabelContractDigest: d, OutputAdapterDigest: d,
@@ -661,7 +661,7 @@ func soakBatch(eventKey string, worker int, seq int64) *edgev1.InferenceResultBa
 		WorkerId: fmt.Sprintf("soak-worker-%d", worker), WorkerDigest: d,
 		WorkerAttemptId: fmt.Sprintf("soak-attempt-%d", seq), Scores: []float32{0.1, 0.9},
 		PredictedLabel: 1, Decision: "alert", DecisionCode: edgev1.InferenceDecision_INFERENCE_DECISION_ALERT,
-		Status: "ok", ExecutionStatus: edgev1.InferenceExecutionStatus_INFERENCE_EXECUTION_STATUS_OK,
+		Status: "OK", ErrorCode: "NONE", ExecutionStatus: edgev1.InferenceExecutionStatus_INFERENCE_EXECUTION_STATUS_OK,
 		InferenceStartedAtUnixMs: now - 100, InferenceCompletedAtUnixMs: now - 10,
 	}
 	return &edgev1.InferenceResultBatch{

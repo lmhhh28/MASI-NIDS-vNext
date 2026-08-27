@@ -1,0 +1,59 @@
+[build-system]
+requires = ["setuptools==80.9.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "masi-offline-ml"
+version = "1.0.0"
+description = "Deterministic MASI-NIDS P4-window dataset and immutable model-bundle pipeline"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+  "jsonschema==4.26.0",
+  "numpy==2.2.6",
+  "onnx==1.21.0",
+  "onnxmltools==1.16.0",
+  "onnxruntime==1.19.0",
+  "scikit-learn==1.7.2",
+  "shap==0.52.0",
+  "skl2onnx==1.20.0",
+  "xgboost-cpu==3.3.0",
+]
+
+[project.optional-dependencies]
+dev = [
+  "build==1.4.0",
+  "pyright==1.1.409",
+  "ruff==0.15.17",
+]
+
+[project.scripts]
+masi-offline-ml = "masi_offline_ml.cli:main"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+masi_offline_ml = ["py.typed"]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 120
+src = ["src", "tests", "scripts"]
+
+[tool.ruff.lint]
+select = ["B", "E", "F", "I", "RUF", "UP"]
+
+[tool.pyright]
+include = ["src", "tests", "scripts"]
+exclude = ["evidence", ".venv", "dist", "build"]
+pythonVersion = "3.12"
+venvPath = "."
+venv = ".venv"
+typeCheckingMode = "strict"
+reportMissingTypeStubs = "none"
+reportUnknownMemberType = "warning"
+reportUnknownArgumentType = "warning"
+reportUnknownVariableType = "warning"

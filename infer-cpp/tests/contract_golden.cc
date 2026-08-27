@@ -181,6 +181,27 @@ void test_fallback_matrix() {
 }
 
 // ---------------------------------------------------------------------------
+// Test: the CPU serving profile pins the exact Triton image and live metadata
+// version. Triton 25.06 reports 2.59.0 through ServerMetadata; a stale version
+// literal would otherwise let the immutable image and the public profile drift.
+// ---------------------------------------------------------------------------
+void test_central_cpu_triton_binding() {
+  const auto profile = load_json(contract_path("contracts/profiles/v1/central-inference-cpu.json"));
+  const auto &triton = profile.at("triton");
+  CHECK(triton.at("image").get<std::string>() == "nvcr.io/nvidia/tritonserver:25.06-py3",
+        "central CPU profile Triton tag drifted");
+  CHECK(triton.at("image_digest").get<std::string>() ==
+            "sha256:75bcfa5b0043898ece3e603c17a5bbbb1c9bddc390563db24312ef59d83735e5",
+        "central CPU profile Triton image digest drifted");
+  CHECK(triton.at("triton_version").get<std::string>() == "2.59.0",
+        "central CPU profile Triton metadata version drifted");
+  CHECK(triton.at("model_control_mode").get<std::string>() == "none" &&
+            triton.at("disable_auto_complete_config").get<bool>() &&
+            triton.at("strict_readiness").get<bool>(),
+        "central CPU profile Triton startup controls drifted");
+}
+
+// ---------------------------------------------------------------------------
 // Test: golden evidence files exist and have stable schema_version
 // ---------------------------------------------------------------------------
 void test_golden_evidence_schema_versions() {
@@ -447,6 +468,7 @@ int main() {
   test_inference_input_batch_frozen_bytes();
   test_result_fence_dimensions();
   test_fallback_matrix();
+  test_central_cpu_triton_binding();
   test_golden_evidence_schema_versions();
   test_golden_catalog();
   test_negative_golden_vectors();

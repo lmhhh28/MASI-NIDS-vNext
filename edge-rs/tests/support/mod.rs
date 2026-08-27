@@ -168,6 +168,7 @@ pub struct FakeP4 {
 
 #[derive(Debug)]
 struct P4Inner {
+    p4runtime_api_version: String,
     p4info: Vec<u8>,
     device_config: Vec<u8>,
     cookie: u64,
@@ -243,6 +244,7 @@ impl FakeP4 {
         let (stream_events, _) = broadcast::channel(4096);
         Self {
             inner: Arc::new(Mutex::new(P4Inner {
+                p4runtime_api_version: "1.4.1".into(),
                 p4info,
                 device_config,
                 cookie,
@@ -265,6 +267,11 @@ impl FakeP4 {
 
     pub fn fail_next_effect_write_response(&self) {
         self.inner.lock().fail_effect_write_response_once = true;
+    }
+
+    /// Override the advertised P4Runtime API version for exact-version fencing tests.
+    pub fn set_p4runtime_api_version(&self, version: &str) {
+        self.inner.lock().p4runtime_api_version = version.to_owned();
     }
 
     pub fn stream_opens(&self, device_id: u64) -> u64 {
@@ -630,8 +637,9 @@ impl P4Runtime for FakeP4 {
         &self,
         _request: Request<CapabilitiesRequest>,
     ) -> Result<Response<CapabilitiesResponse>, Status> {
+        let p4runtime_api_version = self.inner.lock().p4runtime_api_version.clone();
         Ok(Response::new(CapabilitiesResponse {
-            p4runtime_api_version: "1.3.0".into(),
+            p4runtime_api_version,
         }))
     }
 }
@@ -752,6 +760,7 @@ struct InferenceInner {
     result_fence_drift_remaining: u32,
     result_reorders_applied: u64,
     calls: Vec<(String, String, u32)>,
+    input_batches: Vec<InferenceInputBatch>,
 }
 
 impl FakeInference {
@@ -772,6 +781,7 @@ impl FakeInference {
                 result_fence_drift_remaining: 0,
                 result_reorders_applied: 0,
                 calls: Vec::new(),
+                input_batches: Vec::new(),
             })),
         }
     }
@@ -809,6 +819,10 @@ impl FakeInference {
     pub fn result_reorders_applied(&self) -> u64 {
         self.inner.lock().result_reorders_applied
     }
+
+    pub fn input_batches(&self) -> Vec<InferenceInputBatch> {
+        self.inner.lock().input_batches.clone()
+    }
 }
 
 #[tonic::async_trait]
@@ -822,7 +836,7 @@ impl CentralInference for FakeInference {
         if request.logical_pool_id != inner.route.logical_pool_id
             || request.pool_generation != inner.route.pool_generation
             || request.binding_generation != inner.route.binding_generation
-            || request.schema_version != "inference-binding-readback/v1"
+            || request.schema_version != "inference-committed-binding/v1"
             || request.model_control_incarnation_id != inner.route.model_control_incarnation_id
             || request.operation_id != inner.route.operation_id
             || request.startup_envelope_digest != inner.route.startup_envelope_digest
@@ -852,7 +866,7 @@ impl CentralInference for FakeInference {
             runtime_profile: inner.route.runtime_profile.clone(),
             worker_id: inner.worker_id.clone(),
             worker_digest: inner.worker_digest.clone(),
-            schema_version: "inference-binding-readback/v1".into(),
+            schema_version: "inference-committed-binding/v1".into(),
             model_control_incarnation_id: inner.route.model_control_incarnation_id.clone(),
             operation_id: inner.route.operation_id.clone(),
             startup_envelope_digest: inner.route.startup_envelope_digest.clone(),
@@ -894,6 +908,7 @@ impl CentralInference for FakeInference {
             result_fence_drift,
         ) = {
             let mut inner = self.inner.lock();
+            inner.input_batches.push(input.clone());
             inner.calls.push((
                 input.request_id.clone(),
                 input.batch_digest.clone(),
@@ -964,7 +979,7 @@ impl CentralInference for FakeInference {
                 out_of_distribution: false,
                 abstain: false,
                 quality: "valid".into(),
-                status: "ok".into(),
+                status: "OK".into(),
                 error_code: "NONE".into(),
                 worker_id: worker_id.clone(),
                 worker_digest: worker_digest.clone(),
@@ -1117,9 +1132,11 @@ impl ControlSink for FakeControl {
         request: Request<InferenceResultBatch>,
     ) -> Result<Response<CanonicalAckBatch>, Status> {
         let batch = request.into_inner();
-        let (delay_ms, duplicate_ack, reverse_ack, already_committed) = {
+        let (delay_ms, duplicate_ack, reverse_ack, idempotent_event_keys) = {
             let mut inner = self.inner.lock();
-            inner.commit_attempts.push(batch.batch_digest.clone());
+            inner
+                .commit_attempts
+                .push(format!("{}\0{}", batch.request_id, batch.batch_digest));
             if inner.fail_commit_remaining > 0 {
                 inner.fail_commit_remaining = inner.fail_commit_remaining.saturating_sub(1);
                 return Err(Status::unavailable("injected PostgreSQL boundary outage"));
@@ -1137,14 +1154,36 @@ impl ControlSink for FakeControl {
                 inner.reverse_ack_remaining = inner.reverse_ack_remaining.saturating_sub(1);
                 inner.ack_reorders_applied = inner.ack_reorders_applied.saturating_add(1);
             }
-            let already_committed = inner
-                .committed_batches
-                .iter()
-                .any(|committed| committed.batch_digest == batch.batch_digest);
-            if !already_committed {
+            let mut idempotent_event_keys = Vec::new();
+            for record in &batch.records {
+                if let Some(committed) = inner
+                    .committed_batches
+                    .iter()
+                    .flat_map(|committed| &committed.records)
+                    .find(|committed| {
+                        committed.event_idempotency_key == record.event_idempotency_key
+                    })
+                {
+                    if committed.input_digest != record.input_digest
+                        || committed.output_digest != record.output_digest
+                        || committed.model_control_incarnation_id
+                            != record.model_control_incarnation_id
+                        || committed.logical_pool_id != record.logical_pool_id
+                        || committed.pool_generation != record.pool_generation
+                        || committed.binding_generation != record.binding_generation
+                        || committed.route_epoch != record.route_epoch
+                    {
+                        return Err(Status::failed_precondition(
+                            "event idempotency identity reused with different result",
+                        ));
+                    }
+                    idempotent_event_keys.push(record.event_idempotency_key.clone());
+                }
+            }
+            if idempotent_event_keys.len() != batch.records.len() {
                 inner.committed_batches.push(batch.clone());
             }
-            (delay_ms, duplicate_ack, reverse_ack, already_committed)
+            (delay_ms, duplicate_ack, reverse_ack, idempotent_event_keys)
         };
         if delay_ms > 0 {
             tokio::time::sleep(Duration::from_millis(delay_ms)).await;
@@ -1158,14 +1197,14 @@ impl ControlSink for FakeControl {
                 output_digest: record.output_digest.clone(),
                 canonical_event_id: format!("canonical-{}", record.input_id),
                 committed_at_unix_ms: 1_893_456_020_000,
-                status: if already_committed {
+                status: if idempotent_event_keys.contains(&record.event_idempotency_key) {
                     "idempotent"
                 } else {
                     "committed"
                 }
                 .into(),
                 reason_code: "POSTGRESQL_EVENT_COMMITTED".into(),
-                commit_status: if already_committed {
+                commit_status: if idempotent_event_keys.contains(&record.event_idempotency_key) {
                     CanonicalCommitStatus::Idempotent
                 } else {
                     CanonicalCommitStatus::Committed
@@ -1338,7 +1377,7 @@ pub async fn spawn_control(
 }
 
 pub fn p4info_bytes() -> Vec<u8> {
-    b"masi-p4info-module-v1".to_vec()
+    masi_edge::contract::p4info::P4Info::default().encode_to_vec()
 }
 
 pub fn device_config_bytes() -> Vec<u8> {

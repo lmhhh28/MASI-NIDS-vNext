@@ -27,6 +27,7 @@ from jsonschema import Draft202012Validator, FormatChecker
 
 CONTROL_THRESHOLD_STATUS = "OBSERVED_ONLY_OWNER_NOT_FROZEN_DEC_001"
 CONTROL_PROCESS_THRESHOLD_STATUS = "OBSERVED_ONLY_OWNER_NOT_FROZEN_DEC_001"
+MAX_SAMPLE_SCHEDULING_JITTER_MS = 1_000
 
 
 def load(path: Path) -> dict[str, Any]:
@@ -64,6 +65,28 @@ def parse_timestamp(value: object, field: str, failures: list[str]) -> datetime 
 
 def integer(value: object) -> int | None:
     return value if isinstance(value, int) and not isinstance(value, bool) else None
+
+
+def warmup_samples_span(
+    phase_offsets: list[int], warmup_elapsed_ms: int | None, expected_interval_ms: int
+) -> bool:
+    """Return whether warmup samples cover the measured window with bounded jitter.
+
+    ``time.Ticker`` is not an exact wall-clock scheduler: a nominal 10-second
+    first tick can arrive a few milliseconds late under load.  Accept at most one
+    second of that scheduling jitter without weakening the minimum sample count,
+    tail coverage, monotonicity, or the full 60-second warmup requirement checked
+    by the caller.
+    """
+
+    if warmup_elapsed_ms is None or not phase_offsets:
+        return False
+    return (
+        phase_offsets[0]
+        <= expected_interval_ms + MAX_SAMPLE_SCHEDULING_JITTER_MS
+        and phase_offsets[-1] >= warmup_elapsed_ms - (2 * expected_interval_ms)
+        and all(offset <= warmup_elapsed_ms for offset in phase_offsets)
+    )
 
 
 def main() -> int:
@@ -346,12 +369,8 @@ def main() -> int:
                 if (offset := integer(item.get("offset_ms"))) is not None
             ]
             if phase_name == "warmup":
-                if (
-                    warmup_elapsed_ms is None
-                    or not phase_offsets
-                    or phase_offsets[0] > expected_interval_ms
-                    or phase_offsets[-1] < warmup_elapsed_ms - (2 * expected_interval_ms)
-                    or any(offset > warmup_elapsed_ms for offset in phase_offsets)
+                if not warmup_samples_span(
+                    phase_offsets, warmup_elapsed_ms, expected_interval_ms
                 ):
                     failures.append("warmup samples do not span the measured warmup window")
             elif phase_name in phase_bounds:

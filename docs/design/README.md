@@ -2,19 +2,20 @@
 
 - 文档状态：`DRAFT`
 - 当前实现资格：`qualification=NOT_QUALIFIED`
-- 日期：2026-08-12
+- 日期：2026-08-22
 - 唯一需求基线：[`../masi-nids-vnext-system-requirements-2026-08-09.md`](../masi-nids-vnext-system-requirements-2026-08-09.md)
 - 总体架构：[`../architecture/masi-nids-vnext-overall-architecture-2026-08-11.md`](../architecture/masi-nids-vnext-overall-architecture-2026-08-11.md)
 
 本目录把已经确认的需求和 ADR 细化为可实现的模块设计。它不改变需求基线，不新增模块、事实源、writer、队列或授权路径。发生冲突时，优先级固定为：Owner 确认的需求基线 → Accepted 且未被替代的 ADR → 总体架构 → 本目录设计。
 
-文档存在只说明设计输入已经形成，不说明代码、镜像、测试或性能门槛已经通过。仓库尚处初始化阶段；任何模块在实际证据形成前均保持 `result=HOLD|NOT_RUN`、`qualification=NOT_QUALIFIED`。
+文档存在只说明设计输入已经形成，不说明代码、镜像、测试或性能门槛已经通过。模块状态只从与当前source/artifact匹配的机器可读evidence重派生；没有实际证据的能力保持`result=HOLD|NOT_RUN`、`qualification=NOT_QUALIFIED`。ADR-0019的ML source/recipe已接受，但exact dataset revision、dataset/explanation contract、训练winner和`ml-py/`证据仍未形成。
 
 ## 阅读入口
 
 1. [`00-system-decomposition-and-delivery-design.md`](00-system-decomposition-and-delivery-design.md)：九个模块、所有权、依赖与“先完整实现、后正式集成”的总设计。
 2. [`01-supporting-assets-design.md`](01-supporting-assets-design.md)：Contracts、Testkit、Deploy、Docs/Evidence 四类支撑资产，及其不能越过的边界。
-3. 模块详细设计：
+3. [`02-github-ci-cd-design.md`](02-github-ci-cd-design.md)：GitHub 上的快速 CI、正式模块门禁、证据保留与 fail-closed CD 发布流程。
+4. 模块详细设计：
    - [`modules/p4-switch-design.md`](modules/p4-switch-design.md)
    - [`modules/rust-edge-agent-design.md`](modules/rust-edge-agent-design.md)
    - [`modules/central-inference-design.md`](modules/central-inference-design.md)
@@ -24,9 +25,10 @@
    - [`modules/analysis-plugin-design.md`](modules/analysis-plugin-design.md)
    - [`modules/web-soc-spa-design.md`](modules/web-soc-spa-design.md)
    - [`modules/offline-ml-pipeline-design.md`](modules/offline-ml-pipeline-design.md)
-4. [`../testing/module-e2e-acceptance-design.md`](../testing/module-e2e-acceptance-design.md)：模块独立 E2E 的验收对象、场景、不变量、证据与阻断条件。
-5. [`../integration/pairwise-and-system-integration-design.md`](../integration/pairwise-and-system-integration-design.md)：全模块门禁之后的十二个 pairwise 边界、十个系统波次和 Full E2E。
-6. [`../traceability/design-requirement-matrix.md`](../traceability/design-requirement-matrix.md)：需求 ID、模块、设计、测试与证据的追踪入口。
+   - Offline ML取舍与数据源：[`../adr/0019-offline-ml-dataset-training-and-explanation-boundary.md`](../adr/0019-offline-ml-dataset-training-and-explanation-boundary.md)
+5. [`../testing/module-e2e-acceptance-design.md`](../testing/module-e2e-acceptance-design.md)：模块独立 E2E 的验收对象、场景、不变量、证据与阻断条件。
+6. [`../integration/pairwise-and-system-integration-design.md`](../integration/pairwise-and-system-integration-design.md)：全模块门禁之后的十二个 pairwise 边界、十个系统波次和 Full E2E。
+7. [`../traceability/design-requirement-matrix.md`](../traceability/design-requirement-matrix.md)：需求 ID、模块、设计、测试与证据的追踪入口。
 
 ## 文档约定
 

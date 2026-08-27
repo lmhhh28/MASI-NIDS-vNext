@@ -3,7 +3,7 @@
   "fixture_id": "curated-pcap-l2-v1",
   "fixture_revision": 1,
   "fixture_class": "curated-pcap",
-  "manifest_digest": "sha256:55d8f1b1d57f510abe4d262df802910f6d6041fc959462fa11d58697d099f5b0",
+  "manifest_digest": "sha256:1111e56bd7dc90d6d397c7de2a2a5762801765fa35c7f4abe971885418febb2d",
   "source": {
     "reference": "repo-generated://testkit/p4_switch/ptf/masi-curated-pcap-l2-v1.pcap",
     "acquired_at": "2026-08-12T00:00:00Z",
@@ -105,7 +105,7 @@
         "package_version": "4.5.2-r1"
       }
     },
-    "bmv2_image_digest": "sha256:8b8655c2fb7bc5563706ee853fb668ba70457633cda7d93633d022b30b7ead42",
+    "bmv2_image_digest": "sha256:24669f08df3583b0d170226f6969f1090235604ef6d5bb5e2b2bb06062d9a571",
     "mininet_version": null,
     "veth": true,
     "offloads": "disabled-or-not-applicable-to-raw-veth",

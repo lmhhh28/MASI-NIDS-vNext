@@ -1,0 +1,61 @@
+{
+  "schema_version": "offline-ml-runtime/v1",
+  "module_id": "MOD-ML-001",
+  "execution_kind": "bounded-offline-oci-job",
+  "python": {"implementation": "CPython", "version": "3.12.13", "path": "/usr/local/bin/python3.12"},
+  "python_builder_image": {
+    "reference": "docker.io/library/python@sha256:4766d8b510c428e595d74b9cc5bbb2fae8e26316fffb4adc89908d79aacd58a2",
+    "digest": "sha256:4766d8b510c428e595d74b9cc5bbb2fae8e26316fffb4adc89908d79aacd58a2",
+    "runtime_layer": false,
+    "network": "none"
+  },
+  "runtime_libraries_image": {
+    "reference": "cgr.dev/chainguard/python@sha256:d812438658b47b73cb4c089f4cca09bca1ba50f6cd1843133864ee074d9ec49b",
+    "digest": "sha256:d812438658b47b73cb4c089f4cca09bca1ba50f6cd1843133864ee074d9ec49b",
+    "distribution": "Wolfi 20230201",
+    "packaged_python_copied": false,
+    "selected_files_only": true,
+    "files": [
+      {
+        "component": "zlib",
+        "version": "1.3.2-r4",
+        "source_path": "/usr/lib/libz.so.1.3.2",
+        "runtime_paths": ["/usr/lib/libz.so.1.3.2", "/usr/lib/libz.so.1"],
+        "digest": "sha256:cd0d4cbe528e1d83875605c2aa10f0a9ea2d34a055d24db96642e6f78ad7206d"
+      },
+      {
+        "component": "libffi",
+        "version": "3.8.0-r0",
+        "source_path": "/usr/lib/libffi.so.8.5.0",
+        "runtime_paths": ["/usr/lib/libffi.so.8.5.0", "/usr/lib/libffi.so.8"],
+        "digest": "sha256:baae077ca48493f45210ce490bb281403b1d68362adef95495f5e0bc28e70eaa"
+      }
+    ]
+  },
+  "runtime_base_image": {
+    "reference": "gcr.io/distroless/cc-debian12@sha256:adcd20c7b4c988b73cbfbddb26d2eee574571e6d7c9ffea29b3821e0690efb77",
+    "digest": "sha256:adcd20c7b4c988b73cbfbddb26d2eee574571e6d7c9ffea29b3821e0690efb77",
+    "distribution": "Debian 12 distroless cc",
+    "packaged_python": false,
+    "packaged_python_is_fallback": false,
+    "entrypoint_overridden": true
+  },
+  "identity": {"uid": 65532, "gid": 65532, "root_forbidden": true},
+  "entrypoint": "/usr/local/bin/masi-offline-ml",
+  "filesystem": {"root_read_only": true, "output_mount": "/output", "temporary_mount": "/tmp"},
+  "network": {"mode": "none", "runtime_download": false},
+  "authority": {"postgresql": false, "p4runtime": false, "effect": false, "model_current": false},
+  "resources": {
+    "cpu_max": 2.0,
+    "memory_bytes_max": 2147483648,
+    "pids_max": 128,
+    "file_descriptors_max": 256,
+    "output_bytes_max": 67108864,
+    "temporary_bytes_max": 1073741824
+  },
+  "service_health_endpoints": {
+    "applicability": "NOT_APPLICABLE",
+    "stable_reason": "BOUNDED_OFFLINE_JOB_EXITS_AFTER_ATOMIC_ARTIFACT_PUBLICATION"
+  },
+  "compatibility": {"unknown_major": "reject", "unknown_runtime_profile": "reject", "cuda_inheritance": "forbidden"}
+}

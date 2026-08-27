@@ -1,0 +1,119 @@
+{
+  "schema_version": "module-findings/v1",
+  "module_id": "MOD-AGENT-001",
+  "decision_id": "DEC-044",
+  "reviewed_at": "2026-08-27T03:30:00+08:00",
+  "review_scope": "Official Analysis Plugin contracts, fixed LangGraph, A2A/MCP/provider boundaries, grounding and non-executable Artifact, private state, requester isolation, binding/revoke fence, OCI, supply chain, compatibility, fault, performance, formal soak and operational completion evidence",
+  "findings": [
+    {
+      "finding_id": "AGENT-P0-INDEPENDENT-ANALYSIS-MODULE",
+      "severity": "P0",
+      "status": "CLOSED",
+      "title": "The seventh independent deployable Analysis module did not exist",
+      "requirement_ids": ["MOD-AGENT-001", "AGENT-001", "PLUGIN-PLAT-006"],
+      "evidence_refs": ["analysis-py/src/masi_analysis/server.py", "analysis-py/src/masi_analysis/graph.py", "analysis-py/Dockerfile", "deploy/analysis/compose.acceptance.yaml"],
+      "opened_at": "2026-08-21T21:00:00+08:00",
+      "closed_at": "2026-08-22T00:30:00+08:00",
+      "resolution": "Implemented the official masi.analysis.langgraph analysis-agent as an independent bounded Python 3.12 process and hardened OCI service with direct typed A2A, restricted MCP, provider, private-state and lifecycle boundaries."
+    },
+    {
+      "finding_id": "AGENT-P0-PUBLIC-CONTRACT-CLOSURE",
+      "severity": "P0",
+      "status": "CLOSED",
+      "title": "Initial Analysis contracts lacked complete A2A, MCP, provider, binding and shared golden surfaces",
+      "requirement_ids": ["CONTRACT-AGENT-001", "CONTRACT-001", "AGENT-004"],
+      "evidence_refs": ["contracts/analysis/a2a/v1/send-request.schema.json", "contracts/analysis/a2a/v1/task-response.schema.json", "contracts/analysis/a2a/v1/peer-task-response.schema.json", "contracts/analysis/mcp/v1/schema.json", "contracts/analysis/provider/v1/schema.json", "contracts/analysis/v1/golden/catalog.json"],
+      "opened_at": "2026-08-21T21:10:00+08:00",
+      "closed_at": "2026-08-22T00:45:00+08:00",
+      "resolution": "Added strict versioned schemas, canonical bytes, negative validation and Go/Python shared goldens for frozen input, task, Artifact, provider and direct adapter boundaries."
+    },
+    {
+      "finding_id": "AGENT-P1-REQUESTER-TASK-ISOLATION",
+      "severity": "P1",
+      "status": "CLOSED",
+      "title": "Any allowlisted A2A client could read another client task and trace by task ID",
+      "requirement_ids": ["AGENT-007", "SEC-PLUGIN-001", "SEC-005"],
+      "evidence_refs": ["analysis-py/src/masi_analysis/server.py", "analysis-py/src/masi_analysis/store.py", "analysis-py/scripts/run-blackbox.py", "analysis-py/tests/test_store.py"],
+      "opened_at": "2026-08-22T03:30:00+08:00",
+      "closed_at": "2026-08-22T03:48:00+08:00",
+      "resolution": "The exact authenticated SAN is now attached to admission and durably owns the private task; submit replay, poll and trace all return indistinguishable not-found to any different trusted principal."
+    },
+    {
+      "finding_id": "AGENT-P1-PRIVATE-STATE-INTEGRITY",
+      "severity": "P1",
+      "status": "CLOSED",
+      "title": "SQLite owner, mode and persisted input or Artifact digests were not revalidated",
+      "requirement_ids": ["AGENT-007", "SEC-004", "REL-PLUGIN-001"],
+      "evidence_refs": ["analysis-py/src/masi_analysis/security.py", "analysis-py/src/masi_analysis/store.py", "analysis-py/tests/test_store.py"],
+      "opened_at": "2026-08-22T03:31:00+08:00",
+      "closed_at": "2026-08-22T03:50:00+08:00",
+      "resolution": "Production storage now requires a runtime-owned private directory, creates the database no-follow at mode 0600, rejects incompatible schema and recomputes frozen-input and Artifact canonical digests on every read."
+    },
+    {
+      "finding_id": "AGENT-P1-OUTBOUND-PEER-FENCE",
+      "severity": "P1",
+      "status": "CLOSED",
+      "title": "Outbound A2A accepted under-validated peer task identity and Artifact content",
+      "requirement_ids": ["CONTRACT-AGENT-001", "AGENT-002", "AGENT-007"],
+      "evidence_refs": ["contracts/analysis/a2a/v1/peer-task-response.schema.json", "analysis-py/src/masi_analysis/models.py", "analysis-py/src/masi_analysis/peer.py", "analysis-py/tests/test_peer.py"],
+      "opened_at": "2026-08-22T03:32:00+08:00",
+      "closed_at": "2026-08-22T03:55:00+08:00",
+      "resolution": "The restricted peer profile now validates a strict task envelope and closed non-executable Artifact, checks exact peer plugin/binding/input/trace identity, keeps task/context stable through polling, validates content digests and recomputes every call deadline from the parent deadline."
+    },
+    {
+      "finding_id": "AGENT-P1-OCI-SUPPLY-CLOSURE",
+      "severity": "P1",
+      "status": "CLOSED",
+      "title": "The first Python base and runtime payload failed current offline vulnerability policy",
+      "requirement_ids": ["SEC-PLUGIN-002", "SEC-SUPPLY-001", "DEP-PLUGIN-001"],
+      "evidence_refs": ["analysis-py/Dockerfile", "analysis-py/uv.lock", "analysis-py/scripts/run-supply-chain.sh", "contracts/supply-chain/v1/analysis-plugin-components.json", "deploy/analysis/compose.acceptance.yaml"],
+      "opened_at": "2026-08-22T03:15:00+08:00",
+      "closed_at": "2026-08-22T03:35:00+08:00",
+      "resolution": "Moved to a digest-pinned Python 3.12.13 Alpine 3.23 base, upgraded aiohttp, removed unrelated contracts from the runtime image, refreshed the offline scanner database and required repository@sha256 input in deployment assets; the scan is zero Critical, zero fixable High and zero secret."
+    },
+    {
+      "finding_id": "AGENT-P0-EVIDENCE-FALSE-COMPLETION",
+      "severity": "P0",
+      "status": "CLOSED",
+      "title": "Standalone passing runners could not derive operational Module Complete",
+      "requirement_ids": ["TEST-GATE-001", "TEST-009", "TEST-010"],
+      "evidence_refs": ["analysis-py/scripts/run-module-gates.sh", "analysis-py/scripts/build-module-summary.py", "analysis-py/scripts/validate-module-evidence.py", "contracts/evidence/analysis-module/v1/schema.json"],
+      "opened_at": "2026-08-22T03:35:00+08:00",
+      "closed_at": "2026-08-22T04:00:00+08:00",
+      "resolution": "Added immutable command sidecars, strict Analysis evidence schemas, exact source/status and artifact digests, findings and requirement traceability, semantic tamper negatives, real release and OCI evidence, formal 3600-second soak validation and a machine-derived completion summary that retains qualification-only HOLDs."
+    },
+    {
+      "finding_id": "AGENT-P2-OCI-MOUNT-PREFLIGHT",
+      "severity": "P2",
+      "status": "CLOSED",
+      "title": "The first formal OCI run observed a transient required-file mount miss",
+      "requirement_ids": ["DEP-PLUGIN-001", "SEC-PLUGIN-001", "TEST-003"],
+      "evidence_refs": ["analysis-py/scripts/run-oci-smoke.py", "contracts/evidence/analysis-oci/v1/schema.json", "analysis-py/evidence/module-gates/runs/analysis-formal-20260822-001/oci-smoke.log"],
+      "opened_at": "2026-08-22T04:10:00+08:00",
+      "closed_at": "2026-08-22T04:15:00+08:00",
+      "resolution": "The formal runner umask exposed root-owned 0700 mount directories even though their files were owned by UID 65532. The smoke now explicitly makes both mount directories 65532:65532 mode 0700, then independently starts a network-none, non-root, read-only preflight container to prove required files are readable and the runtime carries exactly three startup schemas before launching the business container."
+    },
+    {
+      "finding_id": "AGENT-P1-SOAK-HTTP-ERROR-ATTRIBUTION",
+      "severity": "P1",
+      "status": "CLOSED",
+      "title": "Formal soak collapsed distinct HTTP failures and restarted on file-only readiness",
+      "requirement_ids": ["MOD-AGENT-001", "TEST-GATE-001", "TEST-003", "DEC-044"],
+      "evidence_refs": ["analysis-py/scripts/run-soak.py", "analysis-py/tests/test_run_soak_helpers.py"],
+      "opened_at": "2026-08-25T23:22:00Z",
+      "closed_at": "2026-08-26T07:30:00+08:00",
+      "resolution": "The soak now records bounded phase, task, operation, HTTP status and exception diagnostics; counts the one deliberately killed in-flight request through an explicit crash-only path; verifies the authenticated /health/ready boundary after startup and restart; and still rejects every non-crash HTTP or unclassified error."
+    },
+    {
+      "finding_id": "AGENT-P1-RUNTIME-SECURITY-REFRESH",
+      "severity": "P1",
+      "status": "CLOSED",
+      "title": "Fresh vulnerability data rejected the prior Alpine runtime libraries",
+      "requirement_ids": ["SEC-PLUGIN-002", "SEC-SUPPLY-001", "DEP-PLUGIN-001"],
+      "evidence_refs": ["analysis-py/Dockerfile", "analysis-py/scripts/build-image.sh", "analysis-py/scripts/run-supply-chain.sh", "analysis-py/evidence/module-gates/runs/analysis-formal-20260827-010/supply/supply-chain-evidence.json", "contracts/profiles/v1/analysis-agent-runtime.json", "contracts/supply-chain/v1/analysis-plugin-components.json"],
+      "opened_at": "2026-08-27T03:05:00+08:00",
+      "closed_at": "2026-08-27T03:30:00+08:00",
+      "resolution": "Rebuilt the candidate as CPython 3.12.13 on a digest-pinned Wolfi runtime, selected ABI-matched OpenSSL 3.0.20 files by exact digest, added effective Python/OpenSSL/SQLite/zlib probes plus builder provenance evidence, and reran the actual hardened OCI business test and fresh offline supply gate with zero final Critical, zero final fixable High, zero selected-library Critical/fixable High, and zero secrets."
+    }
+  ]
+}

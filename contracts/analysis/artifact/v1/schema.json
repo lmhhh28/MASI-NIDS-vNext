@@ -4,18 +4,26 @@
   "title": "Non-executable Analysis Artifact V1",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema_version", "artifact_id", "artifact_digest", "task_id", "plugin_id", "binding_generation", "input_digest", "analysis_outcome", "observed_claims", "inferred_claims", "uncertainties", "limitations", "missing_evidence", "recommendations", "generated_content", "provider_metadata", "tool_trajectory_digest", "trace_id", "media_type", "non_executable", "deployment_eligible"],
+  "required": ["schema_version", "artifact_id", "artifact_digest", "task_id", "run_id", "plugin_id", "plugin_revision", "config_digest", "binding_generation", "input_digest", "analysis_outcome", "quality", "source_fact_refs", "observed_claims", "model_result_facts", "model_explanation_facts", "inferred_claims", "llm_interpretations", "uncertainties", "limitations", "missing_evidence", "recommendations", "generated_content", "provider_metadata", "tool_trajectory_digest", "graph_version", "topology_digest", "trace_id", "trace_digest", "produced_at_unix_ms", "expires_at_unix_ms", "media_type", "non_executable", "deployment_eligible"],
   "properties": {
     "schema_version": {"const": "masi-analysis-artifact/v1"},
     "artifact_id": {"$ref": "#/$defs/identity"},
     "artifact_digest": {"$ref": "#/$defs/digest"},
     "task_id": {"$ref": "#/$defs/identity"},
+    "run_id": {"$ref": "#/$defs/identity"},
     "plugin_id": {"$ref": "#/$defs/identity"},
+    "plugin_revision": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "config_digest": {"$ref": "#/$defs/digest"},
     "binding_generation": {"type": "integer", "minimum": 1},
     "input_digest": {"$ref": "#/$defs/digest"},
     "analysis_outcome": {"enum": ["succeeded", "limited", "insufficient_evidence", "failed"]},
+    "quality": {"enum": ["valid", "limited", "low", "invalid"]},
+    "source_fact_refs": {"type": "array", "maxItems": 352, "uniqueItems": true, "items": {"$ref": "#/$defs/identity"}},
     "observed_claims": {"type": "array", "maxItems": 128, "items": {"$ref": "#/$defs/grounded_claim"}},
+    "model_result_facts": {"type": "array", "maxItems": 64, "items": {"$ref": "#/$defs/grounded_claim"}},
+    "model_explanation_facts": {"type": "array", "maxItems": 64, "items": {"$ref": "#/$defs/model_explanation_fact"}},
     "inferred_claims": {"$ref": "#/$defs/texts"},
+    "llm_interpretations": {"$ref": "#/$defs/texts"},
     "uncertainties": {"$ref": "#/$defs/texts"},
     "limitations": {"$ref": "#/$defs/texts"},
     "missing_evidence": {"$ref": "#/$defs/texts"},
@@ -23,7 +31,12 @@
     "generated_content": {"type": "array", "maxItems": 16, "items": {"$ref": "#/$defs/generated_content"}},
     "provider_metadata": {"$ref": "#/$defs/provider_metadata"},
     "tool_trajectory_digest": {"$ref": "#/$defs/digest"},
+    "graph_version": {"const": "masi-analysis-graph/v1"},
+    "topology_digest": {"$ref": "#/$defs/digest"},
     "trace_id": {"$ref": "#/$defs/identity"},
+    "trace_digest": {"$ref": "#/$defs/digest"},
+    "produced_at_unix_ms": {"type": "integer", "minimum": 1},
+    "expires_at_unix_ms": {"type": "integer", "minimum": 1},
     "media_type": {"enum": ["application/json", "text/markdown"]},
     "non_executable": {"const": true},
     "deployment_eligible": {"const": false}
@@ -35,6 +48,23 @@
     "grounded_claim": {
       "type": "object", "additionalProperties": false, "required": ["claim", "evidence_refs"],
       "properties": {"claim": {"type": "string", "minLength": 1, "maxLength": 4096}, "evidence_refs": {"type": "array", "minItems": 1, "maxItems": 32, "uniqueItems": true, "items": {"$ref": "#/$defs/identity"}}}
+    },
+    "model_explanation_fact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["claim", "evidence_refs", "method", "background_digest", "model_digest", "scaler_digest", "sample_digest", "coverage", "truncated", "limitations"],
+      "properties": {
+        "claim": {"type": "string", "minLength": 1, "maxLength": 4096},
+        "evidence_refs": {"type": "array", "minItems": 1, "maxItems": 32, "uniqueItems": true, "items": {"$ref": "#/$defs/identity"}},
+        "method": {"enum": ["logistic-contribution", "tree-shap", "reconstruction-residual", "other-qualified"]},
+        "background_digest": {"oneOf": [{"type": "null"}, {"$ref": "#/$defs/digest"}]},
+        "model_digest": {"$ref": "#/$defs/digest"},
+        "scaler_digest": {"oneOf": [{"type": "null"}, {"$ref": "#/$defs/digest"}]},
+        "sample_digest": {"$ref": "#/$defs/digest"},
+        "coverage": {"type": "number", "minimum": 0, "maximum": 1},
+        "truncated": {"type": "boolean"},
+        "limitations": {"type": "array", "maxItems": 32, "items": {"type": "string", "minLength": 1, "maxLength": 1024}}
+      }
     },
     "recommendation": {
       "type": "object", "additionalProperties": false,
@@ -58,6 +88,9 @@
   },
   "x-masi-semantic-constraints": [
     {"constraint_id": "ANALYSIS-ARTIFACT-NON-EXECUTABLE", "fields": ["/non_executable", "/deployment_eligible"], "operator": "true-false"},
-    {"constraint_id": "ANALYSIS-OBSERVED-CLAIM-GROUNDED", "fields": ["/observed_claims"], "operator": "refs-subset-frozen-input"}
+    {"constraint_id": "ANALYSIS-OBSERVED-CLAIM-GROUNDED", "fields": ["/observed_claims"], "operator": "refs-subset-frozen-input"},
+    {"constraint_id": "ANALYSIS-MODEL-FACTS-LAYERED", "fields": ["/model_result_facts", "/model_explanation_facts", "/llm_interpretations"], "operator": "source-layers-remain-distinct"},
+    {"constraint_id": "ANALYSIS-EXPLANATION-NON-CAUSAL", "fields": ["/model_explanation_facts"], "operator": "association-not-causality"},
+    {"constraint_id": "ANALYSIS-ARTIFACT-EXPIRY", "fields": ["/produced_at_unix_ms", "/expires_at_unix_ms"], "operator": "produced-before-expiry"}
   ]
 }

@@ -56,6 +56,81 @@ func TestClearSessionCookiePreservesSecurityAttributes(t *testing.T) {
 	}
 }
 
+func TestBrowserTestLoginMintsFixedLoopbackSession(t *testing.T) {
+	st := newTestStore()
+	req := httptest.NewRequest(http.MethodGet, "/oidc/login", nil)
+	req.RemoteAddr = "127.0.0.1:43123"
+	req.Header.Set("Sec-Fetch-Site", "same-origin")
+	rec := httptest.NewRecorder()
+
+	handleBrowserTestLogin(st, false).ServeHTTP(rec, req)
+	if rec.Code != http.StatusSeeOther || rec.Header().Get("Location") != "/" {
+		t.Fatalf("browser test login did not redirect: status=%d location=%q", rec.Code, rec.Header().Get("Location"))
+	}
+	var sessionCookie *http.Cookie
+	for _, cookie := range rec.Result().Cookies() {
+		if cookie.Name == "masi_session" {
+			sessionCookie = cookie
+			break
+		}
+	}
+	if sessionCookie == nil || !sessionCookie.HttpOnly || sessionCookie.SameSite != http.SameSiteStrictMode {
+		t.Fatalf("browser test login returned an invalid session cookie: %+v", sessionCookie)
+	}
+	session, ok := st.Get(sessionCookie.Value)
+	if !ok || session.Actor.Issuer != browserTestLoginIssuer || session.Actor.Subject != browserTestLoginSubject {
+		t.Fatalf("browser test login minted the wrong fixed identity: %+v", session)
+	}
+}
+
+func TestBrowserTestLoginRejectsCrossSiteOrNonLoopback(t *testing.T) {
+	for name, tc := range map[string]struct {
+		remoteAddr string
+		fetchSite  string
+	}{
+		"cross-site":   {remoteAddr: "127.0.0.1:43123", fetchSite: "cross-site"},
+		"non-loopback": {remoteAddr: "192.0.2.10:43123", fetchSite: "same-origin"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodGet, "/oidc/login", nil)
+			req.RemoteAddr = tc.remoteAddr
+			req.Header.Set("Sec-Fetch-Site", tc.fetchSite)
+			rec := httptest.NewRecorder()
+			handleBrowserTestLogin(newTestStore(), false).ServeHTTP(rec, req)
+			if rec.Code != http.StatusForbidden {
+				t.Fatalf("unsafe browser test login returned %d", rec.Code)
+			}
+		})
+	}
+}
+
+func TestRouterUsesBrowserFixtureOnlyForExplicitTestProfile(t *testing.T) {
+	for name, tc := range map[string]struct {
+		enabled    bool
+		wantStatus int
+	}{
+		"test-profile":     {enabled: true, wantStatus: http.StatusSeeOther},
+		"non-test-no-oidc": {enabled: false, wantStatus: http.StatusServiceUnavailable},
+	} {
+		t.Run(name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodGet, "/oidc/login", nil)
+			req.RemoteAddr = "127.0.0.1:43123"
+			req.Header.Set("Sec-Fetch-Site", "same-origin")
+			rec := httptest.NewRecorder()
+			Router(
+				Deps{TestLogin: tc.enabled, RequestTimeout: time.Second},
+				nil,
+				newTestStore(),
+				NewHub(),
+				"http://127.0.0.1:4189",
+			).ServeHTTP(rec, req)
+			if rec.Code != tc.wantStatus {
+				t.Fatalf("unexpected login status: got=%d want=%d", rec.Code, tc.wantStatus)
+			}
+		})
+	}
+}
+
 func TestMutationGuardRejectsMissingCSRF(t *testing.T) {
 	st := newTestStore()
 	s := testSession(t, st)
@@ -366,12 +441,14 @@ func TestRouterOpenAPIPathsRegistered(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, want := range []string{
-		"GET /api/events", "GET /api/incidents", "GET /api/evidence", "GET /api/effects/proposals",
+		"GET /api/dashboard", "GET /api/events", "GET /api/incidents", "GET /api/evidence", "GET /api/effects/proposals",
 		"GET /api/effects/decisions", "POST /api/effects/proposals", "POST /api/effects/decisions", "GET /api/effects/intents",
 		"GET /api/firewall/revisions", "GET /api/targets", "GET /api/fleet/operations", "GET /api/rule-effectiveness",
 		"GET /api/models/revisions", "GET /api/models/bindings", "GET /api/models/rollout-groups", "GET /api/plugins",
 		"GET /api/plugins/statistics/definitions", "GET /api/plugins/statistics/runs", "POST /api/plugins/statistics/runs",
 		"GET /api/plugins/statistics/current", "GET /api/plugins/statistics/artifacts/{artifactID}",
+		"GET /api/analysis/artifacts",
+		"GET /api/audit",
 		"POST /api/targets", "POST /api/targets/{targetID}/activate", "POST /api/targets/{targetID}/retire",
 		"POST /api/firewall/revisions", "POST /api/firewall/activations",
 		"POST /api/firewall/overlays",

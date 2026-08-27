@@ -1,0 +1,120 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://masi-nids.example/contracts/evidence/web-module/v1/schema.json",
+  "title": "Web SPA operational module gate summary",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "module_id", "run_id", "started_at", "finished_at", "source_tree_digest", "working_tree_dirty", "working_tree_status_digest", "profiles", "commands", "browser_matrix", "bundle", "performance", "oci", "soak", "findings", "level", "applicability", "result", "qualification", "qualification_scope", "overall_module_complete"],
+  "properties": {
+    "schema_version": {"const": "web-spa-module-gate-summary/v1"},
+    "module_id": {"const": "MOD-WEB-001"},
+    "run_id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{1,127}$"},
+    "started_at": {"type": "string", "format": "date-time"},
+    "finished_at": {"type": "string", "format": "date-time"},
+    "source_tree_digest": {"$ref": "#/$defs/digest"},
+    "working_tree_dirty": {"type": "boolean"},
+    "working_tree_status_digest": {"$ref": "#/$defs/digest"},
+    "profiles": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["spa", "browser", "performance"],
+      "properties": {
+        "spa": {"const": "web-spa/v1"},
+        "browser": {"const": "web-browser/v1"},
+        "performance": {"const": "web-performance/v1"}
+      }
+    },
+    "commands": {"type": "array", "minItems": 10, "maxItems": 64, "items": {"$ref": "#/$defs/command"}},
+    "browser_matrix": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["driver", "chromium", "firefox", "webkit", "tests", "failures"],
+      "properties": {
+        "driver": {"const": "@playwright/test@1.62.1"},
+        "chromium": {"const": "151.0.7922.34@1234"},
+        "firefox": {"const": "153.0@1538"},
+        "webkit": {"const": "26.5@2336"},
+        "tests": {"type": "integer", "minimum": 18},
+        "failures": {"const": 0}
+      }
+    },
+    "bundle": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["initial_javascript_gzip_bytes", "initial_css_gzip_bytes", "maximum_route_gzip_bytes", "result"],
+      "properties": {
+        "initial_javascript_gzip_bytes": {"type": "integer", "minimum": 1, "maximum": 256000},
+        "initial_css_gzip_bytes": {"type": "integer", "minimum": 1, "maximum": 81920},
+        "maximum_route_gzip_bytes": {"type": "integer", "minimum": 1, "maximum": 614400},
+        "result": {"const": "PASS"}
+      }
+    },
+    "performance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["lcp_p75_ms", "inp_p75_ms", "cls_p75", "route_navigation_p95_ms", "api_concurrency", "sse_connections_per_tab", "result"],
+      "properties": {
+        "lcp_p75_ms": {"type": "number", "minimum": 0, "maximum": 2500},
+        "inp_p75_ms": {"type": "number", "minimum": 0, "maximum": 200},
+        "cls_p75": {"type": "number", "minimum": 0, "maximum": 0.1},
+        "route_navigation_p95_ms": {"type": "number", "minimum": 0, "maximum": 500},
+        "api_concurrency": {"type": "integer", "minimum": 0, "maximum": 8},
+        "sse_connections_per_tab": {"type": "integer", "minimum": 0, "maximum": 1},
+        "result": {"const": "PASS"}
+      }
+    },
+    "oci": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["image_digest", "user", "health", "deep_link", "same_origin_proxy", "security_headers", "result"],
+      "properties": {
+        "image_digest": {"$ref": "#/$defs/digest"},
+        "user": {"const": "101:101"},
+        "health": {"const": "ready"},
+        "deep_link": {"const": true},
+        "same_origin_proxy": {"const": true},
+        "security_headers": {"const": true},
+        "result": {"const": "PASS"}
+      }
+    },
+    "soak": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["warmup_seconds", "qualified_elapsed_seconds", "phases", "errors", "result"],
+      "properties": {
+        "warmup_seconds": {"const": 60},
+        "qualified_elapsed_seconds": {"type": "number", "minimum": 3600},
+        "phases": {"type": "array", "prefixItems": [{"const": "steady"}, {"const": "peak"}, {"const": "saturation"}, {"const": "recovery"}], "items": false},
+        "errors": {"const": 0},
+        "result": {"const": "PASS"}
+      }
+    },
+    "findings": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["open_p0", "registry_digest"],
+      "properties": {"open_p0": {"const": 0}, "registry_digest": {"$ref": "#/$defs/digest"}}
+    },
+    "level": {"const": "MODULE"},
+    "applicability": {"const": "APPLICABLE"},
+    "result": {"enum": ["PASS", "HOLD", "FAIL", "NOT_RUN"]},
+    "qualification": {"enum": ["QUALIFIED", "NOT_QUALIFIED"]},
+    "qualification_scope": {"type": "string", "minLength": 1, "maxLength": 512},
+    "overall_module_complete": {"type": "boolean"}
+  },
+  "$defs": {
+    "digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "command": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["command_id", "result", "qualification", "duration_ms", "log_digest"],
+      "properties": {
+        "command_id": {"type": "string", "pattern": "^[a-z][a-z0-9-]{0,63}$"},
+        "result": {"enum": ["PASS", "FAIL", "HOLD", "NOT_RUN"]},
+        "qualification": {"enum": ["QUALIFIED", "NOT_QUALIFIED"]},
+        "duration_ms": {"type": "integer", "minimum": 0, "maximum": 86400000},
+        "log_digest": {"$ref": "#/$defs/digest"}
+      }
+    }
+  }
+}

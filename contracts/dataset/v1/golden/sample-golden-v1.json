@@ -1,0 +1,60 @@
+{
+  "schema_version": "dataset-p4-window-sample/v1",
+  "sample_id": "sample-golden-0001",
+  "dataset_id": "masi-synthetic-window-golden",
+  "dataset_revision": "1111111111111111111111111111111111111111111111111111111111111111",
+  "source_profile": "masi-synthetic-p4-window/v1",
+  "source_revision": "synthetic-revision-golden-1",
+  "capture_family_id": "capture-family-0000",
+  "raw_capture_digest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+  "scenario_id": "synthetic-benign-golden",
+  "session_id": "session-golden-0001",
+  "topology_id": "bmv2-test-topology-1",
+  "window": {
+    "window_id": "window-golden-1",
+    "start": "2030-01-01T00:00:00Z",
+    "end": "2030-01-01T00:00:10Z",
+    "duration_ms": 10000,
+    "final": true,
+    "status": "valid",
+    "event_time_basis": "target-aggregate-export-time"
+  },
+  "snapshot_references": [
+    {
+      "target_id": "bmv2-test-1",
+      "source_runtime_epoch": "source-epoch-golden-1",
+      "bank": 0,
+      "epoch": 1,
+      "sequence_start": 1,
+      "sequence_end": 2,
+      "snapshot_digest": "sha256:7fe11b023a6514aa2aa7c39d7aafee9c3f9a64c88425967b088528c03e906213",
+      "quality": "valid"
+    }
+  ],
+  "feature_offset": 0,
+  "feature_length": 48,
+  "feature_tensor_digest": "sha256:e4b19957a61b82e15092f27fb38a79be2c6c0b44523ff547824e9a0320d41b37",
+  "feature_values": [2, 108, 1, 2, 108, 1],
+  "label": {
+    "binary_label": 0,
+    "family": "benign",
+    "coverage": 1.0,
+    "eligible_packets": 2,
+    "labeled_eligible_packets": 2,
+    "supported_attack_packets": 0,
+    "attack_share": 0.0,
+    "purity": "fit_benign",
+    "join_digest": "sha256:5555555555555555555555555555555555555555555555555555555555555555"
+  },
+  "split": "train",
+  "sample_weight": 1.0,
+  "quality": {
+    "status": "valid",
+    "sampling_coverage": 1.0,
+    "gap_count": 0,
+    "late_after_final": 0,
+    "selector_collision_quality": "exact-bmv2-golden"
+  },
+  "sort_key": "masi-synthetic-p4-window/v1/synthetic-revision-golden-1/capture-family-0000/2030-01-01T00:00:00Z/sample-golden-0001",
+  "raw_payload_included": false
+}

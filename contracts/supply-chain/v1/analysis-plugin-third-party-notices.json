@@ -1,0 +1,24 @@
+{
+  "schema_version": "third-party-notices/v1",
+  "module": "analysis-plugin",
+  "notices": [
+    {"component": "CPython runtime", "license": "PSF-2.0", "source": "https://github.com/python/cpython"},
+    {"component": "Python 3.12.13 slim-bookworm offline builder", "license": "aggregate-see-generated-SPDX", "source": "https://hub.docker.com/_/python"},
+    {"component": "Chainguard Wolfi Python OCI runtime base", "license": "aggregate-see-generated-SPDX", "source": "https://images.chainguard.dev/directory/image/python/overview"},
+    {"component": "Debian libcrypto runtime library", "license": "Apache-2.0", "source": "https://packages.debian.org/bookworm/libssl3"},
+    {"component": "Debian libssl runtime library", "license": "Apache-2.0", "source": "https://packages.debian.org/bookworm/libssl3"},
+    {"component": "uv build and lock tool", "license": "Apache-2.0 OR MIT", "source": "https://github.com/astral-sh/uv"},
+    {"component": "uv.lock Python dependency closure", "license": "per-package SPDX in generated SBOM", "source": "analysis-py/uv.lock"},
+    {"component": "LangGraph", "license": "MIT", "source": "https://github.com/langchain-ai/langgraph"},
+    {"component": "MCP Python SDK", "license": "MIT", "source": "https://github.com/modelcontextprotocol/python-sdk"},
+    {"component": "A2A 1.0 project protocol adapter", "license": "Apache-2.0", "source": "https://github.com/a2aproject/A2A"},
+    {"component": "aiohttp server", "license": "Apache-2.0", "source": "https://github.com/aio-libs/aiohttp"},
+    {"component": "httpx restricted outbound client", "license": "BSD-3-Clause", "source": "https://github.com/encode/httpx"},
+    {"component": "Pydantic", "license": "MIT", "source": "https://github.com/pydantic/pydantic"},
+    {"component": "jsonschema", "license": "MIT", "source": "https://github.com/python-jsonschema/jsonschema"},
+    {"component": "SQLite private task store", "license": "Public-Domain", "source": "https://sqlite.org"},
+    {"component": "Syft", "license": "Apache-2.0", "source": "https://github.com/anchore/syft"},
+    {"component": "Trivy", "license": "Apache-2.0", "source": "https://github.com/aquasecurity/trivy"},
+    {"component": "Cosign", "license": "Apache-2.0", "source": "https://github.com/sigstore/cosign"}
+  ]
+}

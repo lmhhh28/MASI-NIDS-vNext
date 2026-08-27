@@ -839,6 +839,15 @@ TritonPrecondition probe_triton() {
       return p;
     }
     p.server_version = client.server_metadata().version;
+    const auto cpu_profile = masi::inf::test::load_json(
+        masi::inf::test::contract_path("contracts/profiles/v1/central-inference-cpu.json"));
+    const std::string expected_version =
+        cpu_profile.at("triton").at("triton_version").get<std::string>();
+    if (p.server_version != expected_version) {
+      p.reason = "TRITON_SERVER_VERSION_MISMATCH expected=" + expected_version +
+                 " observed=" + p.server_version;
+      return p;
+    }
     p.baseline = client.model_statistics("masi-ids-window-v1", "1");
     p.available = true;
   } catch (const std::exception &e) {

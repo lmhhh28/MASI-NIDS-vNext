@@ -1,0 +1,72 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://masi-nids.example/contracts/evidence/offline-ml-blackbox/v1/schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "module_id", "level", "applicability", "result", "qualification", "entrypoint", "entrypoint_digest", "real_release_process", "real_training_export_packaging", "pipeline_runs", "candidate_executions_per_run", "candidate_recipes", "seeds", "immutable_identity", "candidate_evidence", "first_verification", "second_verification", "winner", "winner_seed", "ensemble", "fallback", "cpu", "cuda", "official_corpus"],
+  "properties": {
+    "schema_version": {"const": "offline-ml-blackbox-evidence/v1"},
+    "module_id": {"const": "MOD-ML-001"},
+    "level": {"const": "MODULE"},
+    "applicability": {"const": "APPLICABLE"},
+    "result": {"const": "PASS"},
+    "qualification": {"const": "NOT_QUALIFIED"},
+    "entrypoint": {"type": "string", "minLength": 1, "maxLength": 4096},
+    "entrypoint_digest": {"$ref": "#/$defs/digest"},
+    "real_release_process": {"const": true},
+    "real_training_export_packaging": {"const": true},
+    "pipeline_runs": {"const": 2},
+    "candidate_executions_per_run": {"const": 9},
+    "candidate_recipes": {"type": "array", "const": ["lr-window-binary/v1", "xgb-window-binary/v1", "ae-window-benign/v1"]},
+    "seeds": {"type": "array", "const": [17, 29, 43]},
+    "immutable_identity": {"$ref": "#/$defs/identity"},
+    "candidate_evidence": {
+      "type": "array", "minItems": 9, "maxItems": 9,
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["candidate_id", "seed", "eligible", "model_digest", "numeric", "providers", "zipmap", "custom_operators", "explanation_stability", "explanation_safe"],
+        "properties": {
+          "candidate_id": {"enum": ["lr-window-binary/v1", "xgb-window-binary/v1", "ae-window-benign/v1"]},
+          "seed": {"enum": [17, 29, 43]},
+          "eligible": {"const": true},
+          "model_digest": {"$ref": "#/$defs/digest"},
+          "numeric": {"type": "object"},
+          "providers": {"const": ["CPUExecutionProvider"]},
+          "zipmap": {"const": false},
+          "custom_operators": {"const": false},
+          "explanation_stability": {"enum": ["stable", "unstable"]},
+          "explanation_safe": {"const": true}
+        }
+      }
+    },
+    "first_verification": {"type": "object", "required": ["schema_version", "result"]},
+    "second_verification": {"type": "object", "required": ["schema_version", "result"]},
+    "winner": {"const": "lr-window-binary/v1"},
+    "winner_seed": {"const": 17},
+    "ensemble": {"const": false},
+    "fallback": {"const": false},
+    "cpu": {"const": {"applicability": "APPLICABLE", "result": "PASS"}},
+    "cuda": {"$ref": "#/$defs/notApplicable"},
+    "official_corpus": {"$ref": "#/$defs/notApplicable"}
+  },
+  "$defs": {
+    "digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["dataset_revision", "model_digest", "model_revision_digest", "repository_closure_digest", "archive_digest"],
+      "properties": {
+        "dataset_revision": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "model_digest": {"$ref": "#/$defs/digest"},
+        "model_revision_digest": {"$ref": "#/$defs/digest"},
+        "repository_closure_digest": {"$ref": "#/$defs/digest"},
+        "archive_digest": {"$ref": "#/$defs/digest"}
+      }
+    },
+    "notApplicable": {
+      "type": "object", "additionalProperties": false,
+      "required": ["applicability", "result", "stable_reason"],
+      "properties": {"applicability": {"const": "NOT_APPLICABLE"}, "result": {"const": "NOT_RUN"}, "stable_reason": {"type": "string", "pattern": "^[A-Z][A-Z0-9_]{3,127}$"}}
+    }
+  }
+}

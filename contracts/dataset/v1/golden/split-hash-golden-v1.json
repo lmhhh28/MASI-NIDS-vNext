@@ -1,0 +1,12 @@
+{
+  "schema_version": "dataset-p4-window-split-golden/v1",
+  "algorithm": "u64be(sha256(masi-split-v1\\0||source_revision||\\0||capture_family_id)[0:8])/2^64",
+  "source_revision": "synthetic-revision-golden-1",
+  "vectors": [
+    {"capture_family_id": "capture-family-0000", "fraction": 0.23529525392577705, "expected_split": "train"},
+    {"capture_family_id": "capture-family-0007", "fraction": 0.6734493562525949, "expected_split": "early_stop"},
+    {"capture_family_id": "capture-family-0006", "fraction": 0.8694747783099899, "expected_split": "calibration"},
+    {"capture_family_id": "capture-family-0005", "fraction": 0.9541430747293141, "expected_split": "blind_test"}
+  ],
+  "boundary_semantics": "left-closed-right-open"
+}

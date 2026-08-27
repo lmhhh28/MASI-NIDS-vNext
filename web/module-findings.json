@@ -1,0 +1,108 @@
+{
+  "schema_version": "module-findings/v1",
+  "module_id": "MOD-WEB-001",
+  "decision_id": "DEC-044",
+  "reviewed_at": "2026-08-27T02:03:00+08:00",
+  "review_scope": "SOC SPA contracts, same-origin generated API client, bounded server state and SSE, fixed information architecture, governance/target/model/plugin workflows, three-layer rule evidence, eight-kind plugin statistics renderer, accessibility, performance, static OCI and browser evidence",
+  "findings": [
+    {
+      "finding_id": "WEB-P0-MODULE-ABSENT",
+      "severity": "P0",
+      "status": "CLOSED",
+      "title": "The ninth required Web module did not exist",
+      "requirement_ids": ["MOD-WEB-001", "WEB-UX-001", "DEP-WEB-001"],
+      "evidence_refs": ["web/package.json", "web/src/main.ts", "web/src/router.ts", "web/Dockerfile"],
+      "opened_at": "2026-08-26T20:00:00+08:00",
+      "closed_at": "2026-08-27T00:45:00+08:00",
+      "resolution": "Implemented an independent Vue 3/Vite SOC SPA with the frozen task-oriented information architecture, same-origin public boundary, project design tokens, static non-root OCI delivery and no Node/BFF runtime."
+    },
+    {
+      "finding_id": "WEB-P0-DASHBOARD-CONTRACT",
+      "severity": "P0",
+      "status": "CLOSED",
+      "title": "Overview had no bounded same-response server snapshot contract",
+      "requirement_ids": ["FUNC-API-001", "WEB-STATE-001", "CONTRACT-001"],
+      "evidence_refs": ["contracts/web/v1/dashboard.schema.json", "control-go/internal/api/dashboard.go", "web/src/pages/OverviewPage.vue"],
+      "opened_at": "2026-08-26T20:10:00+08:00",
+      "closed_at": "2026-08-26T21:20:00+08:00",
+      "resolution": "Added GET /api/dashboard and a strict eight-item-per-section contract produced by one PostgreSQL statement snapshot; the browser no longer assembles independently timed Overview requests."
+    },
+    {
+      "finding_id": "WEB-P1-PROJECTION-DRIFT",
+      "severity": "P1",
+      "status": "CLOSED",
+      "title": "The Web projection schema rejected actual list envelopes and omitted active resource kinds",
+      "requirement_ids": ["CONTRACT-001", "FUNC-API-001", "WEB-STATE-001"],
+      "evidence_refs": ["contracts/web/v1/schema.json", "control-go/internal/api/projection.go", "web/src/api/guards.ts"],
+      "opened_at": "2026-08-27T00:15:00+08:00",
+      "closed_at": "2026-08-27T00:40:00+08:00",
+      "resolution": "Aligned optional resource identity, first-page cursor, multi-scope strings, trace bounds and the complete closed resource-kind list while retaining unknown-major/kind rejection."
+    },
+    {
+      "finding_id": "WEB-P1-RULE-LAYERS",
+      "severity": "P1",
+      "status": "CLOSED",
+      "title": "Rule Effectiveness API collapsed installation, match and outcome context",
+      "requirement_ids": ["FUNC-RULE-001", "WEB-VIS-001", "FUNC-API-001"],
+      "evidence_refs": ["control-go/internal/api/router.go", "web/src/pages/RuleEffectivenessPage.vue", "web/tests/e2e/soc-flows.spec.ts"],
+      "opened_at": "2026-08-26T22:30:00+08:00",
+      "closed_at": "2026-08-26T23:15:00+08:00",
+      "resolution": "Extended the safe projection with exact installation/readback, direct and eligible deltas, quality/reset semantics and independent expected/actual outcome; the UI presents three explicit stages and never infers outcome from counters."
+    },
+    {
+      "finding_id": "WEB-P1-MOBILE-HIDDEN-FOCUS",
+      "severity": "P1",
+      "status": "CLOSED",
+      "title": "Closed narrow-screen navigation remained in the accessibility focus tree",
+      "requirement_ids": ["WEB-A11Y-001", "WEB-UX-001", "WEB-VIS-001"],
+      "evidence_refs": ["web/src/components/AppShell.vue", "web/tests/e2e/soc-flows.spec.ts", "web/output/playwright/overview-cli.png"],
+      "opened_at": "2026-08-27T01:05:00+08:00",
+      "closed_at": "2026-08-27T01:15:00+08:00",
+      "resolution": "Synchronized responsive navigation with inert, aria-hidden, aria-expanded and aria-controls; added Escape closure and a 44px menu target while preserving desktop navigation semantics."
+    },
+    {
+      "finding_id": "WEB-P1-STATIC-OCI",
+      "severity": "P1",
+      "status": "CLOSED",
+      "title": "Web lacked immutable non-root static OCI and same-origin proxy policy",
+      "requirement_ids": ["DEP-WEB-001", "WEB-SEC-001", "WEB-SUPPLY-001"],
+      "evidence_refs": ["web/Dockerfile", "web/nginx.conf", "contracts/supply-chain/v1/web-components.json", "web/sbom.cdx.json"],
+      "opened_at": "2026-08-26T23:40:00+08:00",
+      "closed_at": "2026-08-27T01:12:00+08:00",
+      "resolution": "Added digest-pinned Node build and NGINX unprivileged runtime stages, content-hashed assets, no source maps, inherited CSP/security headers, immutable asset cache, no-store shell/API/SSE and non-root UID 101 runtime."
+    },
+    {
+      "finding_id": "WEB-P1-NARROW-TABLE-OVERFLOW",
+      "severity": "P1",
+      "status": "CLOSED",
+      "title": "Recent alerts table caused document-level overflow at 320 CSS pixels",
+      "requirement_ids": ["WEB-A11Y-001", "WEB-UX-001", "WEB-VIS-001"],
+      "evidence_refs": ["web/src/pages/OverviewPage.vue", "web/tests/e2e/soc-flows.spec.ts"],
+      "opened_at": "2026-08-27T01:34:00+08:00",
+      "closed_at": "2026-08-27T01:38:32+08:00",
+      "resolution": "Placed the intrinsic-width alert table in a named, keyboard-focusable horizontal scroll region while keeping the document at the 320 CSS pixel viewport; Chromium, Firefox and WebKit now verify reflow, keyboard navigation and reduced motion."
+    },
+    {
+      "finding_id": "WEB-P1-TARGET-TLS-IDENTITY-DRIFT",
+      "severity": "P1",
+      "status": "CLOSED",
+      "title": "Target registration UI allowed a credential and TLS identity mismatch rejected by Go",
+      "requirement_ids": ["FUNC-TARGET-FLEET-001", "WEB-GOV-001", "WEB-SEC-001"],
+      "evidence_refs": ["web/src/pages/OperationsPage.vue", "testkit/system/web-control-pairwise.mjs", "evidence/pairwise-rehearsal/p9-web-control/20260827T021100Z-rehearsal-007/pairwise-rehearsal.json"],
+      "opened_at": "2026-08-27T01:49:05+08:00",
+      "closed_at": "2026-08-27T01:52:00+08:00",
+      "resolution": "Added fail-closed client validation that p4runtime_tls.identity_ref exactly equals credential_ref, matching the Go target contract; the real P9 runner now supplies and verifies one exact identity."
+    },
+    {
+      "finding_id": "WEB-P1-TARGET-PROJECTION-INCOMPLETE",
+      "severity": "P1",
+      "status": "CLOSED",
+      "title": "Managed Targets omitted endpoint, assignment, readback freshness and profile drift facts",
+      "requirement_ids": ["FUNC-TARGET-FLEET-001", "WEB-TARGET-FLEET-001", "FUNC-API-001"],
+      "evidence_refs": ["control-go/internal/api/router.go", "web/src/api/resources.ts", "testkit/system/web-control-pairwise.mjs", "evidence/pairwise-rehearsal/p9-web-control/20260827T021100Z-rehearsal-007/pairwise-rehearsal.json"],
+      "opened_at": "2026-08-27T01:54:00+08:00",
+      "closed_at": "2026-08-27T02:03:00+08:00",
+      "resolution": "Expanded the bounded scoped Go projection with display/endpoint, latest assignment and lease, desired-versus-observed profile alignment, P4Info/application generation, connection/mastership freshness and latest lifecycle audit. Web now shows the summary columns and keeps the nested facts in its drawer."
+    }
+  ]
+}

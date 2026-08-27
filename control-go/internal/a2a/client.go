@@ -38,6 +38,7 @@ type activeBinding struct {
 	PluginID          string
 	BindingGeneration int
 	ManifestDigest    string
+	ConfigDigest      string
 	Scope             string
 }
 
@@ -65,6 +66,14 @@ type a2aPart struct {
 type a2aResponse struct {
 	Task    *a2aTask    `json:"task,omitempty"`
 	Message *a2aMessage `json:"message,omitempty"`
+}
+
+type a2aPeerError struct {
+	SchemaVersion string `json:"schema_version"`
+	ErrorCode     string `json:"error_code"`
+	Message       string `json:"message"`
+	Retryable     bool   `json:"retryable"`
+	TraceID       string `json:"trace_id"`
 }
 
 type a2aTask struct {
@@ -105,13 +114,16 @@ type manifestCapability struct {
 	Declared       bool   `json:"declared"`
 }
 
-func NewClient(pool *db.Pool, configs []config.A2APeer, production bool) (*Client, error) {
+func NewClient(pool *db.Pool, configs []config.A2APeer, runtimeProfile string) (*Client, error) {
+	if runtimeProfile != "test" && runtimeProfile != "acceptance" && runtimeProfile != "production" {
+		return nil, errors.New("a2a: unknown runtime profile")
+	}
 	client := &Client{pool: pool, peers: make(map[string]*peerRuntime), now: time.Now}
 	for _, peer := range configs {
 		if _, exists := client.peers[peer.PluginID]; exists {
 			return nil, errors.New("a2a: duplicate peer plugin identity")
 		}
-		runtime, err := buildPeer(peer, production)
+		runtime, err := buildPeer(peer, runtimeProfile)
 		if err != nil {
 			return nil, fmt.Errorf("a2a: build peer %s: %w", peer.PeerID, err)
 		}
@@ -120,7 +132,9 @@ func NewClient(pool *db.Pool, configs []config.A2APeer, production bool) (*Clien
 	return client, nil
 }
 
-func buildPeer(peer config.A2APeer, production bool) (*peerRuntime, error) {
+func buildPeer(peer config.A2APeer, runtimeProfile string) (*peerRuntime, error) {
+	secure := runtimeProfile == "acceptance" || runtimeProfile == "production"
+	production := runtimeProfile == "production"
 	base, err := url.Parse(peer.BaseURL)
 	if err != nil || base.Hostname() == "" || base.User != nil || base.RawQuery != "" || base.Fragment != "" ||
 		(base.Path != "" && base.Path != "/") || peer.MaxResponseBytes < 1024 || peer.MaxResponseBytes > 128*1024 {
@@ -139,7 +153,7 @@ func buildPeer(peer config.A2APeer, production bool) (*peerRuntime, error) {
 	}
 	port := base.Port()
 	if port == "" {
-		if production {
+		if secure {
 			port = "443"
 		} else {
 			port = "80"
@@ -171,9 +185,9 @@ func buildPeer(peer config.A2APeer, production bool) (*peerRuntime, error) {
 	transport := &http.Transport{Proxy: nil, DialContext: dial, DisableCompression: true,
 		ForceAttemptHTTP2: true, MaxIdleConns: 16, MaxIdleConnsPerHost: 4, IdleConnTimeout: time.Minute,
 		TLSHandshakeTimeout: 3 * time.Second, ResponseHeaderTimeout: 5 * time.Second}
-	if production {
+	if secure {
 		if base.Scheme != "https" || peer.ServerName == "" {
-			return nil, errors.New("production peer requires HTTPS/server name")
+			return nil, fmt.Errorf("%s peer requires HTTPS/server name", runtimeProfile)
 		}
 		rootsPEM, err := os.ReadFile(peer.CAFile)
 		if err != nil {
@@ -214,6 +228,9 @@ func (c *Client) Submit(ctx context.Context, input InputBundle, actor security.A
 	binding, err := c.loadActiveBinding(ctx, input.PluginID, input.BindingGeneration, input.Scope)
 	if err != nil {
 		return nil, err
+	}
+	if input.ConfigDigest != binding.ConfigDigest {
+		return nil, errors.New("a2a: frozen input config digest differs from exact active binding")
 	}
 	peer := c.peers[input.PluginID]
 	if peer == nil {
@@ -409,7 +426,7 @@ func (c *Client) Poll(ctx context.Context, taskID string, actor security.Actor) 
 		return nil, err
 	}
 	current, err := c.loadActiveBinding(ctx, binding.PluginID, binding.BindingGeneration, binding.Scope)
-	if err != nil || current.ManifestDigest != binding.ManifestDigest {
+	if err != nil || current.ManifestDigest != binding.ManifestDigest || current.ConfigDigest != input.ConfigDigest {
 		_, _ = c.pool.Pool.Exec(ctx, `UPDATE analysis_task_requests SET status='fenced',reason_code='A2A_BINDING_FENCED',
 			updated_at_unix_ms=$1 WHERE task_id=$2`, c.now().UnixMilli(), taskID)
 		return nil, errors.New("a2a: binding generation revoked or drifted")
@@ -443,7 +460,8 @@ func buildSendRequest(input InputBundle) (a2aSendRequest, []byte, string, error)
 	wire.Message.Metadata = map[string]any{"schemaVersion": InputSchema, "inputDigest": input.InputDigest,
 		"pluginId": input.PluginID, "bindingGeneration": input.BindingGeneration, "deadlineUnixMs": input.DeadlineUnixMS}
 	wire.Configuration.AcceptedOutputModes = []string{"application/json"}
-	wire.Metadata = map[string]any{"traceId": input.TraceID, "noPush": true, "noStreaming": true, "delegationDepth": 0}
+	wire.Metadata = map[string]any{"traceId": input.TraceID, "noPush": true, "noStreaming": true,
+		"delegationDepth": input.Budgets.DelegationDepth, "delegationPath": input.DelegationPath}
 	raw, err := json.Marshal(wire)
 	if err != nil || len(raw) > 64*1024 {
 		return a2aSendRequest{}, nil, "", errors.New("a2a: send request exceeds 64 KiB")
@@ -490,6 +508,13 @@ func (c *Client) do(ctx context.Context, peer *peerRuntime, method, path string,
 		return nil, nil, errors.New("a2a: response malformed or exceeds bound")
 	}
 	if resp.StatusCode != http.StatusOK {
+		var peerError a2aPeerError
+		decoder := json.NewDecoder(bytes.NewReader(raw))
+		decoder.DisallowUnknownFields()
+		if decoder.Decode(&peerError) == nil && decoder.Decode(&struct{}{}) == io.EOF &&
+			peerError.SchemaVersion == "masi-a2a-error/v1" && safePeerErrorCode(peerError.ErrorCode) {
+			return nil, nil, fmt.Errorf("a2a: peer status %d code %s", resp.StatusCode, peerError.ErrorCode)
+		}
 		return nil, nil, fmt.Errorf("a2a: peer status %d", resp.StatusCode)
 	}
 	var decoded a2aResponse
@@ -502,6 +527,18 @@ func (c *Client) do(ctx context.Context, peer *peerRuntime, method, path string,
 		return nil, nil, errors.New("a2a: polling profile rejects direct Message response")
 	}
 	return &decoded, raw, nil
+}
+
+func safePeerErrorCode(code string) bool {
+	if len(code) < 1 || len(code) > 64 || code[0] < 'A' || code[0] > 'Z' {
+		return false
+	}
+	for _, value := range code[1:] {
+		if (value < 'A' || value > 'Z') && (value < '0' || value > '9') && value != '_' {
+			return false
+		}
+	}
+	return true
 }
 
 func (c *Client) applyTaskResponse(ctx context.Context, input InputBundle, binding activeBinding,
@@ -547,11 +584,11 @@ func (c *Client) applyTaskResponse(ctx context.Context, input InputBundle, bindi
 	responseDigest := digest(raw)
 	nowMS := c.now().UnixMilli()
 	err = c.pool.WithTx(ctx, []db.TxOption{db.Serializable()}, func(tx *db.Tx) error {
-		var currentManifest string
-		if err := tx.QueryRow(ctx, `SELECT b.manifest_digest FROM plugin_bindings b
+		var currentManifest, currentConfig string
+		if err := tx.QueryRow(ctx, `SELECT b.manifest_digest,b.config_digest FROM plugin_bindings b
 			WHERE b.plugin_id=$1 AND b.binding_generation=$2 AND b.activation_state='active'
 			  AND b.qualification_status='qualified' FOR SHARE`, binding.PluginID, binding.BindingGeneration).
-			Scan(&currentManifest); err != nil || currentManifest != binding.ManifestDigest {
+			Scan(&currentManifest, &currentConfig); err != nil || currentManifest != binding.ManifestDigest || currentConfig != input.ConfigDigest {
 			return errors.New("a2a: binding fenced before response commit")
 		}
 		tag, err := tx.Exec(ctx, `UPDATE analysis_task_requests SET remote_task_id=$1,remote_context_id=$2,
@@ -596,12 +633,12 @@ func (c *Client) loadActiveBinding(ctx context.Context, pluginID string, generat
 	var out activeBinding
 	var capabilities []byte
 	var kind string
-	err := c.pool.Pool.QueryRow(ctx, `SELECT b.plugin_id,b.binding_generation,b.manifest_digest,b.scope,m.kind,m.capabilities
+	err := c.pool.Pool.QueryRow(ctx, `SELECT b.plugin_id,b.binding_generation,b.manifest_digest,b.config_digest,b.scope,m.kind,m.capabilities
 		FROM plugin_bindings b JOIN plugin_manifests m ON m.plugin_id=b.plugin_id AND m.manifest_id=b.manifest_id
 		 AND m.manifest_revision=b.manifest_revision AND m.manifest_digest=b.manifest_digest
 		WHERE b.plugin_id=$1 AND b.binding_generation=$2 AND b.scope=$3 AND b.activation_state='active'
 		 AND b.qualification_status='qualified'`, pluginID, generation, scope).
-		Scan(&out.PluginID, &out.BindingGeneration, &out.ManifestDigest, &out.Scope, &kind, &capabilities)
+		Scan(&out.PluginID, &out.BindingGeneration, &out.ManifestDigest, &out.ConfigDigest, &out.Scope, &kind, &capabilities)
 	if err != nil || kind != "analysis-agent" {
 		return activeBinding{}, errors.New("a2a: active analysis binding unavailable")
 	}

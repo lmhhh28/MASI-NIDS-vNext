@@ -41,7 +41,7 @@ func newTestServer(t *testing.T) (*grpc.Server, edgev1.ControlSinkClient) {
 func validResultBatch() *edgev1.InferenceResultBatch {
 	d := "sha256:" + strings.Repeat("a", 64)
 	route := &edgev1.InferenceRoute{
-		SchemaVersion: "inference-central-grpc-batch/v1", ShardId: "shard-1",
+		SchemaVersion: "inference-route/v1", ShardId: "shard-1",
 		ModelControlIncarnationId: "inc-1", LogicalPoolId: "pool-1", PoolGeneration: 1,
 		BindingGeneration: 1, RouteEpoch: 1, ModelRevisionDigest: d, ModelBundleDigest: d,
 		FeatureContractDigest: d, LabelContractDigest: d, OutputAdapterDigest: d,
@@ -60,7 +60,7 @@ func validResultBatch() *edgev1.InferenceResultBatch {
 		WindowStartUnixMs: 1, WindowEndUnixMs: 2, FinalizedAtUnixMs: 3, Quality: "valid", TraceId: "trace-1",
 		Scores: []float32{0.1, 0.9}, PredictedLabel: 1, Decision: "alert",
 		DecisionCode: edgev1.InferenceDecision_INFERENCE_DECISION_ALERT,
-		QualityCode:  edgev1.DataQuality_DATA_QUALITY_VALID, Status: "ok",
+		QualityCode:  edgev1.DataQuality_DATA_QUALITY_VALID, Status: "OK", ErrorCode: "NONE",
 		ExecutionStatus:          edgev1.InferenceExecutionStatus_INFERENCE_EXECUTION_STATUS_OK,
 		InferenceStartedAtUnixMs: 1, InferenceCompletedAtUnixMs: 2,
 	}

@@ -1,0 +1,66 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://masi-nids.example/contracts/evidence/go-analysis-pairwise-rehearsal/v1/schema.json",
+  "title": "Real Go Control to real Analysis A2A rehearsal",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "run_id", "started_at", "finished_at", "participants", "core_evidence", "transport", "process_logs", "level", "applicability", "result", "qualification", "qualification_scope"],
+  "properties": {
+    "schema_version": {"const": "go-analysis-pairwise-rehearsal/v1"},
+    "run_id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$"},
+    "started_at": {"type": "string", "format": "date-time"},
+    "finished_at": {"type": "string", "format": "date-time"},
+    "participants": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["control_binary_digest", "analysis_binary_digest", "postgresql", "binding_digest"],
+      "properties": {
+        "control_binary_digest": {"$ref": "#/$defs/digest"},
+        "analysis_binary_digest": {"$ref": "#/$defs/digest"},
+        "postgresql": {"const": "postgresql-18-test-container"},
+        "binding_digest": {"$ref": "#/$defs/digest"}
+      }
+    },
+    "core_evidence": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["schema_version", "task_id", "plugin_id", "artifact_count", "non_executable", "deployment_eligible", "result"],
+      "properties": {
+        "schema_version": {"const": "go-analysis-real-process-evidence/v1"},
+        "task_id": {"type": "string"},
+        "plugin_id": {"type": "string"},
+        "artifact_count": {"const": 1},
+        "non_executable": {"const": true},
+        "deployment_eligible": {"const": false},
+        "result": {"const": "PASS"}
+      }
+    },
+    "transport": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["protocol", "tls_version", "mutual_tls", "analysis_server_name", "control_client_san", "ca_digest", "analysis_server_certificate_digest", "control_client_certificate_digest"],
+      "properties": {
+        "protocol": {"const": "https"},
+        "tls_version": {"const": "TLSv1.3"},
+        "mutual_tls": {"const": true},
+        "analysis_server_name": {"const": "localhost"},
+        "control_client_san": {"const": "masi-control"},
+        "ca_digest": {"$ref": "#/$defs/digest"},
+        "analysis_server_certificate_digest": {"$ref": "#/$defs/digest"},
+        "control_client_certificate_digest": {"$ref": "#/$defs/digest"}
+      }
+    },
+    "process_logs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["analysis", "external_fixtures", "go_test"],
+      "properties": {"analysis": {"$ref": "#/$defs/digest"}, "external_fixtures": {"$ref": "#/$defs/digest"}, "go_test": {"$ref": "#/$defs/digest"}}
+    },
+    "level": {"const": "REHEARSAL"},
+    "applicability": {"const": "APPLICABLE"},
+    "result": {"enum": ["PASS", "FAIL"]},
+    "qualification": {"const": "NOT_QUALIFIED"},
+    "qualification_scope": {"type": "string", "minLength": 1, "maxLength": 512}
+  },
+  "$defs": {"digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}}
+}

@@ -1,0 +1,13 @@
+diff --git a/proto/server/pi_server.cpp b/proto/server/pi_server.cpp
+index 69f725a..be8e027 100644
+--- a/proto/server/pi_server.cpp
++++ b/proto/server/pi_server.cpp
+@@ -63,7 +63,7 @@ using grpc::StatusCode;
+ 
+ namespace {
+ 
+-constexpr char p4runtime_api_version[] = "1.3.0";
++constexpr char p4runtime_api_version[] = "1.4.1";
+ 
+ // Copied from
+ // https://github.com/grpc/grpc/blob/master/src/cpp/util/error_details.cc

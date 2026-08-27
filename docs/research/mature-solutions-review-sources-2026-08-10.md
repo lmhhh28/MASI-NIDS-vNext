@@ -1,9 +1,9 @@
 # MASI-NIDS vNext 成熟方案复核与官方来源登记
 
 - 初始评估日期：2026-08-10
-- 最近复核：2026-08-12（按v1.17复核资格字段/声明范围、`operational-single-domain`与production资格、Plugin Host/独立Agent双运行路径、插件统计与声明式 Web 投影、Central Inference rollout、Triton NONE/instance-group、ORT provider partition、Compose E2E runner及引用精度）
+- 最近复核：2026-08-22（按v1.19并同步ADR-0019复核公开NIDS corpus、legacy数据接纳、Logistic/XGBoost/Autoencoder/EBM、ONNX-ML、概率校准和模型解释边界；此前资格、Plugin、Central、Compose结论保持）
 - 性质：设计依据与来源登记，不替代需求基线或 ADR
-- 需求基线：`vNext-requirements-1.17`
+- 需求基线：`vNext-requirements-1.19`
 - 状态：已完成文档级复核；实现、测试和生产资格仍为 `HOLD/NOT RUN`
 
 ## 使用规则
@@ -20,7 +20,7 @@
 
 ## 来源与项目结论
 
-| 主题 | 官方来源 | 截至 2026-08-12 核验事实 | MASI-NIDS 决策 |
+| 主题 | 官方来源 | 截至最近复核日核验事实 | MASI-NIDS 决策 |
 |---|---|---|---|
 | WASI | [Releases](https://wasi.dev/releases)、[Roadmap](https://wasi.dev/roadmap) | WASI 0.3 于 2026-06-11 发布；0.2、0.3 均为 Stable；0.3 增加 native async，Wasmtime 43+ 可用 | 首期 `wasm-component/v1` 仍资格化 WASI 0.2 Preview 2；纠正“0.2 是最新稳定”说法；0.3 需新矩阵 |
 | Wasmtime 生命周期 | [Stability and release process](https://docs.wasmtime.dev/stability-release.html) | 普通 major 发布/支持周期短，另有 LTS policy | 不在长期 ADR 永久写死易失去支持的 major；具体 release/digest 固定在 qualification profile |
@@ -93,7 +93,11 @@
 | Linux segmentation offload | [Kernel documentation](https://docs.kernel.org/networking/segmentation-offloads.html) | TSO/GSO/GRO等会在发送/接收路径分段或聚合 packet | MTU、TSO/GSO/GRO/checksum offload纳入 environment identity；packet/count性能对比必须使用等价 offload profile |
 | TRex | [Official overview](https://trex-tgn.cisco.com/)、[Stateless documentation](https://trex-tgn.cisco.com/trex/doc/trex_stateless.pdf) | DPDK发生器，提供 stateless stream与高级 stateful TCP/UDP/L7能力、PCAP相关输入及双端统计；需要专门 NIC/CPU/runtime配置 | `CONDITIONAL future hardware profile`；只有普通 runner不足和目标硬件SLO明确时选择一种，不能进入 BMv2默认路径或取得 P4 control |
 | CIC-IDS2017 | [UNB official dataset page](https://www.unb.ca/cic/datasets/ids-2017.html) | 提供含完整 payload 的 PCAP、按 timestamp/地址/端口/protocol/attack标注的 flow CSV；页面要求研究使用引用，但未给出可直接映射为项目再分发授权的标准许可证文本 | 可作 `curated-pcap` 候选；逐 slice登记许可/引用/再分发、payload隐私与 packet-to-label join；事实不清时不提交/分发并 `HOLD` |
+| CIC-DDoS2019 | [UNB official dataset page](https://www.unb.ca/cic/datasets/ddos-2019.html) | 提供按天PCAP、事件日志和80余项CICFlowMeter-V3特征；训练/测试日覆盖多个DDoS家族且PortScan只在测试日；官方明确允许任意形式再分发、再发布和镜像，但必须引用数据集与论文 | ADR-0019选择为首期主要外部训练/盲测source；只从官方artifact重摄取并生成六维P4 window，仍需payload/privacy/ground-truth/digest门禁，raw PCAP不自动进Git/OCI |
+| CSE-CIC-IDS2018 | [UNB official dataset page](https://www.unb.ca/cic/datasets/ids-2018.html) | 官方页面记录大规模AWS组织拓扑、七类攻击、PCAP/日志/80项flow feature，并明确允许在引用且链接AWS页面的前提下再分发、再发布和镜像 | `CONDITIONAL OOC`：只从官方来源重摄取aggregate-visible slice作独立blind；不直接接纳legacy副本，不把Web/Heartbleed/infiltration标签映射为六维可观察能力 |
 | UNSW-NB15 | [UNSW official page](https://research.unsw.edu.au/projects/unsw-nb15-dataset) | 约100 GB PCAP、九类攻击及 ground-truth文件；学术研究永久免费，商业使用须与作者协商 | 仅在用途授权明确后离线使用；不能默认打包到产品/通用 CI；ground truth与实际 slice digest绑定 |
+| TON_IoT | [UNSW official page](https://research.unsw.edu.au/projects/toniot-datasets) | 异构IoT/IIoT telemetry、Windows/Linux audit、network PCAP/Zeek/CSV、processed/train-test样本与timestamp ground truth；学术研究永久免费，商业使用须询问作者 | 只作`CONDITIONAL` IoT domain validation；不混合多模态字段，不从legacy CSV直接训练六维P4模型，不随产品分发 |
+| CICIoT2023 | [UNB official dataset page](https://www.unb.ca/cic/datasets/iotdataset-2023.html) | 105台真实IoT设备、33种攻击/七类，提供PCAP、CSV、notebook与feature extraction assets；官方页面未给出足以直接支撑项目商业/再分发使用的明确license段 | `CONDITIONAL future IoT profile`：当前通用BMv2 scope不训练；只有IoT source/target profile与用途/隐私/join门禁通过后独立blind |
 | CTU datasets | [Stratosphere official overview](https://www.stratosphereips.org/datasets-overview) | scenario级提供完整/截断 PCAP、normal/background/malware分类和许可信息，具体范围随数据集不同 | 可作有明确 scenario/provenance 的候选；逐项记录完整/截断、标签粒度、许可证与 payload风险，不按站点名统一授权 |
 | Dataset de-identification | [NIST SP 800-188](https://csrc.nist.gov/pubs/sp/800/188/final)、[RFC 6235](https://datatracker.ietf.org/doc/rfc6235/) | 去标识需要风险评估与治理；IP flow匿名化需明确字段/技术边界，降低但不自动消除再识别与 payload风险 | corpus manifest固定数据分类、字段处理、访问/保留/删除；仅改IP/MAC不能自动称匿名、无敏感信息或可公开 |
 | P4Runtime Shell | [Project README](https://github.com/p4lang/p4runtime-shell) | interactive Python shell；上游明确仍为 work in progress | 仅隔离 test/read-only diagnosis；禁止常驻、production writer/scheduler 或部署依赖 |
@@ -115,6 +119,16 @@
 | Frontend testing | [Playwright assertions](https://playwright.dev/docs/test-assertions)、[Vue Test Utils](https://test-utils.vuejs.org/) | Playwright web-first assertions 可自动等待；Vue async DOM 操作需要显式 await | unit/component/browser/a11y 分层；禁止固定 sleep 掩盖竞态，危险流程在资格化 browser matrix 黑盒验证 |
 | SPA session/CSRF/CSP | [OWASP CSRF](https://cheatsheetseries.owasp.org/cheatsheets/Cross-Site_Request_Forgery_Prevention_Cheat_Sheet.html)、[OWASP HTML5 storage](https://cheatsheetseries.owasp.org/cheatsheets/HTML5_Security_Cheat_Sheet.html)、[MDN CSP](https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/CSP) | cookie-authenticated mutation 需要 CSRF token/Origin/Fetch Metadata 等分层防护；敏感凭据不应放入 Web Storage；CSP 限制资源来源和执行 | Go 持有 HttpOnly session/CSRF，SPA 无 token persistence；同源、自有静态资产、严格 CSP、无 runtime CDN/UI plugin |
 | ONNX model identity/metadata | [ONNX IR](https://onnx.ai/onnx/repo-docs/IR.html)、[ONNX Runtime C++ ModelMetadata](https://onnxruntime.ai/docs/api/c/struct_ort_1_1_model_metadata.html) | ModelProto 有 model version/producer/domain/graph/unique-key metadata；ORT C++ 可读取 custom metadata | `ADOPT` ONNX + explicit ORT CPU/CUDA profiles；metadata交叉验证实际模型，但external manifest/digest/qualification/Go binding仍是权威 |
+| ONNX Runtime traditional ML | [Official tutorial](https://onnxruntime.ai/docs/tutorials/traditional-ml.html) | ORT支持ONNX-ML，并列出scikit-learn、LightGBM、XGBoost、LibSVM等转换/执行入口 | `ADOPT as candidate path`：实际converter、opset/operator、ZipMap关闭、`[N,2]` output、Triton config和ORT CPU数值必须逐bundle资格化；文档支持不等于项目PASS或CUDA支持 |
+| Logistic/SGD baseline | [LogisticRegression](https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.LogisticRegression.html)、[SGDClassifier](https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.SGDClassifier.html)、[out-of-core strategy](https://scikit-learn.org/stable/computing/scaling_strategies.html) | Logistic提供透明线性分类；SGDClassifier支持mini-batch/`partial_fit`类out-of-core训练 | ADR-0019 mandatory transparent baseline；`partial_fit`只作离线增量一致性，不在线修改current，每次产新immutable revision |
+| Probability calibration | [scikit-learn calibration guide](https://scikit-learn.org/stable/modules/calibration.html) | 校准应使用独立于模型拟合的数据；sigmoid/isotonic/temperature各有适用边界，reliability curve、Brier/log loss不能互相替代 | 固定独立calibration split、ECE+Brier+FPR/recall门槛；threshold/calibrator进入bundle digest，不读取blind test调参 |
+| XGBoost algorithm | [KDD 2016 paper](https://doi.org/10.1145/2939672.2939785)、[arXiv source](https://arxiv.org/abs/1603.02754) | 论文给出正则化tree boosting、sparsity-aware split与可扩展训练系统；这是算法成熟性依据，不是NIDS或项目模型质量证据 | 选择为六维tabular首选candidate，并保留LR/AE对照；exact数据、bounded grid、三seed、校准、ONNX、runtime与质量仍由项目门禁决定 |
+| XGBoost/TreeSHAP | [Official prediction guide](https://xgboost.readthedocs.io/en/stable/prediction.html) | `pred_contribs`在`strict_shape`下有明确维度；非approx路径提供exact TreeSHAP attribution；early stopping接口存在差异 | 首个CPU production champion candidate；训练/导出/early-stop语义固定，TreeSHAP只作offline qualification/Agent引用，不塞入实时scores或自动处置 |
+| ONNXMLTools XGBoost converter | [Official ONNX project](https://github.com/onnx/onnxmltools) | 项目列出XGBoost等toolkit转换入口并允许指定target opset；converter/version/dependency会演进 | `ADOPT candidate tooling`：固定exact release/source/lock，关闭ZipMap/custom op并验证标准算子Platt graph、`[N,2]`与pinned ORT/Triton；上游支持不等于项目PASS |
+| SHAP TreeExplainer | [Official documentation](https://shap.readthedocs.io/en/stable/generated/shap.TreeExplainer.html) | TreeSHAP可对tree ensemble做快速exact attribution，但结果依赖model output和feature-dependence/background假设；raw output下加和值对应模型raw输出 | 固定`raw + interventional`、deterministic background/sample digest和additivity tolerance；Platt概率不冒充同一加和域，SHAP只表示模型关联而非攻击因果 |
+| PyTorch ONNX/Autoencoder | [PyTorch ONNX documentation](https://docs.pytorch.org/docs/stable/onnx.html) | PyTorch提供`torch.onnx`导出PyTorch model到ONNX的路径；具体operator/runtime兼容仍随版本和graph而定 | `ADOPT` benign-only undercomplete Autoencoder challenger；reconstruction error经独立calibration映射现有二分类输出，per-feature residual为offline evidence，无online self-update |
+| Kitsune/KitNET | [NDSS 2018 paper](https://www.ndss-symposium.org/wp-content/uploads/2018/02/ndss2018_03A-3_Mirsky_paper.pdf)、[arXiv](https://arxiv.org/abs/1802.09089) | 使用ensemble autoencoder和自有channel feature extractor做高效在线无监督NIDS，论文展示其在资源受限设备上的可行性 | `ADOPT pattern only`：保留benign reconstruction anomaly与residual思路；不复刻其feature extractor/ensemble/在线自更新，MASI每次训练产新immutable revision并只在Central执行 |
+| Explainable Boosting Machine | [InterpretML official documentation](https://interpret.ml/docs/ebm.html) | EBM是带可选pairwise interaction的glass-box GAM/GA2M，可输出global/local term contribution并以lookup+add预测 | `CONDITIONAL offline challenger`；未核实项目所需标准ONNX/Triton/ORT路径前不进入首期online runtime，不为使用EBM增加custom hook/backend |
 | ONNX Runtime execution providers/CPU | [Execution providers](https://onnxruntime.ai/docs/execution-providers/)、[Thread management](https://onnxruntime.ai/docs/performance/tune-performance/threading.html) | EP按注册优先级把图节点分配给能够执行它们的provider；CUDA后注册CPU时，不受CUDA支持的节点可在CPU执行。CPU性能另受intra/inter-op、execution mode、spinning、affinity/NUMA、global/per-session pool影响 | `ADOPT`两个显式profile：CPU profile冻结全部CPU参数；CUDA profile只允许资格化时已声明/读回/测量的host-side node placement，运行期新CPU接管视为drift而非fallback；不由probe自动选 |
 | ONNX Runtime CUDA/I/O Binding | [CUDA EP](https://onnxruntime.ai/docs/execution-providers/CUDA-ExecutionProvider.html)、[I/O Binding](https://onnxruntime.ai/docs/performance/tune-performance/iobinding.html)、[Device tensors](https://onnxruntime.ai/docs/performance/device-tensor.html) | CUDA EP在NVIDIA GPU执行支持算子；未正确绑定device input/output时copy可能隐藏在`Run()`；memory lifetime/stream同步需显式管理 | `ADOPT model-runtime-central-cuda/v1`：冻结ORT/CUDA/cuDNN/driver/GPU/VRAM/opset/operator/stream/memory并测host-device copy；不与CPU自动切换 |
 | ONNX Runtime TensorRT EP | [Official provider guide](https://onnxruntime.ai/docs/execution-providers/TensorRT-ExecutionProvider.html) | TensorRT EP有engine/timing cache、shape profile、TensorRT/CUDA兼容及CUDA EP fallback等配置 | `CONDITIONAL`为显式新pool generation；numeric/performance/supply matrix通过后才启用，项目禁止运行期或请求内自动fallback |
@@ -142,6 +156,7 @@
 - 规则安装/命中/结果分层、P4 counter、Rule Effectiveness：`../adr/0008-rule-effectiveness-observation.md`
 - 全系统组件 `ADOPT/CONDITIONAL/REJECT` 与所有权：`../adr/0009-mature-component-reuse-boundaries.md`
 - 在线检测模型bundle/语义/所有权边界：`../adr/0010-online-model-lifecycle-and-rollout.md`；历史本机startup binding：`../adr/0011-startup-bound-model-selection-and-rolling-restart.md`；v1.13 central-GPU历史：`../adr/0016-central-gpu-inference-pool-and-routing-boundary.md`；现行CPU/CUDA与真实服务E2E：`../adr/0017-central-inference-runtime-selection-and-real-e2e.md`
+- Offline ML dataset、Logistic/XGBoost/Autoencoder候选、质量门槛与Agent解释边界：`../adr/0019-offline-ml-dataset-training-and-explanation-boundary.md`；专项评估：`offline-ml-dataset-and-model-selection-assessment-2026-08-22.md`
 - Frontend 专项调研与许可证矩阵：`frontend-ops-console-and-source-reuse-assessment-2026-08-10.md`
 - 规则表现与全系统复用专项调研：`rule-effectiveness-and-system-reuse-assessment-2026-08-10.md`
 - 在线模型模块化专项调研：`online-model-modularity-assessment-2026-08-10.md`
@@ -188,6 +203,10 @@
 - 二层 PCAP replay自动建立 TCP handshake、重传、拥塞控制或应用会话；需要这些语义必须使用受控 live-session endpoint/stateful profile。
 - Mininet/BMv2 requested或achieved PPS自动代表硬件 ASIC、真实 NIC、line rate或生产容量；software/hardware target必须分别资格化。
 - CIC-IDS2017、UNSW-NB15、CTU等公开可下载或要求论文引用，就自动允许任意用途、再分发、进入仓库/镜像，或其 flow label可无验证成为 packet truth。
+- CIC-DDoS2019允许再分发就自动消除payload隐私、ground-truth join、retention、下载artifact digest、六维P4重提取和目标分布资格；许可只是一个门禁。
+- 旧MASI-NIDS dataset目录已有CSV/NPY或模型就自动证明其来源、许可、split、feature语义和vNext资格；legacy 21/38/80列不得直接补零/重命名成六维线上输入。
+- XGBoost/ONNX Runtime/InterpretML/PyTorch官方支持某种模型或解释方法，就自动证明该exact graph能在pinned Triton/ORT CPU/CUDA运行、满足`[N,2]`输出、数值/性能/供应链门禁，或授权custom operator/fallback。
+- SHAP/coefficient/reconstruction residual或LLM解释可以自动成为因果事实、canonical Event、model qualification结论、policy/effect eligibility或一键处置依据。
 - 改写 IP/MAC、截短 payload或只保存 hash自动消除 PCAP隐私、credential、恶意 payload、许可证和保留风险。
 - P4Runtime DigestListAck、`max_timeout_ns=0`、`max_list_size=1`、PacketIn收到包或StreamChannel仍连接，就自动证明逐包可靠传输、完整coverage或canonical window；规范明确digest/Ack loss非关键且server可在过载时丢弃。
 - 多个P4 counter/register Read成功、RPC返回相邻或BMv2表现稳定，就自动构成跨entity原子snapshot；每个target必须资格化bank/epoch/freeze/barrier或sequence验证。

@@ -27,7 +27,7 @@
     "async_runtime": "Tokio",
     "grpc": "Tonic/Prost",
     "p4runtime_wire": "1.4.1-compatible-subset",
-    "p4runtime_target_capabilities": "1.3.0",
+    "p4runtime_target_capabilities": "1.4.1",
     "p4runtime_compatibility_profile": "p4runtime-edge-bmv2-v1model/v1"
   },
   "ownership": {

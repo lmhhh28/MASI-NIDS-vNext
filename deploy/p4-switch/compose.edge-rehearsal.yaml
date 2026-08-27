@@ -1,0 +1,97 @@
+services:
+  compiler:
+    image: masi-nids/p4-switch-p4c@sha256:8c26666dfa1041b0f9a29b5051c92dbf4ce5df807273f80dd54b3aff5412c926
+    network_mode: none
+    command:
+      - p4c-bm2-ss
+      - --arch
+      - v1model
+      - --std
+      - p4-16
+      - --p4runtime-files
+      - /artifacts/masi_switch.p4info.txtpb
+      - --p4runtime-format
+      - text
+      - -o
+      - /artifacts/masi_switch.json
+      - /source/masi_switch.p4
+    read_only: true
+    security_opt: [no-new-privileges:true]
+    volumes:
+      - artifacts:/artifacts
+      - ../../p4/src/masi_switch.p4:/source/masi_switch.p4:ro
+
+  switch:
+    image: ${MASI_P4_RUNTIME_IMAGE:-masi-nids/p4-switch-runtime@sha256:24669f08df3583b0d170226f6969f1090235604ef6d5bb5e2b2bb06062d9a571}
+    stop_signal: SIGINT
+    stop_grace_period: 10s
+    cpus: "4.0"
+    mem_limit: 2g
+    pids_limit: 256
+    entrypoint: ["/bin/bash", "/startup/start-switch.sh"]
+    user: "0:65532"
+    environment:
+      MASI_P4_LOG_LEVEL: ${MASI_P4_LOG_LEVEL:-warn}
+    ports:
+      - "127.0.0.1::9559"
+    sysctls:
+      net.ipv6.conf.all.disable_ipv6: "1"
+      net.ipv6.conf.default.disable_ipv6: "1"
+    cap_drop: [ALL]
+    cap_add: [NET_RAW]
+    read_only: true
+    security_opt: [no-new-privileges:true]
+    tmpfs:
+      - /tmp:size=32m,mode=1777
+    volumes:
+      - ${MASI_P4_CERT_DIR:?set MASI_P4_CERT_DIR}:/certs:ro
+      - ./start-switch.sh:/startup/start-switch.sh:ro
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import socket; socket.create_connection(('127.0.0.1', 9559), 1).close()"]
+      interval: 1s
+      timeout: 1s
+      retries: 30
+      start_period: 1s
+
+  net-init:
+    image: masi-nids/p4-switch-e2e-runner:local
+    build:
+      context: ../..
+      dockerfile: deploy/p4-switch/Dockerfile.runner
+    network_mode: service:switch
+    user: "0:0"
+    depends_on:
+      switch:
+        condition: service_started
+    cap_drop: [ALL]
+    cap_add: [NET_ADMIN, NET_RAW]
+    security_opt: [no-new-privileges:true]
+    read_only: true
+    entrypoint: ["/bin/sh", "/startup/init-links.sh"]
+    volumes:
+      - ./init-links.sh:/startup/init-links.sh:ro
+
+  runner:
+    image: masi-nids/p4-switch-e2e-runner:local
+    build:
+      context: ../..
+      dockerfile: deploy/p4-switch/Dockerfile.runner
+    network_mode: service:switch
+    user: "0:65532"
+    cpus: "2.0"
+    mem_limit: 2g
+    pids_limit: 256
+    cap_drop: [ALL]
+    cap_add: [NET_ADMIN, NET_RAW]
+    security_opt: [no-new-privileges:true]
+    read_only: true
+    tmpfs:
+      - /tmp:size=128m,mode=1777
+    volumes:
+      - artifacts:/artifacts:ro
+      - ../..:/workspace:ro
+      - ${MASI_P4_CERT_DIR:?set MASI_P4_CERT_DIR}:/certs:ro
+      - ${MASI_P4_RUNTIME_EXPORT_DIR:?set MASI_P4_RUNTIME_EXPORT_DIR}:/runtime
+
+volumes:
+  artifacts: {}

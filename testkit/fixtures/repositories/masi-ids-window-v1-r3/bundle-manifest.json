@@ -1,7 +1,7 @@
 {
   "binding_identity": {
     "feature_contract_digest": "sha256:a7695ca4a65d9dc557d77689a3cc9f9d4cacf9b638da17efe9de74b2c9f11810",
-    "inference_wire_profile_digest": "sha256:8e30d532aa6b433346e69256dfaecdc421e4cac668faaeadd04e562827457707",
+    "inference_wire_profile_digest": "sha256:bdcc5401db309d22b703b36f615b68a9ecc81ee4e4e192862bc3bc9c971d6e8c",
     "label_contract_digest": "sha256:be5b8e1d9d8fd06ad37f005b51330b5a8756f1cb222d395b74eaa805f44a2180",
     "model_bundle_digest": "sha256:d8844f9b47cffa2f433037546ae5a5e5dc3e883d3bf7671036c1be01a1210e19",
     "model_digest": "sha256:d8844f9b47cffa2f433037546ae5a5e5dc3e883d3bf7671036c1be01a1210e19",
@@ -56,7 +56,7 @@
   },
   "model_digest": "sha256:d8844f9b47cffa2f433037546ae5a5e5dc3e883d3bf7671036c1be01a1210e19",
   "model_id": "masi-ids-window-v1",
-  "model_revision_digest": "sha256:0fb54e45e48907f7d9bfb5c59fcfb0e44ed3797107f9f00e13233e222a517a89",
+  "model_revision_digest": "sha256:9f706429b9bfb089b9ba57091621e88de3b159934af61be0efbcbbc05eae7fa5",
   "output_adapter": {
     "adapter_digest": "sha256:b24aa57979d4473be9b8d1303a9bbb511eb164e898b898e0f342fcfd24d8d8ff",
     "adapter_id": "masi-window-adapter-v1",

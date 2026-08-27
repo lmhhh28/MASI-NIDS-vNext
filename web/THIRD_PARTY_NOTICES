@@ -1,0 +1,37 @@
+MASI-NIDS-vNext SOC Web — Third-Party Notices
+================================================
+
+This file records the direct packages and build/runtime images intentionally
+adopted by MOD-WEB-001. Exact versions, authority limits, failure behavior,
+rollback and exit plans are in contracts/supply-chain/v1/web-components.json.
+Transitive packages are enumerated in web/sbom.cdx.json and package-lock.json.
+
+MIT licensed packages
+---------------------
+Vue 3.5.41, Vue Router 5.2.0, Pinia 4.0.3, Element Plus 2.14.5,
+Element Plus Icons Vue 2.3.2, TanStack Vue Query 5.102.5,
+TanStack Vue Virtual 3.13.36, VueUse 14.4.0, Vite 8.2.2,
+Vitest 4.1.11, Vue Test Utils 2.4.11, and @hey-api/openapi-ts 0.99.0.
+Copyright and license texts are available in the installed package metadata
+and the source repositories named by package-lock.json.
+
+Apache License 2.0 packages
+---------------------------
+Apache ECharts 6.1.0, TypeScript 5.9.3, Playwright Test 1.62.1, and
+CycloneDX npm generator 6.0.1.
+
+MPL License 2.0 package
+-----------------------
+axe-core 4.13.0 is used only by the test suite and is not included in the
+production browser bundle.
+
+Container images
+----------------
+The Node 22.22.3 Alpine builder and NGINX Unprivileged 1.29.5 Alpine runtime
+are referenced by immutable registry digests in web/Dockerfile. Their aggregate
+operating-system package notices are carried by image/SBOM evidence.
+
+No third-party application source, brand asset, remote font, remote script,
+ECharts example/theme, plugin UI component, or vendored source file is copied
+into this module. The repository still has no Owner-approved project-wide
+distribution license; these notices do not grant one.

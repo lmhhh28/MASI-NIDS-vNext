@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://masi-nids.example/contracts/evidence/analysis-release-runtime/v1/schema.json",
+  "type": "object", "additionalProperties": false,
+  "required": ["schema_version", "module_id", "level", "applicability", "result", "qualification", "source_revision", "source_tree_digest", "working_tree_status_digest", "working_tree_dirty", "python_version", "package_version", "wheel_digest", "second_build_wheel_digest", "reproducible_wheel", "lock_digest", "entrypoint_digest", "locked_install", "pytest_absent"],
+  "properties": {
+    "schema_version": {"const": "analysis-release-runtime-evidence/v1"}, "module_id": {"const": "MOD-AGENT-001"}, "level": {"const": "MODULE"}, "applicability": {"const": "APPLICABLE"}, "result": {"const": "PASS"}, "qualification": {"const": "NOT_QUALIFIED"},
+    "source_revision": {"type": "string", "pattern": "^[0-9a-f]{40,64}$"}, "source_tree_digest": {"$ref": "#/$defs/digest"}, "working_tree_status_digest": {"$ref": "#/$defs/digest"}, "working_tree_dirty": {"type": "boolean"},
+    "python_version": {"const": "3.12.13"}, "package_version": {"const": "1.0.0"}, "wheel_digest": {"$ref": "#/$defs/digest"}, "second_build_wheel_digest": {"$ref": "#/$defs/digest"}, "reproducible_wheel": {"const": true}, "lock_digest": {"$ref": "#/$defs/digest"}, "entrypoint_digest": {"$ref": "#/$defs/digest"}, "locked_install": {"const": true}, "pytest_absent": {"const": true}
+  },
+  "$defs": {"digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}}
+}

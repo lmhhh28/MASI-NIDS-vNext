@@ -14,6 +14,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"flag"
+	"fmt"
 	"net"
 	"net/http"
 	"os"
@@ -33,6 +34,7 @@ import (
 	"masi-nids/control-go/internal/firewall"
 	"masi-nids/control-go/internal/governance"
 	grpcapi "masi-nids/control-go/internal/grpc"
+	adapterv1 "masi-nids/control-go/internal/grpc/adapterv1"
 	"masi-nids/control-go/internal/grpc/edgev1"
 	"masi-nids/control-go/internal/health"
 	"masi-nids/control-go/internal/logging"
@@ -106,6 +108,16 @@ func run() error {
 		routeClient = outbound.edge
 		statisticsExecutor = outbound.statistics
 		slog.Info("production outbound mTLS clients ready", "edge_workloads", len(cfg.Outbound.Edges))
+	} else if cfg.RuntimeProfile == "acceptance" && cfg.Outbound.PluginStatistics.Endpoint != "" {
+		statisticsConn, dialErr := dialMTLSClient(ctx, cfg.Outbound.PluginStatistics)
+		if dialErr != nil {
+			return fmt.Errorf("runtime: dial acceptance plugin statistics executor: %w", dialErr)
+		}
+		defer statisticsConn.Close()
+		statisticsExecutor = grpcapi.NewStatisticsExecutor(
+			adapterv1.NewPluginStatisticsExecutorClient(statisticsConn),
+		)
+		slog.Info("acceptance plugin statistics mTLS client ready")
 	}
 
 	// Authorization foundation. An empty mapping remains default-deny; a
@@ -170,7 +182,7 @@ func run() error {
 	pluginStat := pluginstat.NewService(pool)
 
 	ruleObs := ruleobs.NewProjector(pool)
-	analysisClient, err := a2a.NewClient(pool, cfg.Outbound.Analysis, cfg.RuntimeProfile == "production")
+	analysisClient, err := a2a.NewClient(pool, cfg.Outbound.Analysis, cfg.RuntimeProfile)
 	if err != nil {
 		return err
 	}
@@ -209,7 +221,7 @@ func run() error {
 		Mapping:            mapping,
 		Cursor:             cursorCodec,
 		Secure:             cfg.RuntimeProfile == "production",
-		TestLogin:          cfg.RuntimeProfile == "test",
+		TestLogin:          cfg.RuntimeProfile != "production",
 		RequestTimeout:     cfg.Resource.HTTPRequestTimeout,
 		FirewallRevisions:  firewallRevisions,
 		FirewallOverlays:   firewallOverlays,
@@ -233,7 +245,7 @@ func run() error {
 		AcceptMutation:     checker.AcceptingMutations,
 	}
 	mcpServer := &controlmcp.Server{Pool: pool, AllowedOrigin: cfg.PublicOrigin,
-		Production: cfg.RuntimeProfile == "production", AllowTestLoopback: cfg.RuntimeProfile == "test"}
+		Production: cfg.RuntimeProfile == "production", AllowTestLoopback: cfg.RuntimeProfile != "production"}
 	// The OIDC client is configured via deployment profile (issuer/client id
 	// from the secret store); a nil client disables browser login while the
 	// health/API surface still serves probes.
@@ -289,7 +301,7 @@ func run() error {
 		MaxBatchBytes:   4 * 1024 * 1024,
 		Accepting:       checker.AcceptingMutations,
 	}
-	if cfg.RuntimeProfile == "production" {
+	if cfg.RuntimeProfile != "test" {
 		sink.AuthorizeTarget = func(ctx context.Context, targetID string) error {
 			return grpcapi.AuthorizeTargetPeer(ctx, pool, targetID)
 		}

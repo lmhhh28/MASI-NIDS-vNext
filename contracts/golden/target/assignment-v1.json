@@ -22,7 +22,7 @@
   "election_floor": 7000000,
   "election_ceiling": 7999999,
   "expected_pipeline": {
-    "p4runtime_api_version": "1.3.0",
+    "p4runtime_api_version": "1.4.1",
     "p4info_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
     "device_config_digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
     "profile_digest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",

@@ -1,9 +1,9 @@
 # MASI-NIDS-vNext 支撑资产设计
 
 - 文档状态：`DRAFT`
-- 日期：2026-08-12
+- 日期：2026-08-22
 - 关联需求：`CONTRACT-001`、`CONTRACT-PROFILE-001`、`CONTRACT-SUPPLY-001`、`TEST-001`、`TEST-002`、`TEST-003`、`TEST-007`、`TEST-008`、`TEST-009`、`TEST-REAL-E2E-001`、`TEST-REUSE-001`
-- 关联 ADR：ADR-0005、ADR-0006、ADR-0009、ADR-0012、ADR-0017
+- 关联 ADR：ADR-0005、ADR-0006、ADR-0009、ADR-0012、ADR-0017、ADR-0019
 
 ## 1. 定位
 
@@ -19,12 +19,14 @@
 
 - Protobuf/gRPC、OpenAPI 3.1.2、JSON Schema 2020-12、WIT；
 - P4Info、normalized firewall/rule observation/telemetry/target/fleet profile；
-- model bundle、feature schema、label taxonomy、output adapter、inference wire；
+- model bundle、feature schema、label taxonomy、output adapter、inference wire；ADR-0019要求新增的dataset recipe/split/quality与explanation evidence schema在形成后也只能以此目录为唯一源；
 - plugin manifest/kind/statistics/display 和 A2A/MCP restricted profile；
 - qualification、fault、performance、traffic replay、restore、supply-chain evidence schema；
 - 跨 Go/Rust/C++/Python/TypeScript/Wasm 的 canonical bytes、digest、数值与错误 golden。
 
 每个 contract domain 必须有 owner、version policy、canonicalization、资源上限、错误语义、兼容矩阵和停止支持条件。生成代码是派生物，source/config/generator/output digest 必须可追踪；任何模块不得手写第二套同名 DTO 作为长期兼容层。
+
+当前状态必须与目标职责分开：现有`contracts/model/v1`与`contracts/inference/v1`已提供model、feature、label、adapter与wire基线；截至2026-08-22，`dataset-p4-window-binary/v1`和`model-explanation-evidence/v1`的schema/profile/golden尚不存在，状态为`NOT_GENERATED/HOLD`。ADR-0019只冻结其语义，不构成contract/Gate 0 PASS；Offline ML实现前必须先补齐并运行breaking/golden validator。
 
 ### 2.2 Profile Registry
 
@@ -40,10 +42,11 @@
 
 ### 2.3 Golden 管理
 
-Golden 保存一次，所有语言 runner 读取同一份 expected bytes/data；不得由各模块复制后修改。Golden 至少覆盖：
+Golden 保存一次，所有语言 runner 读取同一份 expected bytes/data；不得由各模块复制后修改。完整目标集合至少覆盖：
 
 - canonical identity/digest、field presence、ordering、unknown version/error；
 - telemetry window/time/quality、inference tensor/result、model taxonomy；
+- official corpus→canonical P4-window、capture-family split、Logistic/XGBoost/Autoencoder result与offline coefficient/TreeSHAP/residual explanation vectors（ADR-0019新增项，当前尚未生成）；
 - firewall normalized plan、target/fleet、rule observation；
 - plugin manifest/WIT/statistics/display；
 - NaN/Inf/signed-zero、absolute/relative/ULP tolerance。
@@ -61,6 +64,7 @@ Golden 通过只证明合同一致，不证明模块功能、性能或系统 E2E
 - PTF/P4Testgen packet/action oracle、Mininet/BMv2/netem adapter；
 - fault injection adapter、seed、注入点与 structured evidence collector；
 - model/telemetry/plugin/statistics/security 正负 fixture；
+- official corpus fetch/verify metadata、最小P4-window extractor golden和legacy direct-import拒绝fixture；
 - schema/golden/evidence validator 和 exact cleanup ownership。
 
 ### 3.2 禁止边界

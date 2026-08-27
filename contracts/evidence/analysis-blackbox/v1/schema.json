@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://masi-nids.example/contracts/evidence/analysis-blackbox/v1/schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "module_id", "level", "applicability", "result", "qualification", "source_tree_digest", "working_tree_status_digest", "started_at", "finished_at", "real_release_process", "python_version", "langgraph_version", "mcp_sdk_version", "real_a2a_boundary", "real_mcp_client_boundary", "deterministic_provider_fixture", "provider_fixture_is_real_provider_qualification", "tls_version", "binary_digest", "config_digest", "binding_digest", "manifest_content_digest", "golden_catalog_digest", "compatibility_matrix_digest", "artifact_digest", "zero_core_p4_effect_mutation", "shutdown_seconds", "scenario_count", "scenarios"],
+  "properties": {
+    "schema_version": {"const": "analysis-blackbox-evidence/v1"}, "module_id": {"const": "MOD-AGENT-001"},
+    "level": {"const": "MODULE"}, "applicability": {"const": "APPLICABLE"}, "result": {"const": "PASS"}, "qualification": {"const": "NOT_QUALIFIED"},
+    "source_tree_digest": {"$ref": "#/$defs/digest"}, "working_tree_status_digest": {"$ref": "#/$defs/digest"},
+    "started_at": {"type": "string", "format": "date-time"}, "finished_at": {"type": "string", "format": "date-time"},
+    "real_release_process": {"const": true}, "python_version": {"const": "3.12.13"}, "langgraph_version": {"const": "1.1.10"}, "mcp_sdk_version": {"const": "2.0.0"},
+    "real_a2a_boundary": {"const": true}, "real_mcp_client_boundary": {"const": true}, "deterministic_provider_fixture": {"const": true}, "provider_fixture_is_real_provider_qualification": {"const": false},
+    "tls_version": {"const": "TLSv1.3"},
+    "binary_digest": {"$ref": "#/$defs/digest"}, "config_digest": {"$ref": "#/$defs/digest"}, "binding_digest": {"$ref": "#/$defs/digest"}, "manifest_content_digest": {"$ref": "#/$defs/digest"}, "golden_catalog_digest": {"$ref": "#/$defs/digest"}, "compatibility_matrix_digest": {"$ref": "#/$defs/digest"}, "artifact_digest": {"$ref": "#/$defs/digest"},
+    "zero_core_p4_effect_mutation": {"const": true}, "shutdown_seconds": {"type": "number", "minimum": 0, "maximum": 5},
+    "scenario_count": {"const": 14},
+    "scenarios": {"type": "array", "minItems": 14, "maxItems": 14, "uniqueItems": true, "items": {"type": "object", "additionalProperties": false, "required": ["scenario_id", "result"], "properties": {"scenario_id": {"enum": ["A2A_AGENT_CARD", "A2A_MCP_GROUNDED_SUCCESS", "A2A_OUTBOUND_DELEGATION_LOOP_FENCE", "A2A_IDEMPOTENCY_CONFLICT", "A2A_REQUESTER_TASK_ISOLATION", "A2A_VERSION_FRAMING_NEGATIVES", "LIMITED_TIMEOUT_SECURITY_XAI_NEGATIVES", "FOUR_SKILLS", "TRACE_METRICS_REDACTION", "TLS13_MTLS_IDENTITY", "MCP_BUDGET_SESSION_CLEANUP", "BINDING_REVOKE_LATE_FENCE", "ZERO_CORE_P4_EFFECT_MUTATION", "BOUNDED_DRAIN_SHUTDOWN"]}, "result": {"const": "PASS"}}}}
+  },
+  "$defs": {"digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}}
+}

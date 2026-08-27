@@ -1,0 +1,83 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://masi-nids.example/contracts/evidence/connected-system-live-runtime/v1/schema.json",
+  "title": "Bounded connected full-system live runtime",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "state", "run_id", "started_at", "ready_at", "expires_at",
+    "keep_alive_seconds", "runner_pid", "stop_token_path", "endpoints", "processes",
+    "containers", "fixtures", "level", "qualification"
+  ],
+  "properties": {
+    "schema_version": {"const": "connected-system-live-runtime/v1"},
+    "state": {"enum": ["READY", "STOPPING", "STOPPED", "FAILED"]},
+    "run_id": {"type": "string", "minLength": 8, "maxLength": 128},
+    "started_at": {"type": "string", "format": "date-time"},
+    "ready_at": {"type": "string", "format": "date-time"},
+    "expires_at": {"type": "string", "format": "date-time"},
+    "stopping_at": {"type": "string", "format": "date-time"},
+    "stopped_at": {"type": "string", "format": "date-time"},
+    "stop_reason": {"enum": ["requested", "bounded-expiry", "runner-failure"]},
+    "cleanup_complete": {"type": "boolean"},
+    "keep_alive_seconds": {"type": "integer", "minimum": 60, "maximum": 21600},
+    "runner_pid": {"type": "integer", "minimum": 1},
+    "stop_token_path": {"type": "string", "pattern": "^/", "maxLength": 4096},
+    "endpoints": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "web", "control_http", "control_grpc", "postgresql", "p4runtime",
+        "central_gateway", "triton", "plugin_host", "analysis"
+      ],
+      "properties": {
+        "web": {"type": "string", "pattern": "^http://127\\.0\\.0\\.1:[0-9]+$"},
+        "control_http": {"type": "string", "pattern": "^http://127\\.0\\.0\\.1:[0-9]+$"},
+        "control_grpc": {"type": "string", "pattern": "^https://127\\.0\\.0\\.1:[0-9]+$"},
+        "postgresql": {"const": "postgresql://127.0.0.1:55433/masi_control_test"},
+        "p4runtime": {"type": "string", "pattern": "^https://127\\.0\\.0\\.1:[0-9]+$"},
+        "central_gateway": {"type": "string", "pattern": "^https://127\\.0\\.0\\.1:[0-9]+$"},
+        "triton": {"type": "string", "pattern": "^127\\.0\\.0\\.1:[0-9]+$"},
+        "plugin_host": {"type": "string", "minLength": 1, "maxLength": 512},
+        "analysis": {"type": "string", "minLength": 1, "maxLength": 512}
+      }
+    },
+    "processes": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["edge_test_runner", "control", "central_runner", "plugin_host_exporter", "analysis_exporter"],
+      "properties": {
+        "edge_test_runner": {"type": "integer", "minimum": 1},
+        "control": {"type": "integer", "minimum": 1},
+        "central_runner": {"type": "integer", "minimum": 1},
+        "plugin_host_exporter": {"type": "integer", "minimum": 1},
+        "analysis_exporter": {"type": "integer", "minimum": 1}
+      }
+    },
+    "containers": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["bmv2", "gateway", "triton", "web", "web_forwarder"],
+      "properties": {
+        "bmv2": {"type": "string", "minLength": 12, "maxLength": 128},
+        "gateway": {"type": "string", "minLength": 1, "maxLength": 128},
+        "triton": {"type": "string", "minLength": 1, "maxLength": 128},
+        "web": {"type": "string", "minLength": 1, "maxLength": 128},
+        "web_forwarder": {"type": "string", "minLength": 1, "maxLength": 128}
+      }
+    },
+    "fixtures": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["pipeline_loader", "traffic_sender", "analysis_provider", "analysis_mcp"],
+      "properties": {
+        "pipeline_loader": {"const": "isolated-one-shot-closed-before-live-state"},
+        "traffic_sender": {"const": "packet-only-no-p4runtime-credentials-closed-before-live-state"},
+        "analysis_provider": {"const": "deterministic-tls13-mtls-fixture"},
+        "analysis_mcp": {"const": "deterministic-tls13-mtls-fixture"}
+      }
+    },
+    "level": {"const": "REHEARSAL"},
+    "qualification": {"const": "NOT_QUALIFIED"}
+  }
+}

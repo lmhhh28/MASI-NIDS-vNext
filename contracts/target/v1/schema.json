@@ -99,7 +99,7 @@
         "supported_write_atomicity"
       ],
       "properties": {
-        "p4runtime_api_version": {"const": "1.3.0"},
+        "p4runtime_api_version": {"const": "1.4.1"},
         "p4info_digest": {"$ref": "#/$defs/digest"},
         "device_config_digest": {"$ref": "#/$defs/digest"},
         "profile_digest": {"$ref": "#/$defs/digest"},

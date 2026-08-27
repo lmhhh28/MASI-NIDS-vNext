@@ -4,6 +4,7 @@
   "notices": [
     {"component": "p4c", "license": "Apache-2.0", "source": "https://github.com/p4lang/p4c"},
     {"component": "BMv2 behavioral-model", "license": "Apache-2.0", "source": "https://github.com/p4lang/behavioral-model"},
+    {"component": "PI P4Runtime server", "license": "Apache-2.0", "source": "https://github.com/p4lang/PI"},
     {"component": "P4Runtime Python protos", "license": "Apache-2.0", "source": "https://github.com/p4lang/p4runtime"},
     {"component": "PTF", "license": "Apache-2.0", "source": "https://github.com/p4lang/ptf"},
     {"component": "Scapy", "license": "GPL-2.0-only", "source": "https://github.com/secdev/scapy"},

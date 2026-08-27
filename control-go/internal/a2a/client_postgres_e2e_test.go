@@ -75,6 +75,7 @@ func TestA2ASubmitPollArtifactPostgres(t *testing.T) {
 	defer cleanup()
 
 	d := "sha256:" + strings.Repeat("a", 64)
+	revision := strings.Repeat("1", 40)
 	if _, err := pool.Exec(ctx, `INSERT INTO evidence_refs(evidence_id,kind,reference_digest,source,trace_id,scope)
 		VALUES($1,'observation',$2,'a2a-e2e','trace-a2a-evidence',$3)`, evidenceID, d, scope); err != nil {
 		t.Fatal(err)
@@ -135,16 +136,20 @@ func TestA2ASubmitPollArtifactPostgres(t *testing.T) {
 			mu.Lock()
 			input := frozen
 			mu.Unlock()
-			artifact := Artifact{SchemaVersion: ArtifactSchema, ArtifactID: artifactID, TaskID: input.TaskID,
-				PluginID: input.PluginID, BindingGeneration: input.BindingGeneration, InputDigest: input.InputDigest,
-				AnalysisOutcome: "succeeded", ObservedClaims: []GroundedClaim{{Claim: "bounded observation", EvidenceRefs: []string{evidenceID}}},
-				InferredClaims: []string{"bounded inference"}, Uncertainties: []string{"bounded uncertainty"},
+			artifact := Artifact{SchemaVersion: ArtifactSchema, ArtifactID: artifactID, TaskID: input.TaskID, RunID: input.RunID,
+				PluginID: input.PluginID, PluginRevision: input.PluginRevision, ConfigDigest: input.ConfigDigest,
+				BindingGeneration: input.BindingGeneration, InputDigest: input.InputDigest,
+				AnalysisOutcome: "succeeded", Quality: "valid", SourceFactRefs: []string{evidenceID},
+				ObservedClaims:   []GroundedClaim{{Claim: "bounded observation", EvidenceRefs: []string{evidenceID}}},
+				ModelResultFacts: []GroundedClaim{{Claim: "bounded model result", EvidenceRefs: []string{evidenceID}}},
+				InferredClaims:   []string{"bounded inference"}, LLMInterpretations: []string{"bounded interpretation"}, Uncertainties: []string{"bounded uncertainty"},
 				Limitations: []string{"bounded limitation"}, MissingEvidence: []string{"none"},
 				Recommendations: []Recommendation{{Text: "human review", Risk: "low", Preconditions: []string{"review"},
-					ExpiresAtUnixMS: time.Now().Add(time.Hour).UnixMilli(), EvidenceRefs: []string{evidenceID}}},
+					ExpiresAtUnixMS: input.ExpiresAtUnixMS, EvidenceRefs: []string{evidenceID}}},
 				GeneratedContent:     []GeneratedContent{{MediaType: "text/markdown", Body: "# Bounded analysis"}},
 				ProviderMetadata:     ProviderMetadata{ProviderID: "fixture-provider", ModelID: "fixture-model", ProviderDigest: d},
-				ToolTrajectoryDigest: d, TraceID: "trace-a2a-artifact", MediaType: "application/json",
+				ToolTrajectoryDigest: d, GraphVersion: "masi-analysis-graph/v1", TopologyDigest: d, TraceID: input.TraceID,
+				TraceDigest: d, ProducedAtUnixMS: time.Now().UnixMilli(), ExpiresAtUnixMS: input.ExpiresAtUnixMS, MediaType: "application/json",
 				NonExecutable: true, DeploymentEligible: false}
 			artifact.ArtifactDigest = ComputeArtifactDigest(artifact)
 			artifactRaw, _ := json.Marshal(artifact)
@@ -158,15 +163,21 @@ func TestA2ASubmitPollArtifactPostgres(t *testing.T) {
 	defer server.Close()
 
 	client, err := NewClient(pool, []config.A2APeer{{PeerID: "analysis-peer-a2a-e2e", PluginID: pluginID,
-		BaseURL: server.URL, AllowedIPs: []string{"127.0.0.1"}, MaxResponseBytes: 128 << 10}}, false)
+		BaseURL: server.URL, AllowedIPs: []string{"127.0.0.1"}, MaxResponseBytes: 128 << 10}}, "test")
 	if err != nil {
 		t.Fatal(err)
 	}
-	input := InputBundle{SchemaVersion: InputSchema, TaskID: taskID, Skill: "analyze_nids_incident",
-		PluginID: pluginID, BindingGeneration: 1, Scope: scope, TargetSetDigest: d,
-		EvidenceRefs: []FactRef{{ID: evidenceID}}, DeadlineUnixMS: time.Now().Add(20 * time.Second).UnixMilli(),
+	now := time.Now()
+	input := InputBundle{SchemaVersion: InputSchema, TaskID: taskID, RunID: "run-" + taskID, Skill: "analyze_nids_incident",
+		PluginID: pluginID, PluginRevision: revision, ConfigDigest: d, BindingGeneration: 1, Scope: scope, TargetSetDigest: d,
+		EvidenceRefs: []FactRef{{ID: evidenceID}}, ModelResultEvidenceRefs: []string{evidenceID}, Quality: "valid",
+		ProviderProfileDigest: d, PromptProfileDigest: d, ToolPolicyDigest: d, RedactionProfileDigest: d, ProvenanceDigest: d,
+		Budgets: AnalysisBudgets{LLMCalls: 2, MCPRounds: 2, ToolCalls: 6, ToolParallelism: 3, ToolTimeoutMS: 2000,
+			ToolResponseBytes: 32768, ToolTotalResponseBytes: 131072, LLMTimeoutMS: 6000, ResultBudgetMS: 8000,
+			GraphDeadlineMS: 30000, ArtifactBytes: 65536, OutboundDelegations: 2, PollsPerTask: 3, A2AResponseBytes: 131072},
+		DeadlineUnixMS: now.Add(20 * time.Second).UnixMilli(), ExpiresAtUnixMS: now.Add(time.Hour).UnixMilli(),
 		Locale: "zh-CN", ContentRequest: "bounded summary", IdempotencyKey: "analysis-task-a2a-e2e",
-		TraceID: "trace-analysis-task-a2a-e2e"}
+		DelegationPath: []string{}, TraceID: "trace-analysis-task-a2a-e2e"}
 	submitted, err := client.Submit(ctx, input, actor)
 	if err != nil || submitted.Status != "working" || submitted.RemoteTaskID == "" {
 		t.Fatalf("submit projection=%+v err=%v", submitted, err)

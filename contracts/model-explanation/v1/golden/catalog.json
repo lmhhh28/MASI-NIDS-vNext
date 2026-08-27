@@ -1,0 +1,14 @@
+{
+  "schema_version": "model-explanation-golden-catalog/v1",
+  "contract_source": "contracts/model-explanation/v1/schema.json",
+  "profile_source": "contracts/profiles/v1/model-explanation-evidence.json",
+  "vectors": [
+    {"id": "model-explanation-lr-0001", "path": "lr-golden-v1.json", "sha256": "sha256:5645933cebc0412731d1b1a90151a7b9a03d4a1397113ac8e69dff9baa5de6dd", "category": "lr", "expected_result": "valid", "test_id": "TEST-ML-EXPLANATION-001"},
+    {"id": "model-explanation-xgb-0001", "path": "xgb-golden-v1.json", "sha256": "sha256:dff84c349e58f7902b5b2ac40f287aac4da7102b69a98aaca7548bd8be291fce", "category": "xgb", "expected_result": "valid", "test_id": "TEST-ML-EXPLANATION-002"},
+    {"id": "model-explanation-ae-0001", "path": "ae-golden-v1.json", "sha256": "sha256:0e8fb620efa51e694ca4f0d905a145edd02c1f16904b8e60ac95541e981349c6", "category": "ae", "expected_result": "valid", "test_id": "TEST-ML-EXPLANATION-003"},
+    {"id": "model-explanation-rejection-0001", "path": "rejection-golden-v1.json", "sha256": "sha256:eee43abcbb39c1988832b9580765aed300d09a65a898a162f99c61dcc60add4b", "category": "rejection", "expected_result": "reject", "test_id": "TEST-ML-EXPLANATION-004"}
+  ],
+  "language_runners": ["python", "cpp", "rust", "go", "typescript"],
+  "realtime_wire_extended": false,
+  "no_independent_expected_data_maintenance": true
+}

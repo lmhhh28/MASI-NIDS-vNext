@@ -41,7 +41,7 @@ func grpcServerOptions(cfg *config.Config) ([]grpc.ServerOption, error) {
 }
 
 func httpTLSConfig(cfg *config.Config) (*tls.Config, error) {
-	if cfg.RuntimeProfile == "test" {
+	if cfg.RuntimeProfile != "production" {
 		return nil, nil
 	}
 	caPEM, err := os.ReadFile(cfg.TLS.HTTPClientCAFile)

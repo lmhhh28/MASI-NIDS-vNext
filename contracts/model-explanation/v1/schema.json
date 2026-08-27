@@ -1,0 +1,348 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://masi-nids.example/contracts/model-explanation/v1/schema.json",
+  "title": "MASI Offline Model Explanation Evidence V1",
+  "description": "ADR-0019 read-only qualification evidence for LR raw-margin contributions, XGBoost interventional raw-margin TreeSHAP, and autoencoder scaled-log SmoothL1 residuals. This contract never extends the realtime inference wire.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "evidence_id",
+    "generated_at",
+    "candidate",
+    "binding",
+    "method",
+    "feature_order",
+    "global_importance",
+    "samples",
+    "coverage",
+    "truncation",
+    "stability",
+    "limitations",
+    "safety"
+  ],
+  "properties": {
+    "schema_version": {"const": "model-explanation-evidence/v1"},
+    "evidence_id": {"type": "string", "pattern": "^[a-z0-9][a-z0-9._:-]{7,127}$"},
+    "generated_at": {"type": "string", "format": "date-time"},
+    "candidate": {"$ref": "#/$defs/candidate"},
+    "binding": {"$ref": "#/$defs/binding"},
+    "method": {"$ref": "#/$defs/method"},
+    "feature_order": {"$ref": "#/$defs/feature_order"},
+    "global_importance": {
+      "type": "array",
+      "minItems": 6,
+      "maxItems": 6,
+      "items": {"$ref": "#/$defs/global_importance"}
+    },
+    "samples": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 4096,
+      "items": {"$ref": "#/$defs/sample"}
+    },
+    "coverage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["eligible_samples", "included_samples", "coverage", "per_source_scenario"],
+      "properties": {
+        "eligible_samples": {"type": "integer", "minimum": 1, "maximum": 100000000},
+        "included_samples": {"type": "integer", "minimum": 1, "maximum": 4096},
+        "coverage": {"type": "number", "exclusiveMinimum": 0, "maximum": 1},
+        "per_source_scenario": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 256,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["source_profile", "scenario_id", "eligible", "included", "coverage"],
+            "properties": {
+              "source_profile": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]*/v1$"},
+              "scenario_id": {"type": "string", "minLength": 1, "maxLength": 128},
+              "eligible": {"type": "integer", "minimum": 1},
+              "included": {"type": "integer", "minimum": 0, "maximum": 4096},
+              "coverage": {"type": "number", "minimum": 0, "maximum": 1}
+            }
+          }
+        }
+      }
+    },
+    "truncation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["requested", "included", "maximum", "per_source_scenario_maximum", "reason"],
+      "properties": {
+        "requested": {"type": "integer", "minimum": 1, "maximum": 100000000},
+        "included": {"type": "integer", "minimum": 1, "maximum": 4096},
+        "maximum": {"const": 4096},
+        "per_source_scenario_maximum": {"const": 4096},
+        "reason": {"enum": ["none", "bounded_sample_limit", "source_scenario_limit"]}
+      }
+    },
+    "stability": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["seed_set", "global_rank_spearman_median", "threshold", "status", "comparison_digest"],
+      "properties": {
+        "seed_set": {
+          "type": "array",
+          "prefixItems": [{"const": 17}, {"const": 29}, {"const": 43}],
+          "items": false
+        },
+        "global_rank_spearman_median": {"type": "number", "minimum": -1, "maximum": 1},
+        "threshold": {"const": 0.8},
+        "status": {"enum": ["stable", "unstable"]},
+        "comparison_digest": {"$ref": "#/$defs/digest"}
+      }
+    },
+    "limitations": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 64,
+      "uniqueItems": true,
+      "items": {"type": "string", "minLength": 1, "maxLength": 1024}
+    },
+    "safety": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["causal_claim", "realtime_inference_payload", "canonical_event_identity", "effect_eligibility", "llm_generated", "executable_content"],
+      "properties": {
+        "causal_claim": {"const": false},
+        "realtime_inference_payload": {"const": false},
+        "canonical_event_identity": {"const": false},
+        "effect_eligibility": {"const": false},
+        "llm_generated": {"const": false},
+        "executable_content": {"const": false}
+      }
+    }
+  },
+  "$defs": {
+    "digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "finite_number": {"type": "number"},
+    "feature_order": {
+      "type": "array",
+      "prefixItems": [
+        {"const": "aggregate_packets"},
+        {"const": "aggregate_bytes"},
+        {"const": "reported_nonzero_cells"},
+        {"const": "max_cell_packets"},
+        {"const": "max_cell_bytes"},
+        {"const": "snapshot_count"}
+      ],
+      "items": false
+    },
+    "feature_vector_number": {
+      "type": "array",
+      "prefixItems": [
+        {"$ref": "#/$defs/finite_number"},
+        {"$ref": "#/$defs/finite_number"},
+        {"$ref": "#/$defs/finite_number"},
+        {"$ref": "#/$defs/finite_number"},
+        {"$ref": "#/$defs/finite_number"},
+        {"$ref": "#/$defs/finite_number"}
+      ],
+      "items": false
+    },
+    "feature_vector_uint": {
+      "type": "array",
+      "prefixItems": [
+        {"type": "integer", "minimum": 0},
+        {"type": "integer", "minimum": 0},
+        {"type": "integer", "minimum": 0},
+        {"type": "integer", "minimum": 0},
+        {"type": "integer", "minimum": 0},
+        {"type": "integer", "minimum": 1}
+      ],
+      "items": false
+    },
+    "candidate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["candidate_id", "model_id", "revision", "bundle_digest", "model_digest", "seed"],
+      "properties": {
+        "candidate_id": {"enum": ["lr-window-binary/v1", "xgb-window-binary/v1", "ae-window-benign/v1"]},
+        "model_id": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]{1,127}$"},
+        "revision": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+        "bundle_digest": {"$ref": "#/$defs/digest"},
+        "model_digest": {"$ref": "#/$defs/digest"},
+        "seed": {"enum": [17, 29, 43]}
+      }
+    },
+    "binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["dataset_id", "dataset_revision", "dataset_manifest_digest", "feature_schema_digest", "scaler_digest", "label_taxonomy_digest", "output_adapter_digest", "sample_manifest_digest"],
+      "properties": {
+        "dataset_id": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]{1,127}$"},
+        "dataset_revision": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "dataset_manifest_digest": {"$ref": "#/$defs/digest"},
+        "feature_schema_digest": {"$ref": "#/$defs/digest"},
+        "scaler_digest": {"$ref": "#/$defs/digest"},
+        "label_taxonomy_digest": {"$ref": "#/$defs/digest"},
+        "output_adapter_digest": {"$ref": "#/$defs/digest"},
+        "sample_manifest_digest": {"$ref": "#/$defs/digest"}
+      }
+    },
+    "tool": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "version", "artifact_digest"],
+      "properties": {
+        "name": {"enum": ["scikit-learn", "shap", "masi-numpy-autoencoder"]},
+        "version": {"type": "string", "pattern": "^[0-9]+\\.[0-9]+(?:\\.[0-9]+)?(?:[-+][a-zA-Z0-9.-]+)?$"},
+        "artifact_digest": {"$ref": "#/$defs/digest"}
+      }
+    },
+    "background": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "digest", "sample_count", "maximum", "selection"],
+      "properties": {
+        "status": {"enum": ["verified", "not_applicable"]},
+        "digest": {"$ref": "#/$defs/digest"},
+        "sample_count": {"type": "integer", "minimum": 0, "maximum": 256},
+        "maximum": {"const": 256},
+        "selection": {"enum": ["deterministic-train-source-class-capture-family", "not-applicable-method-does-not-use-background"]}
+      }
+    },
+    "method": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["method_id", "domain", "contribution_semantics", "feature_perturbation", "model_output", "tool", "background", "numeric_tolerance", "method_output_digest"],
+      "properties": {
+        "method_id": {"enum": ["lr-raw-margin/v1", "xgb-treeshap-interventional-raw/v1", "ae-scaled-log-smoothl1-residual/v1"]},
+        "domain": {"enum": ["raw-margin", "scaled-log-residual"]},
+        "contribution_semantics": {"enum": ["coefficient-times-scaled-log-feature", "interventional-treeshap-phi", "per-feature-smoothl1-residual"]},
+        "feature_perturbation": {"enum": ["interventional", "not_applicable"]},
+        "model_output": {"enum": ["raw", "not_applicable"]},
+        "tool": {"$ref": "#/$defs/tool"},
+        "background": {"$ref": "#/$defs/background"},
+        "numeric_tolerance": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["absolute", "relative", "ulp"],
+          "properties": {
+            "absolute": {"type": "number", "minimum": 0, "maximum": 0.001},
+            "relative": {"type": "number", "minimum": 0, "maximum": 0.001},
+            "ulp": {"type": "integer", "minimum": 0, "maximum": 16}
+          }
+        },
+        "method_output_digest": {"$ref": "#/$defs/digest"}
+      }
+    },
+    "global_importance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["feature_id", "mean_absolute_contribution", "rank"],
+      "properties": {
+        "feature_id": {"enum": ["aggregate_packets", "aggregate_bytes", "reported_nonzero_cells", "max_cell_packets", "max_cell_bytes", "snapshot_count"]},
+        "mean_absolute_contribution": {"type": "number", "minimum": 0},
+        "rank": {"type": "integer", "minimum": 1, "maximum": 6}
+      }
+    },
+    "sample": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sample_id", "sample_digest", "source_profile", "scenario_id", "feature_values", "transformed_values", "contributions", "base_value", "raw_output", "reconstructed_raw_output", "additivity_absolute_error", "probability"],
+      "properties": {
+        "sample_id": {"type": "string", "pattern": "^[a-z0-9][a-z0-9._:-]{7,127}$"},
+        "sample_digest": {"$ref": "#/$defs/digest"},
+        "source_profile": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]*/v1$"},
+        "scenario_id": {"type": "string", "minLength": 1, "maxLength": 128},
+        "feature_values": {"$ref": "#/$defs/feature_vector_uint"},
+        "transformed_values": {"$ref": "#/$defs/feature_vector_number"},
+        "contributions": {"$ref": "#/$defs/feature_vector_number"},
+        "base_value": {"$ref": "#/$defs/finite_number"},
+        "raw_output": {"$ref": "#/$defs/finite_number"},
+        "reconstructed_raw_output": {"$ref": "#/$defs/finite_number"},
+        "additivity_absolute_error": {"type": "number", "minimum": 0, "maximum": 0.001},
+        "residual_mean": {"type": "number", "minimum": 0},
+        "probability": {"type": "number", "minimum": 0, "maximum": 1}
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"method": {"properties": {"method_id": {"const": "lr-raw-margin/v1"}}}}, "required": ["method"]},
+      "then": {
+        "properties": {
+          "candidate": {"properties": {"candidate_id": {"const": "lr-window-binary/v1"}}},
+          "method": {
+            "properties": {
+              "domain": {"const": "raw-margin"},
+              "contribution_semantics": {"const": "coefficient-times-scaled-log-feature"},
+              "feature_perturbation": {"const": "not_applicable"},
+              "model_output": {"const": "raw"},
+              "tool": {"properties": {"name": {"const": "scikit-learn"}}},
+              "background": {
+                "properties": {
+                  "status": {"const": "not_applicable"},
+                  "sample_count": {"const": 0},
+                  "selection": {"const": "not-applicable-method-does-not-use-background"}
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {"properties": {"method": {"properties": {"method_id": {"const": "xgb-treeshap-interventional-raw/v1"}}}}, "required": ["method"]},
+      "then": {
+        "properties": {
+          "candidate": {"properties": {"candidate_id": {"const": "xgb-window-binary/v1"}}},
+          "method": {
+            "properties": {
+              "domain": {"const": "raw-margin"},
+              "contribution_semantics": {"const": "interventional-treeshap-phi"},
+              "feature_perturbation": {"const": "interventional"},
+              "model_output": {"const": "raw"},
+              "tool": {"properties": {"name": {"const": "shap"}}},
+              "background": {
+                "properties": {
+                  "status": {"const": "verified"},
+                  "sample_count": {"type": "integer", "minimum": 1, "maximum": 256},
+                  "selection": {"const": "deterministic-train-source-class-capture-family"}
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {"properties": {"method": {"properties": {"method_id": {"const": "ae-scaled-log-smoothl1-residual/v1"}}}}, "required": ["method"]},
+      "then": {
+        "properties": {
+          "candidate": {"properties": {"candidate_id": {"const": "ae-window-benign/v1"}}},
+          "method": {
+            "properties": {
+              "domain": {"const": "scaled-log-residual"},
+              "contribution_semantics": {"const": "per-feature-smoothl1-residual"},
+              "feature_perturbation": {"const": "not_applicable"},
+              "model_output": {"const": "not_applicable"},
+              "tool": {"properties": {"name": {"const": "masi-numpy-autoencoder"}}},
+              "background": {
+                "properties": {
+                  "status": {"const": "not_applicable"},
+                  "sample_count": {"const": 0},
+                  "selection": {"const": "not-applicable-method-does-not-use-background"}
+                }
+              }
+            }
+          },
+          "samples": {"items": {"required": ["residual_mean"]}}
+        }
+      }
+    }
+  ],
+  "x-masi-semantic-constraints": [
+    {"constraint_id": "EXPLANATION-FEATURE-COVERAGE", "operator": "exact-feature-set-and-ranks", "fields": ["/feature_order", "/global_importance"]},
+    {"constraint_id": "EXPLANATION-ADDITIVITY", "operator": "base-plus-contributions-equals-raw", "fields": ["/method/numeric_tolerance", "/samples"]},
+    {"constraint_id": "EXPLANATION-AE-RESIDUAL", "operator": "mean-contributions-equals-residual-and-raw", "fields": ["/method/method_id", "/samples"]},
+    {"constraint_id": "EXPLANATION-COVERAGE", "operator": "included-over-eligible", "fields": ["/coverage"]},
+    {"constraint_id": "EXPLANATION-STABILITY", "operator": "threshold-status-consistent", "fields": ["/stability"]},
+    {"constraint_id": "EXPLANATION-SAFETY", "operator": "all-false", "fields": ["/safety"]}
+  ]
+}

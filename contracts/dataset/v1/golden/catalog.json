@@ -1,0 +1,14 @@
+{
+  "schema_version": "dataset-p4-window-golden-catalog/v1",
+  "contract_source": "contracts/dataset/v1/schema.json",
+  "sample_contract_source": "contracts/dataset/v1/sample-schema.json",
+  "profile_source": "contracts/profiles/v1/dataset-p4-window-binary.json",
+  "vectors": [
+    {"id": "dataset-manifest-golden-0001", "path": "manifest-golden-v1.json", "sha256": "sha256:c5a876b763aba6412f95820047b38fe41eb8b479252fa7215f1b01318264d542", "category": "manifest", "expected_result": "valid", "test_id": "TEST-ML-DATASET-CONTRACT-001"},
+    {"id": "dataset-sample-golden-0001", "path": "sample-golden-v1.json", "sha256": "sha256:280cd3a8ae9461e845690d497bcd139ba46c565edf98929ae2f76c575bb9ff89", "category": "sample", "expected_result": "valid", "test_id": "TEST-ML-DATASET-CONTRACT-002"},
+    {"id": "dataset-split-golden-0001", "path": "split-hash-golden-v1.json", "sha256": "sha256:7b71169ff644182708392fbae12b3149ef95731f9058e7b1996e51cb55e958e1", "category": "split", "expected_result": "valid", "test_id": "TEST-ML-DATASET-CONTRACT-003"},
+    {"id": "dataset-rejection-golden-0001", "path": "rejection-golden-v1.json", "sha256": "sha256:165f1edb30f21aa645e9528145f626e2527c319c36d6ccf7c74cae2af06b209b", "category": "rejection", "expected_result": "reject", "test_id": "TEST-ML-DATASET-CONTRACT-004"}
+  ],
+  "language_runners": ["python", "cpp", "rust", "go", "typescript"],
+  "no_independent_expected_data_maintenance": true
+}

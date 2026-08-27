@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://masi-nids.example/contracts/analysis/a2a/v1/error.schema.json",
+  "title": "MASI A2A Stable Error V1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "error_code", "message", "retryable", "trace_id"],
+  "properties": {
+    "schema_version": {"const": "masi-a2a-error/v1"},
+    "error_code": {"enum": ["VERSION_NOT_SUPPORTED", "CONTENT_TYPE_UNSUPPORTED", "BODY_TOO_LARGE", "MALFORMED_REQUEST", "IDENTITY_MISMATCH", "DIGEST_MISMATCH", "BINDING_UNAVAILABLE", "BINDING_FENCED", "DEADLINE_EXCEEDED", "IDEMPOTENCY_CONFLICT", "LOOP_DETECTED", "RESOURCE_EXHAUSTED", "DRAINING", "TASK_NOT_FOUND", "INTERNAL_UNAVAILABLE"]},
+    "message": {"type": "string", "minLength": 1, "maxLength": 256}, "retryable": {"type": "boolean"},
+    "trace_id": {"type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"}
+  }
+}

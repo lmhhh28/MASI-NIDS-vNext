@@ -5,6 +5,7 @@
 // 0 on success / 1 on failure.
 
 #include <grpcpp/grpcpp.h>
+#include <google/protobuf/util/json_util.h>
 
 #include <chrono>
 #include <cstdlib>
@@ -118,6 +119,14 @@ int main(int argc, char** argv) {
     std::cerr << "probe: readback identity mismatch\n";
     return 1;
   }
-  std::cout << "probe: OK\n";
+  google::protobuf::util::JsonPrintOptions print_options;
+  print_options.preserve_proto_field_names = true;
+  std::string output;
+  const auto json_status = google::protobuf::util::MessageToJsonString(resp, &output, print_options);
+  if (!json_status.ok()) {
+    std::cerr << "probe: readback JSON encoding failed\n";
+    return 1;
+  }
+  std::cout << output << '\n';
   return 0;
 }

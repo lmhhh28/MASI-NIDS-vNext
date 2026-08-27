@@ -1,0 +1,10 @@
+{
+  "schema_version": "masi-profile/v1",
+  "profile_id": "analysis-provider/v1",
+  "binding": "HTTP+JSON",
+  "operation": "POST /v1/analyze",
+  "transport": {"production": "TLS1.3-mTLS", "redirects": false, "static_ip_allowlist": true, "proxy": false},
+  "bounds": {"calls_per_run": 2, "request_bytes": 65536, "response_bytes": 65536, "timeout_ms": 6000, "retry_max_attempts": 1},
+  "content": {"structured_only": true, "system_policy_separate": true, "untrusted_evidence_labeled": true, "secret_in_prompt": false},
+  "forbidden": ["tool-policy-mutation", "scope-mutation", "identity-mutation", "executable-output", "arbitrary-url", "credential-return", "runtime-model-fallback"]
+}

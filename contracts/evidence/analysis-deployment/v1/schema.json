@@ -1,0 +1,8 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://masi-nids.example/contracts/evidence/analysis-deployment/v1/schema.json",
+  "type": "object", "additionalProperties": false,
+  "required": ["schema_version", "module_id", "level", "applicability", "result", "qualification", "compose_digest", "production_image_reference_pattern", "checks"],
+  "properties": {"schema_version": {"const": "analysis-deployment-evidence/v1"}, "module_id": {"const": "MOD-AGENT-001"}, "level": {"const": "MODULE"}, "applicability": {"const": "APPLICABLE"}, "result": {"const": "PASS"}, "qualification": {"const": "NOT_QUALIFIED"}, "compose_digest": {"$ref": "#/$defs/digest"}, "production_image_reference_pattern": {"const": "repository@sha256:<64-lower-hex>"}, "checks": {"type": "object", "minProperties": 14, "maxProperties": 14, "additionalProperties": {"const": true}}},
+  "$defs": {"digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}}
+}

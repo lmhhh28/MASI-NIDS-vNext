@@ -4,7 +4,7 @@
 - 目录：`web/`
 - 文档状态：`DRAFT`
 - 主要需求：`FUNC-API-001`、`WEB-UX-001`、`WEB-STATE-001`、`WEB-GOV-001`、`WEB-VIS-001`、`WEB-A11Y-001`、`WEB-PERF-001`、`WEB-SEC-001`、`WEB-SUPPLY-001`、`WEB-RULE-001`、`WEB-FW-001`、`WEB-TARGET-FLEET-001`、`WEB-PLUGIN-STAT-001`、`TEST-WEB-001`、`TEST-REAL-E2E-001`
-- 主要 ADR：ADR-0007、ADR-0008、ADR-0014、ADR-0015、ADR-0017、ADR-0018
+- 主要 ADR：ADR-0007、ADR-0008、ADR-0014、ADR-0015、ADR-0017、ADR-0018、ADR-0019
 
 ## 1. 模块目标
 
@@ -100,6 +100,7 @@ Fleet Operations显示冻结target set、ordered waves/failure policy、target×
 - CPU core/thread/NUMA/RAM或GPU/driver/CUDA/cuDNN/VRAM；
 - per-shard current/previous route、withdraw/drain/WAL/start/warmup/readback/CAS/commit/resume；
 - rolling_mixed/failed/full-pool unavailable/gap、rollback与独立E2E证据。
+- ADR-0019 exact source-selection与dataset-revision状态、split/seed/candidate/quality evidence摘要；必须分别显示`recipe_frozen`、`dataset_revision_frozen`和`winner_selected`，不能把设计接受显示成模型已训练。可用时再显示由Go投影的offline global explanation artifact、method/model/feature/scaler/background/sample digest、coverage/stability/truncation和limitations。
 
 管理员只可选择已资格化profile并创建新pool generation或exact rollback。UI不提供`auto|best available|fallback`、runtime load/unload、weighted split、Edge-local或deployment-ready-as-current。
 
@@ -111,7 +112,11 @@ Plugin Statistics固定route，消费Go校验并规范化字段映射后的封�
 
 页面显示plugin/revision/binding、definition identity、scope/window/input/artifact digest、quality/freshness/coverage/truncation和run state。`Run now`仅在Go返回source-read与`plugin.statistics.run`均有效时启用；schedule控件只把Go返回的coarse capability用于展示，每次create/revise/disable仍携带exact definition/binding、CSRF、适用step-up和幂等身份，由Go重新验证scoped Admin与data-class，不能把客户端缓存权限当授权。控件均由平台固定，插件不能声明按钮、表单或cron表达式。
 
-Analysis页面只展示escaped纯文本/结构化facts/inferences/unknown/citations/limitations/outcome和Artifact digest。Recommendation不可点击直接执行；人工必须进入独立proposal流程。
+Analysis页面只展示escaped纯文本/结构化facts/inferences/unknown/citations/limitations/outcome和Artifact digest。模型区域固定分成“模型结果事实”“离线解释证据”“Agent辅助解读”：没有model-native explanation时必须显示“模型结果解读”，不得伪装成SHAP/攻击原因；有解释时显示方法及其适用字段、exact model/feature/scaler/background/sample digest、quality/coverage/stability/truncation、贡献所在空间（raw margin或scaled-log residual）和非因果提示。`background`对TreeSHAP、`scaler`对LR/AE才是必填；其他方法显示`不适用`理由，不显示空白绿色状态。Recommendation不可点击直接执行；人工必须进入独立proposal流程。
+
+Web不根据scores、feature或模型权重自行计算canonical attribution，不让Analysis/plugin提供ECharts option。结构化解释若未来进入Go API，只能由内建horizontal contribution bar、状态/限制和等价table渲染；LR显示raw-margin contribution，XGBoost显示raw-margin TreeSHAP，AE显示scaled-log residual，均禁止使用“导致攻击”的因果文案。当前ADR-0019只要求offline qualification/Artifact引用，不扩展现有实时InferenceResult。
+
+`model-explanation-evidence/v1`及其Go OpenAPI projection尚未创建，因此当前这部分是Web实现前的必需合同，不是已可消费API。合同冻结前只能显示已有evidence reference/digest与`explanation unavailable`，不得由浏览器解析任意ML JSON作为fallback。
 
 ## 11. Design System 与可访问性
 
@@ -145,6 +150,7 @@ Route lazy-load、tree shaking、server cursor、virtualization和bounded EChart
 - Event/Evidence/Response/R2/R3、original operation和readback；
 - Managed Targets/Fleet matrix、Firewall、Rule Effectiveness、Model Pool；
 - Plugin lifecycle/statistics固定renderer、Analysis不可执行Artifact；
+- Model recipe/data provenance与“结果事实/离线解释/Agent解读”分层，缺失解释、低coverage/truncation、非因果文案和等价table；
 - SSE gap/duplicate/乱序/polling、timeout/5xx/429和零重复mutation；
 - cookie/session-fixation/replay、Origin/Fetch Metadata、CSP/CSRF/XSS/CSV/deep-link/token/secret负例；
 - WCAG、三浏览器、bundle/CWV/heap/DOM/soak和current/previous rollback。

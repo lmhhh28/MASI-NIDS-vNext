@@ -1,0 +1,12 @@
+{
+  "schema_version": "model-explanation-rejection-golden/v1",
+  "vectors": [
+    {"id": "causal-claim", "mutation": {"safety.causal_claim": true}, "expected_result": "reject", "reason": "causal_claim_forbidden"},
+    {"id": "realtime-injection", "mutation": {"safety.realtime_inference_payload": true}, "expected_result": "reject", "reason": "realtime_payload_forbidden"},
+    {"id": "xgb-no-background", "mutation": {"method.background.status": "not_applicable"}, "expected_result": "reject", "reason": "xgb_background_required"},
+    {"id": "additivity-mismatch", "mutation": {"samples[0].reconstructed_raw_output": 99.0}, "expected_result": "reject", "reason": "additivity_mismatch"},
+    {"id": "ae-residual-mismatch", "mutation": {"samples[0].residual_mean": 99.0}, "expected_result": "reject", "reason": "residual_mean_mismatch"},
+    {"id": "nan", "mutation": {"samples[0].raw_output": "NaN"}, "expected_result": "reject", "reason": "non_finite"},
+    {"id": "unknown-major", "mutation": {"schema_version": "model-explanation-evidence/v2"}, "expected_result": "reject", "reason": "unknown_major"}
+  ]
+}

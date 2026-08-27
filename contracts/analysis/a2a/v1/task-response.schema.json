@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://masi-nids.example/contracts/analysis/a2a/v1/task-response.schema.json",
+  "title": "MASI A2A 1.0 Analysis Task Response",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["task"],
+  "properties": {
+    "task": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "contextId", "status", "artifacts", "history", "metadata"],
+      "properties": {
+        "id": {"$ref": "#/$defs/identity"}, "contextId": {"$ref": "#/$defs/identity"},
+        "status": {
+          "type": "object", "additionalProperties": false, "required": ["state", "timestamp"],
+          "properties": {"state": {"enum": ["TASK_STATE_SUBMITTED", "TASK_STATE_WORKING", "TASK_STATE_COMPLETED", "TASK_STATE_FAILED", "TASK_STATE_CANCELED", "TASK_STATE_REJECTED", "TASK_STATE_INPUT_REQUIRED", "TASK_STATE_AUTH_REQUIRED"]}, "timestamp": {"type": "string", "format": "date-time"}}
+        },
+        "artifacts": {"type": "array", "maxItems": 8, "items": {"$ref": "#/$defs/artifact"}},
+        "history": {"type": "array", "maxItems": 8, "items": {"$ref": "#/$defs/message"}},
+        "metadata": {
+          "type": "object", "additionalProperties": false,
+          "required": ["schemaVersion", "pluginId", "bindingGeneration", "inputDigest", "traceId", "reasonCode"],
+          "properties": {"schemaVersion": {"const": "masi-analysis-task/v1"}, "pluginId": {"const": "masi.analysis.langgraph"}, "bindingGeneration": {"type": "integer", "minimum": 1}, "inputDigest": {"$ref": "#/$defs/digest"}, "traceId": {"$ref": "#/$defs/identity"}, "reasonCode": {"$ref": "#/$defs/reason"}}
+        }
+      }
+    }
+  },
+  "$defs": {
+    "identity": {"type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"},
+    "digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}, "reason": {"type": "string", "pattern": "^[A-Z][A-Z0-9_]{0,63}$"},
+    "data_part": {"type": "object", "additionalProperties": false, "required": ["data", "mediaType"], "properties": {"data": {"$ref": "../../artifact/v1/schema.json"}, "mediaType": {"const": "application/json"}}},
+    "artifact": {
+      "type": "object", "additionalProperties": false, "required": ["artifactId", "name", "description", "parts", "metadata"],
+      "properties": {"artifactId": {"$ref": "#/$defs/identity"}, "name": {"type": "string", "minLength": 1, "maxLength": 128}, "description": {"type": "string", "maxLength": 512}, "parts": {"type": "array", "minItems": 1, "maxItems": 1, "items": {"$ref": "#/$defs/data_part"}}, "metadata": {"type": "object", "additionalProperties": false, "required": ["artifactDigest", "nonExecutable"], "properties": {"artifactDigest": {"$ref": "#/$defs/digest"}, "nonExecutable": {"const": true}}}}
+    },
+    "message": {
+      "type": "object", "additionalProperties": false, "required": ["messageId", "role", "parts"],
+      "properties": {"messageId": {"$ref": "#/$defs/identity"}, "role": {"enum": ["ROLE_USER", "ROLE_AGENT"]}, "parts": {"type": "array", "maxItems": 4, "items": {"type": "object"}}}
+    }
+  },
+  "x-masi-semantic-constraints": [
+    {"constraint_id": "A2A-COMPLETED-ARTIFACT", "fields": ["/task/status/state", "/task/artifacts"], "operator": "completed-requires-one-to-eight-artifacts"},
+    {"constraint_id": "A2A-NON-COMPLETED-NO-ARTIFACT", "fields": ["/task/status/state", "/task/artifacts"], "operator": "non-completed-has-no-artifact"}
+  ]
+}

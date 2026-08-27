@@ -1,0 +1,52 @@
+{
+  "schema_version": "recursive-source-lock/v1",
+  "component_id": "pi-p4runtime-server",
+  "upstream": "https://github.com/p4lang/PI",
+  "source_commit": "577b502da91b7d17e4be5821d49d481dc2e1bb7a",
+  "source_archive": {
+    "filename": "PI-577b502da91b7d17e4be5821d49d481dc2e1bb7a-p4runtime-v1.4.1.tar.gz",
+    "sha256": "d0baa762e588b1bbd0e43009e3131c919ac0722f2a6ed7bffbed4fe8b48419ba",
+    "size_bytes": 7424210,
+    "top_level_directory": "PI",
+    "format": "normalized-recursive-source-archive/v1"
+  },
+  "submodules": {
+    "proto/p4runtime": {
+      "upstream": "https://github.com/p4lang/p4runtime",
+      "commit": "36e8b46e406530d12e89cafbf466e368244ac2a0",
+      "release": "v1.4.1"
+    },
+    "proto/openconfig/gnmi": {
+      "upstream": "https://github.com/openconfig/gnmi",
+      "commit": "9c8d9e965b3e854107ea02c12ab11b70717456f2"
+    },
+    "proto/openconfig/public": {
+      "upstream": "https://github.com/openconfig/public",
+      "commit": "1040d11c089c74084c64c234bee3691ec70e8a9f"
+    },
+    "third_party/googletest": {
+      "upstream": "https://github.com/google/googletest",
+      "commit": "f5edb4f542e155c75bc4b516f227911d99ec167c"
+    },
+    "third_party/uthash": {
+      "upstream": "https://github.com/troydhanson/uthash",
+      "commit": "bf15263081be6229be31addd48566df93921cb46"
+    }
+  },
+  "generated_build_system": {
+    "autoreconf": "2.71",
+    "automake": "1.16.5",
+    "libtoolize": "2.4.6",
+    "generated_before_archive": true
+  },
+  "patch": {
+    "path": "deploy/p4-switch/pi/0001-p4runtime-1.4.1-capabilities.patch",
+    "sha256": "c6bdd909599c01a9afdd921352b8c61a1a4ed0368ef68f759d3ecca6cd521f45",
+    "scopes": [
+      "p4runtime-capabilities-1.4.1"
+    ]
+  },
+  "build_base": "p4lang/behavioral-model@sha256:85905a1ecad8c26e1f746efdf9e66d3600ee743588b32fe5b65d7d3ad1c0157d",
+  "platform": "linux/amd64",
+  "source_date_epoch": 1786406400
+}

@@ -1,0 +1,37 @@
+name: masi-analysis-acceptance
+
+services:
+  analysis:
+    image: "${MASI_ANALYSIS_IMAGE_REPOSITORY:?set immutable Analysis repository}@${MASI_ANALYSIS_IMAGE_DIGEST:?set sha256 digest}"
+    command: ["--config", "/run/masi-analysis-config/config.json"]
+    user: "65532:65532"
+    read_only: true
+    cap_drop: ["ALL"]
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 64
+    mem_limit: 384m
+    cpus: 1.0
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=16m
+      - /var/lib/masi-analysis:rw,noexec,nosuid,size=96m,uid=65532,gid=65532,mode=0700
+      - /var/run/masi-analysis:rw,noexec,nosuid,size=4m,uid=65532,gid=65532,mode=0700
+    volumes:
+      - type: bind
+        source: ${MASI_ANALYSIS_CONFIG_DIR:?set absolute config directory}
+        target: /run/masi-analysis-config
+        read_only: true
+      - type: bind
+        source: ${MASI_ANALYSIS_SECRET_DIR:?set absolute TLS/provider secret directory}
+        target: /run/masi-analysis-secrets
+        read_only: true
+    ports:
+      - "127.0.0.1:${MASI_ANALYSIS_PORT:-7446}:7446"
+    restart: "no"
+    stop_grace_period: 10s
+    networks: [analysis-boundary]
+
+networks:
+  analysis-boundary:
+    name: ${MASI_ANALYSIS_NETWORK:?set the pre-created restricted Analysis egress network}
+    external: true

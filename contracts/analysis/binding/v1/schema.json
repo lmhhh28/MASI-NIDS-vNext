@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://masi-nids.example/contracts/analysis/binding/v1/schema.json",
+  "title": "Manager-issued Analysis Binding Observation V1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "plugin_id", "plugin_revision", "manifest_digest", "manifest_content_digest", "config_digest", "capability_digest", "resource_profile_digest", "qualification_digest", "binding_generation", "scope", "activation_state", "qualification_status", "skill_ids", "tool_allowlist", "resource_allowlist", "a2a_peer_allowlist", "provider_profile_digest", "prompt_profile_digest", "tool_policy_digest", "redaction_profile_digest", "issued_at_unix_ms", "expires_at_unix_ms", "manager_identity", "binding_digest"],
+  "properties": {
+    "schema_version": {"const": "masi-analysis-binding/v1"},
+    "plugin_id": {"const": "masi.analysis.langgraph"},
+    "plugin_revision": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "manifest_digest": {"$ref": "#/$defs/digest"},
+    "manifest_content_digest": {"$ref": "#/$defs/digest"},
+    "config_digest": {"$ref": "#/$defs/digest"},
+    "capability_digest": {"$ref": "#/$defs/digest"},
+    "resource_profile_digest": {"$ref": "#/$defs/digest"},
+    "qualification_digest": {"$ref": "#/$defs/digest"},
+    "binding_generation": {"type": "integer", "minimum": 1},
+    "scope": {"type": "string", "minLength": 1, "maxLength": 256},
+    "activation_state": {"enum": ["active", "draining", "disabled", "revoked", "expired"]},
+    "qualification_status": {"enum": ["qualified", "unqualified", "hold"]},
+    "skill_ids": {"type": "array", "minItems": 4, "maxItems": 4, "uniqueItems": true, "items": {"enum": ["analyze_nids_incident", "compare_event_windows", "draft_mitigation_advice", "generate_incident_content"]}},
+    "tool_allowlist": {"type": "array", "maxItems": 64, "uniqueItems": true, "items": {"$ref": "#/$defs/identity"}},
+    "resource_allowlist": {"type": "array", "maxItems": 64, "uniqueItems": true, "items": {"$ref": "#/$defs/identity"}},
+    "a2a_peer_allowlist": {"type": "array", "maxItems": 8, "uniqueItems": true, "items": {"$ref": "#/$defs/identity"}},
+    "provider_profile_digest": {"$ref": "#/$defs/digest"}, "prompt_profile_digest": {"$ref": "#/$defs/digest"}, "tool_policy_digest": {"$ref": "#/$defs/digest"}, "redaction_profile_digest": {"$ref": "#/$defs/digest"},
+    "issued_at_unix_ms": {"type": "integer", "minimum": 1}, "expires_at_unix_ms": {"type": "integer", "minimum": 1},
+    "manager_identity": {"$ref": "#/$defs/identity"}, "binding_digest": {"$ref": "#/$defs/digest"}
+  },
+  "$defs": {
+    "identity": {"type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"},
+    "digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}
+  },
+  "x-masi-semantic-constraints": [
+    {"constraint_id": "ANALYSIS-BINDING-EXACT-ACTIVE", "fields": ["/activation_state", "/qualification_status"], "operator": "active-requires-qualified"},
+    {"constraint_id": "ANALYSIS-BINDING-DIGEST", "field": "/binding_digest", "operator": "canonical-json-excluding-self"},
+    {"constraint_id": "ANALYSIS-BINDING-MANAGER-OBSERVATION", "operator": "not-canonical-lifecycle-owner"}
+  ]
+}

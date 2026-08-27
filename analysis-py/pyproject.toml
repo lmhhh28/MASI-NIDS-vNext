@@ -1,0 +1,46 @@
+[build-system]
+requires = ["setuptools==80.9.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "masi-analysis-plugin"
+version = "1.0.0"
+description = "Bounded, grounded, non-executable MASI-NIDS Analysis Plugin"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+  "aiohttp==3.14.3",
+  "httpx==0.28.1",
+  "jsonschema==4.26.0",
+  "langgraph==1.1.10",
+  "mcp==2.0.0",
+  "pydantic==2.13.4",
+]
+
+[project.scripts]
+masi-analysis = "masi_analysis.cli:main"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 160
+src = ["src", "tests", "scripts"]
+
+[tool.ruff.lint]
+select = ["ASYNC", "B", "E", "F", "I", "RUF", "UP"]
+
+[tool.pyright]
+include = ["src", "tests", "scripts"]
+exclude = ["evidence", ".venv", "dist"]
+pythonVersion = "3.12"
+venvPath = "."
+venv = ".venv"
+typeCheckingMode = "strict"
+reportMissingTypeStubs = "none"
+reportUnknownMemberType = "warning"
+reportUnknownArgumentType = "warning"
+reportUnknownVariableType = "warning"

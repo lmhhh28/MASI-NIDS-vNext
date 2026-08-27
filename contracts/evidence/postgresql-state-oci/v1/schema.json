@@ -22,10 +22,11 @@
     "users": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["db", "pgbouncer"],
+      "required": ["db", "pgbouncer", "postgres"],
       "properties": {
         "db": {"const": "70:70"},
-        "pgbouncer": {"const": "10003:10003"}
+        "pgbouncer": {"const": "10003:10003"},
+        "postgres": {"const": "70:70"}
       }
     },
     "read_only_rootfs": {"const": true},

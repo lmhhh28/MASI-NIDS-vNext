@@ -1,0 +1,101 @@
+{
+  "schema_version": "model-explanation-evidence/v1",
+  "evidence_id": "explanation-xgb-golden-0001",
+  "generated_at": "2030-01-01T00:01:00Z",
+  "candidate": {
+    "candidate_id": "xgb-window-binary/v1",
+    "model_id": "masi-xgb-window-golden",
+    "revision": "0000000000000000000000000000000000000012",
+    "bundle_digest": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+    "model_digest": "sha256:2323232323232323232323232323232323232323232323232323232323232323",
+    "seed": 17
+  },
+  "binding": {
+    "dataset_id": "masi-synthetic-window-golden",
+    "dataset_revision": "1111111111111111111111111111111111111111111111111111111111111111",
+    "dataset_manifest_digest": "sha256:1313131313131313131313131313131313131313131313131313131313131313",
+    "feature_schema_digest": "sha256:a5efc8ddf3df973c295223f5a0fc169dabc44a5bffa0e3993ebdeec531055fda",
+    "scaler_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+    "label_taxonomy_digest": "sha256:1515151515151515151515151515151515151515151515151515151515151515",
+    "output_adapter_digest": "sha256:1616161616161616161616161616161616161616161616161616161616161616",
+    "sample_manifest_digest": "sha256:1717171717171717171717171717171717171717171717171717171717171717"
+  },
+  "method": {
+    "method_id": "xgb-treeshap-interventional-raw/v1",
+    "domain": "raw-margin",
+    "contribution_semantics": "interventional-treeshap-phi",
+    "feature_perturbation": "interventional",
+    "model_output": "raw",
+    "tool": {
+      "name": "shap",
+      "version": "0.52.0",
+      "artifact_digest": "sha256:2424242424242424242424242424242424242424242424242424242424242424"
+    },
+    "background": {
+      "status": "verified",
+      "digest": "sha256:2525252525252525252525252525252525252525252525252525252525252525",
+      "sample_count": 16,
+      "maximum": 256,
+      "selection": "deterministic-train-source-class-capture-family"
+    },
+    "numeric_tolerance": {"absolute": 0.000001, "relative": 0.000001, "ulp": 4},
+    "method_output_digest": "sha256:2626262626262626262626262626262626262626262626262626262626262626"
+  },
+  "feature_order": [
+    "aggregate_packets",
+    "aggregate_bytes",
+    "reported_nonzero_cells",
+    "max_cell_packets",
+    "max_cell_bytes",
+    "snapshot_count"
+  ],
+  "global_importance": [
+    {"feature_id": "max_cell_packets", "mean_absolute_contribution": 0.3, "rank": 1},
+    {"feature_id": "aggregate_packets", "mean_absolute_contribution": 0.2, "rank": 2},
+    {"feature_id": "snapshot_count", "mean_absolute_contribution": 0.2, "rank": 3},
+    {"feature_id": "aggregate_bytes", "mean_absolute_contribution": 0.1, "rank": 4},
+    {"feature_id": "reported_nonzero_cells", "mean_absolute_contribution": 0.1, "rank": 5},
+    {"feature_id": "max_cell_bytes", "mean_absolute_contribution": 0.0, "rank": 6}
+  ],
+  "samples": [
+    {
+      "sample_id": "sample-golden-0001",
+      "sample_digest": "sha256:2020202020202020202020202020202020202020202020202020202020202020",
+      "source_profile": "masi-synthetic-p4-window/v1",
+      "scenario_id": "synthetic-benign-golden",
+      "feature_values": [2, 108, 1, 2, 108, 1],
+      "transformed_values": [1.0986123, 4.691348, 0.6931472, 1.0986123, 4.691348, 0.6931472],
+      "contributions": [0.2, 0.1, -0.1, 0.3, 0.0, 0.2],
+      "base_value": -0.2,
+      "raw_output": 0.5,
+      "reconstructed_raw_output": 0.5,
+      "additivity_absolute_error": 0.0,
+      "probability": 0.62245933
+    }
+  ],
+  "coverage": {
+    "eligible_samples": 1,
+    "included_samples": 1,
+    "coverage": 1.0,
+    "per_source_scenario": [
+      {"source_profile": "masi-synthetic-p4-window/v1", "scenario_id": "synthetic-benign-golden", "eligible": 1, "included": 1, "coverage": 1.0}
+    ]
+  },
+  "truncation": {"requested": 1, "included": 1, "maximum": 4096, "per_source_scenario_maximum": 4096, "reason": "none"},
+  "stability": {
+    "seed_set": [17, 29, 43],
+    "global_rank_spearman_median": 0.9,
+    "threshold": 0.8,
+    "status": "stable",
+    "comparison_digest": "sha256:2727272727272727272727272727272727272727272727272727272727272727"
+  },
+  "limitations": ["TreeSHAP additivity is in raw-margin space; calibrated probability is not the additive domain."],
+  "safety": {
+    "causal_claim": false,
+    "realtime_inference_payload": false,
+    "canonical_event_identity": false,
+    "effect_eligibility": false,
+    "llm_generated": false,
+    "executable_content": false
+  }
+}

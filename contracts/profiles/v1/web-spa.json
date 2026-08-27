@@ -1,0 +1,80 @@
+{
+  "schema_version": "masi-profile/v1",
+  "profile_id": "web-spa/v1",
+  "profile_version": "1.0.0",
+  "runtime": {
+    "delivery": "static-oci",
+    "node_build": "22.22.3",
+    "npm": "10.9.8",
+    "node_in_production": false,
+    "server_side_rendering": false,
+    "service_worker": false
+  },
+  "toolchain": {
+    "typescript": "5.9.3",
+    "vite": "8.2.2",
+    "vue_tsc": "3.3.11",
+    "openapi_generator": "@hey-api/openapi-ts@0.99.0",
+    "build_target": "es2022",
+    "module_preload_polyfill": false,
+    "source_maps": false
+  },
+  "dependencies": {
+    "vue": "3.5.41",
+    "vue_router": "5.2.0",
+    "pinia": "4.0.3",
+    "element_plus": "2.14.5",
+    "element_plus_icons": "2.3.2",
+    "echarts": "6.1.0",
+    "tanstack_vue_query": "5.102.5",
+    "tanstack_vue_virtual": "3.13.36",
+    "vueuse": "14.4.0"
+  },
+  "public_boundary": {
+    "origin": "same-origin-only",
+    "http": "/api",
+    "events": "/events",
+    "oidc": "/oidc",
+    "client_source": "contracts/generated/typescript/control-api",
+    "session": "HttpOnly SameSite=Strict cookie",
+    "csrf": "X-CSRF-Token from /api/session",
+    "browser_token_storage": "forbidden"
+  },
+  "state_ownership": {
+    "server_state": "TanStack Vue Query bounded cache",
+    "pinia": "local presentation preferences only",
+    "local_storage": ["theme", "density", "sidebar-collapsed"],
+    "offline_mutation": false
+  },
+  "bounds": {
+    "http_concurrency_per_tab": 8,
+    "sse_connections_per_tab": 1,
+    "sse_event_bytes": 65536,
+    "sse_pending_events": 1000,
+    "sse_pending_bytes": 1048576,
+    "sse_heartbeat_seconds": 15,
+    "sse_reconnect_min_seconds": 1,
+    "sse_reconnect_max_seconds": 30,
+    "sse_failures_before_polling": 10,
+    "polling_seconds": 15,
+    "default_page_size": 50,
+    "maximum_page_size": 200,
+    "chart_points": 2000,
+    "page_chart_points": 10000,
+    "dashboard_section_items": 8
+  },
+  "display_union": ["metric-card", "status", "timeseries", "bar", "heatmap", "table", "text", "evidence-list"],
+  "forbidden": [
+    "runtime CDN",
+    "remote font",
+    "remote JavaScript",
+    "v-html",
+    "dynamic remote component",
+    "plugin route",
+    "plugin ECharts option",
+    "Vega expression",
+    "iframe",
+    "browser database credential",
+    "browser P4 or internal service access"
+  ]
+}

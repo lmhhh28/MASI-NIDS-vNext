@@ -102,11 +102,23 @@ def main() -> int:
     parser.add_argument(
         "--runner-container-removed", choices=("true", "false"), required=True
     )
+    parser.add_argument(
+        "--module-process-reaped", choices=("true", "false"), required=True
+    )
+    parser.add_argument(
+        "--provider-tasks-joined", choices=("true", "false"), required=True
+    )
+    parser.add_argument(
+        "--listeners-released", choices=("true", "false"), required=True
+    )
     args = parser.parse_args()
     workload = load_json(args.workload)
     resources = load_jsonl(args.resources)
     performance_profile = load_json(
         args.repo / "contracts/profiles/v1/p4-bmv2-functional-reference.json"
+    )
+    target_profile = load_json(
+        args.repo / "contracts/profiles/v1/p4-stateless-firewall-bmv2.json"
     )
     soak_profile_path = (
         args.repo / "contracts/profiles/v1/qualification-soak-3600s.json"
@@ -285,16 +297,19 @@ def main() -> int:
     }
     phases = []
     oracle_gaps = 0
+    phase_start_offset_ms = 0
     for phase in traffic_phases:
         if not isinstance(phase, dict):
             continue
         oracle_gaps += int(phase.get("ingress_capture_gap", 0))
         oracle_gaps += int(phase.get("egress_capture_or_outcome_gap", 0))
+        phase_elapsed_ms = int(phase["planned_ms"])
+        phase_end_offset_ms = phase_start_offset_ms + phase_elapsed_ms
         phases.append(
             {
                 "name": phase["name"],
                 "planned_ms": 900_000,
-                "elapsed_ms": int(phase["planned_ms"]),
+                "elapsed_ms": phase_elapsed_ms,
                 "result": result_by_phase.get(phase["name"], "FAIL"),
                 "requested_rate_pps": phase["requested_rate_pps"],
                 "achieved_rate_pps": phase["achieved_rate_pps"],
@@ -309,9 +324,13 @@ def main() -> int:
                     "latency_p99_ms": phase.get("latency_ms", {}).get("p99")
                     if isinstance(phase.get("latency_ms"), dict)
                     else None,
+                    "phase_start_offset_ms": phase_start_offset_ms,
+                    "phase_end_offset_ms": phase_end_offset_ms,
+                    "planned_duration_met": phase_elapsed_ms >= 900_000,
                 },
             }
         )
+        phase_start_offset_ms = phase_end_offset_ms
     rss_growth_limit = performance_profile["soak_workload"]["rss_growth_max_bytes"]
     switch_rss_growth = max(switch_rss, default=0) - (
         switch_rss[0] if switch_rss else 0
@@ -352,8 +371,17 @@ def main() -> int:
     cleanup_source = workload.get("cleanup", {})
     if not isinstance(cleanup_source, dict):
         cleanup_source = {}
+    cleanup_checks = {
+        "module_process_reaped": args.module_process_reaped == "true",
+        "provider_tasks_joined": args.provider_tasks_joined == "true",
+        "listeners_released": args.listeners_released == "true",
+    }
     runner_removed = args.runner_container_removed == "true"
-    cleanup_completed = bool(cleanup_source.get("completed")) and runner_removed
+    cleanup_completed = (
+        bool(cleanup_source.get("completed"))
+        and runner_removed
+        and all(cleanup_checks.values())
+    )
     workload_errors = workload.get("errors", [])
     if not isinstance(workload_errors, list):
         workload_errors = ["invalid workload errors field"]
@@ -384,11 +412,49 @@ def main() -> int:
         result = "FAIL"
     else:
         result = "HOLD"
-    claim_scope = workload.get("claim_scope", {})
-    if not isinstance(claim_scope, dict):
-        claim_scope = {}
+    workload_claim_scope = workload.get("claim_scope", {})
+    if not isinstance(workload_claim_scope, dict):
+        workload_claim_scope = {}
+    workload_claim_scope_digest = digest_bytes(
+        json.dumps(
+            workload_claim_scope, sort_keys=True, separators=(",", ":")
+        ).encode()
+    )
+    threshold_status = str(
+        target_profile.get("performance_gate", {}).get(
+            "absolute_threshold_status", "MISSING"
+        )
+    )
+    claim_scope = {
+        "module": "p4-switch",
+        "scope": "independent-module-soak",
+        "rule_counts": [0, 128, 1024, 4096],
+        "target_counts": [1],
+        "threshold_status": threshold_status,
+    }
     claim_scope_digest = digest_bytes(
         json.dumps(claim_scope, sort_keys=True, separators=(",", ":")).encode()
+    )
+    warmup_source = workload.get("warmup", {})
+    if not isinstance(warmup_source, dict):
+        warmup_source = {}
+    warmup_start_ns = int(warmup_source.get("monotonic_start_ns", 0))
+    warmup_end_ns = int(warmup_source.get("monotonic_end_ns", 0))
+    warmup_elapsed_ms = max(0, (warmup_end_ns - warmup_start_ns) // 1_000_000)
+    if warmup_elapsed_ms == 0:
+        warmup_elapsed_ms = int(
+            float(workload.get("parameters", {}).get("warmup_seconds", 0)) * 1000
+            if isinstance(workload.get("parameters"), dict)
+            else 0
+        )
+    formal_schedule_executed = (
+        formal
+        and elapsed_ms >= 3_600_000
+        and len(phases) == 4
+        and all(
+            phase.get("module_metrics", {}).get("planned_duration_met") is True
+            for phase in phases
+        )
     )
     evidence = {
         "schema_version": "qualification-soak/v1",
@@ -400,16 +466,13 @@ def main() -> int:
         "result": result,
         "qualification": "QUALIFIED" if result == "PASS" else "NOT_QUALIFIED",
         "profile_digest": digest_bytes(soak_profile_path.read_bytes()),
+        "claim_scope": claim_scope,
         "claim_scope_digest": claim_scope_digest,
         "started_at": str(workload.get("started_at", utc_now())),
         "finished_at": str(workload.get("finished_at", utc_now())),
         "monotonic_start_ns": traffic_start_ns,
         "monotonic_end_ns": int(traffic.get("monotonic_scheduled_end_ns", 1)),
-        "warmup_elapsed_ms": int(
-            float(workload.get("parameters", {}).get("warmup_seconds", 0)) * 1000
-            if isinstance(workload.get("parameters"), dict)
-            else 0
-        ),
+        "warmup_elapsed_ms": warmup_elapsed_ms,
         "duration_target_ms": 3_600_000,
         "qualified_elapsed_ms": elapsed_ms,
         "sample_interval_ms": int(
@@ -435,6 +498,7 @@ def main() -> int:
                 "gap_count": 1,
             }
         ],
+        "lease_renewals": [],
         "summary": {
             "error_count": error_count,
             "unclassified_gap_count": oracle_gaps + resource_gap_count,
@@ -449,6 +513,10 @@ def main() -> int:
                 "rss_growth_limit_bytes": rss_growth_limit,
                 "warmup_queue_peak": warmup_queue_peak,
                 "post_cleanup_residuals": json.dumps(residuals, sort_keys=True),
+                "formal_schedule_executed": formal_schedule_executed,
+                "absolute_threshold_status": threshold_status,
+                "warmup_actual_ms": warmup_elapsed_ms,
+                "workload_claim_scope_digest": workload_claim_scope_digest,
             },
         },
         "interruption": "NONE"
@@ -461,6 +529,7 @@ def main() -> int:
             "remaining_resources": []
             if cleanup_completed
             else ["runner-or-p4-workload-state"],
+            "checks": cleanup_checks,
         },
         "artifacts": [artifact(args.workload), artifact(args.resources)],
     }

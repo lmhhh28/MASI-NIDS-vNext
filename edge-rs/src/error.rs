@@ -152,6 +152,7 @@ pub const STABLE_STATUS_REASON_CODES: &[&str] = &[
     "LEASE_EXPIRED",
     "NONE",
     "NOT_PRIMARY",
+    "OK",
     "P4_STREAM_CLOSED",
     "P4_STREAM_ERROR",
     "PACKET_HINT_DURABLE",

@@ -161,7 +161,7 @@ impl InferenceRouter {
             pool_generation: route.pool_generation,
             binding_generation: route.binding_generation,
             trace_id: format!("binding-readback:{}", route.shard_id),
-            schema_version: "inference-binding-readback/v1".into(),
+            schema_version: "inference-committed-binding/v1".into(),
             model_control_incarnation_id: route.model_control_incarnation_id.clone(),
             operation_id: route.operation_id.clone(),
             startup_envelope_digest: route.startup_envelope_digest.clone(),
@@ -684,7 +684,7 @@ fn validate_route(route: &InferenceRoute) -> EdgeResult<()> {
 }
 
 fn validate_binding(route: &InferenceRoute, binding: &BindingReadback) -> EdgeResult<()> {
-    let exact = binding.schema_version == "inference-binding-readback/v1"
+    let exact = binding.schema_version == "inference-committed-binding/v1"
         && route.model_control_incarnation_id == binding.model_control_incarnation_id
         && route.operation_id == binding.operation_id
         && route.logical_pool_id == binding.logical_pool_id
@@ -777,8 +777,8 @@ fn validate_committed_binding_request(
 }
 
 /// Bind a durable, route-neutral final window to one exact committed route.
-/// The input identity remains stable while Event identity and digest acquire
-/// the model-control fence. A bound record can only be replayed on that route.
+/// The tensor identity/digest remain stable while Event identity acquires the
+/// model-control fence. A bound record can only be replayed on that route.
 pub(crate) fn bind_inference_record(
     record: &mut InferenceRecord,
     route: &InferenceRoute,
@@ -912,10 +912,11 @@ pub fn canonical_input_batch_digest(batch: &InferenceInputBatch) -> String {
 }
 
 fn output_record_digest(record: &InferenceResultRecord) -> String {
-    let mut canonical = record.clone();
-    canonical.output_digest.clear();
-    canonical.result_wal_sequence = 0;
-    digest::message_sha256(&canonical)
+    let mut canonical = Vec::with_capacity(record.scores.len() * std::mem::size_of::<f32>());
+    for score in &record.scores {
+        canonical.extend_from_slice(&score.to_le_bytes());
+    }
+    digest::sha256(&canonical)
 }
 
 /// Compute the canonical digest of one central inference output record.
@@ -931,9 +932,12 @@ pub fn canonical_output_digest(record: &InferenceResultRecord) -> String {
 }
 
 fn result_batch_digest(batch: &InferenceResultBatch) -> String {
-    let mut canonical = batch.clone();
-    canonical.batch_digest.clear();
-    digest::message_sha256(&canonical)
+    let mut canonical = Vec::with_capacity(batch.records.len() * 72);
+    for record in &batch.records {
+        canonical.extend_from_slice(record.output_digest.as_bytes());
+        canonical.push(b'\n');
+    }
+    digest::sha256(&canonical)
 }
 
 /// Compute the canonical result-batch digest.
@@ -1040,7 +1044,7 @@ fn validate_result_batch(
             || record.scores.len() > 1024
             || record.scores.iter().any(|score| !score.is_finite())
             || record.predicted_label as usize >= record.scores.len()
-            || record.status != "ok"
+            || record.status != "OK"
             || record.quality != "valid"
             || record.execution_status != InferenceExecutionStatus::Ok as i32
             || record.quality_code != DataQuality::Valid as i32
@@ -1215,7 +1219,10 @@ pub(crate) fn validate_canonical_acks(
         {
             return Err(EdgeError::precondition(
                 "CANONICAL_ACK_MISMATCH",
-                "ACK digest, status, identity, or commit time mismatch",
+                format!(
+                    "ACK digest, status, identity, or commit time mismatch: status={}, reason={}",
+                    item.status, item.reason_code
+                ),
             ));
         }
     }
@@ -1318,6 +1325,30 @@ mod tests {
         batch.deadline_unix_ms = 1_893_456_000_000;
         batch.trace_id = "different-rpc-trace".into();
         assert_eq!(first, input_batch_digest(&batch));
+    }
+
+    #[test]
+    fn output_and_result_batch_digests_match_the_cross_language_profile() {
+        let mut record = InferenceResultRecord {
+            scores: vec![2.148_195_2e-25_f32, 1.0],
+            ..InferenceResultRecord::default()
+        };
+        let expected_output =
+            "sha256:3fdaaa5605f835ec748c0795734317d2f9c4e22c2f1bc23461ee1b892c5ca0d9";
+        assert_eq!(expected_output, output_record_digest(&record));
+        record.worker_attempt_id = "a-different-attempt".into();
+        record.inference_completed_at_unix_ms = 123;
+        assert_eq!(expected_output, output_record_digest(&record));
+
+        record.output_digest = expected_output.into();
+        let batch = InferenceResultBatch {
+            records: vec![record],
+            ..InferenceResultBatch::default()
+        };
+        assert_eq!(
+            "sha256:9a78403e49fd21d593546e9058457a04d94657a98ad2eadf378be19c5a992a97",
+            result_batch_digest(&batch)
+        );
     }
 
     #[test]

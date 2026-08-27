@@ -2,7 +2,7 @@
 
 `masi-edge` 是 MASI-NIDS-vNext 的独立 Rust Edge Agent。每个已分配 target 由一个进程内 `TargetActor` 管理；该 actor 是该 target 唯一长期 P4Runtime `StreamChannel` owner、唯一生产 P4Runtime read/write client，以及 telemetry source、event-time window、source/input/result WAL、central inference route 和 effect journal/readback 的唯一 Edge owner。
 
-按 Owner 冻结的 `DEC-044`，当前实现的 operational 状态为 **Module Complete**；它与资格等级正交。总体资格仍为 `HOLD/NOT_QUALIFIED`：`DEC-001` 尚未冻结生产绝对硬件、N-target、流量/窗口/Event 速率和延迟阈值，受保护发布基线未形成，正式 pairwise/system 也依开发顺序未运行。这些资格限制不改写实际启动/测试结果，也不构成 operational blocker。完成结论必须由同一完整 module-gate run 的真实 binary/OCI、公开边界、故障、安全、性能和 `DEC-042` 60 秒 warmup + 3,600 秒正式 soak 证据，加上 open P0=0 的 findings registry 共同重派生；当前机器事实以 `evidence/module-gates/latest.json` 指向且通过公开 validator 的不可覆盖 run 为准。
+按 Owner 冻结的 `DEC-044`，本模块已有 **Module Complete** 历史；它与资格等级正交。总体资格仍为 `HOLD/NOT_QUALIFIED`：`DEC-001` 尚未冻结生产绝对硬件、N-target、流量/窗口/Event 速率和延迟阈值，受保护发布基线未形成，正式 pairwise/system 也未运行。这些资格限制不改写已执行测试。完成结论必须由同一完整 module-gate run 的真实 binary/OCI、公开边界、故障、安全、性能和 `DEC-042` 60 秒 warmup + 3,600 秒正式 soak 证据，加上 open P0=0 的 findings registry 共同重派生；`evidence/module-gates/latest.json`只证明其记录的exact source scope。本次connected integration修改了P4Info canonicalization、telemetry/readback与inference digest路径，故current dirty source须重跑完整module gate，不能直接继承历史Module Complete。
 
 ## 所有权边界
 

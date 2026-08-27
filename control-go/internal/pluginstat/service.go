@@ -95,12 +95,16 @@ func (s *Service) StartOnDemand(ctx context.Context, req OnDemandRequest, actor 
 	resultID := ""
 	err := s.pool.WithTx(ctx, []db.TxOption{db.RepeatableRead()}, func(tx *db.Tx) error {
 		var bindingGen int64
+		var pluginID, pluginRevision, configDigest string
+		var deadlineMS int
 		var projections, externalCaps []string
-		if err := tx.QueryRow(ctx, `SELECT d.binding_generation,d.host_projection_refs,d.external_capability_ids
+		if err := tx.QueryRow(ctx, `SELECT d.binding_generation,d.plugin_id,d.plugin_revision,b.config_digest,
+			 d.deadline_ms,d.host_projection_refs,d.external_capability_ids
 		 FROM plugin_statistics_definitions d JOIN plugin_bindings b ON b.plugin_id=d.plugin_id AND b.binding_generation=d.binding_generation
 		 WHERE d.definition_id=$1 AND d.definition_digest=$2 AND d.scope=$3 AND d.data_class=$4
 		 AND NOT d.revoked AND b.activation_state='active' AND b.qualification_status='qualified'`,
-			req.DefinitionID, req.DefinitionDigest, req.Scope, req.DataClass).Scan(&bindingGen, &projections, &externalCaps); err != nil {
+			req.DefinitionID, req.DefinitionDigest, req.Scope, req.DataClass).
+			Scan(&bindingGen, &pluginID, &pluginRevision, &configDigest, &deadlineMS, &projections, &externalCaps); err != nil {
 			return err
 		}
 		if req.ScheduleID != "" {
@@ -138,12 +142,32 @@ func (s *Service) StartOnDemand(ctx context.Context, req OnDemandRequest, actor 
 				return errors.New("pluginstat: frozen input row bound exceeded")
 			}
 		}
-		bundle := InputBundle{BundleID: "bundle-" + shortDigest(requestDigest), DefinitionID: req.DefinitionID, DefinitionDigest: req.DefinitionDigest,
-			SourceRevision: fmt.Sprintf("postgres-snapshot-%d", s.now().UnixMilli()), WindowStartUnixMS: req.WindowStartUnixMS,
-			WindowEndUnixMS: req.WindowEndUnixMS, Rows: rows,
-			ExternalSourceCapabilityRefs: append([]string(nil), externalCaps...)}
+		sourceSequenceStart := uint64(0)
+		sourceSequenceEnd := uint64(0)
+		if len(rows) > 0 {
+			sourceSequenceStart = 1
+			sourceSequenceEnd = uint64(len(rows))
+		}
+		profileRefs := append([]string(nil), projections...)
+		sortStrings(profileRefs)
+		bundle := InputBundle{
+			SchemaVersion: "masi-plugin-statistics/v1", RecordType: "input-bundle",
+			RecordID: "bundle-" + shortDigest(requestDigest), RunID: req.RunID, RequestDigest: requestDigest,
+			PluginID: pluginID, PluginRevision: pluginRevision, ConfigDigest: configDigest,
+			BindingGeneration: bindingGen, DefinitionID: req.DefinitionID, DefinitionRevision: req.DefinitionID,
+			DefinitionDigest: req.DefinitionDigest, SourceRevision: fmt.Sprintf("postgres-snapshot-%d", s.now().UnixMilli()),
+			SourceProfileDigest: digestOf(strings.Join(profileRefs, "|") + "|" + req.DataClass),
+			SourceGeneration:    1, SourceEpoch: "postgres-snapshot", SourceSequenceStart: sourceSequenceStart,
+			SourceSequenceEnd: sourceSequenceEnd, Coverage: 1, Quality: string(QualityValid), Scope: req.Scope,
+			DataClassRef: req.DataClass, WindowStartUnixMS: req.WindowStartUnixMS, WindowEndUnixMS: req.WindowEndUnixMS,
+			AsOfUnixMS: req.WindowEndUnixMS, Rows: rows,
+			ExternalSourceCapabilityRefs: append([]string{}, externalCaps...), BytesLimit: 2 * 1024 * 1024,
+			CardinalityLimit: 10000, DeadlineMS: deadlineMS, ActorRef: "control-plugin-statistics",
+			ReasonCode: "INPUT_FROZEN", TraceID: req.TraceID,
+		}
 		frozen := ComputeFrozenInputDigest(bundle)
 		bundle.FrozenInputDigest = frozen
+		bundle.BundleDigest = ComputeInputBundleDigest(bundle)
 		bundleJSON, err := json.Marshal(bundle)
 		if err != nil {
 			return err
@@ -261,15 +285,41 @@ func NewService(pool *db.Pool) *Service {
 
 // InputBundle is the Go-frozen canonical input for one run.
 type InputBundle struct {
-	BundleID                     string           `json:"bundle_id"`
+	SchemaVersion                string           `json:"schema_version"`
+	RecordType                   string           `json:"record_type"`
+	RecordID                     string           `json:"record_id"`
+	BundleDigest                 string           `json:"bundle_digest"`
+	RunID                        string           `json:"run_id"`
+	RequestDigest                string           `json:"request_digest"`
+	PluginID                     string           `json:"plugin_id"`
+	PluginRevision               string           `json:"plugin_revision"`
+	ConfigDigest                 string           `json:"config_digest"`
+	BindingGeneration            int64            `json:"binding_generation"`
 	DefinitionID                 string           `json:"definition_id"`
+	DefinitionRevision           string           `json:"definition_revision"`
 	DefinitionDigest             string           `json:"definition_digest"`
 	SourceRevision               string           `json:"source_revision"`
+	SourceProfileDigest          string           `json:"source_profile_digest"`
+	SourceGeneration             uint64           `json:"source_generation"`
+	SourceEpoch                  string           `json:"source_epoch"`
+	SourceSequenceStart          uint64           `json:"source_sequence_start"`
+	SourceSequenceEnd            uint64           `json:"source_sequence_end"`
+	Coverage                     float64          `json:"coverage"`
+	Quality                      string           `json:"quality"`
 	FrozenInputDigest            string           `json:"frozen_input_digest"`
+	Scope                        string           `json:"scope"`
+	DataClassRef                 string           `json:"data_class_ref"`
 	WindowStartUnixMS            int64            `json:"window_start_unix_ms"`
 	WindowEndUnixMS              int64            `json:"window_end_unix_ms"`
+	AsOfUnixMS                   int64            `json:"as_of_unix_ms"`
 	Rows                         []map[string]any `json:"rows"`
 	ExternalSourceCapabilityRefs []string         `json:"external_source_capability_refs"`
+	BytesLimit                   int              `json:"bytes_limit"`
+	CardinalityLimit             int              `json:"cardinality_limit"`
+	DeadlineMS                   int              `json:"deadline_ms"`
+	ActorRef                     string           `json:"actor_ref"`
+	ReasonCode                   string           `json:"reason_code"`
+	TraceID                      string           `json:"trace_id"`
 }
 
 // ErrIdempotencyConflict is same key + different digest (STATISTICS-
@@ -281,7 +331,19 @@ var ErrIdempotencyConflict = errors.New("pluginstat: idempotency key reused with
 // the artifact can always be traced back to the exact input. It is pure (no
 // DB): durability comes from storing the digest on the run at StartRun.
 func (s *Service) FreezeInput(ctx context.Context, b InputBundle) (string, error) {
-	if b.BundleID == "" || b.DefinitionID == "" || !digestRE.MatchString(b.DefinitionDigest) {
+	if b.SchemaVersion != "masi-plugin-statistics/v1" || b.RecordType != "input-bundle" ||
+		!identityRE.MatchString(b.RecordID) || !identityRE.MatchString(b.RunID) ||
+		!identityRE.MatchString(b.PluginID) || !identityRE.MatchString(b.PluginRevision) ||
+		!identityRE.MatchString(b.DefinitionID) || !identityRE.MatchString(b.DefinitionRevision) ||
+		!identityRE.MatchString(b.SourceEpoch) || !identityRE.MatchString(b.DataClassRef) ||
+		!identityRE.MatchString(b.ActorRef) || !identityRE.MatchString(b.TraceID) ||
+		!digestRE.MatchString(b.RequestDigest) || !digestRE.MatchString(b.ConfigDigest) ||
+		!digestRE.MatchString(b.DefinitionDigest) || !digestRE.MatchString(b.SourceProfileDigest) ||
+		b.BindingGeneration < 1 || b.SourceGeneration < 1 || b.Coverage < 0 || b.Coverage > 1 ||
+		b.Scope == "" || b.SourceRevision == "" || len(b.SourceRevision) > 256 ||
+		b.BytesLimit < 1 || b.BytesLimit > 2*1024*1024 || b.CardinalityLimit < 1 || b.CardinalityLimit > 10000 ||
+		b.DeadlineMS < 1 || b.DeadlineMS > 10000 || b.AsOfUnixMS < b.WindowEndUnixMS ||
+		b.ReasonCode != "INPUT_FROZEN" {
 		return "", errors.New("pluginstat: bundle identity/digest malformed")
 	}
 	if len(b.Rows) > 10000 {
@@ -328,6 +390,9 @@ func (s *Service) FreezeInput(ctx context.Context, b InputBundle) (string, error
 	frozen := ComputeFrozenInputDigest(b)
 	if b.FrozenInputDigest != "" && b.FrozenInputDigest != frozen {
 		return "", errors.New("pluginstat: caller frozen digest mismatch")
+	}
+	if b.BundleDigest != "" && b.BundleDigest != ComputeInputBundleDigest(b) {
+		return "", errors.New("pluginstat: caller bundle digest mismatch")
 	}
 	return frozen, nil
 }
@@ -431,23 +496,36 @@ func (s *Service) RegisterDefinition(ctx context.Context, d Definition, manifest
 func ComputeFrozenInputDigest(b InputBundle) string {
 	externalCaps := append([]string(nil), b.ExternalSourceCapabilityRefs...)
 	sortStrings(externalCaps)
-	h := sha256.New()
-	fmt.Fprintf(h, "%s|%s|%s|%d|%d|%d", b.DefinitionID, b.DefinitionDigest,
-		b.SourceRevision, b.WindowStartUnixMS, b.WindowEndUnixMS, len(b.Rows))
+	canonical := fmt.Sprintf(
+		"%s|%s|%s|%s|%s|%d|%s|%s|%s|%s|%s|%s|%s|%d|%s|%d|%d|%016x|%s|%d|%d|%d|%d|%d|%d|%d",
+		b.RunID, b.RequestDigest, b.PluginID, b.PluginRevision, b.ConfigDigest, b.BindingGeneration,
+		b.DefinitionID, b.DefinitionRevision, b.DefinitionDigest, b.Scope, b.DataClassRef,
+		b.SourceRevision, b.SourceProfileDigest, b.SourceGeneration, b.SourceEpoch,
+		b.SourceSequenceStart, b.SourceSequenceEnd, math.Float64bits(b.Coverage), b.Quality,
+		b.WindowStartUnixMS, b.WindowEndUnixMS, b.AsOfUnixMS, b.BytesLimit, b.CardinalityLimit,
+		b.DeadlineMS, len(b.Rows),
+	)
 	if len(externalCaps) > 0 {
-		fmt.Fprintf(h, "|external:%v", externalCaps)
+		canonical += "|external:[" + strings.Join(externalCaps, " ") + "]"
 	}
-	for _, r := range b.Rows {
-		keys := make([]string, 0, len(r))
-		for k := range r {
+	for _, row := range b.Rows {
+		keys := make([]string, 0, len(row))
+		for k := range row {
 			keys = append(keys, k)
 		}
 		sortStrings(keys)
 		for _, k := range keys {
-			fmt.Fprintf(h, "|%s=%v", k, canonicalScalar(r[k]))
+			canonical += "|" + k + "=" + canonicalScalar(row[k])
 		}
 	}
-	return "sha256:" + hex.EncodeToString(h.Sum(nil))
+	return digestOf(canonical)
+}
+
+// ComputeInputBundleDigest binds the exact public JSON bundle while excluding
+// only its self-referential bundle_digest field.
+func ComputeInputBundleDigest(b InputBundle) string {
+	b.BundleDigest = ""
+	return canonicalJSONDigest(b)
 }
 
 // StartRun creates a pending run in the durable ledger. Idempotency: the same
@@ -477,6 +555,7 @@ func (s *Service) StartRun(ctx context.Context, runID, definitionID, definitionD
 		return "", err
 	}
 	bundle.FrozenInputDigest = frozenInputDigest
+	bundle.BundleDigest = ComputeInputBundleDigest(bundle)
 	bundleJSON, err := json.Marshal(bundle)
 	if err != nil || len(bundleJSON) > 2*1024*1024 {
 		return "", errors.New("pluginstat: input bundle serialization/size invalid")
@@ -657,7 +736,10 @@ func (s *Service) DispatchNext(ctx context.Context, owner string, executor Execu
 		if errors.Is(execErr, context.DeadlineExceeded) || errors.Is(execCtx.Err(), context.DeadlineExceeded) {
 			status = RunExpired
 		}
-		return true, s.FinishRun(ctx, *token, status, Artifact{})
+		if finishErr := s.FinishRun(ctx, *token, status, Artifact{}); finishErr != nil {
+			return true, errors.Join(execErr, finishErr)
+		}
+		return true, fmt.Errorf("pluginstat: executor failed: %w", execErr)
 	}
 	return true, s.FinishRun(ctx, *token, RunSucceeded, artifact)
 }
@@ -1017,16 +1099,37 @@ func canonicalScalar(v any) string {
 			return "b:1"
 		}
 		return "b:0"
+	case float32:
+		return fmt.Sprintf("f:%016x", math.Float64bits(float64(t)))
 	case float64:
-		return fmt.Sprintf("f:%x", t)
+		return fmt.Sprintf("f:%016x", math.Float64bits(t))
+	case int8:
+		return fmt.Sprintf("i:%d", t)
+	case int16:
+		return fmt.Sprintf("i:%d", t)
+	case int32:
+		return fmt.Sprintf("i:%d", t)
 	case int64:
 		return fmt.Sprintf("i:%d", t)
 	case int:
 		return fmt.Sprintf("i:%d", t)
-	case nil:
-		return "null"
-	default:
-		b, _ := json.Marshal(v)
-		return "j:" + string(b)
+	case uint:
+		return fmt.Sprintf("u:%d", t)
+	case uint8:
+		return fmt.Sprintf("u:%d", t)
+	case uint16:
+		return fmt.Sprintf("u:%d", t)
+	case uint32:
+		return fmt.Sprintf("u:%d", t)
+	case uint64:
+		return fmt.Sprintf("u:%d", t)
+	case json.Number:
+		if integer, err := t.Int64(); err == nil {
+			return fmt.Sprintf("i:%d", integer)
+		}
+		if number, err := t.Float64(); err == nil {
+			return fmt.Sprintf("f:%016x", math.Float64bits(number))
+		}
 	}
+	return "invalid"
 }

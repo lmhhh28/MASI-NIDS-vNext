@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://masi-nids.example/contracts/analysis/a2a/v1/delegation.schema.json",
+  "title": "Bounded Outbound Analysis Delegation V1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "request_id", "parent_task_id", "parent_input_digest", "question", "evidence_refs", "delegation_depth", "delegation_path", "deadline_unix_ms", "trace_id", "request_digest"],
+  "properties": {
+    "schema_version": {"const": "masi-analysis-delegation/v1"},
+    "request_id": {"$ref": "#/$defs/identity"}, "parent_task_id": {"$ref": "#/$defs/identity"}, "parent_input_digest": {"$ref": "#/$defs/digest"},
+    "question": {"type": "string", "minLength": 1, "maxLength": 1024},
+    "evidence_refs": {"type": "array", "maxItems": 128, "uniqueItems": true, "items": {"type": "object", "additionalProperties": false, "required": ["id", "digest"], "properties": {"id": {"$ref": "#/$defs/identity"}, "digest": {"$ref": "#/$defs/digest"}}}},
+    "delegation_depth": {"const": 1}, "delegation_path": {"type": "array", "minItems": 1, "maxItems": 2, "uniqueItems": true, "items": {"$ref": "#/$defs/identity"}},
+    "deadline_unix_ms": {"type": "integer", "minimum": 1}, "trace_id": {"$ref": "#/$defs/identity"}, "request_digest": {"$ref": "#/$defs/digest"}
+  },
+  "$defs": {
+    "identity": {"type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"},
+    "digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}
+  },
+  "x-masi-semantic-constraints": [
+    {"constraint_id": "A2A-DELEGATION-NO-LOOP", "field": "/delegation_path", "operator": "unique-static-peer-path"},
+    {"constraint_id": "A2A-DELEGATION-UNTRUSTED-RESULT", "operator": "peer-result-never-canonical-fact"},
+    {"constraint_id": "A2A-DELEGATION-DIGEST", "field": "/request_digest", "operator": "canonical-json-excluding-self"}
+  ]
+}

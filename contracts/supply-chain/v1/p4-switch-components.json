@@ -16,7 +16,7 @@
     {
       "name": "BMv2 behavioral-model",
       "decision": "ADOPT",
-      "digest": "sha256:8b8655c2fb7bc5563706ee853fb668ba70457633cda7d93633d022b30b7ead42",
+      "digest": "sha256:24669f08df3583b0d170226f6969f1090235604ef6d5bb5e2b2bb06062d9a571",
       "upstream_digest": "sha256:85905a1ecad8c26e1f746efdf9e66d3600ee743588b32fe5b65d7d3ad1c0157d",
       "source_commit": "693e69e634fedf007964a069fdd69acc441a5f80",
       "source_archive_sha256": "sha256:4bb79a5fd931dbe9d5e5539f8763498d87af9ddae9495f0dd45e849b0481672f",
@@ -31,6 +31,27 @@
       "failure": "target unavailable; no fallback writer",
       "rollback": "restart exact image and replay exact pipeline through P4Runtime",
       "exit": "qualify another target profile"
+    },
+    {
+      "name": "PI P4Runtime server",
+      "decision": "ADOPT",
+      "version": "577b502da91b7d17e4be5821d49d481dc2e1bb7a+p4runtime-v1.4.1+masi.capabilities.1",
+      "digest": "sha256:d0baa762e588b1bbd0e43009e3131c919ac0722f2a6ed7bffbed4fe8b48419ba",
+      "runtime_image_digest": "sha256:24669f08df3583b0d170226f6969f1090235604ef6d5bb5e2b2bb06062d9a571",
+      "source_commit": "577b502da91b7d17e4be5821d49d481dc2e1bb7a",
+      "source_archive_sha256": "sha256:d0baa762e588b1bbd0e43009e3131c919ac0722f2a6ed7bffbed4fe8b48419ba",
+      "p4runtime_release": "v1.4.1",
+      "p4runtime_source_commit": "36e8b46e406530d12e89cafbf466e368244ac2a0",
+      "patch_sha256": "sha256:c6bdd909599c01a9afdd921352b8c61a1a4ed0368ef68f759d3ecca6cd521f45",
+      "patch_scopes": [
+        "p4runtime-capabilities-1.4.1"
+      ],
+      "license": "Apache-2.0",
+      "authority": "target-side P4Runtime 1.4.1 server only",
+      "runtime_download": false,
+      "failure": "target startup/readiness fails; no alternate P4Runtime server",
+      "rollback": "rebuild and restart an exact previously qualified runtime image",
+      "exit": "qualify another target-side P4Runtime server while preserving the 1.4.1 contract"
     },
     {
       "name": "P4Runtime Python protos",

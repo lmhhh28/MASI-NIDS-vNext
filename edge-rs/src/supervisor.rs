@@ -497,7 +497,7 @@ fn validate_assignment(assignment: &TargetAssignment, config: &EdgeConfig) -> Ed
         .expected_pipeline
         .as_ref()
         .ok_or_else(|| EdgeError::invalid("expected_pipeline", "pipeline identity is required"))?;
-    if pipeline.p4runtime_api_version != "1.3.0"
+    if pipeline.p4runtime_api_version != "1.4.1"
         || pipeline.cookie == 0
         || pipeline.supported_write_atomicity.as_slice()
             != [crate::contract::edge::P4WriteAtomicity::ContinueOnError as i32]

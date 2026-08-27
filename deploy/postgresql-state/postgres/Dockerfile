@@ -16,3 +16,9 @@ LABEL org.opencontainers.image.title="MASI-NIDS PostgreSQL State server" \
       org.opencontainers.image.description="Digest-pinned PostgreSQL 18 with a security-supported rebuilt gosu"
 COPY --from=gosu-build --chmod=0555 /out/gosu /usr/local/bin/gosu
 RUN gosu --version | grep -F '1.19 (go1.26.6' && postgres --version | grep -F '18.6'
+
+# The module-gate runtime prepares the PostgreSQL volume, archive, TLS, and
+# secret ownership for the fixed Alpine postgres identity before startup.
+# Keep the image fail-closed as that identity instead of relying on a root
+# entrypoint to drop privileges at runtime.
+USER 70:70

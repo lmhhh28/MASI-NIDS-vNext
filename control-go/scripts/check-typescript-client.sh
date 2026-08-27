@@ -28,7 +28,8 @@ if [[ "${before}" != "${after}" ]]; then
   echo "generated TypeScript client is stale: before=${before} after=${after}" >&2
   exit 1
 fi
-if ! grep -q 'export const listEvents' "${generated_root}/sdk.gen.ts" \
+if ! grep -q 'export const getDashboard' "${generated_root}/sdk.gen.ts" \
+  || ! grep -q 'export const listEvents' "${generated_root}/sdk.gen.ts" \
   || ! grep -q 'export const registerBoundedCapture' "${generated_root}/sdk.gen.ts" \
   || ! grep -q 'export const submitAnalysisTask' "${generated_root}/sdk.gen.ts"; then
   echo "generated TypeScript client is missing required public operations" >&2

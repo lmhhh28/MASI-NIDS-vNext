@@ -1,0 +1,71 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://masi-nids.example/contracts/evidence/go-plugin-host-pairwise-rehearsal/v1/schema.json",
+  "title": "Real Go statistics dispatcher to real Plugin Host/Wasm rehearsal",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "run_id", "started_at", "finished_at", "participants", "transport", "core_evidence", "process_logs", "level", "applicability", "result", "qualification", "qualification_scope"],
+  "properties": {
+    "schema_version": {"const": "go-plugin-host-pairwise-rehearsal/v1"},
+    "run_id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$"},
+    "started_at": {"type": "string", "format": "date-time"},
+    "finished_at": {"type": "string", "format": "date-time"},
+    "participants": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["go_dispatcher_binary_digest", "plugin_host_binary_digest", "hostctl_binary_digest", "postgresql", "host_binding_envelope_digest", "wasm_artifact_digest"],
+      "properties": {
+        "go_dispatcher_binary_digest": {"$ref": "#/$defs/digest"},
+        "plugin_host_binary_digest": {"$ref": "#/$defs/digest"},
+        "hostctl_binary_digest": {"$ref": "#/$defs/digest"},
+        "postgresql": {"const": "postgresql-18-test-container"},
+        "host_binding_envelope_digest": {"$ref": "#/$defs/digest"},
+        "wasm_artifact_digest": {"$ref": "#/$defs/digest"}
+      }
+    },
+    "transport": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["protocol", "tls_version", "mutual_tls", "server_name", "manager_certificate_digest", "ca_digest"],
+      "properties": {
+        "protocol": {"const": "grpc"},
+        "tls_version": {"const": "TLSv1.3"},
+        "mutual_tls": {"const": true},
+        "server_name": {"const": "plugin-host.test"},
+        "manager_certificate_digest": {"$ref": "#/$defs/digest"},
+        "ca_digest": {"$ref": "#/$defs/digest"}
+      }
+    },
+    "core_evidence": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["schema_version", "run_id", "plugin_id", "definition_id", "run_status", "current_run_id", "history_count", "artifact_count", "metric_id", "metric_value", "mutual_tls", "result"],
+      "properties": {
+        "schema_version": {"const": "go-plugin-host-real-process-evidence/v1"},
+        "run_status": {"const": "succeeded"},
+        "history_count": {"const": 1},
+        "artifact_count": {"const": 1},
+        "metric_id": {"const": "row-count"},
+        "metric_value": {"const": 2},
+        "mutual_tls": {"const": true},
+        "result": {"const": "PASS"}
+      }
+    },
+    "process_logs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["plugin_host", "hostctl", "go_test"],
+      "properties": {
+        "plugin_host": {"$ref": "#/$defs/digest"},
+        "hostctl": {"$ref": "#/$defs/digest"},
+        "go_test": {"$ref": "#/$defs/digest"}
+      }
+    },
+    "level": {"const": "REHEARSAL"},
+    "applicability": {"const": "APPLICABLE"},
+    "result": {"enum": ["PASS", "FAIL"]},
+    "qualification": {"const": "NOT_QUALIFIED"},
+    "qualification_scope": {"type": "string", "minLength": 1, "maxLength": 512}
+  },
+  "$defs": {"digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}}
+}

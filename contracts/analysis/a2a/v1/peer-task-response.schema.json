@@ -1,0 +1,84 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://masi-nids.example/contracts/analysis/a2a/v1/peer-task-response.schema.json",
+  "title": "Restricted outbound A2A peer task response",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["task"],
+  "properties": {
+    "task": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "contextId", "status", "artifacts", "history", "metadata"],
+      "properties": {
+        "id": {"$ref": "#/$defs/identity"},
+        "contextId": {"$ref": "#/$defs/identity"},
+        "status": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["state", "timestamp"],
+          "properties": {
+            "state": {"enum": ["TASK_STATE_SUBMITTED", "TASK_STATE_WORKING", "TASK_STATE_COMPLETED", "TASK_STATE_FAILED", "TASK_STATE_CANCELED", "TASK_STATE_REJECTED", "TASK_STATE_INPUT_REQUIRED", "TASK_STATE_AUTH_REQUIRED"]},
+            "timestamp": {"type": "string", "format": "date-time"}
+          }
+        },
+        "artifacts": {"type": "array", "maxItems": 8, "items": {"$ref": "#/$defs/artifact"}},
+        "history": {"const": []},
+        "metadata": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["schemaVersion", "pluginId", "bindingGeneration", "inputDigest", "traceId", "reasonCode"],
+          "properties": {
+            "schemaVersion": {"const": "masi-analysis-peer-task/v1"},
+            "pluginId": {"$ref": "#/$defs/identity"},
+            "bindingGeneration": {"type": "integer", "minimum": 1},
+            "inputDigest": {"$ref": "#/$defs/digest"},
+            "traceId": {"$ref": "#/$defs/identity"},
+            "reasonCode": {"$ref": "#/$defs/reason"}
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "identity": {"type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"},
+    "digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "reason": {"type": "string", "pattern": "^[A-Z][A-Z0-9_]{0,63}$"},
+    "fact_ref": {
+      "type": "object", "additionalProperties": false, "required": ["id", "digest"],
+      "properties": {"id": {"$ref": "#/$defs/identity"}, "digest": {"$ref": "#/$defs/digest"}}
+    },
+    "data": {
+      "type": "object", "additionalProperties": false,
+      "required": ["schema_version", "summary", "source_refs", "content_digest"],
+      "properties": {
+        "schema_version": {"const": "masi-analysis-peer-artifact/v1"},
+        "summary": {"type": "string", "minLength": 1, "maxLength": 2048},
+        "source_refs": {"type": "array", "maxItems": 32, "items": {"$ref": "#/$defs/fact_ref"}},
+        "content_digest": {"$ref": "#/$defs/digest"}
+      }
+    },
+    "artifact": {
+      "type": "object", "additionalProperties": false,
+      "required": ["artifactId", "name", "description", "parts", "metadata"],
+      "properties": {
+        "artifactId": {"$ref": "#/$defs/identity"},
+        "name": {"type": "string", "minLength": 1, "maxLength": 128},
+        "description": {"type": "string", "maxLength": 512},
+        "parts": {
+          "type": "array", "minItems": 1, "maxItems": 1,
+          "items": {"type": "object", "additionalProperties": false, "required": ["data", "mediaType"], "properties": {"data": {"$ref": "#/$defs/data"}, "mediaType": {"const": "application/json"}}}
+        },
+        "metadata": {
+          "type": "object", "additionalProperties": false, "required": ["contentDigest", "nonExecutable"],
+          "properties": {"contentDigest": {"$ref": "#/$defs/digest"}, "nonExecutable": {"const": true}}
+        }
+      }
+    }
+  },
+  "x-masi-semantic-constraints": [
+    {"constraint_id": "PEER-TASK-IDENTITY-FENCE", "fields": ["/task/id", "/task/contextId", "/task/metadata"], "operator": "exact-submit-poll-peer-binding-input-trace-match"},
+    {"constraint_id": "PEER-ARTIFACT-DIGEST", "fields": ["/task/artifacts/*/parts/0/data", "/task/artifacts/*/metadata/contentDigest"], "operator": "canonical-content-digest-match"},
+    {"constraint_id": "PEER-COMPLETED-ARTIFACT", "fields": ["/task/status/state", "/task/artifacts"], "operator": "completed-requires-artifact-otherwise-empty"}
+  ]
+}

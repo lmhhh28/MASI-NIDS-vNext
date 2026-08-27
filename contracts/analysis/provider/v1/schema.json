@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://masi-nids.example/contracts/analysis/provider/v1/schema.json",
+  "title": "Bounded Analysis Provider Request and Response V1",
+  "oneOf": [{"$ref": "#/$defs/request"}, {"$ref": "#/$defs/response"}],
+  "$defs": {
+    "identity": {"type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"},
+    "digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "texts": {"type": "array", "maxItems": 64, "items": {"type": "string", "minLength": 1, "maxLength": 2048}},
+    "fact": {"type": "object", "additionalProperties": false, "required": ["id", "digest", "kind"], "properties": {"id": {"$ref": "#/$defs/identity"}, "digest": {"$ref": "#/$defs/digest"}, "kind": {"enum": ["event", "incident", "evidence", "runtime", "tool-result", "peer-result"]}, "summary": {"oneOf": [{"type": "null"}, {"type": "string", "maxLength": 2048}]}}},
+    "request": {
+      "type": "object", "additionalProperties": false,
+      "required": ["schema_version", "request_id", "phase", "task_id", "run_id", "skill", "input_digest", "locale", "system_policy_id", "facts", "tool_results", "peer_results", "untrusted_content_request", "remaining_budget", "trace_id", "request_digest"],
+      "properties": {
+        "schema_version": {"const": "masi-analysis-provider-request/v1"}, "request_id": {"$ref": "#/$defs/identity"}, "phase": {"enum": ["hypothesis", "synthesis"]}, "task_id": {"$ref": "#/$defs/identity"}, "run_id": {"$ref": "#/$defs/identity"},
+        "skill": {"enum": ["analyze_nids_incident", "compare_event_windows", "draft_mitigation_advice", "generate_incident_content"]}, "input_digest": {"$ref": "#/$defs/digest"}, "locale": {"type": "string", "minLength": 1, "maxLength": 32}, "system_policy_id": {"const": "analysis-system-policy/v1"},
+        "facts": {"type": "array", "maxItems": 352, "items": {"$ref": "#/$defs/fact"}}, "tool_results": {"type": "array", "maxItems": 6, "items": {"$ref": "#/$defs/fact"}}, "peer_results": {"type": "array", "maxItems": 2, "items": {"$ref": "#/$defs/fact"}},
+        "untrusted_content_request": {"type": "string", "maxLength": 2048},
+        "remaining_budget": {"type": "object", "additionalProperties": false, "required": ["llm_calls", "mcp_rounds", "tool_calls", "outbound_delegations", "deadline_unix_ms"], "properties": {"llm_calls": {"type": "integer", "minimum": 0, "maximum": 2}, "mcp_rounds": {"type": "integer", "minimum": 0, "maximum": 2}, "tool_calls": {"type": "integer", "minimum": 0, "maximum": 6}, "outbound_delegations": {"type": "integer", "minimum": 0, "maximum": 2}, "deadline_unix_ms": {"type": "integer", "minimum": 1}}},
+        "trace_id": {"$ref": "#/$defs/identity"}, "request_digest": {"$ref": "#/$defs/digest"}
+      }
+    },
+    "grounded_claim": {"type": "object", "additionalProperties": false, "required": ["claim", "evidence_refs"], "properties": {"claim": {"type": "string", "minLength": 1, "maxLength": 2048}, "evidence_refs": {"type": "array", "maxItems": 32, "uniqueItems": true, "items": {"$ref": "#/$defs/identity"}}}},
+    "tool_request": {
+      "type": "object", "additionalProperties": false, "required": ["kind", "name", "arguments"],
+      "properties": {"kind": {"enum": ["tool", "resource"]}, "name": {"enum": ["masi.events.get", "masi.incidents.get", "masi.evidence.get", "masi.targets.get", "masi.incidents.open", "masi.evidence.recent"]}, "arguments": {"type": "object", "maxProperties": 8}},
+      "allOf": [
+        {"if": {"properties": {"kind": {"const": "tool"}}, "required": ["kind"]}, "then": {"properties": {"name": {"enum": ["masi.events.get", "masi.incidents.get", "masi.evidence.get", "masi.targets.get"]}}}},
+        {"if": {"properties": {"kind": {"const": "resource"}}, "required": ["kind"]}, "then": {"properties": {"name": {"enum": ["masi.incidents.open", "masi.evidence.recent"]}}}}
+      ]
+    },
+    "delegation": {"type": "object", "additionalProperties": false, "required": ["peer_id", "question"], "properties": {"peer_id": {"$ref": "#/$defs/identity"}, "question": {"type": "string", "minLength": 1, "maxLength": 1024}}},
+    "response": {
+      "type": "object", "additionalProperties": false,
+      "required": ["schema_version", "request_id", "input_digest", "outcome_hint", "observed_claims", "model_result_facts", "model_explanation_facts", "inferred_claims", "uncertainties", "limitations", "missing_evidence", "recommendations", "generated_content", "tool_requests", "delegations", "response_digest"],
+      "properties": {
+        "schema_version": {"const": "masi-analysis-provider-response/v1"}, "request_id": {"$ref": "#/$defs/identity"}, "input_digest": {"$ref": "#/$defs/digest"}, "outcome_hint": {"enum": ["succeeded", "limited", "insufficient_evidence"]},
+        "observed_claims": {"type": "array", "maxItems": 64, "items": {"$ref": "#/$defs/grounded_claim"}}, "model_result_facts": {"type": "array", "maxItems": 32, "items": {"$ref": "#/$defs/grounded_claim"}}, "model_explanation_facts": {"type": "array", "maxItems": 32, "items": {"$ref": "#/$defs/grounded_claim"}},
+        "inferred_claims": {"$ref": "#/$defs/texts"}, "uncertainties": {"$ref": "#/$defs/texts"}, "limitations": {"$ref": "#/$defs/texts"}, "missing_evidence": {"$ref": "#/$defs/texts"},
+        "recommendations": {"$ref": "#/$defs/texts"}, "generated_content": {"$ref": "#/$defs/texts"},
+        "tool_requests": {"type": "array", "maxItems": 6, "items": {"$ref": "#/$defs/tool_request"}}, "delegations": {"type": "array", "maxItems": 2, "items": {"$ref": "#/$defs/delegation"}}, "response_digest": {"$ref": "#/$defs/digest"}
+      }
+    }
+  },
+  "x-masi-semantic-constraints": [
+    {"constraint_id": "PROVIDER-NO-POLICY-MUTATION", "operator": "structured-analysis-only"},
+    {"constraint_id": "PROVIDER-RESPONSE-DIGEST", "field": "/response_digest", "operator": "canonical-json-excluding-self"},
+    {"constraint_id": "PROVIDER-UNTRUSTED-OUTPUT", "operator": "grounding-and-safety-validator-required"}
+  ]
+}

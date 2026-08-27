@@ -180,13 +180,15 @@ class ContractGoldenTests(unittest.TestCase):
             "OWNER_FROZEN", profile["performance_gate"]["absolute_threshold_status"]
         )
         self.assertEqual(3600, profile["performance_gate"]["soak_duration_seconds"])
+        runner_profile = load("contracts/profiles/v1/e2e-runner-compose.json")
+        self.assertEqual(32 * 1024 * 1024 * 1024, runner_profile["supply_chain_minimum_free_bytes"])
         self.assertEqual(
             33554689, profile["pipeline"]["tables"]["response_overlay"]["id"]
         )
         self.assertEqual(
             369099032, profile["pipeline"]["registers"]["telemetry_bank_sequence"]["id"]
         )
-        self.assertEqual("1.3.0", profile["target"]["p4runtime_capabilities_version"])
+        self.assertEqual("1.4.1", profile["target"]["p4runtime_capabilities_version"])
 
         performance = load("contracts/profiles/v1/p4-bmv2-functional-reference.json")
         workload_bounds = performance["workload_resource_bounds"]
@@ -208,8 +210,40 @@ class ContractGoldenTests(unittest.TestCase):
         self.assertTrue(packet_oracle["capture_packet_statistics_required"])
         self.assertEqual(2000, packet_oracle["capture_drain_timeout_ms"])
 
+    def test_p4runtime_compatibility_requires_exact_1_4_1(self) -> None:
+        compatibility = load("contracts/profiles/v1/p4runtime-edge-compatibility.json")
+        self.assertEqual(["1.4.1"], compatibility["accepted_capabilities_api_versions"])
+        self.assertEqual(
+            "P4Runtime-1.4.1",
+            compatibility["compatibility_basis"]["required_common_wire_surface"],
+        )
+        decisions = compatibility["version_decision"]
+        self.assertEqual("ACCEPT_FOR_PINNED_BMV2_PROFILE", decisions["1.4.1"])
+        for rejected in ("1.3.0", "1.4.0", "unknown"):
+            self.assertTrue(decisions[rejected].startswith("REJECT"))
+
+    def test_older_p4runtime_capabilities_are_rejected_by_contracts(self) -> None:
+        target_schema = load("contracts/target/v1/schema.json")
+        assignment = load("contracts/golden/target/assignment-v1.json")
+        assignment["expected_pipeline"]["p4runtime_api_version"] = "1.3.0"
+        self.assertTrue(
+            list(Draft202012Validator(target_schema).iter_errors(assignment))
+        )
+
+        firewall_schema = load("contracts/p4/firewall-policy/v1/schema.json")
+        firewall = load("contracts/golden/p4/firewall-policy-v1.json")
+        firewall["pipeline_identity"]["p4runtime_version"] = "1.3.0"
+        self.assertTrue(
+            list(Draft202012Validator(firewall_schema).iter_errors(firewall))
+        )
+
     def test_evidence_schema_requires_orthogonal_test_status(self) -> None:
         schema = load("contracts/evidence/v1/schema.json")
+        self.assertTrue(
+            {"findings", "completion", "overall_module_complete"}.issubset(
+                schema["required"]
+            )
+        )
         required = set(schema["properties"]["tests"]["items"]["required"])
         self.assertTrue(
             {
@@ -220,6 +254,36 @@ class ContractGoldenTests(unittest.TestCase):
                 "qualification",
             }.issubset(required)
         )
+
+    def test_p4_module_findings_registry_is_public_and_closed(self) -> None:
+        self.assert_valid(
+            "contracts/evidence/module-findings/v1/schema.json",
+            "p4/module-findings.json",
+        )
+        registry = load("p4/module-findings.json")
+        self.assertEqual("MOD-SW-001", registry["module_id"])
+        self.assertFalse(
+            any(
+                finding["status"] == "OPEN" and finding["severity"] == "P0"
+                for finding in registry["findings"]
+            )
+        )
+
+    def test_formal_source_inputs_are_durable_and_supply_snapshot_excludes_builds(
+        self,
+    ) -> None:
+        runner = (ROOT / "testkit/p4_switch/run-module-e2e.sh").read_text(
+            encoding="utf-8"
+        )
+        supply = (
+            ROOT / "testkit/p4_switch/scripts/run-supply-chain.sh"
+        ).read_text(encoding="utf-8")
+        self.assertIn("source-inputs", runner)
+        self.assertIn(".source_archive.filename", runner)
+        self.assertIn(".source_archive.sha256", runner)
+        self.assertIn(".source_archive.size_bytes", runner)
+        for excluded in ("**/build", "**/target", "**/dist"):
+            self.assertIn(f"--exclude='{excluded}'", supply)
 
     def test_mininet_profile_pins_real_external_target_topology(self) -> None:
         profile = load("contracts/profiles/v1/p4-mininet-bmv2.json")
@@ -234,7 +298,7 @@ class ContractGoldenTests(unittest.TestCase):
 
     def test_rule_observation_distinguishes_target_and_client_versions(self) -> None:
         profile = load("contracts/profiles/v1/p4-rule-observation-bmv2.json")
-        self.assertEqual("1.3.0", profile["p4runtime_capabilities_version"])
+        self.assertEqual("1.4.1", profile["p4runtime_capabilities_version"])
         self.assertEqual("1.4.1", profile["test_client_proto_package_version"])
         self.assertNotIn("p4runtime_version", profile)
 
@@ -316,6 +380,53 @@ class ContractGoldenTests(unittest.TestCase):
             encoding="utf-8"
         )
         self.assertIn(f'io.masi-nids.patch.sha256="{patch["sha256"]}"', dockerfile)
+
+    def test_pi_p4runtime_1_4_1_source_is_exactly_bound_and_rebuildable(self) -> None:
+        source_lock = load("deploy/p4-switch/pi/source.lock.json")
+        profile = load("contracts/profiles/v1/p4-stateless-firewall-bmv2.json")
+        registry = load("contracts/supply-chain/v1/p4-switch-components.json")
+        patch = source_lock["patch"]
+        patch_digest = (
+            "sha256:" + hashlib.sha256((ROOT / patch["path"]).read_bytes()).hexdigest()
+        )
+        pi = next(
+            item
+            for item in registry["components"]
+            if item["name"] == "PI P4Runtime server"
+        )
+        p4runtime = source_lock["submodules"]["proto/p4runtime"]
+
+        self.assertEqual("v1.4.1", p4runtime["release"])
+        self.assertEqual("1.4.1", profile["target"]["p4runtime_capabilities_version"])
+        self.assertEqual(
+            p4runtime["commit"], profile["target"]["p4runtime_source_commit"]
+        )
+        self.assertEqual(p4runtime["commit"], pi["p4runtime_source_commit"])
+        self.assertEqual(
+            "sha256:" + source_lock["source_archive"]["sha256"],
+            profile["target"]["pi_source_archive_sha256"],
+        )
+        self.assertEqual(patch_digest, "sha256:" + patch["sha256"])
+        self.assertEqual(patch_digest, profile["target"]["qualified_pi_patch_sha256"])
+        self.assertEqual(patch_digest, pi["patch_sha256"])
+        self.assertEqual(patch["scopes"], pi["patch_scopes"])
+        self.assertEqual(
+            profile["target"]["runtime_image"].split("@", 1)[1],
+            pi["runtime_image_digest"],
+        )
+
+        dockerfile = (ROOT / "deploy/p4-switch/bmv2/Dockerfile.runtime").read_text(
+            encoding="utf-8"
+        )
+        build_script = (ROOT / "deploy/p4-switch/bmv2/build-runtime.sh").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn('io.masi-nids.p4runtime.version="1.4.1"', dockerfile)
+        self.assertIn(f'io.masi-nids.pi.patch.sha256="{patch["sha256"]}"', dockerfile)
+        self.assertIn("ldconfig && rm -rf /var/cache/ldconfig", dockerfile)
+        self.assertIn("PI_SOURCE_ARCHIVE", build_script)
+        self.assertIn(".masi-pi-source", build_script)
+        self.assertIn('p4runtime_api_version[] = "1.4.1"', build_script)
 
 
 if __name__ == "__main__":

@@ -1,0 +1,89 @@
+{
+  "schema_version": "module-findings/v1",
+  "module_id": "MOD-SW-001",
+  "decision_id": "DEC-044",
+  "reviewed_at": "2026-08-25T18:45:00+08:00",
+  "review_scope": "P4 Switch first-release BMv2/P4Runtime 1.4.1 implementation, public-boundary startup, fault, performance, soak, supply-chain, findings, and operational-completion evidence",
+  "findings": [
+    {
+      "finding_id": "SW-P0-MACHINE-COMPLETION-FINDINGS-GATE",
+      "severity": "P0",
+      "status": "CLOSED",
+      "title": "P4 qualification aggregation did not machine-prove the append-only findings registry or operational completion",
+      "requirement_ids": [
+        "DEC-044",
+        "MOD-SW-001",
+        "TEST-GATE-001"
+      ],
+      "evidence_refs": [
+        "p4/module-findings.json",
+        "contracts/evidence/module-findings/v1/schema.json",
+        "contracts/evidence/v1/schema.json",
+        "testkit/p4_switch/scripts/aggregate-evidence.py",
+        "testkit/p4_switch/tests/test_aggregate_evidence.py",
+        "testkit/p4_switch/tests/test_contracts.py",
+        "docs/issues/ISSUE-P4-SW-001-module-complete-holds.md"
+      ],
+      "opened_at": "2026-08-25T14:45:00+08:00",
+      "closed_at": "2026-08-25T15:30:00+08:00",
+      "resolution": "Added the Switch module to the shared append-only findings contract, bound the registry digest and open counts into qualification evidence, derived operational completion from exact mandatory gates, real runtime startup, the formal 3,600-second soak and open-P0=0, and added negative tests that prevent a missing gate or open P0 from producing Module Complete."
+    },
+    {
+      "finding_id": "SW-P1-FORMAL-SOURCE-INPUT-LIFETIME",
+      "severity": "P1",
+      "status": "CLOSED",
+      "title": "Formal supply-chain inputs in the system temporary directory could expire during the one-hour soak",
+      "requirement_ids": [
+        "ARCH-005",
+        "SEC-SUPPLY-001",
+        "TEST-GATE-001"
+      ],
+      "evidence_refs": [
+        "testkit/p4_switch/run-module-e2e.sh",
+        "testkit/p4_switch/scripts/run-supply-chain.sh",
+        "deploy/p4-switch/bmv2/source.lock.json",
+        "deploy/p4-switch/pi/source.lock.json"
+      ],
+      "opened_at": "2026-08-25T16:40:00+08:00",
+      "closed_at": "2026-08-25T18:15:00+08:00",
+      "resolution": "The formal runner now validates both source archives against their locked filename, size and SHA-256 and atomically snapshots them into the run-specific durable output directory before any long-running test. Supply-chain verification consumes only those immutable snapshots, so temporary-file cleanup cannot invalidate a run after the soak."
+    },
+    {
+      "finding_id": "SW-P1-SUPPLY-SNAPSHOT-GENERATED-CONTENT",
+      "severity": "P1",
+      "status": "CLOSED",
+      "title": "The formal source snapshot included generated C++ and Rust build trees",
+      "requirement_ids": [
+        "ARCH-REUSE-001",
+        "SEC-SUPPLY-001",
+        "TEST-GATE-001"
+      ],
+      "evidence_refs": [
+        "testkit/p4_switch/scripts/run-supply-chain.sh",
+        "testkit/p4_switch/tests/test_contracts.py"
+      ],
+      "opened_at": "2026-08-25T17:45:00+08:00",
+      "closed_at": "2026-08-25T18:15:00+08:00",
+      "resolution": "The canonical supply source-tree archive now excludes generated build, target, dist, cache, egg-info and coverage outputs while retaining repository source, contracts, deployment assets and tests. This removes tens of gigabytes of non-source content without weakening source or secret scanning."
+    },
+    {
+      "finding_id": "SW-P1-SUPPLY-DISK-CAPACITY-PREFLIGHT",
+      "severity": "P1",
+      "status": "CLOSED",
+      "title": "Formal supply could start without enough free disk for offline bundles and rebuilds",
+      "requirement_ids": [
+        "ARCH-005",
+        "SEC-SUPPLY-001",
+        "TEST-GATE-001"
+      ],
+      "evidence_refs": [
+        "contracts/profiles/v1/e2e-runner-compose.json",
+        "testkit/p4_switch/run-module-e2e.sh",
+        "testkit/p4_switch/tests/test_contracts.py"
+      ],
+      "opened_at": "2026-08-25T18:20:00+08:00",
+      "closed_at": "2026-08-25T18:45:00+08:00",
+      "resolution": "The qualification profile now freezes a 32 GiB minimum free-space budget. The runner checks it before long-running tests and again before supply; an insufficient environment fails closed with a typed supply reason instead of exhausting the filesystem during bundle creation."
+    }
+  ]
+}

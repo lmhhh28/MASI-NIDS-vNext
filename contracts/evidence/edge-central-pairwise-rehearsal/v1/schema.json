@@ -1,0 +1,77 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://masi-nids.example/contracts/evidence/edge-central-pairwise-rehearsal/v1/schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "run_id", "started_at", "finished_at", "participants", "real_boundaries", "fixtures", "triton_statistics", "edge_evidence", "central_oci_result", "process_logs", "level", "applicability", "result", "qualification", "qualification_scope"],
+  "properties": {
+    "schema_version": {"const": "edge-central-pairwise-rehearsal/v1"},
+    "run_id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$"},
+    "started_at": {"type": "string", "format": "date-time"},
+    "finished_at": {"type": "string", "format": "date-time"},
+    "participants": {
+      "type": "object", "additionalProperties": false,
+      "required": ["edge_binary_digest", "gateway_image_manifest_digest", "triton_image_digest", "startup_envelope_digest"],
+      "properties": {
+        "edge_binary_digest": {"$ref": "#/$defs/digest"},
+        "gateway_image_manifest_digest": {"$ref": "#/$defs/digest"},
+        "triton_image_digest": {"$ref": "#/$defs/digest"},
+        "startup_envelope_digest": {"$ref": "#/$defs/digest"}
+      }
+    },
+    "real_boundaries": {
+      "type": "object", "additionalProperties": false,
+      "required": ["edge_gateway_get_binding", "edge_gateway_infer", "gateway_triton_model_infer", "edge_control_canonical_ack"],
+      "properties": {
+        "edge_gateway_get_binding": {"const": true},
+        "edge_gateway_infer": {"const": true},
+        "gateway_triton_model_infer": {"const": true},
+        "edge_control_canonical_ack": {"const": true}
+      }
+    },
+    "fixtures": {
+      "type": "object", "additionalProperties": false,
+      "required": ["p4runtime", "control_sink"],
+      "properties": {
+        "p4runtime": {"const": "deterministic-mtls-fake"},
+        "control_sink": {"const": "deterministic-mtls-fake"}
+      }
+    },
+    "triton_statistics": {
+      "type": "object", "additionalProperties": false,
+      "required": ["inference_count_before", "inference_count_after", "inference_count_delta"],
+      "properties": {
+        "inference_count_before": {"type": "integer", "minimum": 0},
+        "inference_count_after": {"type": "integer", "minimum": 1},
+        "inference_count_delta": {"type": "integer", "minimum": 1}
+      }
+    },
+    "edge_evidence": {
+      "type": "object", "additionalProperties": true,
+      "required": ["schema_version", "canonical_commit_batches", "fake_inference_calls", "output_digest", "result"],
+      "properties": {
+        "schema_version": {"const": "edge-real-central-pairwise-rehearsal/v1"},
+        "canonical_commit_batches": {"type": "integer", "minimum": 1},
+        "fake_inference_calls": {"const": 0},
+        "output_digest": {"$ref": "#/$defs/digest"},
+        "result": {"const": "PASS"}
+      }
+    },
+    "central_oci_result": {"enum": ["PASS", "HOLD"]},
+    "process_logs": {
+      "type": "object", "additionalProperties": false, "required": ["edge", "central", "gateway", "triton"],
+      "properties": {
+        "edge": {"$ref": "#/$defs/digest"},
+        "central": {"$ref": "#/$defs/digest"},
+        "gateway": {"$ref": "#/$defs/digest"},
+        "triton": {"$ref": "#/$defs/digest"}
+      }
+    },
+    "level": {"const": "REHEARSAL"},
+    "applicability": {"const": "APPLICABLE"},
+    "result": {"const": "PASS"},
+    "qualification": {"const": "NOT_QUALIFIED"},
+    "qualification_scope": {"type": "string", "minLength": 1, "maxLength": 512}
+  },
+  "$defs": {"digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}}
+}

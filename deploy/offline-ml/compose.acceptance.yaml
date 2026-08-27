@@ -1,0 +1,29 @@
+services:
+  offline-ml:
+    image: ${MASI_OFFLINE_ML_IMAGE:?set immutable repository@sha256 image}
+    user: "65532:65532"
+    read_only: true
+    network_mode: none
+    restart: "no"
+    init: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 128
+    mem_limit: 2g
+    cpus: 2.0
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=1g,mode=1770,uid=65532,gid=65532
+    volumes:
+      - type: bind
+        source: ${MASI_OFFLINE_ML_OUTPUT:?set absolute empty output parent}
+        target: /output
+        bind:
+          create_host_path: false
+    command:
+      - run
+      - --repo
+      - /opt/masi/repo
+      - --output
+      - /output/candidate

@@ -64,6 +64,11 @@ enum Command {
         #[arg(long)]
         spec: PathBuf,
     },
+    /// Apply a fully materialized binding envelope through mTLS.
+    ApplyEnvelope {
+        #[arg(long)]
+        input: PathBuf,
+    },
     /// Roll back from the exact active generation to an observed lower generation.
     Rollback {
         #[arg(long)]
@@ -249,6 +254,18 @@ async fn run_remote(channel: Channel, command: Command) -> Result<(), Box<dyn st
             let binding = build_binding(spec)?;
             let mut client = PluginHostControlClient::new(channel);
             let result = client
+                .apply_binding(ApplyBindingRequest {
+                    schema_version: "plugin-host-control/v1".to_owned(),
+                    binding: Some(binding),
+                })
+                .await?
+                .into_inner();
+            println!("{}", serde_json::to_string(&result)?);
+        }
+        Command::ApplyEnvelope { input } => {
+            let binding: BindingEnvelope =
+                serde_json::from_slice(&read_secure_file(&input, 4 * 1024 * 1024, false)?)?;
+            let result = PluginHostControlClient::new(channel)
                 .apply_binding(ApplyBindingRequest {
                     schema_version: "plugin-host-control/v1".to_owned(),
                     binding: Some(binding),

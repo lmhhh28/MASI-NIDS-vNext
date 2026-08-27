@@ -18,11 +18,15 @@
     },
     "module_id": {
       "enum": [
+        "MOD-SW-001",
         "MOD-EDGE-001",
         "MOD-INF-001",
         "MOD-CTRL-001",
         "MOD-DB-001",
-        "MOD-PLUGIN-001"
+        "MOD-PLUGIN-001",
+        "MOD-AGENT-001",
+        "MOD-ML-001",
+        "MOD-WEB-001"
       ]
     },
     "decision_id": {
@@ -64,7 +68,7 @@
       "properties": {
         "finding_id": {
           "type": "string",
-          "pattern": "^(EDGE|INF|CTRL|DB|PLUGIN)-[A-Z0-9][A-Z0-9-]{2,126}$"
+          "pattern": "^(SW|EDGE|INF|CTRL|DB|PLUGIN|AGENT|ML|WEB)-[A-Z0-9][A-Z0-9-]{2,126}$"
         },
         "severity": {
           "enum": [
@@ -103,7 +107,7 @@
             "type": "string",
             "minLength": 1,
             "maxLength": 512,
-            "pattern": "^(?:edge-rs|infer-cpp|control-go|contracts|db|plugin-host-rs|deploy|docs|testkit)/[A-Za-z0-9._:/-]+$",
+              "pattern": "^(?:p4|edge-rs|infer-cpp|control-go|contracts|db|plugin-host-rs|analysis-py|ml-py|web|deploy|docs|testkit|evidence)/[A-Za-z0-9._:/-]+$",
             "not": {
               "pattern": "(?:^|/)\\.\\.(?:/|$)"
             }

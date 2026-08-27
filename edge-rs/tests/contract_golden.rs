@@ -53,7 +53,7 @@ fn fence() -> Fence {
 
 fn pipeline() -> PipelineIdentity {
     PipelineIdentity {
-        p4runtime_api_version: "1.3.0".into(),
+        p4runtime_api_version: "1.4.1".into(),
         p4info_digest: hash('a'),
         device_config_digest: hash('b'),
         profile_digest: hash('c'),
@@ -396,7 +396,7 @@ fn inference_result_record() -> InferenceResultRecord {
         out_of_distribution: false,
         abstain: false,
         quality: "valid".into(),
-        status: "ok".into(),
+        status: "OK".into(),
         error_code: "NONE".into(),
         worker_id: "worker-cpu-golden-0001".into(),
         worker_digest: hash('8'),

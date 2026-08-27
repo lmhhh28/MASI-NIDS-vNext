@@ -1,0 +1,142 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://masi-nids.local/contracts/web/v1/dashboard.schema.json",
+  "title": "MASI-NIDS bounded SOC dashboard snapshot",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "snapshot_id",
+    "snapshot_unix_ms",
+    "generation",
+    "state",
+    "actor_ref",
+    "authorized_scopes",
+    "counts",
+    "recent_alerts",
+    "active_operations",
+    "target_health",
+    "reason_code"
+  ],
+  "properties": {
+    "schema_version": {"const": "masi-web-dashboard/v1"},
+    "snapshot_id": {"$ref": "#/$defs/identity"},
+    "snapshot_unix_ms": {"type": "integer", "minimum": 1},
+    "generation": {"type": "integer", "minimum": 1},
+    "state": {"enum": ["ready", "partial", "stale", "hold"]},
+    "actor_ref": {"$ref": "#/$defs/identity"},
+    "authorized_scopes": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 256,
+      "uniqueItems": true,
+      "items": {"type": "string", "minLength": 1, "maxLength": 256}
+    },
+    "counts": {"$ref": "#/$defs/counts"},
+    "recent_alerts": {
+      "type": "array",
+      "maxItems": 8,
+      "items": {"$ref": "#/$defs/recent_alert"}
+    },
+    "active_operations": {
+      "type": "array",
+      "maxItems": 8,
+      "items": {"$ref": "#/$defs/active_operation"}
+    },
+    "target_health": {
+      "type": "array",
+      "maxItems": 8,
+      "items": {"$ref": "#/$defs/target_health"}
+    },
+    "reason_code": {"$ref": "#/$defs/reason_code"}
+  },
+  "$defs": {
+    "identity": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+    },
+    "reason_code": {
+      "type": "string",
+      "pattern": "^[A-Z][A-Z0-9_]{0,63}$"
+    },
+    "count": {"type": "integer", "minimum": 0},
+    "counts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "events_24h",
+        "alerts_24h",
+        "degraded_events_24h",
+        "open_incidents",
+        "targets_total",
+        "targets_active",
+        "targets_attention",
+        "pending_approvals",
+        "active_effects",
+        "unknown_effects",
+        "model_shards_ready",
+        "model_shards_unavailable",
+        "plugins_active",
+        "analysis_attention"
+      ],
+      "properties": {
+        "events_24h": {"$ref": "#/$defs/count"},
+        "alerts_24h": {"$ref": "#/$defs/count"},
+        "degraded_events_24h": {"$ref": "#/$defs/count"},
+        "open_incidents": {"$ref": "#/$defs/count"},
+        "targets_total": {"$ref": "#/$defs/count"},
+        "targets_active": {"$ref": "#/$defs/count"},
+        "targets_attention": {"$ref": "#/$defs/count"},
+        "pending_approvals": {"$ref": "#/$defs/count"},
+        "active_effects": {"$ref": "#/$defs/count"},
+        "unknown_effects": {"$ref": "#/$defs/count"},
+        "model_shards_ready": {"$ref": "#/$defs/count"},
+        "model_shards_unavailable": {"$ref": "#/$defs/count"},
+        "plugins_active": {"$ref": "#/$defs/count"},
+        "analysis_attention": {"$ref": "#/$defs/count"}
+      }
+    },
+    "recent_alert": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["event_id", "shard_id", "decision", "quality", "predicted_label", "event_time_unix_ms"],
+      "properties": {
+        "event_id": {"$ref": "#/$defs/identity"},
+        "shard_id": {"$ref": "#/$defs/identity"},
+        "decision": {"enum": ["benign", "alert", "abstain"]},
+        "quality": {"enum": ["valid", "partial", "gap", "stale", "invalid", "reset", "not-covered", "not-measurable"]},
+        "predicted_label": {"type": "integer", "minimum": 0, "maximum": 4294967295},
+        "event_time_unix_ms": {"type": "integer", "minimum": 1}
+      }
+    },
+    "active_operation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["effect_intent_id", "operation_id", "target_id", "effect_kind", "risk_level", "claim_state", "deadline_unix_ms", "reason_code"],
+      "properties": {
+        "effect_intent_id": {"$ref": "#/$defs/identity"},
+        "operation_id": {"$ref": "#/$defs/identity"},
+        "target_id": {"$ref": "#/$defs/identity"},
+        "effect_kind": {"$ref": "#/$defs/identity"},
+        "risk_level": {"enum": ["R0", "R1", "R2", "R3"]},
+        "claim_state": {"enum": ["unclaimed", "claimed", "fenced", "executing", "unknown"]},
+        "deadline_unix_ms": {"type": "integer", "minimum": 1},
+        "reason_code": {"$ref": "#/$defs/reason_code"}
+      }
+    },
+    "target_health": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["target_id", "display_name", "lifecycle", "assignment_generation", "lease_expires_at_unix_ms"],
+      "properties": {
+        "target_id": {"$ref": "#/$defs/identity"},
+        "display_name": {"type": "string", "minLength": 1, "maxLength": 256},
+        "lifecycle": {"enum": ["candidate", "verified", "active", "draining", "disabled", "quarantined", "retired"]},
+        "assignment_generation": {"type": ["integer", "null"], "minimum": 1},
+        "lease_expires_at_unix_ms": {"type": ["integer", "null"], "minimum": 1}
+      }
+    }
+  }
+}

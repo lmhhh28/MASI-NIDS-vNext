@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://masi-nids.example/contracts/evidence/offline-ml-central-consumer/v1/schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "module_id", "level", "applicability", "result", "qualification", "validator", "validator_digest", "consumer_result", "identity_negative", "closure_digest_negative", "producer_consumer_model_digest_match", "producer_consumer_closure_digest_match"],
+  "properties": {
+    "schema_version": {"const": "offline-ml-central-consumer-evidence/v1"},
+    "module_id": {"const": "MOD-ML-001"},
+    "level": {"const": "MODULE"},
+    "applicability": {"const": "APPLICABLE"},
+    "result": {"const": "PASS"},
+    "qualification": {"const": "NOT_QUALIFIED"},
+    "validator": {"type": "string", "minLength": 1},
+    "validator_digest": {"$ref": "#/$defs/digest"},
+    "consumer_result": {"type": "object", "required": ["schema_version", "result", "model_digest", "repository_closure_digest"], "properties": {"result": {"const": "PASS"}}},
+    "identity_negative": {"const": {"exit_code": 2, "result": "PASS"}},
+    "closure_digest_negative": {"const": {"exit_code": 2, "result": "PASS"}},
+    "producer_consumer_model_digest_match": {"const": true},
+    "producer_consumer_closure_digest_match": {"const": true}
+  },
+  "$defs": {"digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}}
+}

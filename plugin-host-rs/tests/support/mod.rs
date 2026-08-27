@@ -192,6 +192,23 @@ impl TestEnvironment {
         generation: u64,
         desired_state: &str,
     ) -> Result<BindingEnvelope, Box<dyn std::error::Error>> {
+        self.wasm_statistics_binding_custom(
+            generation,
+            desired_state,
+            &format!("wasm-statistics-revision-{generation}"),
+            "fixture-row-count-v1",
+            &digest("fixture-statistics-definition"),
+        )
+    }
+
+    pub fn wasm_statistics_binding_custom(
+        &self,
+        generation: u64,
+        desired_state: &str,
+        plugin_revision: &str,
+        definition_revision: &str,
+        definition_digest: &str,
+    ) -> Result<BindingEnvelope, Box<dyn std::error::Error>> {
         let artifact_name = format!("wasm-statistics-fixture-{generation}.wasm");
         let artifact = statistics_component()?;
         std::fs::write(
@@ -202,7 +219,7 @@ impl TestEnvironment {
             &self.config,
             BindingInput {
                 plugin_id: WASM_STATISTICS_PLUGIN_ID,
-                plugin_revision: &format!("wasm-statistics-revision-{generation}"),
+                plugin_revision,
                 generation,
                 desired_state,
                 runtime_profile: "wasm-component/v1",
@@ -218,8 +235,8 @@ impl TestEnvironment {
                 }],
                 statistics_definitions: vec![StatisticsDefinitionBinding {
                     definition_id: STATISTICS_DEFINITION_ID.to_owned(),
-                    definition_revision: "fixture-row-count-v1".to_owned(),
-                    definition_digest: digest("fixture-statistics-definition"),
+                    definition_revision: definition_revision.to_owned(),
+                    definition_digest: definition_digest.to_owned(),
                 }],
             },
         )

@@ -1,0 +1,27 @@
+{
+  "schema_version": "masi-profile/v1",
+  "profile_id": "full-deployable-startup-rehearsal/v1",
+  "profile_version": "1.0.0",
+  "status": "project-qualified-rehearsal-only",
+  "purpose": "Start and exercise every first-release deployable candidate without promoting isolated or fixture-assisted boundaries to pairwise or system qualification.",
+  "required_components": [
+    "p4-switch",
+    "edge",
+    "central-inference",
+    "control-postgresql-web",
+    "go-analysis-pairwise",
+    "plugin-host",
+    "plugin-statistics-wasm",
+    "analysis-agent",
+    "offline-ml"
+  ],
+  "command_timeout_seconds": 10800,
+  "maximum_log_bytes_per_component": 33554432,
+  "parallelism": 1,
+  "formal_system_qualification": false,
+  "mandatory_hold_reasons": [
+    "DEPLOYABLES_ARE_NOT_ONE_CONNECTED_INTERNAL_SERVICE_GRAPH",
+    "FORMAL_PAIRWISE_BOUNDARIES_NOT_ALL_EXECUTED",
+    "PRODUCTION_MTLS_OIDC_HA_AND_PROTECTED_BASELINE_NOT_QUALIFIED"
+  ]
+}

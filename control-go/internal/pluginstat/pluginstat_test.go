@@ -157,10 +157,17 @@ func TestValidateArtifactRejections(t *testing.T) {
 
 func TestComputeFrozenInputDigestStable(t *testing.T) {
 	b := InputBundle{
-		BundleID: "bundle-1", DefinitionID: "statdef-1",
-		DefinitionDigest:  "sha256:" + strings.Repeat("a", 64),
-		SourceRevision:    "rev-1",
+		SchemaVersion: "masi-plugin-statistics/v1", RecordType: "input-bundle", RecordID: "bundle-1",
+		RunID: "run-1", RequestDigest: "sha256:" + strings.Repeat("b", 64),
+		PluginID: "plugin.fixture", PluginRevision: "revision-1", ConfigDigest: "sha256:" + strings.Repeat("c", 64),
+		BindingGeneration: 1, DefinitionID: "statdef-1", DefinitionRevision: "statdef-1",
+		DefinitionDigest: "sha256:" + strings.Repeat("a", 64), SourceRevision: "rev-1",
+		SourceProfileDigest: "sha256:" + strings.Repeat("d", 64), SourceGeneration: 1,
+		SourceEpoch: "epoch-1", SourceSequenceStart: 1, SourceSequenceEnd: 2,
+		Coverage: 1, Quality: string(QualityValid), Scope: "tenant:test", DataClassRef: "data-class.internal",
 		WindowStartUnixMS: 1_700_000_000_000, WindowEndUnixMS: 1_700_000_300_000,
+		AsOfUnixMS: 1_700_000_300_000, BytesLimit: 2 * 1024 * 1024, CardinalityLimit: 10000,
+		DeadlineMS: 5000, ActorRef: "control-plugin-statistics", ReasonCode: "INPUT_FROZEN", TraceID: "trace-1",
 		Rows: []map[string]any{
 			{"b": 2, "a": "x"},
 			{"a": "y", "b": 1},
@@ -178,6 +185,23 @@ func TestComputeFrozenInputDigestStable(t *testing.T) {
 	b.Rows[0]["c"] = 3
 	if ComputeFrozenInputDigest(b) == d1 {
 		t.Fatal("content change must change the digest")
+	}
+}
+
+func TestInputBundleGoldenDigestsMatchRustContract(t *testing.T) {
+	raw, err := os.ReadFile("../../../contracts/plugin/statistics/v1/golden/input-bundle-v1.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var bundle InputBundle
+	if err := json.Unmarshal(raw, &bundle); err != nil {
+		t.Fatal(err)
+	}
+	if observed := ComputeFrozenInputDigest(bundle); observed != bundle.FrozenInputDigest {
+		t.Fatalf("semantic frozen digest=%s want=%s", observed, bundle.FrozenInputDigest)
+	}
+	if observed := ComputeInputBundleDigest(bundle); observed != bundle.BundleDigest {
+		t.Fatalf("full bundle digest=%s want=%s", observed, bundle.BundleDigest)
 	}
 }
 

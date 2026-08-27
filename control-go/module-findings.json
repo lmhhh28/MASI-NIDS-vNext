@@ -2,8 +2,8 @@
   "schema_version": "module-findings/v1",
   "module_id": "MOD-CTRL-001",
   "decision_id": "DEC-044",
-  "reviewed_at": "2026-08-20T22:18:11Z",
-  "review_scope": "MOD-CTRL-001 full independent-module re-review: public HTTP/SSE/MCP/A2A/metrics/capture boundaries, governance/firewall/model/target/plugin-statistics fences, PostgreSQL 18 schema and exact target-fleet identity enforcement, generated TypeScript client, supply-chain/vulnerability controls, real process/OCI and fresh module-gate evidence",
+  "reviewed_at": "2026-08-26T19:01:51Z",
+  "review_scope": "MOD-CTRL-001 full independent-module re-review: public HTTP/SSE/MCP/A2A/metrics/capture boundaries, governance/firewall/model/target/plugin-statistics fences, PostgreSQL 18 schema and exact target-fleet identity enforcement, generated TypeScript client, supply-chain/vulnerability controls, real process/OCI, fresh module-gate evidence, and bounded formal-soak sampling jitter validation",
   "findings": [
     {
       "finding_id": "CTRL-E2E-0001",
@@ -219,6 +219,68 @@
       "opened_at": "2026-08-20T22:15:44Z",
       "closed_at": "2026-08-20T22:18:11Z",
       "resolution": "The real PostgreSQL fixture now inserts two namespaced stable target facts before the parent/child fleet vector, uses those exact target IDs throughout waves, proposals and intents, and deletes them only after dependent facts. The focused and full internal PostgreSQL E2E suites pass under fleet_child_target_fk_v21."
+    },
+    {
+      "finding_id": "CTRL-EVIDENCE-0001",
+      "severity": "P1",
+      "status": "CLOSED",
+      "title": "Formal soak validator rejected a valid 10,001 ms first warmup sample as missing window coverage",
+      "requirement_ids": ["MOD-CTRL-001", "TEST-GATE-001", "DEC-044"],
+      "evidence_refs": [
+        "control-go/scripts/validate-soak-evidence.py",
+        "control-go/scripts/test_validate_soak_evidence.py",
+        "control-go/scripts/run-module-gates.sh"
+      ],
+      "opened_at": "2026-08-25T18:56:14Z",
+      "closed_at": "2026-08-25T18:59:10Z",
+      "resolution": "The validator now permits at most 1,000 ms of scheduler jitter on the first nominal 10-second warmup sample while retaining the five-sample minimum, strict monotonic offsets, tail coverage, the 60-second warmup, the 3,600-second qualified window, and all cleanup/error assertions. Unittest positives cover the observed 10,001 ms sample and negatives reject 11,001 ms, missing-tail, post-boundary, and empty sample sets; the tests run inside the existing mandatory unit gate."
+    },
+    {
+      "finding_id": "CTRL-A2A-0001",
+      "severity": "P1",
+      "status": "CLOSED",
+      "title": "Go serialized absent Analysis input collections as null instead of schema-required arrays",
+      "requirement_ids": ["MOD-CTRL-001", "CONTRACT-AGENT-001", "TEST-GATE-001"],
+      "evidence_refs": [
+        "control-go/internal/a2a/types.go",
+        "control-go/internal/a2a/types_test.go",
+        "control-go/tests/real_analysis_pairwise/real_analysis_pairwise_test.go",
+        "evidence/pairwise-rehearsal/p11-go-analysis/20260827T031000Z-rehearsal-010/summary.json"
+      ],
+      "opened_at": "2026-08-26T18:40:00Z",
+      "closed_at": "2026-08-26T18:44:41Z",
+      "resolution": "Canonical input digest and validation now normalize all seven collection fields to empty arrays before JSON encoding. The real Control Core to real Analysis process rehearsal accepts the wire and persists one bounded non-executable Artifact."
+    },
+    {
+      "finding_id": "CTRL-A2A-0002",
+      "severity": "P2",
+      "status": "CLOSED",
+      "title": "A2A client discarded the peer's closed error code on bounded non-200 responses",
+      "requirement_ids": ["MOD-CTRL-001", "CONTRACT-AGENT-001", "OBS-001"],
+      "evidence_refs": [
+        "control-go/internal/a2a/client.go",
+        "control-go/internal/a2a/types_test.go",
+        "evidence/pairwise-rehearsal/p11-go-analysis/20260827T025600Z-rehearsal-007/go-test.log"
+      ],
+      "opened_at": "2026-08-26T18:39:00Z",
+      "closed_at": "2026-08-26T18:42:00Z",
+      "resolution": "The client now parses only exact masi-a2a-error/v1 responses and retains a bounded uppercase error_code while never echoing the untrusted peer message. Positive and hostile code tests pass."
+    },
+    {
+      "finding_id": "CTRL-API-0001",
+      "severity": "P1",
+      "status": "CLOSED",
+      "title": "Managed Targets projection omitted endpoint, assignment, readback and drift facts required by Web",
+      "requirement_ids": ["MOD-CTRL-001", "FUNC-TARGET-FLEET-001", "FUNC-API-001"],
+      "evidence_refs": [
+        "control-go/internal/api/router.go",
+        "web/src/api/resources.ts",
+        "testkit/system/web-control-pairwise.mjs",
+        "evidence/pairwise-rehearsal/p9-web-control/20260827T021100Z-rehearsal-007/pairwise-rehearsal.json"
+      ],
+      "opened_at": "2026-08-26T17:54:00Z",
+      "closed_at": "2026-08-26T18:01:32Z",
+      "resolution": "The bounded scope-filtered projection now includes display and endpoint attributes, latest assignment/lease, application generation, P4Info/profile readback, freshness, explicit desired-versus-observed alignment and latest lifecycle audit without exposing credential material."
     }
   ]
 }

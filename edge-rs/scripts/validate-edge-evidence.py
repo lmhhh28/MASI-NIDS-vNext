@@ -167,8 +167,9 @@ def current_source_tree_digest(repo: Path) -> str:
             "--numeric-owner",
             "--exclude=edge-rs/target",
             "--exclude=edge-rs/evidence",
-            "--exclude=edge-rs/**/__pycache__",
-            "--exclude=contracts/**/__pycache__",
+            "--exclude=**/node_modules",
+            "--exclude=**/__pycache__",
+            "--exclude=*.pyc",
             "-cf",
             str(archive),
             "-C",
@@ -906,7 +907,12 @@ def validate_child_evidence(
     else:
         predicate = CompletionDeriver.supply_predicate
         if result in {"PASS", "HOLD"}:
-            expected_holds = ["DIRTY_WORKTREE_NOT_RELEASE_BASELINE"] if dirty else []
+            findings = evidence.get("trivy", {}).get("findings", {})
+            expected_holds = []
+            if isinstance(findings, dict) and findings.get("unfixed_high"):
+                expected_holds.append("UNFIXED_HIGH_REQUIRES_OWNER_EXCEPTION")
+            if dirty:
+                expected_holds.append("DIRTY_WORKTREE_NOT_RELEASE_BASELINE")
             if evidence.get("hold_reasons") != expected_holds:
                 raise EvidenceError("supply hold reasons do not match its source state")
             manifest = require_child_file(artifact_root, "release-manifest.json")
