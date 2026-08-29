@@ -45,6 +45,32 @@ func TestSessionCookieFlags(t *testing.T) {
 	}
 }
 
+func TestValidateRollbackShardSelectionBindsOriginalGroup(t *testing.T) {
+	original := []byte(`["shard-a","shard-b","shard-c"]`)
+	requested := []string{"shard-c", "shard-a"}
+	if err := validateRollbackShardSelection(original, requested, targetSetDigest(requested)); err != nil {
+		t.Fatalf("valid rollback subset rejected: %v", err)
+	}
+
+	for name, tc := range map[string]struct {
+		original  []byte
+		requested []string
+		digest    string
+	}{
+		"outside-original-group": {original: original, requested: []string{"shard-a", "shard-x"}, digest: targetSetDigest([]string{"shard-a", "shard-x"})},
+		"duplicate-request":      {original: original, requested: []string{"shard-a", "shard-a"}, digest: targetSetDigest([]string{"shard-a", "shard-a"})},
+		"wrong-digest":           {original: original, requested: requested, digest: targetSetDigest([]string{"shard-a"})},
+		"invalid-original":       {original: []byte(`{"not":"an array"}`), requested: requested, digest: targetSetDigest(requested)},
+		"duplicate-original":     {original: []byte(`["shard-a","shard-a"]`), requested: []string{"shard-a"}, digest: targetSetDigest([]string{"shard-a"})},
+	} {
+		t.Run(name, func(t *testing.T) {
+			if err := validateRollbackShardSelection(tc.original, tc.requested, tc.digest); err == nil {
+				t.Fatal("unsafe rollback shard selection accepted")
+			}
+		})
+	}
+}
+
 func TestClearSessionCookiePreservesSecurityAttributes(t *testing.T) {
 	rec := httptest.NewRecorder()
 	ClearSessionCookie(rec, true)
@@ -356,7 +382,7 @@ func TestHubFiltersInvalidationsByAuthorizedScope(t *testing.T) {
 	}
 	select {
 	case ev := <-a:
-		if ev.ResourceID != "evt-a" || ev.Sequence == 0 || ev.Generation == 0 || ev.Cursor == "" || ev.PayloadDigest == "" {
+		if ev.ResourceID != "evt-a" || ev.Sequence != 1 || ev.Generation == 0 || ev.Cursor == "" || ev.PayloadDigest == "" {
 			t.Fatalf("incomplete scoped event: %+v", ev)
 		}
 	default:
@@ -366,6 +392,33 @@ func TestHubFiltersInvalidationsByAuthorizedScope(t *testing.T) {
 	case ev := <-b:
 		t.Fatalf("cross-scope invalidation leaked: %+v", ev)
 	default:
+	}
+	if err := h.PublishScoped(ResEvent, "evt-b", "scope-b", 1, 1); err != nil {
+		t.Fatal(err)
+	}
+	if err := h.PublishScoped(ResEvent, "evt-a-2", "scope-a", 1, 1); err != nil {
+		t.Fatal(err)
+	}
+	if ev := <-b; ev.ResourceID != "evt-b" || ev.Sequence != 1 {
+		t.Fatalf("scope-b sequence includes unauthorized events: %+v", ev)
+	}
+	if ev := <-a; ev.ResourceID != "evt-a-2" || ev.Sequence != 2 {
+		t.Fatalf("scope-a sequence is not subscriber-contiguous: %+v", ev)
+	}
+
+	multi, err := h.Subscribe([]string{"scope-a", "scope-b"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer h.Unsubscribe(multi)
+	if err := h.PublishScoped(ResEvent, "evt-a-3", "scope-a", 1, 1); err != nil {
+		t.Fatal(err)
+	}
+	if err := h.PublishScoped(ResEvent, "evt-b-2", "scope-b", 1, 1); err != nil {
+		t.Fatal(err)
+	}
+	if first, second := <-multi, <-multi; first.Sequence != 1 || second.Sequence != 2 {
+		t.Fatalf("multi-scope subscriber sequence is not contiguous: first=%+v second=%+v", first, second)
 	}
 }
 
@@ -382,6 +435,28 @@ func TestSessionWatcherClosesOnLogout(t *testing.T) {
 	case <-revoked:
 	default:
 		t.Fatal("logout must close long-lived session transports immediately")
+	}
+}
+
+func TestSessionWatcherClosesAtExpiryWithoutAnotherRequest(t *testing.T) {
+	st := NewSessionStore()
+	st.ttl = 25 * time.Millisecond
+	session, err := st.Create(actorClaims{Issuer: "https://idp.example", Subject: "expiry-user"}, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	expired, cancel, ok := st.WatchSession(session.ID)
+	if !ok {
+		t.Fatal("live session watcher rejected")
+	}
+	defer cancel()
+	select {
+	case <-expired:
+	case <-time.After(time.Second):
+		t.Fatal("session watcher stayed open after absolute expiry")
+	}
+	if _, ok := st.Get(session.ID); ok {
+		t.Fatal("expired watched session remained in the store")
 	}
 }
 

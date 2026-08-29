@@ -294,7 +294,11 @@ publish_latest() {
   latest_temporary="$(mktemp "${evidence_base}/.latest.${run_id}.XXXXXX")" || return 1
   if ! jq -n --arg run_id "${run_id}" --arg evidence "runs/${run_id}/gate-summary.json" \
     --arg digest "${summary_digest}" \
-    '{schema_version:"control-core-module-gate-latest/v1",run_id:$run_id,evidence:$evidence,digest:$digest}' \
+    --arg source_revision "${source_revision}" --arg source_tree_digest "${source_tree_digest}" \
+    --arg working_tree_status_digest "${working_tree_status_digest}" \
+    '{schema_version:"control-core-module-gate-latest/v1",run_id:$run_id,evidence:$evidence,digest:$digest,
+      source_revision:$source_revision,source_tree_digest:$source_tree_digest,
+      working_tree_status_digest:$working_tree_status_digest}' \
     >"${latest_temporary}" \
     || [[ -L "${evidence_base}/latest.json" ]] \
     || ! mv -T -- "${latest_temporary}" "${evidence_base}/latest.json"; then
@@ -537,10 +541,10 @@ if [[ "${blackbox_e2e_result}" == "FAIL" ]]; then
   overall_status="FAIL"
 fi
 
-conditional_applicability="$(jq -c '.conditional_applicability' \
-  "${ctrl_root}/requirements-traceability.json" 2>/dev/null || printf '[]\n')"
-requirement_ids="$(jq -c '[.requirements[].requirement_id]' \
-  "${ctrl_root}/requirements-traceability.json" 2>/dev/null || printf '["MOD-CTRL-001"]\n')"
+conditional_applicability="$(jq -ec '.conditional_applicability | if type == "array" then . else error("conditional_applicability") end' \
+  "${ctrl_root}/requirements-traceability.json")" || { echo "traceability manifest applicability is missing or invalid" >&2; exit 1; }
+requirement_ids="$(jq -ec '[.requirements[].requirement_id] | if length > 0 and all(.[]; type == "string") then . else error("requirement_ids") end' \
+  "${ctrl_root}/requirements-traceability.json")" || { echo "traceability manifest requirement IDs are missing or invalid" >&2; exit 1; }
 
 module_complete=true
 

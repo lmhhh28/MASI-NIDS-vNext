@@ -2,6 +2,7 @@
 
 use std::collections::{BTreeMap, HashMap, VecDeque};
 use std::sync::Arc;
+use std::sync::Mutex as StdMutex;
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
@@ -69,6 +70,27 @@ struct CachedStatisticsReply {
     reply: StatisticsExecutionReply,
 }
 
+struct StatisticsInFlight {
+    request_digest: String,
+    completed: AtomicBool,
+    notify: tokio::sync::Notify,
+}
+
+impl StatisticsInFlight {
+    async fn wait_completed(&self) {
+        let notified = self.notify.notified();
+        tokio::pin!(notified);
+        loop {
+            notified.as_mut().enable();
+            if self.completed.load(Ordering::Acquire) {
+                return;
+            }
+            notified.as_mut().await;
+            notified.set(self.notify.notified());
+        }
+    }
+}
+
 struct CircuitState {
     consecutive_failures: u32,
     open_until: Option<Instant>,
@@ -113,11 +135,12 @@ struct BindingRuntime {
     queued: AtomicU32,
     in_flight: AtomicU32,
     circuit: Mutex<CircuitState>,
-    invocations: Mutex<HashMap<String, Arc<InvocationControl>>>,
+    invocations: StdMutex<HashMap<String, Arc<InvocationControl>>>,
     dedupe: Mutex<BTreeMap<String, CachedReply>>,
     dedupe_order: Mutex<VecDeque<String>>,
     statistics_dedupe: Mutex<BTreeMap<String, CachedStatisticsReply>>,
     statistics_dedupe_order: Mutex<VecDeque<String>>,
+    statistics_in_flight: StdMutex<HashMap<String, Arc<StatisticsInFlight>>>,
 }
 
 struct BindingControl {
@@ -297,11 +320,12 @@ impl HostState {
             queued: AtomicU32::new(0),
             in_flight: AtomicU32::new(0),
             circuit: Mutex::new(CircuitState::new()),
-            invocations: Mutex::new(HashMap::new()),
+            invocations: StdMutex::new(HashMap::new()),
             dedupe: Mutex::new(BTreeMap::new()),
             dedupe_order: Mutex::new(VecDeque::new()),
             statistics_dedupe: Mutex::new(BTreeMap::new()),
             statistics_dedupe_order: Mutex::new(VecDeque::new()),
+            statistics_in_flight: StdMutex::new(HashMap::new()),
         });
         self.bindings
             .write()
@@ -680,17 +704,16 @@ impl HostState {
             self.metrics.record_deduplicated();
             return Ok(cached.reply);
         }
-        if binding
-            .invocations
-            .lock()
-            .await
-            .contains_key(&request.invocation_id)
-        {
-            return Err(HostError::new(
-                ReasonCode::IdempotencyConflict,
-                "same invocation is already in flight",
-            ));
-        }
+        let control = InvocationControl::new();
+        reserve_invocation(
+            &binding.invocations,
+            &request.invocation_id,
+            control.clone(),
+        )?;
+        let _invocation_reservation = InvocationReservation {
+            binding: binding.clone(),
+            invocation_id: request.invocation_id.clone(),
+        };
         self.check_circuit(&binding).await?;
 
         let global_permit = self
@@ -737,21 +760,9 @@ impl HostState {
         let mut runtime_request = request.clone();
         runtime_request.deadline_ms =
             u32::try_from(remaining.as_millis().max(1)).unwrap_or(u32::MAX);
-        binding.in_flight.fetch_add(1, Ordering::AcqRel);
-        let control = InvocationControl::new();
-        binding
-            .invocations
-            .lock()
-            .await
-            .insert(request.invocation_id.clone(), control.clone());
+        let _in_flight_slot = InFlightSlot::new(binding.clone());
         let started = Instant::now();
         let result = binding.runtime.execute(&runtime_request, control).await;
-        binding
-            .invocations
-            .lock()
-            .await
-            .remove(&request.invocation_id);
-        binding.in_flight.fetch_sub(1, Ordering::AcqRel);
         drop(execution_permit);
         drop(global_permit);
 
@@ -988,7 +999,9 @@ impl HostState {
             .get(&key)
             .cloned()
             .ok_or_else(|| HostError::new(ReasonCode::Unavailable, "binding not found"))?;
-        let control = binding.invocations.lock().await.get(invocation_id).cloned();
+        let control = lock_invocations(&binding.invocations)
+            .get(invocation_id)
+            .cloned();
         if let Some(control) = control {
             control.interrupt(if epoch_fault {
                 InterruptReason::Epoch
@@ -1084,7 +1097,10 @@ impl HostState {
             tokio::time::sleep(Duration::from_millis(10)).await;
         }
         if binding.in_flight.load(Ordering::Acquire) > 0 {
-            let controls: Vec<_> = binding.invocations.lock().await.values().cloned().collect();
+            let controls: Vec<_> = lock_invocations(&binding.invocations)
+                .values()
+                .cloned()
+                .collect();
             for control in controls {
                 control.interrupt(InterruptReason::Cancelled);
             }
@@ -1136,7 +1152,10 @@ impl HostState {
         if self.active.read().await.get(plugin_id).copied() == Some(generation) {
             self.active.write().await.remove(plugin_id);
         }
-        let controls: Vec<_> = binding.invocations.lock().await.values().cloned().collect();
+        let controls: Vec<_> = lock_invocations(&binding.invocations)
+            .values()
+            .cloned()
+            .collect();
         for control in controls {
             control.interrupt(InterruptReason::Cancelled);
         }
@@ -1273,22 +1292,45 @@ impl HostState {
             ));
         }
         let statistics_request_digest = sha256_bytes(&prost::Message::encode_to_vec(&request));
-        if let Some(cached) = binding
-            .statistics_dedupe
-            .lock()
-            .await
-            .get(&request.run_id)
-            .cloned()
-        {
-            if cached.request_digest != statistics_request_digest {
-                return Err(HostError::new(
-                    ReasonCode::IdempotencyConflict,
-                    "same statistics run id has a different request identity",
-                ));
+        let _statistics_reservation = loop {
+            // A cached success is still subject to the current lease and active
+            // binding. Serialize this read with lifecycle mutations so revoke,
+            // drain, rollback or trust reconciliation cannot race the reply.
+            let wait_for = {
+                let _lifecycle = self.lifecycle.lock().await;
+                self.ensure_statistics_execution_eligible(
+                    &key,
+                    &binding,
+                    &request,
+                    &bound_definition_revision,
+                )
+                .await?;
+                if let Some(cached) = binding
+                    .statistics_dedupe
+                    .lock()
+                    .await
+                    .get(&request.run_id)
+                    .cloned()
+                {
+                    if cached.request_digest != statistics_request_digest {
+                        return Err(HostError::new(
+                            ReasonCode::IdempotencyConflict,
+                            "same statistics run id has a different request identity",
+                        ));
+                    }
+                    self.metrics.record_deduplicated();
+                    return Ok(cached.reply);
+                }
+                match reserve_statistics_run(&binding, &request.run_id, &statistics_request_digest)?
+                {
+                    StatisticsRunAdmission::Owner(reservation) => break reservation,
+                    StatisticsRunAdmission::Wait(in_flight) => Some(in_flight),
+                }
+            };
+            if let Some(in_flight) = wait_for {
+                in_flight.wait_completed().await;
             }
-            self.metrics.record_deduplicated();
-            return Ok(cached.reply);
-        }
+        };
         let frozen = validate_input_bundle(
             &request.input_bundle_json,
             &InputBundleValidationContext {
@@ -1321,13 +1363,29 @@ impl HostState {
             binding_epoch: binding.validated.envelope.binding_epoch.clone(),
             capability_id: "plugin.statistics.execute".to_owned(),
             input_digest: request.frozen_input_digest.clone(),
-            input: request.input_bundle_json,
+            input: request.input_bundle_json.clone(),
             deadline_ms: request.deadline_ms,
             result_fence: request.result_fence.clone(),
             trace_id: request.trace_id.clone(),
             execution_mode: "active".to_owned(),
         };
         let raw_reply = self.execute_inner(execute_request, false).await?;
+        // Runtime success is not a statistics success until the lease and
+        // exact active binding are revalidated. Lifecycle serialization closes
+        // the result-publication race with revoke/drain/rollback/reconcile.
+        let _lifecycle = self.lifecycle.lock().await;
+        if let Err(error) = self
+            .ensure_statistics_execution_eligible(
+                &key,
+                &binding,
+                &request,
+                &bound_definition_revision,
+            )
+            .await
+        {
+            self.evict_execute_reply(&binding, &request.run_id).await;
+            return Err(error);
+        }
         let artifact = finalize_artifact(
             &raw_reply.output,
             &binding.validated,
@@ -1366,6 +1424,71 @@ impl HostState {
         )
         .await;
         Ok(reply)
+    }
+
+    async fn ensure_statistics_execution_eligible(
+        &self,
+        key: &BindingKey,
+        binding: &BindingRuntime,
+        request: &StatisticsExecutionRequest,
+        definition_revision: &str,
+    ) -> HostResult<()> {
+        let now = unix_ms();
+        if self.shutting_down.load(Ordering::Acquire) || request.expires_at_unix_ms < now {
+            return Err(HostError::new(
+                ReasonCode::Fenced,
+                "statistics result lease expired before publication",
+            ));
+        }
+        if key.1 != request.binding_generation
+            || binding.validated.envelope.binding_generation != request.binding_generation
+            || binding.validated.envelope.scope != request.scope
+        {
+            return Err(HostError::new(
+                ReasonCode::Fenced,
+                "statistics result binding identity changed before publication",
+            ));
+        }
+        let control = binding.control.read().await;
+        if now > control.expires_at_unix_ms
+            || now.saturating_sub(control.revocation_checked_at_unix_ms)
+                > self.config.trust.revocation_max_age_ms
+        {
+            return Err(HostError::new(
+                ReasonCode::Fenced,
+                "statistics result trust lease is no longer current",
+            ));
+        }
+        drop(control);
+        if binding.phase().await != ObservedPhase::Active
+            || self.active.read().await.get(&key.0).copied() != Some(key.1)
+        {
+            return Err(HostError::new(
+                ReasonCode::Fenced,
+                "statistics result binding is no longer active",
+            ));
+        }
+        let expected = (
+            key.clone(),
+            definition_revision.to_owned(),
+            request.definition_digest.clone(),
+        );
+        if self.definitions.read().await.get(&request.definition_id) != Some(&expected) {
+            return Err(HostError::new(
+                ReasonCode::Fenced,
+                "statistics definition binding changed before publication",
+            ));
+        }
+        Ok(())
+    }
+
+    async fn evict_execute_reply(&self, binding: &BindingRuntime, invocation_id: &str) {
+        binding.dedupe.lock().await.remove(invocation_id);
+        binding
+            .dedupe_order
+            .lock()
+            .await
+            .retain(|value| value != invocation_id);
     }
 
     async fn cache_statistics_reply(
@@ -1434,7 +1557,10 @@ impl HostState {
                 }
                 self.release_definitions(&key, &binding.validated.envelope.statistics_definitions)
                     .await;
-                let controls: Vec<_> = binding.invocations.lock().await.values().cloned().collect();
+                let controls: Vec<_> = lock_invocations(&binding.invocations)
+                    .values()
+                    .cloned()
+                    .collect();
                 for control in controls {
                     control.interrupt(InterruptReason::Cancelled);
                 }
@@ -1817,6 +1943,130 @@ fn increment_bounded(counter: &AtomicU32, limit: u32) -> HostResult<QueueSlot<'_
         .map_err(|_| HostError::new(ReasonCode::ResourceExhausted, "per-binding queue is full"))
 }
 
+type InvocationMap = HashMap<String, Arc<InvocationControl>>;
+
+fn lock_invocations(
+    invocations: &StdMutex<InvocationMap>,
+) -> std::sync::MutexGuard<'_, InvocationMap> {
+    invocations
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+}
+
+fn reserve_invocation(
+    invocations: &StdMutex<InvocationMap>,
+    invocation_id: &str,
+    control: Arc<InvocationControl>,
+) -> HostResult<()> {
+    // Generic execute deliberately rejects an in-flight duplicate. One owner
+    // executes, concurrent duplicates receive IDEMPOTENCY_CONFLICT, and only
+    // a later request may replay the completed bounded success cache. Durable
+    // statistics runs use their stronger owner/waiter policy below.
+    match lock_invocations(invocations).entry(invocation_id.to_owned()) {
+        std::collections::hash_map::Entry::Occupied(_) => Err(HostError::new(
+            ReasonCode::IdempotencyConflict,
+            "same invocation is already in flight",
+        )),
+        std::collections::hash_map::Entry::Vacant(entry) => {
+            entry.insert(control);
+            Ok(())
+        }
+    }
+}
+
+struct InvocationReservation {
+    binding: Arc<BindingRuntime>,
+    invocation_id: String,
+}
+
+enum StatisticsRunAdmission {
+    Owner(StatisticsRunReservation),
+    Wait(Arc<StatisticsInFlight>),
+}
+
+struct StatisticsRunReservation {
+    binding: Arc<BindingRuntime>,
+    run_id: String,
+    in_flight: Arc<StatisticsInFlight>,
+}
+
+struct InFlightSlot {
+    binding: Arc<BindingRuntime>,
+}
+
+impl InFlightSlot {
+    fn new(binding: Arc<BindingRuntime>) -> Self {
+        binding.in_flight.fetch_add(1, Ordering::AcqRel);
+        Self { binding }
+    }
+}
+
+impl Drop for InFlightSlot {
+    fn drop(&mut self) {
+        self.binding.in_flight.fetch_sub(1, Ordering::AcqRel);
+    }
+}
+
+impl Drop for InvocationReservation {
+    fn drop(&mut self) {
+        lock_invocations(&self.binding.invocations).remove(&self.invocation_id);
+    }
+}
+
+fn reserve_statistics_run(
+    binding: &Arc<BindingRuntime>,
+    run_id: &str,
+    request_digest: &str,
+) -> HostResult<StatisticsRunAdmission> {
+    let mut in_flight = binding
+        .statistics_in_flight
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    match in_flight.entry(run_id.to_owned()) {
+        std::collections::hash_map::Entry::Occupied(entry) => {
+            if entry.get().request_digest != request_digest {
+                return Err(HostError::new(
+                    ReasonCode::IdempotencyConflict,
+                    "same statistics run id is in flight with a different request identity",
+                ));
+            }
+            Ok(StatisticsRunAdmission::Wait(entry.get().clone()))
+        }
+        std::collections::hash_map::Entry::Vacant(entry) => {
+            let state = Arc::new(StatisticsInFlight {
+                request_digest: request_digest.to_owned(),
+                completed: AtomicBool::new(false),
+                notify: tokio::sync::Notify::new(),
+            });
+            entry.insert(state.clone());
+            Ok(StatisticsRunAdmission::Owner(StatisticsRunReservation {
+                binding: binding.clone(),
+                run_id: run_id.to_owned(),
+                in_flight: state,
+            }))
+        }
+    }
+}
+
+impl Drop for StatisticsRunReservation {
+    fn drop(&mut self) {
+        self.in_flight.completed.store(true, Ordering::Release);
+        let mut in_flight = self
+            .binding
+            .statistics_in_flight
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        if in_flight
+            .get(&self.run_id)
+            .is_some_and(|value| Arc::ptr_eq(value, &self.in_flight))
+        {
+            in_flight.remove(&self.run_id);
+        }
+        drop(in_flight);
+        self.in_flight.notify.notify_waiters();
+    }
+}
+
 fn observation_digest(observation: &BindingObservation) -> String {
     let mut canonical = observation.clone();
     canonical.observation_digest.clear();
@@ -1849,5 +2099,48 @@ mod tests {
         assert!(increment_bounded(&counter, 1).is_err());
         drop(first);
         assert!(increment_bounded(&counter, 1).is_ok());
+    }
+
+    #[test]
+    fn invocation_identity_reservation_is_atomic() {
+        let invocations = Arc::new(StdMutex::new(HashMap::new()));
+        let barrier = Arc::new(std::sync::Barrier::new(32));
+        let successes = Arc::new(AtomicU32::new(0));
+        let conflicts = Arc::new(AtomicU32::new(0));
+        let unexpected = Arc::new(AtomicU32::new(0));
+        let threads: Vec<_> = (0..32)
+            .map(|_| {
+                let invocations = invocations.clone();
+                let barrier = barrier.clone();
+                let successes = successes.clone();
+                let conflicts = conflicts.clone();
+                let unexpected = unexpected.clone();
+                std::thread::spawn(move || {
+                    barrier.wait();
+                    match reserve_invocation(
+                        &invocations,
+                        "same-invocation",
+                        InvocationControl::new(),
+                    ) {
+                        Ok(()) => {
+                            successes.fetch_add(1, Ordering::AcqRel);
+                        }
+                        Err(error) if error.reason == ReasonCode::IdempotencyConflict => {
+                            conflicts.fetch_add(1, Ordering::AcqRel);
+                        }
+                        Err(_) => {
+                            unexpected.fetch_add(1, Ordering::AcqRel);
+                        }
+                    }
+                })
+            })
+            .collect();
+        for thread in threads {
+            assert!(thread.join().is_ok(), "reservation worker panicked");
+        }
+        assert_eq!(1, successes.load(Ordering::Acquire));
+        assert_eq!(31, conflicts.load(Ordering::Acquire));
+        assert_eq!(0, unexpected.load(Ordering::Acquire));
+        assert_eq!(1, lock_invocations(&invocations).len());
     }
 }

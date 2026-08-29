@@ -92,6 +92,26 @@ def semantic_telemetry(value: dict[str, Any]) -> list[str]:
         "bytes": sum(cell["bytes"] for cell in value["cells"]),
     }:
         failures.append("TELEMETRY-AGGREGATE-SUM")
+    if (
+        len(
+            {
+                value["source_profile_digest"],
+                profile["selector_seed_digest"],
+                value["sampling"]["seed_digest"],
+            }
+        )
+        != 1
+    ):
+        failures.append("TELEMETRY-SELECTOR-SEED")
+    for cell in value["cells"]:
+        preimage = (
+            f"{value['target_id']}\0{value['source_profile_digest']}\0"
+            f"{value['epoch']}\0{cell['index']}"
+        ).encode()
+        expected = "sha256:" + hashlib.sha256(preimage).hexdigest()
+        if cell["selector_digest"] != expected:
+            failures.append("TELEMETRY-CELL-SELECTOR-DIGEST")
+            break
     return failures
 
 
@@ -341,6 +361,8 @@ def main() -> int:
         "TELEMETRY-SNAPSHOT-BANK",
         "TELEMETRY-CELL-CARDINALITY",
         "TELEMETRY-AGGREGATE-SUM",
+        "TELEMETRY-SELECTOR-SEED",
+        "TELEMETRY-CELL-SELECTOR-DIGEST",
     }
     if constraint_ids(
         telemetry_schema
@@ -362,6 +384,18 @@ def main() -> int:
     ]
     require_semantic_failure(
         semantic_telemetry, telemetry_bad_window, "TELEMETRY-WINDOW-TIME"
+    )
+    telemetry_bad_seed = copy.deepcopy(telemetry)
+    telemetry_bad_seed["sampling"]["seed_digest"] = "sha256:" + "0" * 64
+    require_semantic_failure(
+        semantic_telemetry, telemetry_bad_seed, "TELEMETRY-SELECTOR-SEED"
+    )
+    telemetry_bad_selector = copy.deepcopy(telemetry)
+    telemetry_bad_selector["cells"][0]["selector_digest"] = "sha256:" + "0" * 64
+    require_semantic_failure(
+        semantic_telemetry,
+        telemetry_bad_selector,
+        "TELEMETRY-CELL-SELECTOR-DIGEST",
     )
     telemetry_bad_bank = copy.deepcopy(telemetry)
     telemetry_bad_bank["snapshot"]["active_bank_after_flip"] = telemetry_bad_bank[
@@ -487,7 +521,11 @@ def main() -> int:
     reject(traceability_schema, traceability_media, "traceability unknown media type")
     traceability_profile = copy.deepcopy(traceability)
     traceability_profile["conditional_applicability"][0]["profile"] = "fake-profile/v1"
-    reject(traceability_schema, traceability_profile, "traceability unknown conditional profile")
+    reject(
+        traceability_schema,
+        traceability_profile,
+        "traceability unknown conditional profile",
+    )
     traceability_conditional_duplicate = copy.deepcopy(traceability)
     traceability_conditional_duplicate["conditional_applicability"][3] = copy.deepcopy(
         traceability_conditional_duplicate["conditional_applicability"][0]
@@ -557,8 +595,8 @@ def main() -> int:
         "edge-module missing frozen artifact digest",
     )
     edge_module_extra_artifact = copy.deepcopy(edge_module)
-    edge_module_extra_artifact["artifact_digests"]["unbound_artifact"] = (
-        "sha256:" + ("0" * 64)
+    edge_module_extra_artifact["artifact_digests"]["unbound_artifact"] = "sha256:" + (
+        "0" * 64
     )
     reject(
         edge_module_schema,
@@ -580,9 +618,7 @@ def main() -> int:
         "edge-module missing executed gate",
     )
     edge_module_missing_qualification = copy.deepcopy(edge_module)
-    edge_module_missing_qualification["qualification_gates"].pop(
-        "absolute_performance"
-    )
+    edge_module_missing_qualification["qualification_gates"].pop("absolute_performance")
     reject(
         edge_module_schema,
         edge_module_missing_qualification,
@@ -629,7 +665,9 @@ def main() -> int:
         "edge-module COMPLETE with blocker",
     )
     edge_module_missing_completion_digest = copy.deepcopy(edge_module)
-    edge_module_missing_completion_digest["completion"]["evidence_digests"]["oci"] = None
+    edge_module_missing_completion_digest["completion"]["evidence_digests"]["oci"] = (
+        None
+    )
     reject(
         edge_module_schema,
         edge_module_missing_completion_digest,

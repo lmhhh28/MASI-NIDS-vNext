@@ -40,6 +40,32 @@ func TestValidateDefinitionAccepts(t *testing.T) {
 	}
 }
 
+func TestPostCommitHookIsExplicitAndBounded(t *testing.T) {
+	service := NewService(nil)
+	called := 0
+	service.SetPostCommitHook(func(token ClaimToken, artifact Artifact) {
+		called++
+		if token.RunID != "run-1" || artifact.ArtifactID != "artifact-1" {
+			t.Fatalf("unexpected hook identity: token=%+v artifact=%+v", token, artifact)
+		}
+	})
+	service.notifyRunCommitted(ClaimToken{RunID: "run-1"}, Artifact{ArtifactID: "artifact-1"})
+	if called != 1 {
+		t.Fatalf("post-commit hook count=%d", called)
+	}
+}
+
+func TestDigestSentinelIsRejectedAcrossStatisticsValidators(t *testing.T) {
+	if digestRE.MatchString("sha256:" + strings.Repeat("0", 64)) {
+		t.Fatal("all-zero statistics digest accepted")
+	}
+	definition := validDefinition()
+	definition.DefinitionDigest = "sha256:" + strings.Repeat("0", 64)
+	if err := ValidateDefinition(definition); err == nil {
+		t.Fatal("all-zero definition digest accepted")
+	}
+}
+
 func TestExternalSourceProvenanceExactCapabilityFence(t *testing.T) {
 	d := "sha256:" + strings.Repeat("a", 64)
 	provenance := &ExternalSourceProvenance{CapabilityID: "approved-ext-cap", RequestDigest: d,

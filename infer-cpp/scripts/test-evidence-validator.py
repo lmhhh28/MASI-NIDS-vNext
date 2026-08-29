@@ -5,7 +5,9 @@ from __future__ import annotations
 
 import copy
 import json
+import re
 import runpy
+import tempfile
 from pathlib import Path
 from typing import Any, Callable
 
@@ -30,6 +32,14 @@ def main() -> int:
     validate_module = library["validate_module"]
     sha256 = library["sha256"]
 
+    with tempfile.TemporaryDirectory(
+        prefix="masi-inference-evidence-negative."
+    ) as temporary:
+        duplicate = Path(temporary) / "duplicate.json"
+        duplicate.write_text('{"result":"PASS","result":"FAIL"}', encoding="utf-8")
+        if not rejected(lambda: load_object(duplicate)):
+            raise AssertionError("duplicate JSON member was accepted")
+
     supply_schema = load_object(
         repo / "contracts/evidence/central-inference-supply/v1/schema.json"
     )
@@ -37,6 +47,12 @@ def main() -> int:
         repo / "contracts/golden/evidence/central-inference-supply-verification-v1.json"
     )
     validate_schema(supply_schema, supply)
+    oci_schema = load_object(
+        repo / "contracts/evidence/central-inference-oci/v1/schema.json"
+    )
+    triton_pattern = oci_schema["properties"]["triton_image"]["pattern"]
+    if re.fullmatch(triton_pattern, "triton@sha256:" + "0" * 64):
+        raise AssertionError("Central OCI schema accepted an all-zero Triton digest")
     bad_supply = copy.deepcopy(supply)
     bad_supply["signature"]["valid"] = False
     if not rejected(lambda: validate_schema(supply_schema, bad_supply)):
@@ -145,17 +161,21 @@ def main() -> int:
     )
     validate_module(module)
     bad_module = copy.deepcopy(module)
-    bad_module["qualification_gates"]["formal_soak_3600_seconds"][
-        "evidence_digest"
-    ] = "sha256:" + "1" * 64
+    bad_module["qualification_gates"]["formal_soak_3600_seconds"]["evidence_digest"] = (
+        "sha256:" + "2" * 64
+    )
     if not rejected(lambda: validate_module(bad_module)):
         raise AssertionError("module completion accepted an unbound formal soak digest")
+    bad_module = copy.deepcopy(module)
+    bad_module["artifact_digests"]["release_binary"] = "sha256:" + "0" * 64
+    if not rejected(lambda: validate_module(bad_module)):
+        raise AssertionError("module completion accepted an all-zero artifact digest")
 
     print(
         json.dumps(
             {
                 "schema_version": "central-inference-evidence-validator-tests/v1",
-                "negative_vectors": 5,
+                "negative_vectors": 8,
                 "result": "PASS",
             },
             sort_keys=True,

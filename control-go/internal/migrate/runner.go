@@ -1,6 +1,7 @@
-// Package migrate implements the independent PostgreSQL migration job used by
-// Go Control Core. The application process never imports or invokes this
-// package: schema changes require an explicit operator-run binary.
+// Package migrate is the test-only PostgreSQL migration harness used by
+// MOD-CTRL-001 process tests. Production schema changes are owned by the
+// independent db/masi-dbctl job; neither Control Core nor its OCI image exposes
+// a migration writer.
 package migrate
 
 import (
@@ -22,9 +23,8 @@ import (
 )
 
 const (
-	ExpectedSchemaVersion = "21"
-	SchemaSource          = "migration-chain/v21"
-	ProductionHistory     = "masi_migration_history"
+	ExpectedSchemaVersion = "22"
+	SchemaSource          = "migration-chain/v22"
 	TestHistory           = "masi_test_migration_history"
 )
 
@@ -52,8 +52,8 @@ func Run(ctx context.Context, cfg Config) error {
 	if cfg.DSN == "" || cfg.Directory == "" || cfg.ConfirmedDatabase == "" {
 		return errors.New("migrate: dsn, directory, and exact confirmed database are required")
 	}
-	if cfg.HistoryTable != ProductionHistory && cfg.HistoryTable != TestHistory {
-		return errors.New("migrate: unsupported history table")
+	if !cfg.RequireTestDatabase || cfg.HistoryTable != TestHistory {
+		return errors.New("migrate: test-only runner requires test database and test history")
 	}
 	if cfg.AdvisoryLockName == "" {
 		return errors.New("migrate: advisory lock name required")
@@ -78,7 +78,7 @@ func Run(ctx context.Context, cfg Config) error {
 	if database != cfg.ConfirmedDatabase {
 		return fmt.Errorf("migrate: connected database %q does not equal --confirm-database %q", database, cfg.ConfirmedDatabase)
 	}
-	if cfg.RequireTestDatabase && !db.IsTestDBName(database) {
+	if !db.IsTestDBName(database) {
 		return fmt.Errorf("migrate: database %q is not test-named", database)
 	}
 	if _, err := conn.Exec(ctx, `SELECT pg_advisory_lock(hashtext($1))`, cfg.AdvisoryLockName); err != nil {
@@ -90,7 +90,8 @@ func Run(ctx context.Context, cfg Config) error {
 
 	createHistory := fmt.Sprintf(`CREATE TABLE IF NOT EXISTS %s(
 		name TEXT PRIMARY KEY,
-		checksum TEXT NOT NULL CHECK (checksum ~ '^sha256:[0-9a-f]{64}$'),
+			checksum TEXT NOT NULL CHECK (checksum ~ '^sha256:[0-9a-f]{64}$'
+			 AND checksum <> ('sha256:' || repeat('0',64))),
 		applied_at TIMESTAMPTZ NOT NULL DEFAULT now())`, cfg.HistoryTable)
 	if _, err := conn.Exec(ctx, createHistory); err != nil {
 		return fmt.Errorf("migrate: create history: %w", err)

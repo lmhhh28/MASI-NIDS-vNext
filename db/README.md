@@ -4,7 +4,7 @@
 
 ## 当前状态与完成判定
 
-按 `DEC-044`，operational Module Complete 只由 `scripts/run-module-gates.sh` 的同一次 formal run 机器派生。唯一权威字段是 [`evidence/module-gates/latest.json`](evidence/module-gates/latest.json) 所指 immutable run 的 `gate-summary.json#overall_module_complete`；历史 rehearsal、单项 PASS、readiness、mock 或手工摘要都不能替代它。
+按 `DEC-044`，operational Module Complete 只由 `scripts/run-module-gates.sh` 的同一次 formal run 机器派生。[`evidence/module-gates/latest.json`](evidence/module-gates/latest.json) 只是“最近发布的 immutable 历史 run”指针；只有其 source revision/tree/status digest 经根 verifier 与当前源码完全匹配时，所指 `gate-summary.json#overall_module_complete` 才对当前源码权威。仓库当前跟踪的 v21/29-file 指针明确是历史证据，不能替代当前 v22/31-file 门禁；历史 rehearsal、单项 PASS、readiness、mock 或手工摘要同样不能替代它。
 
 `overall_module_complete=true` 与资格状态正交。本模块的 acceptance scope 固定为 `operational-single-domain/v1`：一个物理主机上的 PostgreSQL 18.6 primary、异步物理 standby、隔离 PITR restore 与 PgBouncer transaction pool。完整 operational 门禁可以通过，而 `result=HOLD`、`qualification=NOT_QUALIFIED` 继续保留，原因是 `DEC-001` 绝对生产性能/RPO/RTO 尚未由 Owner 冻结、受保护 release baseline 尚未形成，并且单故障域手工 promotion 不是 `production-ha` 自动故障转移。正式 pairwise/system 也尚未开始，不得从本模块结论外推。
 
@@ -82,7 +82,7 @@ rehearsal 使用 4 × 5 秒 workload，只能输出 `REHEARSAL/NOT_QUALIFIED` �
 
 ## 证据与资格范围
 
-每个 run 写入 `evidence/module-gates/runs/<run-id>/`，命令 sidecar 绑定 exact argv、exit code、时间、source-tree/status digest 与日志 digest。最终 summary 会独立重验这些 sidecar，并绑定当前源码计算出的 29-file migration chain、0029 hardening migration、需求基线、traceability/findings、database/role/pool/application readback、capacity/soak/recovery 原始制品、三个 OCI 的 exact image ID，以及三份非空 SBOM、四份零阻断 finding scan、Trivy database freshness 和全部供应链原始制品 digest。OCI 与供应链 evidence 分别由 `postgresql-state-oci/v1`、`postgresql-state-supply/v1` 公共 schema 约束。
+每个 run 写入 `evidence/module-gates/runs/<run-id>/`，命令 sidecar 绑定 exact argv、exit code、时间、source-tree/status digest 与日志 digest。最终 summary 会独立重验这些 sidecar，并绑定当前源码计算出的 31-file migration chain、0029 hardening、0030 DEFAULT-partition drain 与 0031 zero-digest rejection、需求基线、traceability/findings、database/role/pool/application readback、capacity/soak/recovery 原始制品、三个 OCI 的 exact image ID，以及三份非空 SBOM、四份零阻断 finding scan、Trivy database freshness 和全部供应链原始制品 digest。OCI 与供应链 evidence 分别由 `postgresql-state-oci/v1`、`postgresql-state-supply/v1` 公共 schema 约束。仓库内旧 formal evidence 只绑定其记录的历史 source/29-file chain，不能继承到当前 v22/31-file 源码。
 
 以下范围保持独立，不由本模块 acceptance evidence 继承：
 

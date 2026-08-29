@@ -91,23 +91,27 @@ def main() -> int:
         values["errors"] += int(sample["errors"])
     requested = {item["name"]: int(item["target_qps"]) for item in raw["phases"]}
     phases = []
-    for index, name in enumerate(("steady", "peak", "saturation", "recovery-or-activation")):
+    for index, name in enumerate(
+        ("steady", "peak", "saturation", "recovery-or-activation")
+    ):
         values = by_phase.get(name, {"operations": 0, "errors": 0})
-        phases.append({
-            "name": name,
-            "planned_ms": 900_000,
-            "elapsed_ms": 900_000,
-            "result": "PASS" if values["errors"] == 0 else "FAIL",
-            "requested_rate_pps": requested[name],
-            "achieved_rate_pps": values["operations"] / 900,
-            "errors": values["errors"],
-            "module_metrics": {
-                "phase_start_offset_ms": warmup_ms + index * phase_ms,
-                "phase_end_offset_ms": warmup_ms + (index + 1) * phase_ms,
-                "planned_duration_met": True,
-                "operations": values["operations"],
-            },
-        })
+        phases.append(
+            {
+                "name": name,
+                "planned_ms": 900_000,
+                "elapsed_ms": 900_000,
+                "result": "PASS" if values["errors"] == 0 else "FAIL",
+                "requested_rate_pps": requested[name],
+                "achieved_rate_pps": values["operations"] / 900,
+                "errors": values["errors"],
+                "module_metrics": {
+                    "phase_start_offset_ms": warmup_ms + index * phase_ms,
+                    "phase_end_offset_ms": warmup_ms + (index + 1) * phase_ms,
+                    "planned_duration_met": True,
+                    "operations": values["operations"],
+                },
+            }
+        )
     shared_samples = []
     raw_started = started
     for item in resources.get("samples", []):
@@ -118,28 +122,32 @@ def main() -> int:
         phase_name = scheduled_phase(offset_ms, warmup_ms, phase_ms)
         nearest = min(
             raw_samples,
-            key=lambda candidate: abs((parse_time(candidate["timestamp"]) - timestamp).total_seconds()),
+            key=lambda candidate: abs(
+                (parse_time(candidate["timestamp"]) - timestamp).total_seconds()
+            ),
         )
-        shared_samples.append({
-            "offset_ms": offset_ms,
-            "phase": phase_name,
-            "quality": item["quality"],
-            "cpu_pct": item["cpu_pct"],
-            "rss_bytes": item["rss_bytes"],
-            "fd_count": item["fd_count"],
-            "thread_count": item["thread_count"],
-            "queue_depth": nearest["pool_acquired"],
-            "oom_events": item["oom_events"],
-            "container_restarts": item["container_restarts"],
-            "oracle_errors": nearest["errors"],
-            "gap_count": item["gap_count"],
-            "module_metrics": {
-                "operations": nearest["operations"],
-                "average_microseconds": nearest["average_microseconds"],
-                "p99_upper_bound_ms": nearest["p99_upper_bound_ms"],
-                "pool_total": nearest["pool_total"],
-            },
-        })
+        shared_samples.append(
+            {
+                "offset_ms": offset_ms,
+                "phase": phase_name,
+                "quality": item["quality"],
+                "cpu_pct": item["cpu_pct"],
+                "rss_bytes": item["rss_bytes"],
+                "fd_count": item["fd_count"],
+                "thread_count": item["thread_count"],
+                "queue_depth": nearest["pool_acquired"],
+                "oom_events": item["oom_events"],
+                "container_restarts": item["container_restarts"],
+                "oracle_errors": nearest["errors"],
+                "gap_count": item["gap_count"],
+                "module_metrics": {
+                    "operations": nearest["operations"],
+                    "average_microseconds": nearest["average_microseconds"],
+                    "p99_upper_bound_ms": nearest["p99_upper_bound_ms"],
+                    "pool_total": nearest["pool_total"],
+                },
+            }
+        )
     if not shared_samples:
         raise ValueError("no aligned resource samples")
     max_oom = max(sample["oom_events"] for sample in shared_samples)
@@ -150,18 +158,28 @@ def main() -> int:
         "schema_version": "qualification-soak/v1",
         "run_id": args.run_id,
         "module": "postgresql-state",
-        "requirement_ids": ["MOD-DB-001", "DB-RULE-001", "PERF-001", "PERF-002", "DEC-044"],
+        "requirement_ids": [
+            "MOD-DB-001",
+            "DB-RULE-001",
+            "PERF-001",
+            "PERF-002",
+            "DEC-044",
+        ],
         "level": "MODULE",
         "applicability": "APPLICABLE",
         "result": "PASS" if errors == gaps == max_oom == max_restarts == 0 else "FAIL",
-        "qualification": "QUALIFIED" if errors == gaps == max_oom == max_restarts == 0 else "NOT_QUALIFIED",
-        "profile_digest": "sha256:" + hashlib.sha256(args.profile.read_bytes()).hexdigest(),
+        "qualification": "QUALIFIED"
+        if errors == gaps == max_oom == max_restarts == 0
+        else "NOT_QUALIFIED",
+        "profile_digest": "sha256:"
+        + hashlib.sha256(args.profile.read_bytes()).hexdigest(),
         "claim_scope": claim_scope,
         "claim_scope_digest": canonical_digest(claim_scope),
         "started_at": soak["started_at"],
         "finished_at": soak["finished_at"],
         "monotonic_start_ns": 1,
-        "monotonic_end_ns": 1 + round((finished - started).total_seconds() * 1_000_000_000),
+        "monotonic_end_ns": 1
+        + round((finished - started).total_seconds() * 1_000_000_000),
         "warmup_elapsed_ms": warmup_ms,
         "duration_target_ms": 3_600_000,
         "qualified_elapsed_ms": qualified_ms,
@@ -197,11 +215,23 @@ def main() -> int:
             },
         },
         "artifacts": [
-            {"name": args.raw.name, "sha256": sha(args.raw), "bytes": args.raw.stat().st_size},
-            {"name": args.resources.name, "sha256": sha(args.resources), "bytes": args.resources.stat().st_size},
+            {
+                "name": args.raw.name,
+                "sha256": sha(args.raw),
+                "bytes": args.raw.stat().st_size,
+            },
+            {
+                "name": args.resources.name,
+                "sha256": sha(args.resources),
+                "bytes": args.resources.stat().st_size,
+            },
         ],
     }
-    if args.output.exists() or args.output.is_symlink() or not args.output.is_absolute():
+    if (
+        args.output.exists()
+        or args.output.is_symlink()
+        or not args.output.is_absolute()
+    ):
         raise ValueError("output must be a fresh absolute path")
     descriptor = os.open(args.output, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
     with os.fdopen(descriptor, "w", encoding="utf-8") as stream:

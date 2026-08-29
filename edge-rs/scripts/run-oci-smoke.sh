@@ -5,14 +5,27 @@ umask 077
 script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 repo_root="$(cd -- "${script_dir}/../.." && pwd)"
 edge_root="${repo_root}/edge-rs"
+if [[ "${MASI_RUNTIME_SMOKE_WRAPPED:-0}" != "1" ]]; then
+  exec python3 "${repo_root}/scripts/ci/run_bounded_runtime_smoke.py" \
+    --repo "${repo_root}" --module edge \
+    --timeout-seconds "${MASI_EDGE_OCI_TOTAL_TIMEOUT_SECONDS:-7200}" -- \
+    "${script_dir}/run-oci-smoke.sh" "$@"
+fi
 evidence_dir="${MASI_EDGE_EVIDENCE_DIR:-${edge_root}/evidence/oci-smoke}"
 image_ref="${MASI_EDGE_IMAGE_REF:-masi-edge:module-smoke}"
 source_revision="$(git -C "${repo_root}" rev-parse HEAD)"
 temporary_root="$(mktemp -d /tmp/masi-edge-oci-smoke.XXXXXX)"
 container_name="masi-edge-oci-smoke-${$}"
+command -v timeout >/dev/null 2>&1 || { echo "missing timeout" >&2; exit 69; }
+docker_binary="$(command -v docker)"
+[[ -n "${docker_binary}" ]] || { echo "missing docker" >&2; exit 69; }
+docker() {
+  timeout --signal=TERM --kill-after=30s \
+    "${MASI_EDGE_DOCKER_COMMAND_TIMEOUT_SECONDS:-1800}" "${docker_binary}" "$@"
+}
 
 cleanup() {
-  docker rm --force "${container_name}" >/dev/null 2>&1 || true
+  timeout --signal=TERM --kill-after=5s 30s docker rm --force "${container_name}" >/dev/null 2>&1 || true
   if [[ "${temporary_root}" == /tmp/masi-edge-oci-smoke.* ]]; then
     rm -rf -- "${temporary_root}"
   fi

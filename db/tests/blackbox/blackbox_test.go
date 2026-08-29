@@ -102,12 +102,17 @@ func newTestDatabase(t *testing.T, label string) (string, string) {
 
 func migrateDatabase(t *testing.T, name, dsn, directory string) *migrate.Result {
 	t.Helper()
+	return migrateDatabaseVersion(t, name, dsn, directory, "22")
+}
+
+func migrateDatabaseVersion(t *testing.T, name, dsn, directory, expectedVersion string) *migrate.Result {
+	t.Helper()
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 	defer cancel()
 	result, err := migrate.Run(ctx, migrate.Config{
 		DSN: dsn, Directory: directory, ConfirmedDatabase: name,
 		RequireTestDatabase: true, RequireTLS: requireTLS(), HistoryTable: migrate.ProductionHistory,
-		ExpectedSchemaVersion: "21", SourceRevision: "db-blackbox-test",
+		ExpectedSchemaVersion: expectedVersion, SourceRevision: "db-blackbox-test",
 		LockTimeout: 5 * time.Second, StatementTimeout: 2 * time.Minute,
 	})
 	if err != nil {
@@ -162,11 +167,11 @@ func copyChain(t *testing.T, count int) string {
 func TestFreshRepeatAndCatalogReadback(t *testing.T) {
 	name, dsn := newTestDatabase(t, "fresh")
 	first := migrateDatabase(t, name, dsn, repoMigrations(t))
-	if len(first.Applied) != 29 || len(first.AlreadyApplied) != 0 {
+	if len(first.Applied) != 31 || len(first.AlreadyApplied) != 0 {
 		t.Fatalf("fresh result applied=%d existing=%d", len(first.Applied), len(first.AlreadyApplied))
 	}
 	second := migrateDatabase(t, name, dsn, repoMigrations(t))
-	if len(second.Applied) != 0 || len(second.AlreadyApplied) != 29 || first.ChainDigest != second.ChainDigest {
+	if len(second.Applied) != 0 || len(second.AlreadyApplied) != 31 || first.ChainDigest != second.ChainDigest {
 		t.Fatalf("repeat result: %+v", second)
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -176,26 +181,47 @@ func TestFreshRepeatAndCatalogReadback(t *testing.T) {
 		t.Fatal(err)
 	}
 	if inspection.ServerVersionNum < 180000 || inspection.ServerVersionNum >= 190000 ||
-		inspection.SchemaVersion != "21" || inspection.MigrationRows != 29 ||
+		inspection.SchemaVersion != "22" || inspection.MigrationRows != 31 ||
 		inspection.SchemaChainDigest != first.ChainDigest {
 		t.Fatalf("inspection mismatch: %+v", inspection)
+	}
+	conn := connect(t, dsn)
+	var unsafeDefaults, validatedConstraints int
+	if err := conn.QueryRow(context.Background(), `
+SELECT
+  count(*) FILTER (WHERE column_default IS NOT NULL),
+  (SELECT count(*) FROM pg_constraint
+   WHERE conname IN ('firewall_activation_expected_cas_nonzero_v22',
+                     'fleet_operation_digest_nonzero_v22',
+                     'analysis_artifact_digest_nonzero_v22') AND convalidated)
+FROM information_schema.columns
+WHERE (table_name,column_name) IN (
+  ('firewall_activations','expected_cas_digest'),
+  ('fleet_operations','operation_digest'),
+  ('fleet_operations','completed_vector_digest'),
+  ('analysis_artifacts','input_digest'),
+  ('analysis_artifacts','tool_trajectory_digest'))`).Scan(&unsafeDefaults, &validatedConstraints); err != nil {
+		t.Fatal(err)
+	}
+	if unsafeDefaults != 0 || validatedConstraints != 3 {
+		t.Fatalf("zero-digest hardening missing defaults=%d constraints=%d", unsafeDefaults, validatedConstraints)
 	}
 }
 
 func TestPreviousToCurrentChecksumDriftAndInterruptedRetry(t *testing.T) {
 	t.Run("previous-to-current", func(t *testing.T) {
 		name, dsn := newTestDatabase(t, "previous")
-		migrateDatabase(t, name, dsn, copyChain(t, 28))
+		migrateDatabaseVersion(t, name, dsn, copyChain(t, 30), "21")
 		result := migrateDatabase(t, name, dsn, repoMigrations(t))
-		if len(result.Applied) != 1 || result.Applied[0] != "0029_postgresql_state_hardening.sql" {
-			t.Fatalf("upgrade did not apply only 0029: %+v", result.Applied)
+		if len(result.Applied) != 1 || result.Applied[0] != "0031_reject_zero_digest_defaults.sql" {
+			t.Fatalf("upgrade did not apply only 0031: %+v", result.Applied)
 		}
 	})
 
 	t.Run("checksum-drift", func(t *testing.T) {
 		name, dsn := newTestDatabase(t, "drift")
 		migrateDatabase(t, name, dsn, repoMigrations(t))
-		drifted := copyChain(t, 29)
+		drifted := copyChain(t, 31)
 		path := filepath.Join(drifted, "0001_core_event.sql")
 		raw, err := os.ReadFile(path)
 		if err != nil {
@@ -208,33 +234,83 @@ func TestPreviousToCurrentChecksumDriftAndInterruptedRetry(t *testing.T) {
 		defer cancel()
 		_, err = migrate.Run(ctx, migrate.Config{DSN: dsn, Directory: drifted,
 			ConfirmedDatabase: name, RequireTestDatabase: true, RequireTLS: requireTLS(),
-			HistoryTable: migrate.ProductionHistory, ExpectedSchemaVersion: "21",
+			HistoryTable: migrate.ProductionHistory, ExpectedSchemaVersion: "22",
 			SourceRevision: "drift-negative"})
 		if err == nil || !strings.Contains(err.Error(), "checksum drift") {
 			t.Fatalf("checksum drift not rejected: %v", err)
 		}
 	})
 
+	t.Run("legacy-history-backfill", func(t *testing.T) {
+		name, dsn := newTestDatabase(t, "legacy_history")
+		first := migrateDatabase(t, name, dsn, repoMigrations(t))
+		conn := connect(t, dsn)
+		if _, err := conn.Exec(context.Background(), `
+CREATE TABLE legacy_migration_history AS
+SELECT name,checksum,applied_at FROM masi_migration_history;
+DROP TABLE masi_migration_history;
+ALTER TABLE legacy_migration_history RENAME TO masi_migration_history`); err != nil {
+			t.Fatal(err)
+		}
+		second := migrateDatabase(t, name, dsn, repoMigrations(t))
+		if len(second.AlreadyApplied) != 31 || second.ChainDigest != first.ChainDigest {
+			t.Fatalf("legacy history upgrade mismatch: %+v", second)
+		}
+		var invalid int
+		if err := conn.QueryRow(context.Background(), `SELECT count(*) FROM masi_migration_history
+WHERE chain_digest<>$1 OR chain_digest=$2`, first.ChainDigest,
+			"sha256:"+strings.Repeat("0", 64)).Scan(&invalid); err != nil {
+			t.Fatal(err)
+		}
+		if invalid != 0 {
+			t.Fatalf("legacy history retained %d invalid chain digests", invalid)
+		}
+	})
+
+	t.Run("unknown-nonzero-history-chain-digest", func(t *testing.T) {
+		name, dsn := newTestDatabase(t, "history_digest_drift")
+		migrateDatabase(t, name, dsn, repoMigrations(t))
+		conn := connect(t, dsn)
+		if _, err := conn.Exec(
+			context.Background(),
+			`UPDATE masi_migration_history SET chain_digest=$1 WHERE name='0001_core_event.sql'`,
+			"sha256:"+strings.Repeat("a", 64),
+		); err != nil {
+			t.Fatal(err)
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+		defer cancel()
+		_, err := migrate.Run(ctx, migrate.Config{
+			DSN: dsn, Directory: repoMigrations(t), ConfirmedDatabase: name,
+			RequireTestDatabase: true, RequireTLS: requireTLS(),
+			HistoryTable: migrate.ProductionHistory, ExpectedSchemaVersion: "22",
+			SourceRevision: "history-digest-drift-negative",
+		})
+		if err == nil || !strings.Contains(err.Error(), "unknown history chain digest") {
+			t.Fatalf("unknown nonzero history chain digest not rejected: %v", err)
+		}
+	})
+
 	t.Run("interrupted-atomic-retry", func(t *testing.T) {
 		name, dsn := newTestDatabase(t, "interrupted")
-		broken := copyChain(t, 29)
+		broken := copyChain(t, 30)
 		body := "BEGIN;\nCREATE TABLE should_not_commit(id INTEGER);\nSELECT 1/0;\nCOMMIT;\n"
-		if err := os.WriteFile(filepath.Join(broken, "0030_injected_failure.sql"), []byte(body), 0o600); err != nil {
+		if err := os.WriteFile(filepath.Join(broken, "0031_injected_failure.sql"), []byte(body), 0o600); err != nil {
 			t.Fatal(err)
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 		_, err := migrate.Run(ctx, migrate.Config{DSN: dsn, Directory: broken,
 			ConfirmedDatabase: name, RequireTestDatabase: true, RequireTLS: requireTLS(),
-			HistoryTable: migrate.ProductionHistory, ExpectedSchemaVersion: "21",
+			HistoryTable: migrate.ProductionHistory, ExpectedSchemaVersion: "22",
 			SourceRevision: "interruption-negative"})
 		cancel()
-		if err == nil || !strings.Contains(err.Error(), "0030_injected_failure.sql") {
+		if err == nil || !strings.Contains(err.Error(), "0031_injected_failure.sql") {
 			t.Fatalf("injected failure not reported: %v", err)
 		}
 		conn := connect(t, dsn)
 		var tableExists, historyExists bool
 		if err := conn.QueryRow(context.Background(), `SELECT to_regclass('public.should_not_commit') IS NOT NULL,
-			EXISTS(SELECT 1 FROM masi_migration_history WHERE name='0030_injected_failure.sql')`).
+				EXISTS(SELECT 1 FROM masi_migration_history WHERE name='0031_injected_failure.sql')`).
 			Scan(&tableExists, &historyExists); err != nil {
 			t.Fatal(err)
 		}
@@ -242,10 +318,116 @@ func TestPreviousToCurrentChecksumDriftAndInterruptedRetry(t *testing.T) {
 			t.Fatalf("failed migration leaked table=%v history=%v", tableExists, historyExists)
 		}
 		result := migrateDatabase(t, name, dsn, repoMigrations(t))
-		if len(result.AlreadyApplied) != 29 {
+		if len(result.AlreadyApplied) != 30 {
 			t.Fatalf("canonical retry failed: %+v", result)
 		}
 	})
+}
+
+func TestPartitionMaintenanceDrainsDefaultRows(t *testing.T) {
+	name, dsn := newTestDatabase(t, "partition_drain")
+	migrateDatabase(t, name, dsn, repoMigrations(t))
+	conn := connect(t, dsn)
+	ctx := context.Background()
+	exec := func(query string, args ...any) {
+		t.Helper()
+		if _, err := conn.Exec(ctx, query, args...); err != nil {
+			t.Fatalf("seed partition drain: %v\n%s", err, query)
+		}
+	}
+
+	anchor := time.Now().UTC().AddDate(4, 7, 0)
+	anchor = time.Date(anchor.Year(), anchor.Month(), 1, 0, 0, 0, 0, time.UTC)
+	futureTime := anchor.Add(12 * time.Hour)
+	futureMS := futureTime.UnixMilli()
+
+	exec(`INSERT INTO event_identities(event_id,event_idempotency_key,input_digest,output_digest,
+		event_time,committed_at_unix_ms) VALUES('drain-event','drain-event-key',$1,$1,$2,$3)`,
+		digestA, futureTime, futureMS)
+	exec(`INSERT INTO events(event_id,event_idempotency_key,input_digest,output_digest,
+		canonical_event_id,model_control_incarnation_id,shard_id,route_epoch,logical_pool_id,
+		pool_generation,binding_generation,source_window_identity,quality,commit_status,event_time,
+		committed_at_unix_ms,ingest_batch_digest,trace_id,reason_code,scope)
+		VALUES('drain-event','drain-event-key',$1,$1,'drain-event','model-inc','shard',1,'pool',
+		1,1,'{}','valid','committed',$2,$3,$1,'trace','COMMITTED','scope-drain')`,
+		digestA, futureTime, futureMS)
+	exec(`INSERT INTO rule_observation_epochs(epoch_id,effect_intent_id,operation_id,entity_id,
+		rule_id,target_id,canonical_entry_digest,match_priority_action_digest,observation_epoch,
+		reset_epoch,installation_readback) VALUES('drain-epoch','intent','operation','entity',
+		'rule','target',$1,$1,1,1,'exact')`, digestA)
+	for _, table := range []string{"rule_rollups_5m", "rule_rollups_1h"} {
+		exec(fmt.Sprintf(`INSERT INTO %s(window_start_unix_ms,epoch_id,observation_epoch,
+			reset_epoch,rule_id,direct_packets,direct_bytes,eligible_packets,sample_count,quality_status)
+			VALUES($1,'drain-epoch',1,1,'rule',0,0,0,1,'valid')`, table), futureMS)
+	}
+
+	exec(`INSERT INTO plugin_manifests(manifest_id,manifest_revision,manifest_digest,plugin_id,kind,
+		publisher,version,capabilities,resource_limits,runtime_profile,sbom_digest,provenance_digest,
+		signature_status,actor_ref,trace_id,scope) VALUES('drain-manifest',1,$1,'drain-plugin',
+		'pure-transform','publisher','1.0.0','[]','{}','wasm-component/v1',$1,$1,'signed',
+		'actor','trace','scope-drain')`, digestA)
+	exec(`INSERT INTO plugin_qualifications(qualification_id,plugin_id,manifest_id,manifest_revision,
+		manifest_digest,qualification_status,qualification_digest,qualified_at,actor_ref,trace_id,
+		reason_code) VALUES('drain-qualification','drain-plugin','drain-manifest',1,$1,'qualified',
+		$1,clock_timestamp(),'actor','trace','QUALIFIED')`, digestA)
+	exec(`INSERT INTO plugin_bindings(plugin_id,binding_generation,manifest_id,manifest_revision,
+		manifest_digest,config_digest,capability_digest,resource_profile_digest,activation_state,
+		qualification_status,actor_ref,trace_id,reason_code,scope) VALUES('drain-plugin',1,
+		'drain-manifest',1,$1,$1,$1,$1,'active','qualified','actor','trace','ACTIVE','scope-drain')`,
+		digestA)
+	exec(`INSERT INTO plugin_statistics_definitions(definition_id,definition_digest,definition,
+		plugin_id,plugin_revision,manifest_id,manifest_revision,binding_generation,producer_kind,
+		host_projection_refs,display_hint,scope,data_class,deadline_ms,manifest_digest,
+		qualification_id,qualification_digest) VALUES('drain-definition',$1,'{}','drain-plugin',
+		'1.0.0','drain-manifest',1,1,'pure-transform',ARRAY['events/v1'],'table','scope-drain',
+		'internal',1000,$1,'drain-qualification',$1)`, digestA)
+	exec(`INSERT INTO plugin_statistic_runs(run_id,run_digest,request_digest,definition_id,
+		definition_digest,idempotency_key,status,binding_generation,frozen_input_digest,
+		started_at_unix_ms,actor_ref,reason_code,trace_id,scope,data_class,actor_issuer,
+		actor_subject,target_set_digest) VALUES('drain-run',$1,$1,'drain-definition',$1,
+		'drain-idempotency','succeeded',1,$1,$2,'actor','SUCCEEDED','trace','scope-drain',
+		'internal','issuer','subject',$1)`, digestA, futureMS)
+	exec(`INSERT INTO plugin_statistic_artifacts(artifact_id,artifact_digest,run_id,definition_id,
+		definition_digest,status,quality,artifact,bytes,actor_ref,trace_id,binding_generation,
+		result_fence) VALUES('drain-artifact',$1,'drain-run','drain-definition',$1,'succeeded',
+		'valid','{}',2,'actor','trace',1,'drain-fence')`, digestA)
+	exec(`INSERT INTO plugin_statistics_history(definition_id,binding_generation,artifact_id,run_id,
+		quality,scope,recorded_at) VALUES('drain-definition',1,'drain-artifact','drain-run','valid',
+		'scope-drain',$1)`, futureTime)
+
+	var created, repeated int
+	if err := conn.QueryRow(ctx, `SELECT masi_ensure_time_partitions($1,2)`, anchor).Scan(&created); err != nil {
+		t.Fatal(err)
+	}
+	if err := conn.QueryRow(ctx, `SELECT masi_ensure_time_partitions($1,2)`, anchor).Scan(&repeated); err != nil {
+		t.Fatal(err)
+	}
+	if created != 12 || repeated != 0 {
+		t.Fatalf("partition maintenance created=%d repeated=%d", created, repeated)
+	}
+
+	suffix := anchor.Format("200601")
+	wantRelations := []string{
+		"events_" + suffix,
+		"rule_rollups_5m_" + suffix,
+		"rule_rollups_1h_" + suffix,
+		"plugin_statistics_history_" + suffix,
+	}
+	queries := []string{
+		`SELECT tableoid::regclass::text FROM events WHERE event_id='drain-event'`,
+		`SELECT tableoid::regclass::text FROM rule_rollups_5m WHERE epoch_id='drain-epoch'`,
+		`SELECT tableoid::regclass::text FROM rule_rollups_1h WHERE epoch_id='drain-epoch'`,
+		`SELECT tableoid::regclass::text FROM plugin_statistics_history WHERE run_id='drain-run'`,
+	}
+	for index, query := range queries {
+		var relation string
+		if err := conn.QueryRow(ctx, query).Scan(&relation); err != nil {
+			t.Fatal(err)
+		}
+		if relation != wantRelations[index] {
+			t.Fatalf("row remained outside explicit partition: got=%s want=%s", relation, wantRelations[index])
+		}
+	}
 }
 
 func TestExactRelationsCASAndDenyRoles(t *testing.T) {

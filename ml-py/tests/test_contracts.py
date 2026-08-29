@@ -1,11 +1,19 @@
 from __future__ import annotations
 
+import copy
+import json
 import struct
 import unittest
 from pathlib import Path
 
 from masi_offline_ml.canonical import ValidationError
-from masi_offline_ml.contracts import feature_tensor_bytes, split_name, validate_public_contracts
+from masi_offline_ml.contracts import (
+    feature_tensor_bytes,
+    split_name,
+    telemetry_cell_selector_digest,
+    validate_dataset_manifest,
+    validate_public_contracts,
+)
 
 REPO = Path(__file__).resolve().parents[2]
 
@@ -31,6 +39,21 @@ class PublicContractTests(unittest.TestCase):
         first = split_name("source-r1", "capture-family-42")
         self.assertEqual(first, split_name("source-r1", "capture-family-42"))
         self.assertIn(first, {"train", "early_stop", "calibration", "blind_test"})
+
+    def test_zero_digest_and_revision_sentinels_fail_closed(self) -> None:
+        with self.assertRaises(ValidationError):
+            telemetry_cell_selector_digest("target-1", "sha256:" + ("0" * 64), 1, 0)
+        manifest = json.loads(
+            (REPO / "contracts/dataset/v1/golden/manifest-golden-v1.json").read_text(encoding="utf-8")
+        )
+        zero_digest = copy.deepcopy(manifest)
+        zero_digest["producer"]["config_digest"] = "sha256:" + ("0" * 64)
+        with self.assertRaises(ValidationError):
+            validate_dataset_manifest(zero_digest)
+        zero_revision = copy.deepcopy(manifest)
+        zero_revision["producer"]["source_revision"] = "0" * 40
+        with self.assertRaises(ValidationError):
+            validate_dataset_manifest(zero_revision)
 
 
 if __name__ == "__main__":

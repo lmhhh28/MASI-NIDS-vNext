@@ -69,6 +69,7 @@ type Deps struct {
 	Reconcile          *governance.ReconcileService
 	Capture            *governance.CaptureService
 	Analysis           *a2a.Client
+	Invalidations      InvalidationPublisher
 }
 
 // Router assembles the same-origin /api surface + /events SSE + OIDC.
@@ -1108,6 +1109,7 @@ func handleCreateProposal(deps Deps) http.HandlerFunc {
 			WriteError(w, http.StatusBadRequest, "PROPOSAL_REJECTED")
 			return
 		}
+		publishInvalidation(deps, ResProposal, p.ProposalID, p.Scope, p.CreatedAtUnixMS)
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusCreated)
 		_ = json.NewEncoder(w).Encode(out)
@@ -1166,6 +1168,12 @@ func recordDecision(w http.ResponseWriter, r *http.Request, deps Deps, proposalI
 		WriteError(w, http.StatusForbidden, "DECISION_REJECTED")
 		return
 	}
+	var scope string
+	if deps.Pool != nil && deps.Pool.Pool.QueryRow(r.Context(),
+		`SELECT scope FROM effect_proposals WHERE proposal_id=$1`, proposalID).Scan(&scope) == nil {
+		publishInvalidation(deps, ResDecision, out.DecisionID, scope, out.CreatedAtUnixMS)
+		publishInvalidation(deps, ResProposal, proposalID, scope, out.CreatedAtUnixMS)
+	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(statusCode)
 	_ = json.NewEncoder(w).Encode(out)
@@ -1217,6 +1225,7 @@ func handleStartPluginStatRun(deps Deps) http.HandlerFunc {
 			WriteError(w, http.StatusBadRequest, "STATISTICS_RUN_REJECTED")
 			return
 		}
+		publishInvalidation(deps, ResPluginRun, out, body.Scope, time.Now().UnixMilli())
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusCreated)
 		_ = json.NewEncoder(w).Encode(map[string]string{"run_id": out, "status": "pending"})
@@ -1263,11 +1272,7 @@ func validEffectKind(kind governance.EffectKind) bool {
 }
 
 func validDigest(s string) bool {
-	if len(s) != len("sha256:")+64 || !strings.HasPrefix(s, "sha256:") {
-		return false
-	}
-	_, err := hex.DecodeString(strings.TrimPrefix(s, "sha256:"))
-	return err == nil
+	return security.ValidDigest(s)
 }
 
 func shortID(seed string) string {

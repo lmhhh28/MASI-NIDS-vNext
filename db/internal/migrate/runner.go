@@ -17,7 +17,12 @@ const (
 	defaultLockName   = "masi-nids-postgresql-state-migrations-v1"
 )
 
-var historyName = regexp.MustCompile(`^masi_(test_)?migration_history$`)
+var (
+	historyName = regexp.MustCompile(`^masi_(test_)?migration_history$`)
+	digestText  = regexp.MustCompile(`^sha256:[0-9a-f]{64}$`)
+)
+
+const zeroDigest = "sha256:0000000000000000000000000000000000000000000000000000000000000000"
 
 // Config freezes one explicit migration job. The application process never
 // calls this package; deployment runs the dbctl binary as a one-shot job.
@@ -82,6 +87,7 @@ func Run(ctx context.Context, cfg Config) (*Result, error) {
 	if err != nil {
 		return nil, err
 	}
+	prefixDigests := ChainPrefixDigests(files)
 	conn, err := pgx.Connect(ctx, cfg.DSN)
 	if err != nil {
 		return nil, fmt.Errorf("migrate: connect: %w", err)
@@ -116,20 +122,20 @@ func Run(ctx context.Context, cfg Config) (*Result, error) {
 		_, _ = conn.Exec(context.Background(), `SELECT pg_advisory_unlock(hashtextextended($1,0))`, cfg.AdvisoryLockName)
 	}()
 
-	if err := ensureHistory(ctx, conn, cfg.HistoryTable); err != nil {
+	if err := ensureHistory(ctx, conn, cfg.HistoryTable, chainDigest); err != nil {
 		return nil, err
 	}
 	known := make(map[string]File, len(files))
 	for _, file := range files {
 		known[file.Name] = file
 	}
-	rows, err := conn.Query(ctx, fmt.Sprintf(`SELECT name,checksum FROM %s ORDER BY version`, cfg.HistoryTable))
+	rows, err := conn.Query(ctx, fmt.Sprintf(`SELECT name,checksum,chain_digest FROM %s ORDER BY version`, cfg.HistoryTable))
 	if err != nil {
 		return nil, fmt.Errorf("migrate: read history: %w", err)
 	}
 	for rows.Next() {
-		var name, checksum string
-		if err := rows.Scan(&name, &checksum); err != nil {
+		var name, checksum, historyChainDigest string
+		if err := rows.Scan(&name, &checksum, &historyChainDigest); err != nil {
 			rows.Close()
 			return nil, fmt.Errorf("migrate: scan history: %w", err)
 		}
@@ -141,6 +147,11 @@ func Run(ctx context.Context, cfg Config) (*Result, error) {
 		if checksum != expected.Checksum {
 			rows.Close()
 			return nil, fmt.Errorf("migrate: checksum drift for %q", name)
+		}
+		if !digestText.MatchString(historyChainDigest) || historyChainDigest == zeroDigest ||
+			!validHistoryChainDigest(files, name, historyChainDigest) {
+			rows.Close()
+			return nil, fmt.Errorf("migrate: unknown history chain digest for %q", name)
 		}
 	}
 	if err := rows.Err(); err != nil {
@@ -181,7 +192,7 @@ func Run(ctx context.Context, cfg Config) (*Result, error) {
 			started_at,completed_at,applied_at)
 			VALUES($1,$2,$3,$4,$5,$6,'APPLIED',clock_timestamp(),clock_timestamp(),clock_timestamp())`, cfg.HistoryTable)
 		if _, err := tx.Exec(ctx, insert, file.Version, file.Name, file.Checksum,
-			cfg.SourceRevision, file.Checksum, chainDigest); err != nil {
+			cfg.SourceRevision, file.Checksum, prefixDigests[file.Version-1]); err != nil {
 			_ = tx.Rollback(context.Background())
 			return nil, fmt.Errorf("migrate: history %s: %w", file.Name, err)
 		}
@@ -208,7 +219,7 @@ func Run(ctx context.Context, cfg Config) (*Result, error) {
 	return result, nil
 }
 
-func ensureHistory(ctx context.Context, conn *pgx.Conn, table string) error {
+func ensureHistory(ctx context.Context, conn *pgx.Conn, table, chainDigest string) error {
 	statements := []string{
 		fmt.Sprintf(`CREATE TABLE IF NOT EXISTS %s(
 			version INTEGER,
@@ -231,7 +242,7 @@ func ensureHistory(ctx context.Context, conn *pgx.Conn, table string) error {
 		fmt.Sprintf(`UPDATE %s SET version=substring(name from 1 for 4)::integer,
 			source_revision=COALESCE(source_revision,'legacy:unknown'),
 			source_digest=COALESCE(source_digest,checksum),
-			chain_digest=COALESCE(chain_digest,checksum),
+				chain_digest=COALESCE(chain_digest,$1),
 			started_at=COALESCE(started_at,applied_at),completed_at=COALESCE(completed_at,applied_at)
 			WHERE version IS NULL OR source_revision IS NULL OR source_digest IS NULL
 			   OR chain_digest IS NULL OR started_at IS NULL OR completed_at IS NULL`, table),
@@ -241,8 +252,12 @@ func ensureHistory(ctx context.Context, conn *pgx.Conn, table string) error {
 			ALTER COLUMN completed_at SET NOT NULL`, table),
 		fmt.Sprintf(`CREATE UNIQUE INDEX IF NOT EXISTS %s_version_uidx ON %s(version)`, table, table),
 	}
-	for _, statement := range statements {
-		if _, err := conn.Exec(ctx, statement); err != nil {
+	for index, statement := range statements {
+		arguments := []any{}
+		if index == 2 {
+			arguments = append(arguments, chainDigest)
+		}
+		if _, err := conn.Exec(ctx, statement, arguments...); err != nil {
 			return fmt.Errorf("migrate: prepare history: %w", err)
 		}
 	}

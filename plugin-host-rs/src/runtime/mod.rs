@@ -64,8 +64,18 @@ impl InvocationControl {
 
     /// Wait until an interrupt is requested.
     pub async fn cancelled(&self) {
-        if self.reason() == InterruptReason::Running {
-            self.notify.notified().await;
+        let notified = self.notify.notified();
+        tokio::pin!(notified);
+        loop {
+            // Register before inspecting the atomic reason. This closes the
+            // notify_waiters lost-wakeup window between the state check and
+            // awaiting the notification.
+            notified.as_mut().enable();
+            if self.reason() != InterruptReason::Running {
+                return;
+            }
+            notified.as_mut().await;
+            notified.set(self.notify.notified());
         }
     }
 }

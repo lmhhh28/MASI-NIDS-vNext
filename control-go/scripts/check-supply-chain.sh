@@ -17,7 +17,7 @@ while IFS=$'\t' read -r module version; do
     echo "Go module is absent from exact component registry: ${module}@${version}" >&2
     exit 1
   fi
-done < <(cd -- "${control_root}" && go list -deps -json ./cmd/control-core ./cmd/migrate | \
+done < <(cd -- "${control_root}" && go list -deps -json ./cmd/control-core | \
   jq -sr '[.[] | .Module | select(. != null and .Main != true) | {path:.Path,version:.Version}] |
     unique_by(.path)[] | [.path,.version] | @tsv' -r)
 

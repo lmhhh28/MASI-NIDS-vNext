@@ -34,15 +34,21 @@ def main() -> int:
     parser.add_argument("--promotion-rto-ms", required=True, type=int)
     parser.add_argument("--output", required=True, type=Path)
     args = parser.parse_args()
-    before, rotation, after = read(args.pitr_before), read(args.rotation), read(args.pitr_after)
+    before, rotation, after = (
+        read(args.pitr_before),
+        read(args.rotation),
+        read(args.pitr_after),
+    )
     replica_before, replica_after = read(args.replica_before), read(args.replica_after)
     target_rotated = (
         before["target_control_incarnation"] != after["target_control_incarnation"]
-        and after["target_control_incarnation"] == rotation["target_control_incarnation_id"]
+        and after["target_control_incarnation"]
+        == rotation["target_control_incarnation_id"]
     )
     model_rotated = (
         before["model_control_incarnation"] != after["model_control_incarnation"]
-        and after["model_control_incarnation"] == rotation["model_control_incarnation_id"]
+        and after["model_control_incarnation"]
+        == rotation["model_control_incarnation_id"]
     )
     document = {
         "schema_version": "postgresql-state-recovery/v1",
@@ -51,7 +57,7 @@ def main() -> int:
         "level": "MODULE",
         "applicability": "APPLICABLE",
         "result": "PASS",
-        "qualification": "QUALIFIED",
+        "qualification": "NOT_QUALIFIED",
         "pitr": {
             "backup_manifest_digest": args.backup_manifest_digest,
             "basebackup_verified": True,
@@ -62,28 +68,45 @@ def main() -> int:
             "restored_timeline": after["timeline_id"],
             "target_incarnation_rotated": target_rotated,
             "model_incarnation_rotated": model_rotated,
-            "writers_enabled": after["target_writer_enabled"] or after["model_writer_enabled"],
+            "writers_enabled": after["target_writer_enabled"]
+            or after["model_writer_enabled"],
             "effect_intents_created": after["effect_intent_count"],
             "plugin_statistic_runs_created": after["plugin_statistic_run_count"],
             "restore_rto_ms": args.pitr_rto_ms,
-            "evidence_digests": [digest(args.pitr_before), digest(args.rotation), digest(args.pitr_after)],
+            "evidence_digests": [
+                digest(args.pitr_before),
+                digest(args.rotation),
+                digest(args.pitr_after),
+            ],
         },
         "streaming_failover": {
             "replication_mode": "physical-streaming-asynchronous",
-            "state_before": "in-recovery" if replica_before["in_recovery"] else "invalid",
-            "state_after": "promoted" if not replica_after["in_recovery"] else "invalid",
-            "marker_present": replica_before["marker_present"] and replica_after["marker_present"],
+            "state_before": "in-recovery"
+            if replica_before["in_recovery"]
+            else "invalid",
+            "state_after": "promoted"
+            if not replica_after["in_recovery"]
+            else "invalid",
+            "marker_present": replica_before["marker_present"]
+            and replica_after["marker_present"],
             "source_timeline": replica_before["timeline_id"],
             "promoted_timeline": replica_after["timeline_id"],
             "promotion_rto_ms": args.promotion_rto_ms,
             "primary_crash_injected": True,
-            "evidence_digests": [digest(args.replica_before), digest(args.replica_after)],
+            "evidence_digests": [
+                digest(args.replica_before),
+                digest(args.replica_after),
+            ],
         },
         "qualification_limit": "Observed single-host manual-promotion recovery only; production-ha and automatic failover remain HOLD/NOT_QUALIFIED.",
     }
     if args.archive_failures != 0 or not target_rotated or not model_rotated:
         document["result"], document["qualification"] = "FAIL", "NOT_QUALIFIED"
-    if args.output.exists() or args.output.is_symlink() or not args.output.is_absolute():
+    if (
+        args.output.exists()
+        or args.output.is_symlink()
+        or not args.output.is_absolute()
+    ):
         raise ValueError("output must be a fresh absolute path")
     descriptor = os.open(args.output, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
     with os.fdopen(descriptor, "w", encoding="utf-8") as stream:

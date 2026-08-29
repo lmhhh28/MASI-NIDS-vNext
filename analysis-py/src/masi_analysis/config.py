@@ -169,6 +169,12 @@ class BindingState:
     def reload(self, config_path: str) -> BindingObservation:
         replacement = load_runtime_material(config_path)
         with self._lock:
+            if replacement.config_digest != self._material.config_digest or replacement.manifest_content_digest != self._material.manifest_content_digest:
+                raise AnalysisError(
+                    "BINDING_FENCED",
+                    "runtime config or manifest changed during binding reload; process restart required",
+                    503,
+                )
             previous = self._material.binding
             current = replacement.binding
             if current.plugin_id != previous.plugin_id or current.scope != previous.scope:

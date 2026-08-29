@@ -505,7 +505,7 @@ func soakOperation(ctx context.Context, pool *pgxpool.Pool, phaseIndex int, sequ
 	if err := tx.QueryRow(ctx, `SELECT value,checksum FROM masi_schema_meta WHERE key='version'`).Scan(&version, &chain); err != nil {
 		return err
 	}
-	if version != "21" || len(chain) != 71 {
+	if version != "22" || len(chain) != 71 {
 		return errors.New("soak: schema readback mismatch")
 	}
 	return tx.Commit(ctx)

@@ -18,6 +18,12 @@ umask 077
 script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 repo_root="$(cd -- "${script_dir}/../.." && pwd)"
 inf_root="${repo_root}/infer-cpp"
+if [[ "${MASI_RUNTIME_SMOKE_WRAPPED:-0}" != "1" ]]; then
+  exec python3 "${repo_root}/scripts/ci/run_bounded_runtime_smoke.py" \
+    --repo "${repo_root}" --module inference \
+    --timeout-seconds "${MASI_INF_OCI_TOTAL_TIMEOUT_SECONDS:-14400}" -- \
+    "${script_dir}/run-oci-smoke.sh" "$@"
+fi
 evidence_dir="${MASI_INF_EVIDENCE_DIR:-${inf_root}/evidence/oci-smoke}"
 image_ref="${MASI_INF_IMAGE_REF:-masi-inference:module-smoke}"
 builder_ref="${MASI_INF_BUILDER_IMAGE_REF:-masi-inference-builder:module-gates}"
@@ -51,24 +57,31 @@ fi
 # version from the same public profile so a stale duplicated literal cannot
 # silently qualify a different server build.
 central_cpu_profile="${repo_root}/contracts/profiles/v1/central-inference-cpu.json"
-triton_repository="$(jq -er '.triton.image | sub(":[^/:]+$"; "")' "${central_cpu_profile}")"
+triton_image="$(jq -er '.triton.image' "${central_cpu_profile}")"
 triton_image_digest="$(jq -er '.triton.image_digest' "${central_cpu_profile}")"
 expected_triton_version="$(jq -er '.triton.triton_version' "${central_cpu_profile}")"
-triton_image="${triton_repository}@${triton_image_digest}"
-[[ "${triton_image}" =~ ^[^[:space:]@]+@sha256:[0-9a-f]{64}$ ]] \
+[[ "${triton_image}" =~ ^[^[:space:]@]+@sha256:[0-9a-f]{64}$ \
+  && "${triton_image##*@}" == "${triton_image_digest}" ]] \
   || { echo "central CPU profile has an invalid Triton image binding" >&2; exit 1; }
 fixture_repo="${repo_root}/testkit/fixtures/repositories/masi-ids-window-v1-r3"
 proto_dir="${inf_root}/proto/vendor/triton"
 
 cleanup() {
-  docker rm --force "${container_name}" >/dev/null 2>&1 || true
-  docker rm --force "${triton_container}" >/dev/null 2>&1 || true
-  docker network rm "${smoke_network}" >/dev/null 2>&1 || true
+  timeout --signal=TERM --kill-after=5s 30s docker rm --force "${container_name}" >/dev/null 2>&1 || true
+  timeout --signal=TERM --kill-after=5s 30s docker rm --force "${triton_container}" >/dev/null 2>&1 || true
+  timeout --signal=TERM --kill-after=5s 30s docker network rm "${smoke_network}" >/dev/null 2>&1 || true
   if [[ "${temporary_root}" == /tmp/masi-inf-oci-smoke.* ]]; then
     rm -rf -- "${temporary_root}"
   fi
 }
 trap cleanup EXIT
+command -v timeout >/dev/null 2>&1 || { echo "missing timeout" >&2; exit 69; }
+docker_binary="$(command -v docker)"
+[[ -n "${docker_binary}" ]] || { echo "missing docker" >&2; exit 69; }
+docker() {
+  timeout --signal=TERM --kill-after=30s \
+    "${MASI_INF_DOCKER_COMMAND_TIMEOUT_SECONDS:-1800}" "${docker_binary}" "$@"
+}
 
 mkdir -p -- "${evidence_dir}" "${temporary_root}/secrets" "${temporary_root}/probe" \
   "${temporary_root}/config" "${temporary_root}/data" "${temporary_root}/triton-ca" \
@@ -172,7 +185,7 @@ optimization_profile_digest="$(jq -er '.binding_identity.optimization_profile_di
 # binary rejects any envelope declaring a different value. Compute it from the
 # same file so the smoke tracks the profile the binary was built against.
 wire_profile_digest="sha256:$(sha256sum "${repo_root}/contracts/inference/v1/profile.json" | awk '{print $1}')"
-zero_digest="sha256:0000000000000000000000000000000000000000000000000000000000000000"
+empty_operator_partition_digest="sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
 
 working_tree_dirty=false
 working_tree_status="$(git -C "${repo_root}" status --porcelain=v1 --untracked-files=all)"
@@ -197,12 +210,12 @@ fi
 # pinned commit (verified against GRPC_COMMIT inside the RUN) and so needs
 # build-time network access; this is distinct from the runtime prohibition on
 # --network host. The image has no baked-in config/secret.
-docker build --platform linux/amd64 --provenance=false --sbom=false --target builder \
+timeout --signal=TERM --kill-after=60s 1800s docker build --platform linux/amd64 --provenance=false --sbom=false --target builder \
   --file "${inf_root}/Dockerfile" \
   --build-arg "SOURCE_REVISION=${source_revision}" \
   --build-arg "SOURCE_TREE_DIGEST=${source_tree_digest}" \
   --tag "${builder_ref}" "${repo_root}"
-docker build --platform linux/amd64 --provenance=false --sbom=false \
+timeout --signal=TERM --kill-after=60s 1800s docker build --platform linux/amd64 --provenance=false --sbom=false \
   --file "${inf_root}/Dockerfile" \
   --build-arg "SOURCE_REVISION=${source_revision}" \
   --build-arg "SOURCE_TREE_DIGEST=${source_tree_digest}" \
@@ -212,8 +225,8 @@ docker build --platform linux/amd64 --provenance=false --sbom=false \
 # image, so configure/build failures are fatal and the resulting digest is
 # recorded below.
 cd -- "${inf_root}"
-cmake --preset cpu-release -DCMAKE_BUILD_TYPE=Release >/dev/null
-cmake --build build/cpu-release --target masi_inference_probe >/dev/null
+timeout --signal=TERM --kill-after=30s 600s cmake --preset cpu-release -DCMAKE_BUILD_TYPE=Release >/dev/null
+timeout --signal=TERM --kill-after=30s 600s cmake --build build/cpu-release --target masi_inference_probe >/dev/null
 probe_bin="${inf_root}/build/cpu-release/masi_inference_probe"
 [[ -x "${probe_bin}" ]] || { echo "current-source OCI probe was not built" >&2; exit 1; }
 probe_binary_digest="sha256:$(sha256sum "${probe_bin}" | awk '{print $1}')"
@@ -239,10 +252,10 @@ image_repo_digest="$(docker image inspect --format '{{index .RepoDigests 0}}' "$
 image_manifest_digest="${image_repo_digest##*@}"
 [[ "${image_manifest_digest}" =~ ^sha256:[0-9a-f]{64}$ ]] \
   || { echo "OCI image has no immutable manifest RepoDigest" >&2; exit 1; }
-extract_container="$(docker create "${image_ref}" true)"
-docker cp "${extract_container}:/usr/local/bin/masi_inference_gateway" \
+extract_container="$(timeout --signal=TERM --kill-after=5s 30s docker create "${image_ref}" true)"
+timeout --signal=TERM --kill-after=5s 60s docker cp "${extract_container}:/usr/local/bin/masi_inference_gateway" \
   "${temporary_root}/gateway-binary"
-docker rm --force "${extract_container}" >/dev/null
+timeout --signal=TERM --kill-after=5s 30s docker rm --force "${extract_container}" >/dev/null
 if [[ ! -s "${temporary_root}/gateway-binary" ]]; then
   echo "could not extract masi_inference_gateway from image" >&2
   exit 1
@@ -258,8 +271,8 @@ gateway_binary_digest="sha256:$(sha256sum "${temporary_root}/gateway-binary" | a
 # Gateway verifies via its SetSslTargetNameOverride("triton"). Triton runs with
 # gRPC mutual TLS: the server presents triton-server.pem and verifies client
 # certs against the same CA.
-docker network create "${smoke_network}" >/dev/null
-docker run --detach --name "${triton_container}" --network "${smoke_network}" \
+timeout --signal=TERM --kill-after=5s 30s docker network create "${smoke_network}" >/dev/null
+timeout --signal=TERM --kill-after=10s 60s docker run --detach --name "${triton_container}" --network "${smoke_network}" \
   --network-alias triton \
   --read-only --cap-drop ALL --security-opt no-new-privileges:true \
   --pids-limit 512 --memory 4g --cpus 4 --tmpfs /tmp:rw,noexec,nosuid,size=256m \
@@ -308,11 +321,11 @@ for _attempt in $(seq 1 90); do
   if [[ "$(docker inspect --format '{{.State.Running}}' "${triton_container}")" != "true" ]]; then
     break
   fi
-  server_meta="$(grpcurl "${grpcurl_args[@]}" -d '{}' \
+  server_meta="$(timeout --signal=TERM --kill-after=5s 10s grpcurl "${grpcurl_args[@]}" -d '{}' \
     "127.0.0.1:${triton_host_port}" inference.GRPCInferenceService/ServerMetadata 2>/dev/null || true)"
   if [[ -n "${server_meta}" ]]; then
     triton_version="$(printf '%s' "${server_meta}" | jq -r '.version // empty' 2>/dev/null || true)"
-    model_ready="$(grpcurl "${grpcurl_args[@]}" \
+    model_ready="$(timeout --signal=TERM --kill-after=5s 10s grpcurl "${grpcurl_args[@]}" \
       -d '{"name":"masi-ids-window-v1","version":"1"}' \
       "127.0.0.1:${triton_host_port}" inference.GRPCInferenceService/ModelReady 2>/dev/null || true)"
     if [[ "${triton_version}" != "" ]] \
@@ -378,7 +391,7 @@ envelope_digest="sha256:$(printf '%s\n' \
   "${closure_digest}" \
   "KIND_CPU" \
   "1" \
-  "${zero_digest}" \
+  "${empty_operator_partition_digest}" \
   "1" \
   "0" \
   "9999999999999" \
@@ -395,6 +408,7 @@ jq -n \
   --arg triton_server_version "${triton_version}" \
   --arg repo_identity "${repo_identity}" \
   --arg closure_digest "${closure_digest}" \
+  --arg operator_partition_digest "${empty_operator_partition_digest}" \
   --arg envelope_digest "${envelope_digest}" '{
     schema_version:"inference-startup-envelope/v1",
     model_control_incarnation_id:"incarnation-oci-smoke-0001",
@@ -414,7 +428,7 @@ jq -n \
     optimization_profile_digest:$optimization_profile_digest,
     triton_server_version:$triton_server_version,
     repository_snapshot:{identity:$repo_identity, closure_digest:$closure_digest},
-    instance_group:{kind:"KIND_CPU", count:1, operator_partition_digest:"sha256:0000000000000000000000000000000000000000000000000000000000000000"},
+    instance_group:{kind:"KIND_CPU", count:1, operator_partition_digest:$operator_partition_digest},
     proposed_binding_generation:1,
     issued_at_unix_ms:0,
     expires_at_unix_ms:9999999999999,
@@ -460,7 +474,7 @@ chown -R 65532:65532 \
   "${temporary_root}/secrets" "${temporary_root}/config" "${temporary_root}/data" \
   "${temporary_root}/triton-server" "${temporary_root}/triton-client"
 
-docker run --detach --name "${container_name}" --network "${smoke_network}" --read-only \
+timeout --signal=TERM --kill-after=10s 60s docker run --detach --name "${container_name}" --network "${smoke_network}" --read-only \
   --cap-drop ALL --security-opt no-new-privileges:true --pids-limit 128 \
   --memory 512m --cpus 1 --tmpfs /tmp:rw,noexec,nosuid,size=16m \
   --publish 127.0.0.1:0:7443 \
@@ -607,7 +621,7 @@ if [[ "${container_read_only}" != "true" \
 fi
 
 image_archive="${evidence_dir}/inference-image.tar"
-docker image save --output "${image_archive}" "${image_ref}"
+timeout --signal=TERM --kill-after=30s 600s docker image save --output "${image_archive}" "${image_ref}"
 image_archive_digest="sha256:$(sha256sum "${image_archive}" | awk '{print $1}')"
 archive_config_path="$(tar -xOf "${image_archive}" manifest.json | jq -er '.[0].Config')"
 archive_config_hex="$(basename -- "${archive_config_path}" .json)"
@@ -623,7 +637,7 @@ jq -n --arg archive "inference-image.tar" --arg digest "${image_archive_digest}"
   '{archive:$archive, digest:$digest, bytes:$bytes}' \
   >"${evidence_dir}/image-archive-manifest.json"
 
-docker stop --time 10 "${container_name}" >/dev/null
+timeout --signal=TERM --kill-after=10s 30s docker stop --time 10 "${container_name}" >/dev/null
 container_exit_code="$(docker inspect --format '{{.State.ExitCode}}' "${container_name}")"
 if [[ "${container_exit_code}" != "0" ]]; then
   echo "OCI container did not exit 0 on SIGTERM (got ${container_exit_code})" >&2
@@ -715,6 +729,10 @@ jq -n \
       graceful_sigterm: "PASS"
     }
   }' >"${evidence_dir}/oci-smoke-evidence.json"
+
+python3 "${script_dir}/validate-evidence.py" \
+  --schema "${repo_root}/contracts/evidence/central-inference-oci/v1/schema.json" \
+  --document "${evidence_dir}/oci-smoke-evidence.json" >/dev/null
 
 if [[ "${evidence_result}" == "HOLD" ]]; then
   exit 2

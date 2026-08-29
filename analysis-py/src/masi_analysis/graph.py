@@ -37,7 +37,6 @@ from .provider import ProviderAdapter
 from .security import require_safe_output
 
 _CAUSAL = re.compile(r"(?i)\b(?:cause|caused|root cause|because of)\b|导致|根因|引发")
-_ZERO_DIGEST = "sha256:" + "0" * 64
 _TOPOLOGY = {
     "version": GRAPH_VERSION,
     "nodes": ["context", "hypothesis", "bounded_evidence", "synthesis", "grounding", "artifact"],
@@ -167,7 +166,7 @@ class AnalysisGraph:
             ProviderFact(id=f"peer-{result.peer_id}", digest=result.content_digest, kind="peer-result", summary=result.summary) for result in peer_results
         ]
         used_llm = 0 if phase == "hypothesis" else 1
-        request = ProviderRequest(
+        request = ProviderRequest.model_construct(
             schema_version="masi-analysis-provider-request/v1",
             request_id=f"provider-{input_bundle.run_id}-{phase}",
             phase=phase,  # type: ignore[arg-type]
@@ -189,9 +188,11 @@ class AnalysisGraph:
                 deadline_unix_ms=input_bundle.deadline_unix_ms,
             ),
             trace_id=input_bundle.trace_id,
-            request_digest=_ZERO_DIGEST,
+            request_digest="",
         )
-        return request.model_copy(update={"request_digest": compute_provider_request_digest(request)})
+        payload = request.model_dump(mode="json")
+        payload["request_digest"] = compute_provider_request_digest(request)
+        return ProviderRequest.model_validate(payload)
 
     async def _hypothesis(self, state: GraphState) -> dict[str, Any]:
         input_bundle = state["input"]
@@ -317,6 +318,7 @@ class AnalysisGraph:
         evidence_ids = {item.id for item in input_bundle.evidence_refs}
         model_result_ids = set(input_bundle.model_result_evidence_refs)
         explanation_ids = set(input_bundle.model_explanation_evidence_refs)
+        explanation_digests = {item.id: item.digest for item in input_bundle.evidence_refs if item.id in explanation_ids}
         rejected = 0
 
         def claims(values: list[GroundedClaim], allowed: set[str]) -> list[GroundedClaim]:
@@ -342,7 +344,7 @@ class AnalysisGraph:
             if _CAUSAL.search(claim.claim):
                 rejected += 1
                 continue
-            metadata = self._explanation_metadata(state.get("tool_results", []), claim.evidence_refs)
+            metadata = self._explanation_metadata(state.get("tool_results", []), claim.evidence_refs, explanation_digests)
             if metadata is None:
                 rejected += 1
                 continue
@@ -359,7 +361,9 @@ class AnalysisGraph:
         clean_lists: dict[str, list[str]] = {}
         source_lists = {
             "inferred_claims": response.inferred_claims if response else [],
-            "llm_interpretations": response.inferred_claims if response else [],
+            # Provider v1 has no independent interpretation field. Never copy an
+            # inferred claim into a second semantic layer.
+            "llm_interpretations": [],
             "uncertainties": response.uncertainties if response else [],
             "limitations": response.limitations if response else [],
             "missing_evidence": response.missing_evidence if response else [],
@@ -389,27 +393,91 @@ class AnalysisGraph:
         }
         return {"grounded": grounded, "trace_codes": [*state["trace_codes"], "GROUNDING_VALIDATED"]}
 
-    @staticmethod
-    def _explanation_metadata(results: list[ToolResult], refs: list[str]) -> dict[str, Any] | None:
+    def _explanation_metadata(
+        self,
+        results: list[ToolResult],
+        refs: list[str],
+        expected_digests: dict[str, str],
+    ) -> dict[str, Any] | None:
         for result in results:
-            value = result.structured.get("explanation")
-            if not isinstance(value, dict) or value.get("evidence_id") not in refs:
+            structured = result.structured
+            value = structured.get("explanation")
+            evidence_id = structured.get("evidence_id")
+            if (
+                result.status != "succeeded"
+                or result.quality != "valid"
+                or result.truncated
+                or structured.get("kind") != "offline-model-explanation"
+                or not isinstance(evidence_id, str)
+                or evidence_id not in refs
+                or result.target_ref != evidence_id
+                or structured.get("reference_digest") != expected_digests.get(evidence_id)
+                or not isinstance(value, dict)
+                or value.get("evidence_id") != evidence_id
+            ):
                 continue
-            required = {"method", "model_digest", "sample_digest", "coverage", "truncated", "limitations"}
+            required = {
+                "method",
+                "model_digest",
+                "sample_digest",
+                "coverage",
+                "truncated",
+                "truncation_reason",
+                "stability_status",
+                "limitations",
+                "safety",
+            }
             if not required.issubset(value):
                 continue
+            truncated = value.get("truncated")
+            truncation_reason = value.get("truncation_reason")
+            if not isinstance(truncated, bool) or truncation_reason not in {
+                "none",
+                "bounded_sample_limit",
+                "source_scenario_limit",
+            }:
+                continue
+            if truncated != (truncation_reason != "none"):
+                continue
+            stability_status = value.get("stability_status")
+            if stability_status not in {"stable", "unstable"}:
+                continue
+            expected_safety = {
+                "causal_claim": False,
+                "realtime_inference_payload": False,
+                "canonical_event_identity": False,
+                "effect_eligibility": False,
+                "llm_generated": False,
+                "executable_content": False,
+            }
+            if value.get("safety") != expected_safety:
+                continue
+            raw_limitations = value.get("limitations")
+            if not isinstance(raw_limitations, list) or not raw_limitations:
+                continue
             try:
+                limitations = [require_safe_output(item, self._provider.secret_values) for item in raw_limitations if isinstance(item, str)]
+                if len(limitations) != len(raw_limitations):
+                    continue
+                if value["method"] == "tree-shap" and value.get("scaler_digest") is None:
+                    limitations.append("Scaler digest is not applicable to this TreeSHAP method.")
+                if value["method"] in {"logistic-contribution", "reconstruction-residual"}:
+                    limitations.append("Background digest is not applicable to this scaled method.")
+                if stability_status == "unstable":
+                    limitations.append("Explanation stability is below the qualified threshold.")
+                if truncated:
+                    limitations.append(f"Explanation samples were truncated: {truncation_reason}.")
                 candidate = ModelExplanationFact(
                     claim="validated",
-                    evidence_refs=[str(value["evidence_id"])],
+                    evidence_refs=[evidence_id],
                     method=value["method"],
                     background_digest=value.get("background_digest"),
                     model_digest=value["model_digest"],
                     scaler_digest=value.get("scaler_digest"),
                     sample_digest=value["sample_digest"],
                     coverage=value["coverage"],
-                    truncated=value["truncated"],
-                    limitations=value["limitations"],
+                    truncated=truncated,
+                    limitations=list(dict.fromkeys(limitations)),
                 )
             except Exception:
                 continue
@@ -481,10 +549,10 @@ class AnalysisGraph:
             "peers": [result.trajectory_record() for result in state.get("peer_results", [])],
         }
         produced_ms = time.time_ns() // 1_000_000
-        artifact = AnalysisArtifact(
+        artifact = AnalysisArtifact.model_construct(
             schema_version=ARTIFACT_SCHEMA,
             artifact_id="artifact-" + canonical_digest({"task": input_bundle.task_id, "input": input_bundle.input_digest})[7:39],
-            artifact_digest=_ZERO_DIGEST,
+            artifact_digest="",
             task_id=input_bundle.task_id,
             run_id=input_bundle.run_id,
             plugin_id=PLUGIN_ID,
@@ -521,7 +589,9 @@ class AnalysisGraph:
             non_executable=True,
             deployment_eligible=False,
         )
-        artifact = artifact.model_copy(update={"artifact_digest": compute_artifact_digest(artifact)})
+        payload = artifact.model_dump(mode="json")
+        payload["artifact_digest"] = compute_artifact_digest(artifact)
+        artifact = AnalysisArtifact.model_validate(payload)
         raw = go_json_bytes(artifact.model_dump(mode="json"))
         if len(raw) > min(input_bundle.budgets.artifact_bytes, 65_536):
             raise AnalysisError("RESOURCE_EXHAUSTED", "analysis artifact exceeded the exact task bound", 422)

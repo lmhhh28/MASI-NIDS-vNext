@@ -4,10 +4,15 @@ import (
 	"errors"
 	"fmt"
 	"math"
-	"regexp"
+
+	"masi-nids/control-go/internal/security"
 )
 
-var digestPattern = regexp.MustCompile(`^sha256:[0-9a-f]{64}$`)
+type nonZeroDigestPattern struct{}
+
+func (nonZeroDigestPattern) MatchString(value string) bool { return security.ValidDigest(value) }
+
+var digestPattern nonZeroDigestPattern
 
 // ComputeDerived is the pure rule-observation formula (golden
 // control-rule-formula-status-0001; cross-language runners Go/Rust/TS/Python

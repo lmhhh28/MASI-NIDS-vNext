@@ -29,17 +29,28 @@ def schema_errors(schema: dict[str, Any], document: dict[str, Any]) -> list[Any]
 
 
 def semantic_validate(repo: Path, run_dir: Path, summary: dict[str, Any]) -> None:
-    if summary.get("overall_module_complete") is not True or summary.get("result") != "PASS":
+    if (
+        summary.get("overall_module_complete") is not True
+        or summary.get("result") != "HOLD"
+        or summary.get("qualification") != "NOT_QUALIFIED"
+    ):
         raise ValueError("completion/result mismatch")
     for name, reference in cast(dict[str, dict[str, str]], summary["evidence_refs"]).items():
         path = run_dir / reference["path"]
-        if digest(path) != reference["digest"] or load(path).get("result") != "PASS":
+        target = load(path)
+        if (
+            digest(path) != reference["digest"]
+            or target.get("result") != reference.get("result")
+            or target.get("qualification") != reference.get("qualification")
+        ):
             raise ValueError(f"evidence reference mismatch: {name}")
     manifest = load(repo / "ml-py/requirements-traceability.json")
     expected = {str(item["command_id"]) for item in manifest["execution_bindings"] if item["required"]}
     if set(summary["executed_gates"]) != expected:
         raise ValueError("executed gate set mismatch")
     metadata = load(run_dir / "run-metadata.json")
+    if summary.get("run_id") != run_dir.name or summary.get("run_id") != metadata.get("run_id"):
+        raise ValueError("run identity mismatch")
     for command_id in expected:
         sidecar = load(run_dir / f"{command_id}.command.json")
         log = cast(dict[str, Any], sidecar["log"])
@@ -115,6 +126,12 @@ def main() -> int:
     ref_negative = copy.deepcopy(summary)
     ref_negative["evidence_refs"]["blackbox"]["digest"] = "sha256:" + "0" * 64
     must_reject(lambda: semantic_validate(repo, run_dir, ref_negative), "evidence digest")
+    qualification_negative = copy.deepcopy(summary)
+    qualification_negative["evidence_refs"]["blackbox"]["qualification"] = "QUALIFIED"
+    must_reject(
+        lambda: semantic_validate(repo, run_dir, qualification_negative),
+        "evidence qualification",
+    )
     model_negative = copy.deepcopy(summary)
     model_negative["artifact_digests"]["model"] = "sha256:" + "0" * 64
     must_reject(lambda: semantic_validate(repo, run_dir, model_negative), "model identity")
@@ -130,7 +147,7 @@ def main() -> int:
             {
                 "schema_version": "offline-ml-module-evidence-validation/v1",
                 "result": "PASS",
-                "negative_self_tests": 5,
+                "negative_self_tests": 6,
                 "overall_module_complete": True,
             },
             sort_keys=True,

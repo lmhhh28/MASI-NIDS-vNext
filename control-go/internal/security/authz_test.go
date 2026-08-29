@@ -107,6 +107,28 @@ func TestRoleScopeMappingDefaultDeny(t *testing.T) {
 	}
 }
 
+func TestRoleScopeMappingRejectsAllZeroDigest(t *testing.T) {
+	m := &RoleScopeMapping{Version: "v1", DefaultDeny: true, Digest: zeroDigest, ActorScopes: map[string][]Scope{}}
+	if err := m.Validate(); err == nil {
+		t.Fatal("all-zero role mapping digest must be rejected")
+	}
+}
+
+func TestSharedDigestAndRevisionValidatorsRejectSentinels(t *testing.T) {
+	if ValidDigest("sha256:" + strings.Repeat("0", 64)) {
+		t.Fatal("all-zero SHA-256 sentinel must be rejected")
+	}
+	if !ValidDigest("sha256:" + strings.Repeat("a", 64)) {
+		t.Fatal("canonical non-zero SHA-256 digest rejected")
+	}
+	if ValidRevision(strings.Repeat("0", 40)) {
+		t.Fatal("all-zero revision sentinel must be rejected")
+	}
+	if !ValidRevision(strings.Repeat("0", 39) + "3") {
+		t.Fatal("canonical non-zero 40-hex revision rejected")
+	}
+}
+
 func TestRoleMappingContentDigestRejectsTamper(t *testing.T) {
 	actor := Actor{Issuer: "https://idp.example", Subject: "u1"}
 	m := RoleScopeMapping{Version: "v1", DefaultDeny: true, ActorScopes: map[string][]Scope{

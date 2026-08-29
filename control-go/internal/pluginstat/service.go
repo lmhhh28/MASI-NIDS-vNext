@@ -24,8 +24,9 @@ import (
 // runs — bounded, CAS/fenced, derived solely from plugin_statistic_runs; it
 // is never an effect-dispatcher claim source and never a second broker.
 type Service struct {
-	pool *db.Pool
-	now  func() time.Time
+	pool           *db.Pool
+	now            func() time.Time
+	onRunCommitted func(ClaimToken, Artifact)
 }
 
 type RunAuthorization struct {
@@ -281,6 +282,21 @@ func shortDigest(d string) string {
 
 func NewService(pool *db.Pool) *Service {
 	return &Service{pool: pool, now: time.Now}
+}
+
+// SetPostCommitHook wires a process-local invalidation acceleration. The hook
+// is invoked only after the run ledger transaction/statement commits and never
+// participates in the durable run state machine.
+func (s *Service) SetPostCommitHook(hook func(ClaimToken, Artifact)) {
+	if s != nil {
+		s.onRunCommitted = hook
+	}
+}
+
+func (s *Service) notifyRunCommitted(token ClaimToken, artifact Artifact) {
+	if s != nil && s.onRunCommitted != nil {
+		s.onRunCommitted(token, artifact)
+	}
 }
 
 // InputBundle is the Go-frozen canonical input for one run.
@@ -824,7 +840,7 @@ func (s *Service) commitSucceeded(ctx context.Context, token ClaimToken, artifac
 	if err != nil {
 		return s.failRun(ctx, token, "ARTIFACT_MARSHAL_ERROR", err)
 	}
-	return s.pool.WithTx(ctx, []db.TxOption{db.ReadCommitted()}, func(tx *db.Tx) error {
+	err = s.pool.WithTx(ctx, []db.TxOption{db.ReadCommitted()}, func(tx *db.Tx) error {
 		var bindingGen int64
 		var defID, defDigest, scope, producerKind string
 		var externalCapabilities []string
@@ -925,6 +941,10 @@ func (s *Service) commitSucceeded(ctx context.Context, token ClaimToken, artifac
 		}
 		return nil
 	})
+	if err == nil {
+		s.notifyRunCommitted(token, artifact)
+	}
+	return err
 }
 
 func (s *Service) failRun(ctx context.Context, token ClaimToken, reason string, cause error) error {
@@ -945,6 +965,7 @@ func (s *Service) failRun(ctx context.Context, token ClaimToken, reason string, 
 	if tag.RowsAffected() != 1 {
 		return errors.New("pluginstat: fail CAS conflict")
 	}
+	s.notifyRunCommitted(token, Artifact{})
 	if cause != nil {
 		return fmt.Errorf("pluginstat: %s: %w", reason, cause)
 	}

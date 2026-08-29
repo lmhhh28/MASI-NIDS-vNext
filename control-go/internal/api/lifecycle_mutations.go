@@ -1,6 +1,7 @@
 package api
 
 import (
+	"encoding/json"
 	"errors"
 	"net/http"
 	"time"
@@ -55,6 +56,7 @@ func handleImportTargetCandidate(deps Deps) http.HandlerFunc {
 			WriteError(w, 409, "TARGET_CANDIDATE_IMPORT_REJECTED")
 			return
 		}
+		publishInvalidation(deps, ResTarget, out.TargetID, out.Scope, time.Now().UnixMilli())
 		writeJSON(w, http.StatusCreated, map[string]any{"target": out,
 			"operation_id": lifecycleOperationID(r, deps, out.TargetID, body.Target.TraceID)})
 	}
@@ -79,6 +81,7 @@ func handleVerifyTarget(deps Deps) http.HandlerFunc {
 			WriteError(w, 409, "TARGET_VERIFY_REJECTED")
 			return
 		}
+		publishInvalidation(deps, ResTarget, targetID, body.Scope, time.Now().UnixMilli())
 		writeJSON(w, 200, map[string]any{"target_id": targetID, "status": "verified",
 			"operation_id": lifecycleOperationID(r, deps, targetID, body.TraceID)})
 	}
@@ -116,6 +119,7 @@ func handleTargetOperationalLifecycle(deps Deps, desired target.TargetStatus) ht
 			WriteError(w, 409, "TARGET_LIFECYCLE_REJECTED")
 			return
 		}
+		publishInvalidation(deps, ResTarget, targetID, body.Scope, time.Now().UnixMilli())
 		writeJSON(w, 200, map[string]any{"target_id": targetID, "status": desired,
 			"operation_id": lifecycleOperationID(r, deps, targetID, body.TraceID)})
 	}
@@ -146,6 +150,7 @@ func handleAssignTarget(deps Deps) http.HandlerFunc {
 			WriteError(w, 409, "TARGET_ASSIGNMENT_REJECTED")
 			return
 		}
+		publishInvalidation(deps, ResTarget, body.Assignment.TargetID, body.Scope, time.Now().UnixMilli())
 		writeJSON(w, http.StatusCreated, map[string]any{"operation_id": body.Assignment.LeaseID,
 			"target_id": body.Assignment.TargetID, "assignment_generation": body.Assignment.AssignmentGeneration,
 			"result": result})
@@ -205,6 +210,7 @@ func handleCreateFirewallActivationProposal(deps Deps, rollback bool) http.Handl
 			WriteError(w, 409, "FIREWALL_PROPOSAL_REJECTED")
 			return
 		}
+		publishInvalidation(deps, ResProposal, body.ProposalID, scope, time.Now().UnixMilli())
 		writeJSON(w, http.StatusCreated, out)
 	}
 }
@@ -234,13 +240,20 @@ func handleCreateModelRollbackGroup(deps Deps) http.HandlerFunc {
 			TargetSetDigest string               `json:"target_set_digest"`
 			IdempotencyKey  string               `json:"idempotency_key"`
 		}
-		if decodeStrictJSON(w, r, 128*1024, &body) != nil || body.NewGroupID == "" || body.IdempotencyKey == "" {
+		if decodeStrictJSON(w, r, 128*1024, &body) != nil || body.NewGroupID == "" ||
+			body.IdempotencyKey == "" || deps.Pool == nil || deps.ModelRollout == nil ||
+			targetSetDigest(body.OrderedShards) != body.TargetSetDigest {
 			WriteError(w, 400, "MODEL_ROLLBACK_MALFORMED")
 			return
 		}
 		var originalScope, originalIncarnation string
-		if err := deps.Pool.QueryRow(r.Context(), `SELECT scope,model_control_incarnation_id FROM model_rollout_groups WHERE group_id=$1`, chi.URLParam(r, "groupID")).Scan(&originalScope, &originalIncarnation); err != nil {
+		var originalShardsJSON []byte
+		if err := deps.Pool.QueryRow(r.Context(), `SELECT scope,model_control_incarnation_id,ordered_shards FROM model_rollout_groups WHERE group_id=$1`, chi.URLParam(r, "groupID")).Scan(&originalScope, &originalIncarnation, &originalShardsJSON); err != nil {
 			WriteError(w, 404, "MODEL_ROLLOUT_GROUP_NOT_FOUND")
+			return
+		}
+		if err := validateRollbackShardSelection(originalShardsJSON, body.OrderedShards, body.TargetSetDigest); err != nil {
+			WriteError(w, http.StatusConflict, "MODEL_ROLLBACK_TARGET_SET_DRIFT")
 			return
 		}
 		admin, err := authorizeAdminMutation(r, deps, originalScope, "model-rollback", body.TargetSetDigest)
@@ -257,8 +270,41 @@ func handleCreateModelRollbackGroup(deps Deps) http.HandlerFunc {
 			WriteError(w, 409, "MODEL_ROLLBACK_REJECTED")
 			return
 		}
+		publishInvalidation(deps, ResModelRollout, body.NewGroupID, originalScope, time.Now().UnixMilli())
+		publishInvalidation(deps, ResModelBinding, body.NewGroupID, originalScope, time.Now().UnixMilli())
 		writeJSON(w, http.StatusCreated, out)
 	}
+}
+
+func validateRollbackShardSelection(originalJSON []byte, requested []string, requestedDigest string) error {
+	if len(requested) == 0 || len(requested) > 256 || targetSetDigest(requested) != requestedDigest {
+		return errors.New("model rollback requested shard vector is malformed")
+	}
+	var original []string
+	if json.Unmarshal(originalJSON, &original) != nil || len(original) == 0 || len(original) > 256 {
+		return errors.New("model rollback original shard vector is invalid")
+	}
+	allowed := make(map[string]struct{}, len(original))
+	for _, shard := range original {
+		if shard == "" {
+			return errors.New("model rollback original shard identity is empty")
+		}
+		if _, exists := allowed[shard]; exists {
+			return errors.New("model rollback original shard vector has duplicates")
+		}
+		allowed[shard] = struct{}{}
+	}
+	seen := make(map[string]struct{}, len(requested))
+	for _, shard := range requested {
+		if _, exists := allowed[shard]; !exists {
+			return errors.New("model rollback requested shard is outside original group")
+		}
+		if _, exists := seen[shard]; exists {
+			return errors.New("model rollback requested shard vector has duplicates")
+		}
+		seen[shard] = struct{}{}
+	}
+	return nil
 }
 
 func handleRecoverModelOperation(deps Deps) http.HandlerFunc {
@@ -277,6 +323,7 @@ func handleRecoverModelOperation(deps Deps) http.HandlerFunc {
 			WriteError(w, 409, "MODEL_RECOVERY_PENDING")
 			return
 		}
+		publishInvalidation(deps, ResModelBinding, chi.URLParam(r, "operationID"), body.Scope, time.Now().UnixMilli())
 		writeJSON(w, 200, out)
 	}
 }
@@ -305,6 +352,7 @@ func handleRotateModelIncarnation(deps Deps) http.HandlerFunc {
 			WriteError(w, 409, "MODEL_INCARNATION_REJECTED")
 			return
 		}
+		publishInvalidation(deps, ResModelBinding, out.IncarnationID, body.Scope, time.Now().UnixMilli())
 		writeJSON(w, http.StatusCreated, out)
 	}
 }
@@ -324,6 +372,7 @@ func handleEnableModelWriter(deps Deps) http.HandlerFunc {
 			WriteError(w, 409, "MODEL_WRITER_ENABLE_REJECTED")
 			return
 		}
+		publishInvalidation(deps, ResModelBinding, chi.URLParam(r, "incarnationID"), body.Scope, time.Now().UnixMilli())
 		writeJSON(w, 200, map[string]any{"incarnation_id": chi.URLParam(r, "incarnationID"), "writer_enabled": true})
 	}
 }
@@ -356,6 +405,7 @@ func handleRevisePluginStatSchedule(deps Deps, disabled bool) http.HandlerFunc {
 			WriteError(w, 409, "STATISTICS_SCHEDULE_REVISION_REJECTED")
 			return
 		}
+		publishInvalidation(deps, ResPluginSched, chi.URLParam(r, "scheduleID"), body.Scope, time.Now().UnixMilli())
 		writeJSON(w, http.StatusCreated, map[string]any{"schedule_id": chi.URLParam(r, "scheduleID"), "schedule_revision": revision, "disabled": disabled})
 	}
 }

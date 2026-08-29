@@ -5,6 +5,7 @@
 #include <cstring>
 #include <set>
 #include <sstream>
+#include <string_view>
 
 #include "digest.h"
 #include "numeric.h"
@@ -14,6 +15,9 @@
 namespace masi::inf {
 
 namespace {
+
+constexpr std::string_view kEmptyPayloadDigest =
+    "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
 
 int64_t now_ms() {
   using namespace std::chrono;
@@ -75,6 +79,18 @@ grpc::Status to_grpc(const error::Exception &e) {
 }
 
 } // namespace
+
+grpc::Status validate_triton_output_shape(const TritonInferResult &result, size_t record_count,
+                                          size_t class_count) {
+  if (result.values.size() != record_count * class_count)
+    return grpc::Status(grpc::StatusCode::FAILED_PRECONDITION, "READBACK_MISMATCH",
+                        "triton output element count does not match the batch");
+  if (result.shape.size() != 2 || result.shape[0] != static_cast<int64_t>(record_count) ||
+      result.shape[1] != static_cast<int64_t>(class_count))
+    return grpc::Status(grpc::StatusCode::FAILED_PRECONDITION, "READBACK_MISMATCH",
+                        "triton output shape does not match the batch");
+  return grpc::Status::OK;
+}
 
 grpc::Status validate_route_fence(const masi::edge::v1::InferenceRoute &route,
                                   const PoolReadback &rb) {
@@ -460,17 +476,17 @@ grpc::Status CentralInferenceServiceImpl::Infer(grpc::ServerContext *ctx,
     bounded.set_request_id(req->request_id());
     bounded.mutable_route()->CopyFrom(route);
     bounded.set_trace_id(req->trace_id());
-    bounded.set_batch_digest("sha256:" + std::string(64, '0'));
+    bounded.set_batch_digest(std::string(kEmptyPayloadDigest));
     for (const auto &rec : req->records()) {
       auto *out = bounded.add_records();
-      fill_result_record(route, rec, req->trace_id(), "sha256:" + std::string(64, '0'), out);
+      fill_result_record(route, rec, req->trace_id(), std::string(kEmptyPayloadDigest), out);
       for (size_t k = 0; k < class_count; ++k)
         out->add_scores(0.0f);
       out->set_decision("abstain");
       out->set_quality("invalid");
       out->set_status("OK");
       out->set_error_code("NONE");
-      out->set_output_digest("sha256:" + std::string(64, '0'));
+      out->set_output_digest(std::string(kEmptyPayloadDigest));
     }
     if (bounded.ByteSizeLong() > static_cast<size_t>(cfg_.max_response_bytes))
       return grpc::Status(grpc::StatusCode::RESOURCE_EXHAUSTED, "INFERENCE_MESSAGE_TOO_LARGE",
@@ -486,13 +502,8 @@ grpc::Status CentralInferenceServiceImpl::Infer(grpc::ServerContext *ctx,
     return to_grpc(e);
   }
 
-  if (inferred.values.size() != record_count * class_count)
-    return grpc::Status(grpc::StatusCode::FAILED_PRECONDITION, "READBACK_MISMATCH",
-                        "triton output element count does not match the batch");
-  if (inferred.shape.size() == 2 && (inferred.shape[0] != static_cast<int64_t>(record_count) ||
-                                     inferred.shape[1] != static_cast<int64_t>(class_count)))
-    return grpc::Status(grpc::StatusCode::FAILED_PRECONDITION, "READBACK_MISMATCH",
-                        "triton output shape does not match the batch");
+  if (auto status = validate_triton_output_shape(inferred, record_count, class_count); !status.ok())
+    return status;
 
   resp->set_schema_version(req->schema_version());
   resp->set_request_id(req->request_id());

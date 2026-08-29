@@ -330,6 +330,7 @@ pub fn validate_digest(value: &str) -> HostResult<()> {
         || !suffix
             .bytes()
             .all(|value| value.is_ascii_digit() || (b'a'..=b'f').contains(&value))
+        || suffix.bytes().all(|value| value == b'0')
     {
         return Err(HostError::new(
             ReasonCode::InvalidArgument,
@@ -499,6 +500,7 @@ mod tests {
     fn digest_is_strict() {
         assert!(validate_digest(&format!("sha256:{}", "a".repeat(64))).is_ok());
         assert!(validate_digest(&format!("sha256:{}", "A".repeat(64))).is_err());
+        assert!(validate_digest(&format!("sha256:{}", "0".repeat(64))).is_err());
         assert!(validate_digest("sha1:abc").is_err());
     }
 }

@@ -706,6 +706,8 @@ func handleSupersedeProposal(deps Deps) http.HandlerFunc {
 			WriteError(w, 409, "PROPOSAL_SUPERSEDE_REJECTED")
 			return
 		}
+		publishInvalidation(deps, ResProposal, chi.URLParam(r, "proposalID"), body.Scope, time.Now().UnixMilli())
+		publishInvalidation(deps, ResProposal, body.ReplacementProposalID, body.Scope, time.Now().UnixMilli())
 		writeJSON(w, 200, map[string]string{"proposal_id": chi.URLParam(r, "proposalID"), "superseded_by_proposal_id": body.ReplacementProposalID, "status": "superseded"})
 	}
 }
@@ -756,6 +758,7 @@ func handleCreateEffectIntent(deps Deps) http.HandlerFunc {
 			WriteError(w, 409, "INTENT_REJECTED")
 			return
 		}
+		publishInvalidation(deps, ResIntent, body.EffectIntentID, body.Scope, time.Now().UnixMilli())
 		writeJSON(w, http.StatusCreated, out)
 	}
 }
@@ -787,6 +790,7 @@ func handleReconcileEffectOperation(deps Deps) http.HandlerFunc {
 			WriteError(w, 409, "RECONCILE_PENDING")
 			return
 		}
+		publishInvalidation(deps, ResIntent, intentID, body.Scope, time.Now().UnixMilli())
 		writeJSON(w, 200, out)
 	}
 }

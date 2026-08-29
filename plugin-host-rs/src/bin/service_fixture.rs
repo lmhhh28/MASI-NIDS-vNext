@@ -1,6 +1,8 @@
 //! Real out-of-process Host-managed service conformance fixture.
 
-use std::path::PathBuf;
+use std::io::ErrorKind;
+use std::os::unix::fs::{FileTypeExt, MetadataExt, PermissionsExt};
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
@@ -123,6 +125,10 @@ impl HostManagedPlugin for FixtureService {
             "echo" | "wrong-digest" => request.input.clone(),
             "bounded-echo" => request.input[..request.input.len().min(1_048_576)].to_vec(),
             "statistics" => statistics_candidate(&request.input)?,
+            "statistics-slow" => {
+                tokio::time::sleep(Duration::from_millis(100)).await;
+                statistics_candidate(&request.input)?
+            }
             "slow" => {
                 tokio::time::sleep(Duration::from_millis(100)).await;
                 request.input.clone()
@@ -258,6 +264,38 @@ fn statistics_candidate(input: &[u8]) -> Result<Vec<u8>, Status> {
     .map_err(|_| Status::internal("SERIALIZATION_FAILED"))
 }
 
+fn ensure_socket_path_absent(path: &Path) -> anyhow::Result<()> {
+    match std::fs::symlink_metadata(path) {
+        Err(error) if error.kind() == ErrorKind::NotFound => Ok(()),
+        Err(error) => Err(error.into()),
+        Ok(_) => Err(anyhow::anyhow!(
+            "refusing to replace an existing fixture socket path"
+        )),
+    }
+}
+
+fn remove_owned_socket(
+    path: &Path,
+    expected_device: u64,
+    expected_inode: u64,
+) -> anyhow::Result<()> {
+    match std::fs::symlink_metadata(path) {
+        Err(error) if error.kind() == ErrorKind::NotFound => Ok(()),
+        Err(error) => Err(error.into()),
+        Ok(metadata)
+            if metadata.file_type().is_socket()
+                && metadata.dev() == expected_device
+                && metadata.ino() == expected_inode =>
+        {
+            std::fs::remove_file(path)?;
+            Ok(())
+        }
+        Ok(_) => Err(anyhow::anyhow!(
+            "refusing to remove a replaced fixture socket path"
+        )),
+    }
+}
+
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     tracing_subscriber::fmt()
@@ -287,22 +325,14 @@ async fn main() -> anyhow::Result<()> {
         .parent()
         .ok_or_else(|| anyhow::anyhow!("socket parent missing"))?;
     std::fs::create_dir_all(parent)?;
-    std::fs::set_permissions(parent, std::os::unix::fs::PermissionsExt::from_mode(0o750))?;
+    std::fs::set_permissions(parent, std::fs::Permissions::from_mode(0o750))?;
     validate_no_symlink_path(parent, true)?;
-    if config.socket_path.exists() {
-        let metadata = std::fs::symlink_metadata(&config.socket_path)?;
-        if !std::os::unix::fs::FileTypeExt::is_socket(&metadata.file_type()) {
-            return Err(anyhow::anyhow!(
-                "refusing to replace non-socket fixture path"
-            ));
-        }
-        std::fs::remove_file(&config.socket_path)?;
-    }
+    ensure_socket_path_absent(&config.socket_path)?;
     let listener = UnixListener::bind(&config.socket_path)?;
-    std::fs::set_permissions(
-        &config.socket_path,
-        std::os::unix::fs::PermissionsExt::from_mode(0o660),
-    )?;
+    std::fs::set_permissions(&config.socket_path, std::fs::Permissions::from_mode(0o660))?;
+    let socket_metadata = std::fs::symlink_metadata(&config.socket_path)?;
+    let socket_device = socket_metadata.dev();
+    let socket_inode = socket_metadata.ino();
     let socket_path = config.socket_path.clone();
     let service = FixtureService {
         config: Arc::new(config),
@@ -316,9 +346,7 @@ async fn main() -> anyhow::Result<()> {
         )
         .serve_with_incoming_shutdown(UnixListenerStream::new(listener), wait_for_shutdown())
         .await?;
-    if socket_path.exists() {
-        std::fs::remove_file(socket_path)?;
-    }
+    remove_owned_socket(&socket_path, socket_device, socket_inode)?;
     Ok(())
 }
 
@@ -336,4 +364,37 @@ async fn wait_for_shutdown() {
         }
     }
     let _ = tokio::signal::ctrl_c().await;
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn existing_socket_is_never_unlinked_by_startup() -> anyhow::Result<()> {
+        let temp = tempfile::tempdir()?;
+        let path = temp.path().join("fixture.sock");
+        let listener = std::os::unix::net::UnixListener::bind(&path)?;
+        let before = std::fs::symlink_metadata(&path)?;
+        assert!(ensure_socket_path_absent(&path).is_err());
+        let after = std::fs::symlink_metadata(&path)?;
+        assert_eq!((before.dev(), before.ino()), (after.dev(), after.ino()));
+        drop(listener);
+        remove_owned_socket(&path, before.dev(), before.ino())?;
+        Ok(())
+    }
+
+    #[test]
+    fn cleanup_refuses_replaced_path() -> anyhow::Result<()> {
+        let temp = tempfile::tempdir()?;
+        let path = temp.path().join("fixture.sock");
+        let listener = std::os::unix::net::UnixListener::bind(&path)?;
+        let owned = std::fs::symlink_metadata(&path)?;
+        drop(listener);
+        std::fs::remove_file(&path)?;
+        std::fs::write(&path, b"replacement")?;
+        assert!(remove_owned_socket(&path, owned.dev(), owned.ino()).is_err());
+        assert_eq!(std::fs::read(&path)?, b"replacement");
+        Ok(())
+    }
 }

@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import signal
 import socket
 import sqlite3
@@ -238,10 +239,14 @@ def revoke_binding(binding_path: Path) -> None:
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--binary", default=str(Path(__file__).resolve().parents[1] / ".venv/bin/masi-analysis"))
-    parser.add_argument("--evidence")
-    parser.add_argument("--source-tree-digest", default="sha256:" + "0" * 64)
-    parser.add_argument("--working-tree-status-digest", default="sha256:" + "0" * 64)
+    parser.add_argument("--evidence", required=True)
+    parser.add_argument("--source-tree-digest", required=True)
+    parser.add_argument("--working-tree-status-digest", required=True)
     args = parser.parse_args()
+    for name in ("source_tree_digest", "working_tree_status_digest"):
+        value = str(getattr(args, name))
+        if not re.fullmatch(r"sha256:[0-9a-f]{64}", value) or value == "sha256:" + "0" * 64:
+            raise SystemExit(f"{name} must be a non-sentinel exact digest")
     module_root = Path(__file__).resolve().parents[1]
     repository_root = module_root.parent
     started_at = datetime.now(UTC).isoformat().replace("+00:00", "Z")
@@ -469,7 +474,24 @@ def main() -> None:
                 raise RuntimeError("client-certificate omission was accepted")
             scenarios.append({"scenario_id": "TLS13_MTLS_IDENTITY", "result": "PASS"})
 
+            stats_before_budget = fixture_client.get(f"https://localhost:{provider_port}/stats").json()
+            budget_input = exact_input(
+                material,
+                task_id="task-external-budget-zero",
+                content="needs-tool needs-peer",
+            )
+            zero_external_budget = budget_input.budgets.model_copy(update={"tool_calls": 0, "outbound_delegations": 0})
+            budget_input = budget_input.model_copy(update={"budgets": zero_external_budget, "input_digest": DIGEST_A})
+            budget_input = budget_input.model_copy(update={"input_digest": compute_input_digest(budget_input)})
+            _, budget_artifact = submit_and_poll(client, budget_input)
             stats = fixture_client.get(f"https://localhost:{provider_port}/stats").json()
+            if (
+                budget_artifact is None
+                or budget_artifact.analysis_outcome != "limited"
+                or stats.get("mcp_calls", {}).get("initialize", 0) != stats_before_budget.get("mcp_calls", {}).get("initialize", 0)
+                or stats.get("peer_calls", {}).get("submit", 0) != stats_before_budget.get("peer_calls", {}).get("submit", 0)
+            ):
+                raise RuntimeError("zero external-call budget was not rejected before network traffic")
             if stats.get("active_sessions") != 0 or stats.get("mcp_calls", {}).get("tools/call", 0) > 6:
                 raise RuntimeError("MCP session/call budget leaked")
             scenarios.append({"scenario_id": "MCP_BUDGET_SESSION_CLEANUP", "result": "PASS"})

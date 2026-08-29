@@ -37,7 +37,6 @@ tar --sort=name --mtime=@1787270400 --owner=0 --group=0 --numeric-owner \
   -cf "${temporary_root}/source-tree.tar" -C "${repo_root}" plugin-host-rs contracts deploy/plugin-host
 source_tree_digest="sha256:$(sha256sum "${temporary_root}/source-tree.tar" | awk '{print $1}')"
 working_tree_status_digest="sha256:$(sha256sum "${temporary_root}/working-tree-status.txt" | awk '{print $1}')"
-source_revision="$(git -C "${repo_root}" rev-parse HEAD)"
 mkdir -p -- "${run_dir}" "${run_dir}/deep" "${run_dir}/fault" "${run_dir}/performance" \
   "${run_dir}/oci" "${run_dir}/supply" "${run_dir}/formal-soak"
 cp -- "${temporary_root}/working-tree-status.txt" "${run_dir}/working-tree-status.txt"
@@ -63,6 +62,10 @@ run_command() {
     result="PASS"
     qualification="QUALIFIED"
     reason="null"
+  elif [[ "${exit_code}" -eq 2 ]]; then
+    result="HOLD"
+    qualification="NOT_QUALIFIED"
+    reason='"COMMAND_EXITED_HOLD"'
   else
     result="FAIL"
     qualification="NOT_QUALIFIED"
@@ -103,6 +106,11 @@ run_command() {
   python3 "${script_dir}/validate-json.py" --schema "${command_schema}" --document "${sidecar}"
   if [[ "${exit_code}" -ne 0 ]]; then
     echo "required command failed: ${command_id}; see ${log}" >&2
+    python3 "${repo_root}/scripts/ci/write_module_failure.py" \
+      --repo "${repo_root}" --module plugin-host --run-dir "${run_dir}" \
+      --command-sidecar "${command_id}.command.json" \
+      --output "${run_dir}/gate-failure.json" \
+      || fail "could not publish structured module failure evidence"
     exit "${exit_code}"
   fi
 }
@@ -168,12 +176,13 @@ mv -- "${evidence_root}/.gate-summary-${run_id}.json" "${evidence_root}/gate-sum
 jq -n --arg run_id "${run_id}" \
   --arg evidence "runs/${run_id}/gate-summary.json" \
   --arg digest "sha256:$(sha256sum "${run_dir}/gate-summary.json" | awk '{print $1}')" \
+  --argjson overall_module_complete "$(jq '.overall_module_complete' "${run_dir}/gate-summary.json")" \
   '{
     schema_version: "plugin-runtime-host-module-latest/v1",
     run_id: $run_id,
     evidence: $evidence,
     digest: $digest,
-    overall_module_complete: true
+    overall_module_complete: $overall_module_complete
   }' >"${evidence_root}/.latest-${run_id}.json"
 mv -- "${evidence_root}/.latest-${run_id}.json" "${evidence_root}/latest.json"
 chmod -R a-w "${run_dir}"

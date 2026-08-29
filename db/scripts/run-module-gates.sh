@@ -126,6 +126,7 @@ write_sidecar() {
   local result qualification stable_reason log_digest log_bytes sidecar temporary
   result=FAIL; qualification=NOT_QUALIFIED; stable_reason=COMMAND_EXITED_FAILURE
   if [[ "${status}" -eq 0 ]]; then result=PASS; qualification=QUALIFIED; stable_reason=""; fi
+  if [[ "${status}" -eq 2 ]]; then result=HOLD; qualification=NOT_QUALIFIED; stable_reason=COMMAND_EXITED_HOLD; fi
   log_digest="sha256:$(sha256sum "${log}" | awk '{print $1}')"
   log_bytes="$(stat -c '%s' "${log}")"
   sidecar="${run_dir}/${id}.command.json"
@@ -152,6 +153,14 @@ write_sidecar() {
   mv -T -- "${temporary}" "${sidecar}"
 }
 
+write_failure_evidence() {
+  local command_id="$1"
+  python3 "${repo_root}/scripts/ci/write_module_failure.py" \
+    --repo "${repo_root}" --module db --run-dir "${run_dir}" \
+    --command-sidecar "${command_id}.command.json" \
+    --output "${run_dir}/gate-failure.json"
+}
+
 run_command() {
   local id="$1"; shift
   local -a command=("$@")
@@ -170,6 +179,9 @@ run_command() {
   mv -T -- "${temporary}" "${log}"
   write_sidecar "${id}" "${started_at}" "${finished_at}" "$(((finished_ns-started_ns)/1000000))" \
     "${status}" "${log}" "${command[@]}"
+  if [[ "${status}" -ne 0 ]]; then
+    write_failure_evidence "${id}" || return 1
+  fi
   return "${status}"
 }
 
@@ -197,6 +209,9 @@ run_json() {
   fi
   write_sidecar "${id}" "${started_at}" "${finished_at}" "$(((finished_ns-started_ns)/1000000))" \
     "${status}" "${log}" "${command[@]}"
+  if [[ "${status}" -ne 0 ]]; then
+    write_failure_evidence "${id}" || return 1
+  fi
   return "${status}"
 }
 
@@ -378,7 +393,7 @@ run_json replica-after "${run_dir}/recovery/replica-after.json" "${runtime_root}
 promotion_finished_ns="$(date +%s%N)"
 promotion_rto_ms="$(((promotion_finished_ns-promotion_started_ns)/1000000))"
 run_command streaming-oracle jq -e --slurpfile before "${run_dir}/recovery/replica-before.json" '
-  (.in_recovery|not) and .marker_present and .schema_version=="21" and
+  (.in_recovery|not) and .marker_present and .schema_version=="22" and
   (.target_writer|not) and (.model_writer|not) and .timeline_id>$before[0].timeline_id
 ' "${run_dir}/recovery/replica-after.json"
 run_command streaming-failover bash -c 'python3 "$1" --run-id "$2" --backup-manifest-digest "$3" --archive-failures "$4" --pitr-before "$5" --rotation "$6" --pitr-after "$7" --pitr-rto-ms "$8" --replica-before "$9" --replica-after "${10}" --promotion-rto-ms "${11}" --output "${12}" && python3 "${13}" --schema "${14}" --document "${12}"' \
@@ -429,7 +444,11 @@ cp -- "${run_dir}/gate-summary.json" "${evidence_base}/.gate-summary.${run_id}.j
 mv -T -- "${evidence_base}/.gate-summary.${run_id}.json" "${evidence_base}/gate-summary.json"
 jq -n --arg run_id "${run_id}" --arg evidence "runs/${run_id}/gate-summary.json" \
   --arg digest "sha256:$(sha256sum "${run_dir}/gate-summary.json" | awk '{print $1}')" \
-  '{schema_version:"postgresql-state-module-latest/v1",run_id:$run_id,evidence:$evidence,digest:$digest}' \
+  --arg source_revision "${source_revision}" --arg source_tree_digest "${source_digest_start}" \
+  --arg working_tree_status_digest "${status_digest_start}" \
+  '{schema_version:"postgresql-state-module-latest/v1",run_id:$run_id,evidence:$evidence,digest:$digest,
+    source_revision:$source_revision,source_tree_digest:$source_tree_digest,
+    working_tree_status_digest:$working_tree_status_digest}' \
   >"${evidence_base}/.latest.${run_id}.json"
 mv -T -- "${evidence_base}/.latest.${run_id}.json" "${evidence_base}/latest.json"
 

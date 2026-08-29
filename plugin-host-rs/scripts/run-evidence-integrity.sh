@@ -8,4 +8,4 @@ fi
 script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 python3 "${script_dir}/test-evidence-tools.py"
 python3 "${script_dir}/validate-module-evidence.py" \
-  --repo "$1" --run-dir "$2" --summary "$3" --negative-self-test
+  --repo "$1" --run-dir "$2" --summary "$3" --provisional --negative-self-test

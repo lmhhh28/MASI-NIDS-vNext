@@ -26,7 +26,7 @@ func startMaintenance(ctx context.Context, logger *slog.Logger, pool *db.Pool,
 	overlays *firewall.OverlayService, stats *pluginstat.Service, statsExecutor pluginstat.Executor,
 	ingest *event.IngestService, rules *ruleobs.Projector, mapping *security.RoleScopeMapping,
 	eventRetention, pluginStatRetention, idempotencyRetention time.Duration,
-	statisticsOwner string, markProgress func()) {
+	statisticsOwner string, invalidations api.InvalidationPublisher, markProgress func()) {
 	go func() {
 		ticker := time.NewTicker(2 * time.Second)
 		defer ticker.Stop()
@@ -52,6 +52,7 @@ func startMaintenance(ctx context.Context, logger *slog.Logger, pool *db.Pool,
 					if _, err := dispatcher.Dispatch(stepCtx, intentID); err != nil {
 						logger.Warn("effect dispatch", "intent_id", intentID, "err", err)
 					}
+					publishIntentInvalidation(ctx, pool, invalidations, intentID)
 				} else if !errors.Is(err, pgx.ErrNoRows) {
 					logger.Warn("effect select", "err", err)
 				}
@@ -62,6 +63,7 @@ func startMaintenance(ctx context.Context, logger *slog.Logger, pool *db.Pool,
 					if _, err := reconcile.ReconcileUnknown(stepCtx, unknownID); err != nil {
 						logger.Warn("effect reconcile", "intent_id", unknownID, "err", err)
 					}
+					publishIntentInvalidation(ctx, pool, invalidations, unknownID)
 				} else if !errors.Is(err, pgx.ErrNoRows) {
 					logger.Warn("reconcile select", "err", err)
 				}
@@ -111,4 +113,32 @@ func startMaintenance(ctx context.Context, logger *slog.Logger, pool *db.Pool,
 			}
 		}
 	}()
+}
+
+func publishIntentInvalidation(ctx context.Context, pool *db.Pool, invalidations api.InvalidationPublisher, intentID string) {
+	if pool == nil || invalidations == nil || intentID == "" {
+		return
+	}
+	queryCtx, cancel := context.WithTimeout(ctx, time.Second)
+	defer cancel()
+	var scope, fleetID, operationID, effectKind string
+	if err := pool.QueryRow(queryCtx, `SELECT p.scope,COALESCE(i.fleet_operation_id,''),i.operation_id,i.effect_kind
+		FROM effect_intents i JOIN effect_proposals p ON p.proposal_id=i.proposal_id
+		WHERE i.effect_intent_id=$1`, intentID).Scan(&scope, &fleetID, &operationID, &effectKind); err != nil {
+		return
+	}
+	_ = invalidations.PublishScoped(api.ResIntent, intentID, scope, time.Now().UnixMilli(), 0)
+	if fleetID != "" {
+		_ = invalidations.PublishScoped(api.ResFleetOp, fleetID, scope, time.Now().UnixMilli(), 0)
+	}
+	if effectKind == string(governance.KindFirewallBaselineActivate) ||
+		effectKind == string(governance.KindFirewallRollback) || effectKind == string(governance.KindFirewallOverlay) {
+		_ = invalidations.PublishScoped(api.ResFirewallBind, operationID, scope, time.Now().UnixMilli(), 0)
+	}
+	if effectKind == string(governance.KindBoundedCapture) {
+		var captureID string
+		if pool.QueryRow(queryCtx, `SELECT capture_id FROM bounded_capture_requests WHERE effect_intent_id=$1`, intentID).Scan(&captureID) == nil {
+			_ = invalidations.PublishScoped(api.ResCapture, captureID, scope, time.Now().UnixMilli(), 0)
+		}
+	}
 }

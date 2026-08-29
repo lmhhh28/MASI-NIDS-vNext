@@ -54,7 +54,6 @@ func LoadChain(directory string) ([]File, string, error) {
 	if len(names) < 1 || len(names) > maxMigrationFiles {
 		return nil, "", fmt.Errorf("migration chain: file count outside 1..%d", maxMigrationFiles)
 	}
-	h := sha256.New()
 	files := make([]File, 0, len(names))
 	for index, name := range names {
 		if len(name) < 10 || name[4] != '_' || filepath.Base(name) != name {
@@ -85,10 +84,40 @@ func LoadChain(directory string) ([]File, string, error) {
 		if err != nil {
 			return nil, "", fmt.Errorf("migration chain: %s: %w", name, err)
 		}
-		_, _ = fmt.Fprintf(h, "%s\t%s\n", name, checksum)
 		files = append(files, File{Version: version, Name: name, Checksum: checksum, Body: body})
 	}
-	return files, "sha256:" + hex.EncodeToString(h.Sum(nil)), nil
+	prefixDigests := ChainPrefixDigests(files)
+	return files, prefixDigests[len(prefixDigests)-1], nil
+}
+
+// ChainPrefixDigests returns the immutable digest after every contiguous
+// prefix. History rows may legitimately carry the digest of the batch in which
+// they were first applied, so a row at index i may reference any known prefix
+// i..N, but never an arbitrary well-formed digest.
+func ChainPrefixDigests(files []File) []string {
+	h := sha256.New()
+	digests := make([]string, 0, len(files))
+	for _, file := range files {
+		_, _ = fmt.Fprintf(h, "%s\t%s\n", file.Name, file.Checksum)
+		digests = append(digests, "sha256:"+hex.EncodeToString(h.Sum(nil)))
+	}
+	return digests
+}
+
+func validHistoryChainDigest(files []File, name, digest string) bool {
+	prefixDigests := ChainPrefixDigests(files)
+	for index, file := range files {
+		if file.Name != name {
+			continue
+		}
+		for _, allowed := range prefixDigests[index:] {
+			if digest == allowed {
+				return true
+			}
+		}
+		return false
+	}
+	return false
 }
 
 // MigrationBody strips the one required outer BEGIN/COMMIT envelope. The

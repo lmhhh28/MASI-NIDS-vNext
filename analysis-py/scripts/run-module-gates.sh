@@ -44,7 +44,6 @@ tar --sort=name --mtime=@1787334400 --owner=0 --group=0 --numeric-owner \
   --exclude='**/__pycache__' --exclude='*.pyc' \
   -cf "${temporary_root}/source-tree.tar" -C "${repo_root}" analysis-py contracts deploy/analysis
 source_tree_digest="sha256:$(sha256sum "${temporary_root}/source-tree.tar" | awk '{print $1}')"
-source_revision="$(git -C "${repo_root}" rev-parse HEAD)"
 
 mkdir -p -- "${run_dir}" "${run_dir}/release" "${run_dir}/blackbox" "${run_dir}/compatibility" \
   "${run_dir}/performance" "${run_dir}/image" "${run_dir}/oci" "${run_dir}/deployment" \
@@ -72,6 +71,10 @@ run_command() {
     result="PASS"
     qualification="QUALIFIED"
     reason="null"
+  elif [[ "${exit_code}" -eq 2 ]]; then
+    result="HOLD"
+    qualification="NOT_QUALIFIED"
+    reason='"COMMAND_EXITED_HOLD"'
   else
     result="FAIL"
     qualification="NOT_QUALIFIED"
@@ -107,6 +110,11 @@ run_command() {
   "${python_runtime}" -c 'import json,sys; from jsonschema import Draft202012Validator,FormatChecker; schema=json.load(open(sys.argv[1])); doc=json.load(open(sys.argv[2])); errors=list(Draft202012Validator(schema,format_checker=FormatChecker()).iter_errors(doc)); (_ for _ in ()).throw(RuntimeError("; ".join(e.message for e in errors))) if errors else None' "${command_schema}" "${sidecar}"
   if [[ "${exit_code}" -ne 0 ]]; then
     echo "required command failed: ${command_id}; see ${log}" >&2
+    "${python_runtime}" "${repo_root}/scripts/ci/write_module_failure.py" \
+      --repo "${repo_root}" --module analysis --run-dir "${run_dir}" \
+      --command-sidecar "${command_id}.command.json" \
+      --output "${run_dir}/gate-failure.json" \
+      || fail "could not publish structured module failure evidence"
     exit "${exit_code}"
   fi
 }
@@ -173,7 +181,8 @@ cp -- "${run_dir}/gate-summary.json" "${evidence_root}/.gate-summary-${run_id}.j
 mv -- "${evidence_root}/.gate-summary-${run_id}.json" "${evidence_root}/gate-summary.json"
 jq -n --arg run_id "${run_id}" --arg evidence "runs/${run_id}/gate-summary.json" \
   --arg digest "sha256:$(sha256sum "${run_dir}/gate-summary.json" | awk '{print $1}')" \
-  '{schema_version: "analysis-plugin-module-latest/v1", run_id: $run_id, evidence: $evidence, digest: $digest, overall_module_complete: true}' \
+  --argjson overall_module_complete "$(jq '.overall_module_complete' "${run_dir}/gate-summary.json")" \
+  '{schema_version: "analysis-plugin-module-latest/v1", run_id: $run_id, evidence: $evidence, digest: $digest, overall_module_complete: $overall_module_complete}' \
   >"${evidence_root}/.latest-${run_id}.json"
 mv -- "${evidence_root}/.latest-${run_id}.json" "${evidence_root}/latest.json"
 chmod -R a-w "${run_dir}"

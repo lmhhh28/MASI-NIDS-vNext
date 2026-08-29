@@ -33,12 +33,33 @@ func TestLoadChainDeterministic(t *testing.T) {
 	}
 }
 
+func TestHistoryChainDigestAllowsOnlyAContainingKnownPrefix(t *testing.T) {
+	files := []File{
+		{Version: 1, Name: "0001_first.sql", Checksum: "sha256:" + strings.Repeat("1", 64)},
+		{Version: 2, Name: "0002_second.sql", Checksum: "sha256:" + strings.Repeat("2", 64)},
+		{Version: 3, Name: "0003_third.sql", Checksum: "sha256:" + strings.Repeat("3", 64)},
+	}
+	prefixes := ChainPrefixDigests(files)
+	if len(prefixes) != 3 {
+		t.Fatalf("unexpected prefix count: %d", len(prefixes))
+	}
+	if !validHistoryChainDigest(files, files[0].Name, prefixes[0]) ||
+		!validHistoryChainDigest(files, files[0].Name, prefixes[2]) ||
+		!validHistoryChainDigest(files, files[1].Name, prefixes[1]) {
+		t.Fatal("legitimate historical batch digest rejected")
+	}
+	if validHistoryChainDigest(files, files[1].Name, prefixes[0]) ||
+		validHistoryChainDigest(files, files[2].Name, "sha256:"+strings.Repeat("a", 64)) {
+		t.Fatal("history digest not containing the row or not in the known chain accepted")
+	}
+}
+
 func BenchmarkLoadChain(b *testing.B) {
 	directory := filepath.Join("..", "..", "migrations")
 	b.ReportAllocs()
 	for b.Loop() {
 		files, digest, err := LoadChain(directory)
-		if err != nil || len(files) != 29 || digest == "" {
+		if err != nil || len(files) != 31 || digest == "" {
 			b.Fatalf("LoadChain: files=%d digest=%q err=%v", len(files), digest, err)
 		}
 	}

@@ -12,9 +12,41 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/status"
 
+	"masi-nids/control-go/internal/api"
+	"masi-nids/control-go/internal/event"
 	edgev1 "masi-nids/control-go/internal/grpc/edgev1"
 	targetdomain "masi-nids/control-go/internal/target"
 )
+
+type fakeResultIngestor struct {
+	ack event.CanonicalACK
+}
+
+func (f fakeResultIngestor) IngestBatch(_ context.Context, results []event.InferenceResult) ([]event.CanonicalACK, error) {
+	if len(results) != 1 {
+		return nil, errors.New("unexpected result count")
+	}
+	ack := f.ack
+	ack.EventIDempotencyKey = results[0].EventIDempotencyKey
+	ack.InputDigest = results[0].InputDigest
+	ack.OutputDigest = results[0].OutputDigest
+	return []event.CanonicalACK{ack}, nil
+}
+
+type recordedInvalidation struct {
+	kind       api.SSEResourceKind
+	resourceID string
+	scope      string
+}
+
+type invalidationRecorder struct {
+	events []recordedInvalidation
+}
+
+func (r *invalidationRecorder) PublishScoped(kind api.SSEResourceKind, resourceID, scope string, _ int64, _ uint64) error {
+	r.events = append(r.events, recordedInvalidation{kind: kind, resourceID: resourceID, scope: scope})
+	return nil
+}
 
 // fakeSinkDeps wires the ControlSink server against a stub ingest service by
 // exercising the schema/bounds validation surface, which is contract-level
@@ -199,6 +231,46 @@ func TestCommitResultsNotWiredFailsClosed(t *testing.T) {
 	}
 }
 
+func TestCommitResultsPublishesEventAndIncidentOnlyAfterCommittedAck(t *testing.T) {
+	recorder := &invalidationRecorder{}
+	s := &ControlSinkServer{
+		MaxBatchRecords: 4,
+		Ingest: fakeResultIngestor{ack: event.CanonicalACK{
+			CanonicalEventID: "evt-committed-1", CommitStatus: event.StatusCommitted,
+			CommittedAtUnixMS: 10, ReasonCode: "COMMITTED",
+		}},
+		Invalidations: recorder,
+	}
+	ack, err := s.CommitResults(context.Background(), validResultBatch())
+	if err != nil || len(ack.GetAcknowledgements()) != 1 {
+		t.Fatalf("commit ack=%+v err=%v", ack, err)
+	}
+	if len(recorder.events) != 2 {
+		t.Fatalf("expected event+incident invalidations, got %+v", recorder.events)
+	}
+	if recorder.events[0] != (recordedInvalidation{kind: api.ResEvent, resourceID: "evt-committed-1", scope: "scope-1"}) ||
+		recorder.events[1] != (recordedInvalidation{kind: api.ResIncident, resourceID: "inc-committed-1", scope: "scope-1"}) {
+		t.Fatalf("unexpected committed invalidations: %+v", recorder.events)
+	}
+}
+
+func TestTargetScopedInvalidationUsesCanonicalScopeLookup(t *testing.T) {
+	recorder := &invalidationRecorder{}
+	s := &ControlSinkServer{
+		Invalidations: recorder,
+		ScopeForTarget: func(_ context.Context, targetID string) (string, error) {
+			if targetID != "target-1" {
+				return "", errors.New("unknown target")
+			}
+			return "scope-canonical", nil
+		},
+	}
+	s.publishTargetScoped(context.Background(), api.ResTarget, "target-1", "target-1", 1)
+	if len(recorder.events) != 1 || recorder.events[0].scope != "scope-canonical" {
+		t.Fatalf("target invalidation did not use canonical scope: %+v", recorder.events)
+	}
+}
+
 func TestReasonOfBoundedAndStable(t *testing.T) {
 	got := reasonOf(errors.New(strings.Repeat("x", 200)))
 	if len(got) > 48 {
@@ -209,6 +281,12 @@ func TestReasonOfBoundedAndStable(t *testing.T) {
 	}
 	if got := reasonOf(errors.New("ruleobs: late sample epoch rejected")); !strings.Contains(got, "LATE") {
 		t.Fatalf("reason must be upper-cased: %s", got)
+	}
+}
+
+func TestWireDigestRejectsAllZeroSentinel(t *testing.T) {
+	if wireDigest("sha256:" + strings.Repeat("0", 64)) {
+		t.Fatal("all-zero wire digest must be rejected")
 	}
 }
 

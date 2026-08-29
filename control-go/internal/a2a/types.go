@@ -488,19 +488,11 @@ func digest(raw []byte) string {
 }
 
 func validDigest(value string) bool {
-	if len(value) != 71 || !strings.HasPrefix(value, "sha256:") {
-		return false
-	}
-	_, err := hex.DecodeString(strings.TrimPrefix(value, "sha256:"))
-	return err == nil
+	return security.ValidDigest(value)
 }
 
 func validRevision(value string) bool {
-	if len(value) != 40 {
-		return false
-	}
-	_, err := hex.DecodeString(value)
-	return err == nil
+	return security.ValidRevision(value)
 }
 
 func validIdentity(value string) bool {

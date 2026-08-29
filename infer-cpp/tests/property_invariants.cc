@@ -137,6 +137,8 @@ void test_sha256_format() {
         "uppercase digest must reject");
   CHECK(!masi::inf::is_sha256_digest("sha256:" + std::string(64, 'z')),
         "non-hex digest must reject");
+  CHECK(!masi::inf::is_sha256_digest("sha256:" + std::string(64, '0')),
+        "all-zero digest sentinel must reject");
 }
 
 // ---------------------------------------------------------------------------
@@ -730,6 +732,31 @@ void test_bundle_manifest_loads_and_self_verifies() {
   CHECK(b.score_domain == "logit", "bundle: score_domain wrong");
   CHECK(b.class_order.size() == 2 && b.class_order[0] == 0 && b.class_order[1] == 1,
         "bundle: class_order wrong");
+
+  TempDir zero_td;
+  const std::string zero_root = zero_td.child("repo_zero_revision");
+  fs::copy(repo, zero_root, fs::copy_options::recursive);
+  for (auto &p : fs::recursive_directory_iterator(zero_root))
+    fs::permissions(p.path(), fs::perms::owner_all, fs::perm_options::add);
+  const std::string zero_path = zero_root + "/bundle-manifest.json";
+  auto zero_bundle = b;
+  zero_bundle.revision = std::string(40, '0');
+  std::ifstream zero_input(zero_path, std::ios::binary);
+  auto zero_json = nlohmann::json::parse(zero_input);
+  zero_json["revision"] = zero_bundle.revision;
+  zero_json["binding_identity"]["revision"] = zero_bundle.revision;
+  zero_json["model_revision_digest"] = masi::inf::compute_model_revision_digest(zero_bundle);
+  {
+    std::ofstream output(zero_path, std::ios::binary | std::ios::trunc);
+    output << zero_json.dump(2) << '\n';
+  }
+  bool zero_threw = false;
+  try {
+    masi::inf::load_bundle_manifest(zero_root);
+  } catch (const masi::inf::error::Exception &) {
+    zero_threw = true;
+  }
+  CHECK(zero_threw, "bundle: all-zero revision must be rejected even with a matching digest");
   CHECK(b.top_k == 1 && b.axis == 1, "bundle: top_k/axis wrong");
   CHECK(std::fabs(b.alert_threshold - 0.5) < 1e-12, "bundle: alert threshold wrong");
   CHECK(b.output_adapter_digest == b.adapter_digest,
@@ -787,7 +814,7 @@ namespace {
 masi::inf::NumericProfile logit_profile() {
   masi::inf::NumericProfile p;
   p.adapter_id = "masi-window-adapter-v1";
-  p.adapter_digest = "sha256:" + std::string(64, '0');
+  p.adapter_digest = "sha256:" + std::string(64, '1');
   p.score_domain = "logit";
   p.class_order = {0, 1};
   p.alert_threshold = 0.5;
@@ -1297,7 +1324,7 @@ void test_envelope_profile_digests_required() {
     j["optimization_profile_digest"] = MASI_INF_OPTIMIZATION_PROFILE_DIGEST;
     j["triton_server_version"] = "2.59.0";
     j["repository_snapshot"] = {{"identity", "repo-1"},
-                                {"closure_digest", std::string("sha256:") + std::string(64, '0')}};
+                                {"closure_digest", std::string("sha256:") + std::string(64, '2')}};
     j["instance_group"] = {
         {"kind", "KIND_CPU"},
         {"count", 1},
@@ -1390,6 +1417,28 @@ void test_admission_oversize_rejected() {
   CHECK(d.reason_code == "INFERENCE_MESSAGE_TOO_LARGE", "admission: oversize reason code wrong");
 }
 
+void test_triton_output_shape_is_exact() {
+  masi::inf::TritonInferResult result;
+  result.values = {0.1F, 0.9F, 0.8F, 0.2F};
+  result.shape = {2, 2};
+  CHECK(masi::inf::validate_triton_output_shape(result, 2, 2).ok(),
+        "triton output: exact [records, classes] shape must pass");
+
+  result.shape = {4};
+  CHECK(!masi::inf::validate_triton_output_shape(result, 2, 2).ok(),
+        "triton output: rank-1 output must fail closed");
+  result.shape = {1, 2, 2};
+  CHECK(!masi::inf::validate_triton_output_shape(result, 2, 2).ok(),
+        "triton output: rank-3 output must fail closed");
+  result.shape = {4, 1};
+  CHECK(!masi::inf::validate_triton_output_shape(result, 2, 2).ok(),
+        "triton output: wrong dimensions must fail closed");
+  result.shape = {2, 2};
+  result.values.pop_back();
+  CHECK(!masi::inf::validate_triton_output_shape(result, 2, 2).ok(),
+        "triton output: wrong element count must fail closed");
+}
+
 } // namespace
 
 int main() {
@@ -1417,6 +1466,7 @@ int main() {
   test_admission_batch_sizes();
   test_admission_input_digest_verified();
   test_admission_oversize_rejected();
+  test_triton_output_shape_is_exact();
   test_envelope_profile_digests_required();
   std::cout << "All property invariant tests passed.\n";
   return 0;

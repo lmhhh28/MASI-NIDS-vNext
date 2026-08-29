@@ -12,6 +12,7 @@ import (
 
 	"masi-nids/control-go/internal/db"
 	"masi-nids/control-go/internal/governance"
+	"masi-nids/control-go/internal/security"
 )
 
 // OverlayService manages response overlays. An overlay uses the ordinary R0/R1/R2
@@ -299,7 +300,7 @@ func validateOverlayRule(rule OverlayRule, expiresAtUnixMS int64, now time.Time)
 	if rule.ActorRef == "" || len(rule.ActorRef) > 128 || rule.ReasonCode == "" || len(rule.ReasonCode) > 64 {
 		return fmt.Errorf("overlay actor/reason required and bounded")
 	}
-	if len(rule.CanonicalRuleDigest) != 71 || !strings.HasPrefix(rule.CanonicalRuleDigest, "sha256:") {
+	if !security.ValidDigest(rule.CanonicalRuleDigest) {
 		return fmt.Errorf("overlay canonical digest malformed")
 	}
 	if _, err := hex.DecodeString(strings.TrimPrefix(rule.CanonicalRuleDigest, "sha256:")); err != nil ||

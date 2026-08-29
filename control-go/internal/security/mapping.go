@@ -14,7 +14,7 @@ import (
 // declared digest against the independently pinned configuration value. Mapping
 // changes therefore require an explicit deployment/config revision.
 func LoadRoleScopeMapping(path, pinnedDigest string) (*RoleScopeMapping, error) {
-	if path == "" || !digestRE.MatchString(pinnedDigest) {
+	if path == "" || !validDigest(pinnedDigest) {
 		return nil, fmt.Errorf("security: role mapping path/pinned digest required")
 	}
 	raw, err := os.ReadFile(path)

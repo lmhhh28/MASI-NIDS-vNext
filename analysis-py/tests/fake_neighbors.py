@@ -235,7 +235,17 @@ class Fixtures:
                     "sample_digest": DIGEST_B,
                     "coverage": 1.0,
                     "truncated": False,
+                    "truncation_reason": "none",
+                    "stability_status": "stable",
                     "limitations": ["Association is not causality."],
+                    "safety": {
+                        "causal_claim": False,
+                        "realtime_inference_payload": False,
+                        "canonical_event_identity": False,
+                        "effect_eligibility": False,
+                        "llm_generated": False,
+                        "executable_content": False,
+                    },
                 },
             }
             return web.json_response(

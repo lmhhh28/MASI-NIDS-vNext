@@ -53,6 +53,15 @@ func TestInputAndArtifactDigestFences(t *testing.T) {
 	}
 }
 
+func TestDigestAndRevisionSentinelsAreRejected(t *testing.T) {
+	if validDigest("sha256:" + strings.Repeat("0", 64)) {
+		t.Fatal("all-zero digest accepted")
+	}
+	if validRevision(strings.Repeat("0", 40)) {
+		t.Fatal("all-zero revision accepted")
+	}
+}
+
 func TestSafePeerErrorCode(t *testing.T) {
 	for _, value := range []string{"MALFORMED_REQUEST", "VERSION_NOT_SUPPORTED", "A2A_400"} {
 		if !safePeerErrorCode(value) {

@@ -236,31 +236,43 @@ fn reason_index(reason: ReasonCode) -> usize {
 }
 
 fn process_metrics() -> String {
-    let mut rss_bytes = 0u64;
-    let mut threads = 0u64;
-    if let Ok(status) = std::fs::read_to_string("/proc/self/status") {
-        for line in status.lines() {
-            if let Some(value) = line.strip_prefix("VmRSS:") {
-                rss_bytes = value
-                    .split_whitespace()
-                    .next()
-                    .and_then(|value| value.parse::<u64>().ok())
-                    .unwrap_or(0)
-                    .saturating_mul(1024);
-            } else if let Some(value) = line.strip_prefix("Threads:") {
-                threads = value.trim().parse::<u64>().unwrap_or(0);
-            }
-        }
-    }
+    let status = std::fs::read_to_string("/proc/self/status").ok();
+    let rss_bytes = status
+        .as_deref()
+        .and_then(|value| proc_status_value(value, "VmRSS:"))
+        .and_then(|value| value.checked_mul(1024));
+    let threads = status
+        .as_deref()
+        .and_then(|value| proc_status_value(value, "Threads:"));
     let fd_count = std::fs::read_dir("/proc/self/fd")
         .ok()
-        .map(|entries| entries.filter_map(Result::ok).count())
-        .unwrap_or(0);
-    format!(
-        "# TYPE masi_plugin_host_process_rss_bytes gauge\nmasi_plugin_host_process_rss_bytes {rss_bytes}\n\
-# TYPE masi_plugin_host_process_threads gauge\nmasi_plugin_host_process_threads {threads}\n\
-# TYPE masi_plugin_host_process_fds gauge\nmasi_plugin_host_process_fds {fd_count}\n"
-    )
+        .and_then(|entries| entries.collect::<Result<Vec<_>, _>>().ok())
+        .and_then(|entries| u64::try_from(entries.len()).ok());
+    let mut output = String::with_capacity(512);
+    append_process_metric(&mut output, "rss_bytes", rss_bytes);
+    append_process_metric(&mut output, "threads", threads);
+    append_process_metric(&mut output, "fds", fd_count);
+    output
+}
+
+fn proc_status_value(status: &str, prefix: &str) -> Option<u64> {
+    status.lines().find_map(|line| {
+        line.strip_prefix(prefix)
+            .and_then(|value| value.split_whitespace().next())
+            .and_then(|value| value.parse::<u64>().ok())
+    })
+}
+
+fn append_process_metric(output: &mut String, name: &str, value: Option<u64>) {
+    output.push_str(&format!(
+        "# TYPE masi_plugin_host_process_{name}_available gauge\nmasi_plugin_host_process_{name}_available {}\n",
+        u8::from(value.is_some())
+    ));
+    if let Some(value) = value {
+        output.push_str(&format!(
+            "# TYPE masi_plugin_host_process_{name} gauge\nmasi_plugin_host_process_{name} {value}\n"
+        ));
+    }
 }
 
 #[cfg(test)]
@@ -280,5 +292,18 @@ mod tests {
         assert!(text.contains("runtime=\"wasm-component/v1\""));
         assert!(!text.contains("plugin_id"));
         assert!(!text.contains("artifact_digest"));
+        assert!(text.contains("masi_plugin_host_process_rss_bytes_available 1"));
+    }
+
+    #[test]
+    fn malformed_process_status_is_not_reported_as_zero() {
+        assert_eq!(
+            proc_status_value("VmRSS: unavailable\nThreads: nope\n", "VmRSS:"),
+            None
+        );
+        let mut text = String::new();
+        append_process_metric(&mut text, "rss_bytes", None);
+        assert!(text.contains("masi_plugin_host_process_rss_bytes_available 0"));
+        assert!(!text.contains("masi_plugin_host_process_rss_bytes 0"));
     }
 }

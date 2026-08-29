@@ -187,6 +187,37 @@ impl TestEnvironment {
         )
     }
 
+    pub fn service_statistics_binding(
+        &self,
+        desired_state: &str,
+    ) -> Result<BindingEnvelope, Box<dyn std::error::Error>> {
+        build_binding(
+            &self.config,
+            BindingInput {
+                plugin_id: SERVICE_PLUGIN_ID,
+                plugin_revision: "service-statistics-revision-1",
+                generation: 1,
+                desired_state,
+                runtime_profile: "grpc-service/v1",
+                kind: "pure-transform",
+                artifact_digest: self.service_artifact_digest.clone(),
+                artifact_bytes: 1,
+                artifact_name: "",
+                service_endpoint_ref: "fixture-generation-1",
+                capabilities: vec![Capability {
+                    capability_id: "plugin.statistics.execute".to_owned(),
+                    capability_kind: "host-projection".to_owned(),
+                    declared: true,
+                }],
+                statistics_definitions: vec![StatisticsDefinitionBinding {
+                    definition_id: STATISTICS_DEFINITION_ID.to_owned(),
+                    definition_revision: "fixture-row-count-v1".to_owned(),
+                    definition_digest: digest("fixture-statistics-definition"),
+                }],
+            },
+        )
+    }
+
     pub fn wasm_statistics_binding(
         &self,
         generation: u64,

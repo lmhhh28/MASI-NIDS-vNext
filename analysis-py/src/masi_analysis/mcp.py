@@ -12,6 +12,7 @@ from mcp.types import JSONRPCError, JSONRPCNotification, JSONRPCRequest, JSONRPC
 from pydantic import ValidationError
 
 from .canonical import canonical_digest, go_json_bytes
+from .concurrency import gather_cancel_on_error
 from .constants import MCP_VERSION, RESOURCE_URIS, TOOL_ARGUMENT_FIELDS
 from .errors import AnalysisError, MCPUnavailable
 from .models import BindingObservation, FrozenInput, MCPConfig, ProviderToolRequest
@@ -155,7 +156,12 @@ class MCPClient:
             return []
         if round_number < 1 or round_number > input_bundle.budgets.mcp_rounds:
             raise AnalysisError("MCP_BUDGET_EXHAUSTED", "MCP round budget exhausted", 422)
-        bounded = requests[: input_bundle.budgets.tool_calls]
+        if len(requests) > input_bundle.budgets.tool_calls:
+            raise AnalysisError(
+                "MCP_BUDGET_EXHAUSTED",
+                "provider tool request set exceeds the remaining call budget",
+                422,
+            )
         initialize = {
             "jsonrpc": "2.0",
             "id": f"init-{input_bundle.run_id}",
@@ -194,7 +200,7 @@ class MCPClient:
                 async with semaphore:
                     return await self._execute_one(index, requested, input_bundle, binding, session_id, round_number)
 
-            results = await asyncio.gather(*(one(index, request) for index, request in enumerate(bounded, 1)))
+            results = await gather_cancel_on_error(one(index, request) for index, request in enumerate(requests, 1))
             total = sum(len(go_json_bytes(result.structured)) for result in results)
             if total > input_bundle.budgets.tool_total_response_bytes:
                 raise MCPUnavailable("MCP total response byte budget exceeded")

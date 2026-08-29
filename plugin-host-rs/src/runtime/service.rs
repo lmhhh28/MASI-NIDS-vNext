@@ -26,13 +26,19 @@ pub struct ServiceRuntime {
     client: HostManagedPluginClient<Channel>,
 }
 
+#[derive(Clone, Copy)]
+struct SocketIdentity {
+    device: u64,
+    inode: u64,
+}
+
 impl ServiceRuntime {
     /// Connect over an allowlisted UDS and complete the exact handshake.
     pub async fn connect(
         endpoint: &ServiceEndpoint,
         binding: &BindingEnvelope,
     ) -> HostResult<Self> {
-        validate_uds_endpoint(endpoint)?;
+        let socket_identity = validate_uds_endpoint(endpoint)?;
         let path = endpoint.uds_path.clone();
         let expected_uid = endpoint.expected_uid;
         let expected_gid = endpoint.expected_gid;
@@ -48,7 +54,7 @@ impl ServiceRuntime {
             .connect_with_connector(service_fn(move |_: Uri| {
                 let path = path.clone();
                 async move {
-                    let stream = UnixStream::connect(path).await?;
+                    let stream = UnixStream::connect(&path).await?;
                     let credentials = stream.peer_cred()?;
                     if credentials.uid() != expected_uid || credentials.gid() != expected_gid {
                         return Err(std::io::Error::new(
@@ -56,6 +62,9 @@ impl ServiceRuntime {
                             "SO_PEERCRED mismatch",
                         ));
                     }
+                    validate_connected_uds_path(&path, socket_identity).map_err(|error| {
+                        std::io::Error::new(std::io::ErrorKind::PermissionDenied, error.message)
+                    })?;
                     Ok::<_, std::io::Error>(TokioIo::new(stream))
                 }
             }))
@@ -305,7 +314,7 @@ fn map_service_status(error: tonic::Status) -> HostError {
     HostError::new(reason, format!("service execute RPC: {error}"))
 }
 
-fn validate_uds_endpoint(endpoint: &ServiceEndpoint) -> HostResult<()> {
+fn validate_uds_endpoint(endpoint: &ServiceEndpoint) -> HostResult<SocketIdentity> {
     validate_no_symlink_path(&endpoint.uds_path, true)?;
     let parent = endpoint.uds_path.parent().ok_or_else(|| {
         HostError::new(
@@ -346,6 +355,28 @@ fn validate_uds_endpoint(endpoint: &ServiceEndpoint) -> HostResult<()> {
             "UDS socket owner/group/mode mismatch",
         ));
     }
+    Ok(SocketIdentity {
+        device: socket_metadata.dev(),
+        inode: socket_metadata.ino(),
+    })
+}
+
+fn validate_connected_uds_path(path: &std::path::Path, expected: SocketIdentity) -> HostResult<()> {
+    let metadata = std::fs::symlink_metadata(path).map_err(|error| {
+        HostError::new(
+            ReasonCode::ServiceIdentityMismatch,
+            format!("connected UDS path metadata: {error}"),
+        )
+    })?;
+    if !metadata.file_type().is_socket()
+        || metadata.dev() != expected.device
+        || metadata.ino() != expected.inode
+    {
+        return Err(HostError::new(
+            ReasonCode::ServiceIdentityMismatch,
+            "UDS path identity changed during connect",
+        ));
+    }
     Ok(())
 }
 
@@ -371,6 +402,32 @@ mod tests {
             artifact_digest: format!("sha256:{}", "a".repeat(64)),
         };
         assert!(validate_uds_endpoint(&endpoint).is_err());
+        Ok(())
+    }
+
+    #[test]
+    fn socket_replacement_after_preflight_is_rejected() -> Result<(), Box<dyn std::error::Error>> {
+        let temp = tempfile::tempdir()?;
+        std::fs::set_permissions(temp.path(), std::fs::Permissions::from_mode(0o750))?;
+        let path = temp.path().join("service.sock");
+        let listener = std::os::unix::net::UnixListener::bind(&path)?;
+        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o660))?;
+        let metadata = std::fs::metadata(temp.path())?;
+        let endpoint = ServiceEndpoint {
+            endpoint_ref: "fixture".to_owned(),
+            transport: "uds".to_owned(),
+            uds_path: path.clone(),
+            expected_uid: metadata.uid(),
+            expected_gid: metadata.gid(),
+            expected_workload_identity: "spiffe://masi.test/plugin/fixture".to_owned(),
+            service_proto_digest: crate::admission::qualified_service_proto_digest().to_owned(),
+            artifact_digest: format!("sha256:{}", "a".repeat(64)),
+        };
+        let identity = validate_uds_endpoint(&endpoint)?;
+        drop(listener);
+        std::fs::remove_file(&path)?;
+        std::fs::write(&path, b"replacement")?;
+        assert!(validate_connected_uds_path(&path, identity).is_err());
         Ok(())
     }
 }

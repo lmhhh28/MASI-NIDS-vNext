@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"regexp"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -16,7 +15,11 @@ import (
 	"masi-nids/control-go/internal/security"
 )
 
-var digestRE = regexp.MustCompile(`^sha256:[0-9a-f]{64}$`)
+type nonZeroDigestPattern struct{}
+
+func (nonZeroDigestPattern) MatchString(value string) bool { return security.ValidDigest(value) }
+
+var digestRE nonZeroDigestPattern
 
 // CatalogService registers immutable manifest revisions and qualifies them.
 // A manifest is immutable (append-only revision); a binding references the

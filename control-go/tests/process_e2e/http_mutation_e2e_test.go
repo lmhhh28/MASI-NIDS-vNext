@@ -1,10 +1,12 @@
 package process_e2e
 
 import (
+	"bufio"
 	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 	"testing"
 	"time"
 
@@ -12,6 +14,22 @@ import (
 	"masi-nids/control-go/internal/governance"
 	"masi-nids/control-go/internal/security"
 )
+
+func readSSEData(reader *bufio.Reader) (map[string]any, error) {
+	for {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			return nil, err
+		}
+		if strings.HasPrefix(line, "data: ") {
+			var event map[string]any
+			if err := json.Unmarshal([]byte(strings.TrimSpace(strings.TrimPrefix(line, "data: "))), &event); err != nil {
+				return nil, err
+			}
+			return event, nil
+		}
+	}
+}
 
 // targetSetDigestE2E == targetSetDigest(["target-e2e"]) (see targetSetDigest in
 // internal/api/router.go) and is the digest granted by testdata/role-mapping-e2e.json.
@@ -93,6 +111,120 @@ func TestRealControlSessionCSRFOrigin(t *testing.T) {
 		t.Fatalf("unauth mutation status=%d want 401/403", status)
 	}
 	_ = ctx
+}
+
+func TestRealControlSSEPublishesOnlyAfterCommittedMutation(t *testing.T) {
+	p, ctx := setup(t)
+	cookie, csrf := p.session(t, e2eMakerSub)
+	request, err := http.NewRequestWithContext(ctx, http.MethodGet, p.baseURL+"/events", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	request.Header.Set("Cookie", cookie)
+	request.Header.Set("Origin", p.baseURL)
+	response, err := http.DefaultClient.Do(request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer response.Body.Close()
+	if response.StatusCode != http.StatusOK {
+		t.Fatalf("SSE status=%d", response.StatusCode)
+	}
+	reader := bufio.NewReader(response.Body)
+	initial, err := readSSEData(reader)
+	if err != nil || initial["event_type"] != "snapshot-refetch-required" || initial["sequence"] != float64(1) {
+		t.Fatalf("initial SSE event=%v err=%v", initial, err)
+	}
+
+	now := time.Now().UnixMilli()
+	statusCode, body := p.mutate(t, cookie, csrf, "/api/effects/proposals", map[string]any{
+		"effect_kind": "target-assignment", "target_ids": []string{"target-e2e"}, "scope": "scope-e2e",
+		"policy_digest": e2eDigest, "risk_level": "R1", "idempotency_key": "sse-proposal",
+		"trace_id": "sse-proposal", "expires_at_unix_ms": now + 600_000,
+	})
+	if statusCode != http.StatusCreated {
+		t.Fatalf("committed SSE mutation status=%d body=%s", statusCode, body)
+	}
+	proposalID := jstr(t, body, "proposal_id")
+	committed, err := readSSEData(reader)
+	if err != nil || committed["event_type"] != "invalidate" || committed["resource_kind"] != "proposal" ||
+		committed["resource_id"] != proposalID || committed["sequence"] != float64(2) {
+		t.Fatalf("committed invalidation=%v err=%v", committed, err)
+	}
+	var durableCount int
+	p.queryRow(ctx, `SELECT count(*) FROM effect_proposals WHERE proposal_id=$1`, proposalID).Scan(&durableCount)
+	if durableCount != 1 {
+		t.Fatalf("SSE invalidation preceded durable proposal commit")
+	}
+
+	statusCode, _ = p.mutate(t, cookie, csrf, "/api/effects/proposals", map[string]any{
+		"effect_kind": "target-assignment", "idempotency_key": "sse-rejected",
+	})
+	if statusCode == http.StatusCreated {
+		t.Fatal("malformed mutation unexpectedly committed")
+	}
+	next := make(chan error, 1)
+	go func() {
+		_, readErr := readSSEData(reader)
+		next <- readErr
+	}()
+	select {
+	case readErr := <-next:
+		if readErr == nil {
+			t.Fatal("rejected mutation emitted an SSE invalidation")
+		}
+	case <-time.After(500 * time.Millisecond):
+		_ = response.Body.Close()
+		select {
+		case <-next:
+		case <-time.After(time.Second):
+			t.Fatal("SSE reader did not stop after response close")
+		}
+	}
+}
+
+func TestRealControlSSEPublishesCommittedEventAndIncident(t *testing.T) {
+	p, ctx := setup(t)
+	cookie, _ := p.session(t, e2eMakerSub)
+	request, err := http.NewRequestWithContext(ctx, http.MethodGet, p.baseURL+"/events", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	request.Header.Set("Cookie", cookie)
+	request.Header.Set("Origin", p.baseURL)
+	response, err := http.DefaultClient.Do(request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer response.Body.Close()
+	reader := bufio.NewReader(response.Body)
+	if _, err := readSSEData(reader); err != nil {
+		t.Fatal(err)
+	}
+	ack, err := p.sink().CommitResults(ctx, validBatch(e2eDigest))
+	if err != nil || len(ack.GetAcknowledgements()) != 1 || ack.GetAcknowledgements()[0].GetStatus() != "committed" {
+		t.Fatalf("canonical commit ack=%+v err=%v", ack, err)
+	}
+	eventID := ack.GetAcknowledgements()[0].GetCanonicalEventId()
+	incidentID := "inc-" + strings.TrimPrefix(eventID, "evt-")
+	first, err := readSSEData(reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	second, err := readSSEData(reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if first["resource_kind"] != "event" || first["resource_id"] != eventID || first["sequence"] != float64(2) ||
+		second["resource_kind"] != "incident" || second["resource_id"] != incidentID || second["sequence"] != float64(3) {
+		t.Fatalf("unexpected ingest invalidations: first=%v second=%v", first, second)
+	}
+	var eventCount, incidentCount int
+	p.queryRow(ctx, `SELECT count(*) FROM events WHERE event_id=$1`, eventID).Scan(&eventCount)
+	p.queryRow(ctx, `SELECT count(*) FROM incidents WHERE incident_id=$1`, incidentID).Scan(&incidentCount)
+	if eventCount != 1 || incidentCount != 1 {
+		t.Fatalf("SSE preceded canonical event/incident commit: events=%d incidents=%d", eventCount, incidentCount)
+	}
 }
 
 // TestRealControlGovernanceMakerChecker covers R1 self-approval, R2 different
@@ -205,7 +337,7 @@ func TestRealControlGovernanceMakerChecker(t *testing.T) {
 // TestRealControlEffectDispatchFailClosed creates a firewall response overlay
 // (the public flow that produces claimable effect_intents) and lets the 2s
 // maintenance loop dispatch it against the test-profile stub Edge. The stub
-// returns errEdgeNotConfigured on every call, so the intents must converge to a
+// returns errOutboundDisabled on every call, so the intents must converge to a
 // fail-closed terminal state (unknown/timeout) with no second intent and no
 // blind retry. The applied path itself is covered by the in-process
 // governance dispatcher PostgreSQL E2E; this test asserts the public-boundary +
@@ -284,7 +416,7 @@ func TestRealControlEffectDispatchFailClosed(t *testing.T) {
 	// 3. Wait for the maintenance loop to claim+dispatch the upsert intent (the
 	// delete intent is deliberately not-before the 4min overlay expiry, so it must
 	// stay unclaimed until then — it is not asserted as dispatched here). The stub
-	// Edge returns errEdgeNotConfigured, so the upsert must converge fail-closed.
+	// The non-production Edge boundary returns errOutboundDisabled, so the upsert must converge fail-closed.
 	waitFor(t, 12*time.Second, "upsert intent converged to unknown", func() error {
 		var state string
 		err := p.queryRow(ctx, `SELECT claim_state FROM effect_intents WHERE effect_intent_id='ov-upsert-e2e'`).Scan(&state)

@@ -72,7 +72,9 @@ std::string sha256_file(const std::string &path) {
 bool is_sha256_digest(std::string_view value) {
   if (value.size() != 71 || value.substr(0, 7) != "sha256:")
     return false;
-  return std::all_of(value.begin() + 7, value.end(),
+  const auto body = value.substr(7);
+  return std::any_of(body.begin(), body.end(), [](char c) { return c != '0'; }) &&
+         std::all_of(body.begin(), body.end(),
                      [](char c) { return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f'); });
 }
 

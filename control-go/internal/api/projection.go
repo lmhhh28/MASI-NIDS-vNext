@@ -130,15 +130,7 @@ func (c *CursorCodec) Decode(s string) (Cursor, error) {
 }
 
 func validCursorDigest(value string) bool {
-	if len(value) != 71 || !strings.HasPrefix(value, "sha256:") {
-		return false
-	}
-	for _, r := range value[len("sha256:"):] {
-		if (r < '0' || r > '9') && (r < 'a' || r > 'f') {
-			return false
-		}
-	}
-	return true
+	return validDigest(value)
 }
 
 // ParsePageSize validates the bounded page size.

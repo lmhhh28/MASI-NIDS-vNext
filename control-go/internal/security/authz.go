@@ -38,14 +38,30 @@ type RoleScopeMapping struct {
 	DefaultDeny bool               `json:"default_deny"`
 }
 
-var digestRE = regexp.MustCompile(`^sha256:[0-9a-f]{64}$`)
+var (
+	digestRE   = regexp.MustCompile(`^sha256:[0-9a-f]{64}$`)
+	revisionRE = regexp.MustCompile(`^[0-9a-f]{40}$`)
+)
+
+const zeroDigest = "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+const zeroRevision = "0000000000000000000000000000000000000000"
+
+func validDigest(value string) bool {
+	return ValidDigest(value)
+}
+
+// ValidDigest reports whether value is a canonical, non-sentinel SHA-256 digest.
+func ValidDigest(value string) bool { return value != zeroDigest && digestRE.MatchString(value) }
+
+// ValidRevision reports whether value is a canonical non-zero 40-hex revision.
+func ValidRevision(value string) bool { return value != zeroRevision && revisionRE.MatchString(value) }
 
 // Validate checks the mapping is well-formed and default-deny.
 func (m *RoleScopeMapping) Validate() error {
 	if !m.DefaultDeny {
 		return errors.New("security: role mapping must be default-deny")
 	}
-	if !digestRE.MatchString(m.Digest) {
+	if !validDigest(m.Digest) {
 		return fmt.Errorf("security: role mapping digest malformed: %s", m.Digest)
 	}
 	if m.Version == "" {
@@ -57,7 +73,7 @@ func (m *RoleScopeMapping) Validate() error {
 		}
 		seen := map[string]struct{}{}
 		for _, scope := range scopes {
-			if scope.ScopeID == "" || !digestRE.MatchString(scope.TargetSetDigest) || len(scope.EffectKinds) == 0 || len(scope.EffectKinds) > 64 || len(scope.Levels) == 0 {
+			if scope.ScopeID == "" || !validDigest(scope.TargetSetDigest) || len(scope.EffectKinds) == 0 || len(scope.EffectKinds) > 64 || len(scope.Levels) == 0 {
 				return fmt.Errorf("security: malformed scope grant for %s", actorRef)
 			}
 			if _, ok := seen[scope.ScopeID]; ok {

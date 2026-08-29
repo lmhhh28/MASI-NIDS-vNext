@@ -26,10 +26,11 @@ pub fn validate_sha256(value: &str, field: &'static str) -> EdgeResult<()> {
         || !hex_part
             .bytes()
             .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+        || hex_part.bytes().all(|byte| byte == b'0')
     {
         return Err(EdgeError::invalid(
             field,
-            "digest must contain 64 lowercase hexadecimal characters",
+            "digest must contain 64 lowercase hexadecimal characters and must not be all zero",
         ));
     }
     Ok(())
@@ -62,6 +63,7 @@ mod tests {
     fn digest_spelling_is_strict() {
         assert!(validate_sha256(&format!("sha256:{}", "a".repeat(64)), "d").is_ok());
         assert!(validate_sha256(&format!("sha256:{}", "A".repeat(64)), "d").is_err());
+        assert!(validate_sha256(&format!("sha256:{}", "0".repeat(64)), "d").is_err());
         assert!(validate_sha256("a", "d").is_err());
     }
 

@@ -4,7 +4,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from masi_analysis.config import load_runtime_material
+from masi_analysis.config import BindingState, load_runtime_material
 from masi_analysis.errors import AnalysisError
 
 from .support import write_runtime
@@ -41,6 +41,15 @@ class ConfigTests(unittest.TestCase):
         with self.assertRaises(AnalysisError) as caught:
             load_runtime_material(str(path))
         self.assertEqual(caught.exception.code, "BINDING_DIGEST_MISMATCH")
+
+    def test_binding_reload_rejects_runtime_client_config_change(self) -> None:
+        path = write_runtime(self.root, self.contract_root, provider_port=18082)
+        state = BindingState(load_runtime_material(str(path)))
+        write_runtime(self.root, self.contract_root, provider_port=18092)
+        with self.assertRaises(AnalysisError) as caught:
+            state.reload(str(path))
+        self.assertEqual(caught.exception.code, "BINDING_FENCED")
+        self.assertIn("restart required", caught.exception.message)
 
 
 if __name__ == "__main__":

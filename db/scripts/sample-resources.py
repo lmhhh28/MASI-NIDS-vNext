@@ -36,13 +36,20 @@ def parse_size(value: str) -> int:
 
 
 def run(*args: str) -> str:
-    completed = subprocess.run(args, check=True, text=True, capture_output=True, timeout=15)
+    completed = subprocess.run(
+        args, check=True, text=True, capture_output=True, timeout=15
+    )
     return completed.stdout.strip()
 
 
 def proc_count(container: str, leaf: str) -> int:
     output = run(
-        "docker", "exec", container, "/bin/sh", "-eu", "-c",
+        "docker",
+        "exec",
+        container,
+        "/bin/sh",
+        "-eu",
+        "-c",
         f"set -- /proc/1/{leaf}/*; printf '%s\\n' \"$#\"",
     )
     return int(output)
@@ -56,9 +63,14 @@ def phase(offset: float, warmup: int, phase_duration: int) -> str:
     return names[index]
 
 
-def sample(containers: list[str], offset_ms: int, warmup: int, phase_duration: int) -> dict[str, Any]:
+def sample(
+    containers: list[str], offset_ms: int, warmup: int, phase_duration: int
+) -> dict[str, Any]:
     rows = run("docker", "stats", "--no-stream", "--format", "{{json .}}", *containers)
-    by_name = {entry["Name"]: entry for entry in (json.loads(line) for line in rows.splitlines())}
+    by_name = {
+        entry["Name"]: entry
+        for entry in (json.loads(line) for line in rows.splitlines())
+    }
     cpu, rss, fds, threads, oom, restarts = 0.0, 0, 0, 0, 0, 0
     for container in containers:
         entry = by_name.get(container)
@@ -68,9 +80,13 @@ def sample(containers: list[str], offset_ms: int, warmup: int, phase_duration: i
         rss += parse_size(entry["MemUsage"].split(" / ", 1)[0])
         fds += proc_count(container, "fd")
         threads += proc_count(container, "task")
-        state = json.loads(run("docker", "inspect", "--format", "{{json .State}}", container))
+        state = json.loads(
+            run("docker", "inspect", "--format", "{{json .State}}", container)
+        )
         oom += int(bool(state.get("OOMKilled")))
-        restarts += int(run("docker", "inspect", "--format", "{{.RestartCount}}", container))
+        restarts += int(
+            run("docker", "inspect", "--format", "{{.RestartCount}}", container)
+        )
     return {
         "timestamp": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
         "offset_ms": offset_ms,
@@ -99,7 +115,11 @@ def main() -> int:
     args = parser.parse_args()
     if not 1 <= args.duration_seconds <= 3700 or not 1 <= args.interval_seconds <= 30:
         raise ValueError("sampler duration/interval outside bounds")
-    if args.output.exists() or args.output.is_symlink() or not args.output.is_absolute():
+    if (
+        args.output.exists()
+        or args.output.is_symlink()
+        or not args.output.is_absolute()
+    ):
         raise ValueError("sampler output must be a fresh absolute path")
     started = time.monotonic()
     started_at = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
@@ -112,12 +132,14 @@ def main() -> int:
             break
         attempts += 1
         try:
-            samples.append(sample(
-                args.container,
-                int(offset * 1000),
-                args.warmup_seconds,
-                args.phase_duration_seconds,
-            ))
+            samples.append(
+                sample(
+                    args.container,
+                    int(offset * 1000),
+                    args.warmup_seconds,
+                    args.phase_duration_seconds,
+                )
+            )
         except (subprocess.SubprocessError, ValueError, KeyError) as error:
             failures.append(str(error)[:512])
             if len(failures) > 16:

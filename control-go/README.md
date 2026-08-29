@@ -65,7 +65,7 @@ cd control-go
 MASI_CONTROL_FORMAL_SOAK=1 MASI_CONTROL_SOAK_SECONDS=3600 scripts/run-module-gates.sh
 ```
 
-control-core 的进程资源门槛为 `OBSERVED_ONLY_OWNER_NOT_FROZEN_DEC_001`：完整 3600 秒 formal soak 执行后仍只能 `MODULE/HOLD/NOT_QUALIFIED`，直到 Owner 冻结绝对门槛才可能 `PASS/QUALIFIED`。`MASI_CONTROL_SOAK_SECONDS<3600` 只产出 `REHEARSAL/HOLD/NOT_QUALIFIED`，不构成 Module Complete。证据写入 `control-go/evidence/module-gates/runs/<run-id>/` 并发布 `gate-summary.json` + `latest.json`。
+control-core 的进程资源门槛为 `OBSERVED_ONLY_OWNER_NOT_FROZEN_DEC_001`：完整 3600 秒 formal soak 执行后仍只能 `MODULE/HOLD/NOT_QUALIFIED`，直到 Owner 冻结绝对门槛才可能 `PASS/QUALIFIED`。`MASI_CONTROL_SOAK_SECONDS<3600` 只产出 `REHEARSAL/HOLD/NOT_QUALIFIED`，不构成 Module Complete。证据写入 `control-go/evidence/module-gates/runs/<run-id>/` 并发布 `gate-summary.json` + `latest.json`；`latest.json` 是带 source revision/tree/status digest 的最近历史指针，只有根 verifier 证明其与当前源码一致时才可解释为当前证据。仓库现有指针早于 production migration CLI 删除，因此不得证明当前镜像。
 
 ### 环境变量
 

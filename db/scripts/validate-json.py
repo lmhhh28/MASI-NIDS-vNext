@@ -36,7 +36,9 @@ def load(path: Path) -> dict[str, Any]:
             raise ValueError(f"unbounded JSON input: {path}")
         payload = bytearray()
         while True:
-            chunk = os.read(descriptor, min(1_048_576, MAX_JSON_BYTES + 1 - len(payload)))
+            chunk = os.read(
+                descriptor, min(1_048_576, MAX_JSON_BYTES + 1 - len(payload))
+            )
             if not chunk:
                 break
             payload.extend(chunk)
@@ -82,10 +84,16 @@ def validate_module(document: dict[str, Any]) -> None:
     if document.get("findings", {}).get("open_p0") != 0:
         raise ValueError("complete module requires zero open P0")
     completion = document.get("completion", {})
-    if not all(completion.get(key) is True for key in (
-        "operational_gates_pass", "open_p0_zero", "real_runtime_started",
-        "formal_soak_executed", "no_required_not_run",
-    )):
+    if not all(
+        completion.get(key) is True
+        for key in (
+            "operational_gates_pass",
+            "open_p0_zero",
+            "real_runtime_started",
+            "formal_soak_executed",
+            "no_required_not_run",
+        )
+    ):
         raise ValueError("completion derivation is not fully true")
     if any(value != "PASS" for value in document.get("executed_gates", {}).values()):
         raise ValueError("complete module has a non-PASS executed gate")
@@ -99,22 +107,32 @@ def main() -> int:
     args = parser.parse_args()
     schema, document = load(args.schema), load(args.document)
     errors = sorted(
-        Draft202012Validator(schema, format_checker=FormatChecker()).iter_errors(document),
+        Draft202012Validator(schema, format_checker=FormatChecker()).iter_errors(
+            document
+        ),
         key=lambda error: list(error.absolute_path),
     )
     if errors:
-        raise ValueError("\n".join(
-            f"schema error at {list(error.absolute_path)}: {error.message}" for error in errors
-        ))
+        raise ValueError(
+            "\n".join(
+                f"schema error at {list(error.absolute_path)}: {error.message}"
+                for error in errors
+            )
+        )
     if args.kind == "module":
         validate_module(document)
-    print(json.dumps({
-        "schema_version": "postgresql-state-evidence-validation/v1",
-        "document": str(args.document),
-        "document_digest": digest(args.document),
-        "schema_digest": digest(args.schema),
-        "result": "PASS",
-    }, sort_keys=True))
+    print(
+        json.dumps(
+            {
+                "schema_version": "postgresql-state-evidence-validation/v1",
+                "document": str(args.document),
+                "document_digest": digest(args.document),
+                "schema_digest": digest(args.schema),
+                "result": "PASS",
+            },
+            sort_keys=True,
+        )
+    )
     return 0
 
 

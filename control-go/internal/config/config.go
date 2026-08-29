@@ -18,6 +18,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"masi-nids/control-go/internal/security"
 )
 
 // Config is the validated, immutable runtime configuration. Once Loaded it is
@@ -161,7 +163,11 @@ type Probe struct {
 	DrainTimeout              time.Duration `json:"drain_timeout"`
 }
 
-var digestRE = regexp.MustCompile(`^sha256:[0-9a-f]{64}$`)
+type nonZeroDigestPattern struct{}
+
+func (nonZeroDigestPattern) MatchString(value string) bool { return security.ValidDigest(value) }
+
+var digestRE nonZeroDigestPattern
 var workloadRefRE = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$`)
 
 // Load reads and validates configuration from the given JSON path (or, if path

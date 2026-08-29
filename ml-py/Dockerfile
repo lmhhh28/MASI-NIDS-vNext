@@ -32,12 +32,14 @@ COPY --chown=0:0 contracts/model-explanation /opt/masi/repo/contracts/model-expl
 COPY --chown=0:0 contracts/profiles/v1/dataset-p4-window-binary.json /opt/masi/repo/contracts/profiles/v1/dataset-p4-window-binary.json
 COPY --chown=0:0 contracts/profiles/v1/model-explanation-evidence.json /opt/masi/repo/contracts/profiles/v1/model-explanation-evidence.json
 COPY --chown=0:0 contracts/profiles/v1/edge-feature-window.json /opt/masi/repo/contracts/profiles/v1/edge-feature-window.json
+COPY --chown=0:0 contracts/profiles/v1/p4-stateless-firewall-bmv2.json /opt/masi/repo/contracts/profiles/v1/p4-stateless-firewall-bmv2.json
 COPY --chown=0:0 contracts/golden/telemetry/snapshot-v1.json /opt/masi/repo/contracts/golden/telemetry/snapshot-v1.json
 COPY --chown=0:0 contracts/inference/v1/profile.json /opt/masi/repo/contracts/inference/v1/profile.json
 COPY --chown=0:0 contracts/inference/v1/model-runtime-central-cpu.json /opt/masi/repo/contracts/inference/v1/model-runtime-central-cpu.json
 COPY --chown=0:0 contracts/inference/v1/optimization-profile-central-cpu.json /opt/masi/repo/contracts/inference/v1/optimization-profile-central-cpu.json
 COPY --chown=0:0 ml-py/uv.lock /opt/masi/repo/ml-py/uv.lock
 COPY --chown=0:0 ml-py/src/masi_offline_ml/dataset.py /opt/masi/repo/ml-py/src/masi_offline_ml/dataset.py
+COPY --chown=0:0 p4/src/masi_switch.p4 /opt/masi/repo/p4/src/masi_switch.p4
 RUN mkdir -p /work \
     && chmod -R a-w /opt/masi/repo /usr/local/lib/python3.12/site-packages/masi_offline_ml \
     && chmod 0555 /usr/local/bin/masi-offline-ml /work

@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"masi-nids/control-go/internal/db"
+	"masi-nids/control-go/internal/security"
 )
 
 // RevisionService creates immutable normalized baseline revisions. A revision
@@ -169,7 +170,7 @@ func validateRule(r Rule) error {
 	if r.ActorRef == "" || len(r.ActorRef) > 128 || r.ReasonCode == "" || len(r.ReasonCode) > 64 {
 		return fmt.Errorf("rule %s actor/reason identity required and bounded", r.RuleID)
 	}
-	if len(r.CanonicalRuleDigest) != 71 || !strings.HasPrefix(r.CanonicalRuleDigest, "sha256:") {
+	if !security.ValidDigest(r.CanonicalRuleDigest) {
 		return fmt.Errorf("rule %s missing canonical_rule_digest", r.RuleID)
 	}
 	if _, err := hex.DecodeString(strings.TrimPrefix(r.CanonicalRuleDigest, "sha256:")); err != nil {

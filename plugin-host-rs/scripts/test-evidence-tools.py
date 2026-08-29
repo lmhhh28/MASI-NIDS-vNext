@@ -3,12 +3,13 @@
 
 from __future__ import annotations
 
-import datetime as dt
 import hashlib
 import json
 import subprocess
 import tempfile
 from pathlib import Path
+
+from evidence_common import current_snapshot
 
 
 def sha_bytes(value: bytes) -> str:
@@ -17,35 +18,41 @@ def sha_bytes(value: bytes) -> str:
 
 def write(path: Path, value: object) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(value, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    path.write_text(
+        json.dumps(value, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+    )
 
 
 def main() -> int:
     host = Path(__file__).resolve().parent.parent
     repo = host.parent
-    manifest = json.loads((host / "requirements-traceability.json").read_text(encoding="utf-8"))
-    revision = subprocess.run(
-        ["git", "-C", str(repo), "rev-parse", "HEAD"],
+    manifest = json.loads(
+        (host / "requirements-traceability.json").read_text(encoding="utf-8")
+    )
+    revision, status_digest, _working_tree_dirty, source_digest = current_snapshot(repo)
+    status_payload = subprocess.run(
+        ["git", "-C", str(repo), "status", "--porcelain=v1", "--untracked-files=all"],
         check=True,
-        text=True,
         stdout=subprocess.PIPE,
-    ).stdout.strip()
-    source_digest = "sha256:" + "a" * 64
-    status_digest = sha_bytes(b"")
+    ).stdout
     evidence_parent = host / "evidence"
     evidence_parent.mkdir(exist_ok=True)
-    with tempfile.TemporaryDirectory(prefix="tool-test-", dir=evidence_parent) as temporary:
+    with tempfile.TemporaryDirectory(
+        prefix="tool-test-", dir=evidence_parent
+    ) as temporary:
         run = Path(temporary)
-        (run / "working-tree-status.txt").write_bytes(b"")
+        (run / "working-tree-status.txt").write_bytes(status_payload)
         for binding in manifest["execution_bindings"]:
             command_id = binding["command_id"]
             log = run / f"{command_id}.log"
-            log.write_text(f"synthetic command evidence for {command_id}\n", encoding="utf-8")
+            log.write_text(
+                f"synthetic command evidence for {command_id}\n", encoding="utf-8"
+            )
             write(
                 run / f"{command_id}.command.json",
                 {
                     "schema_version": "edge-command-execution/v1",
-                    "run_id": "synthetic-evidence-tools",
+                    "run_id": run.name,
                     "command_id": command_id,
                     "started_at": "2026-08-21T00:00:00Z",
                     "finished_at": "2026-08-21T00:00:01Z",
@@ -113,12 +120,21 @@ def main() -> int:
                     "component_cache_state": "fresh-host-state-no-precompiled-entry",
                 },
                 "saturation": {
-                    "submitted": 128, "succeeded": 1, "classified_rejections": 127,
+                    "submitted": 128,
+                    "succeeded": 1,
+                    "classified_rejections": 127,
                     "unclassified_failures": 0,
-                    "stable_rejection_reasons": ["RESOURCE_EXHAUSTED", "DEADLINE_EXCEEDED"],
-                    "peak_queued_observed": 32, "peak_in_flight_observed": 2,
-                    "per_binding_queue_limit": 32, "global_queue_limit": 64,
-                    "per_binding_in_flight_limit": 2, "final_queued": 0, "final_in_flight": 0,
+                    "stable_rejection_reasons": [
+                        "RESOURCE_EXHAUSTED",
+                        "DEADLINE_EXCEEDED",
+                    ],
+                    "peak_queued_observed": 32,
+                    "peak_in_flight_observed": 2,
+                    "per_binding_queue_limit": 32,
+                    "global_queue_limit": 64,
+                    "per_binding_in_flight_limit": 2,
+                    "final_queued": 0,
+                    "final_in_flight": 0,
                 },
                 "environment_profile_digest": "sha256:" + "3" * 64,
                 "result_set_digest": "sha256:" + "4" * 64,
@@ -179,19 +195,38 @@ def main() -> int:
                 "module_id": "MOD-PLUGIN-001",
                 "runtime_profiles": ["grpc-service/v1"],
                 "case_ids": [
-                    "service-hang", "service-trap", "service-wrong-digest", "service-oversize",
-                    "service-caller-cancellation", "service-crash-isolation", "service-disable-failure",
-                    "service-disable-hang", "service-drain-hang", "trust-freshness-reconcile",
+                    "service-hang",
+                    "service-trap",
+                    "service-wrong-digest",
+                    "service-oversize",
+                    "service-caller-cancellation",
+                    "service-crash-isolation",
+                    "service-disable-failure",
+                    "service-disable-hang",
+                    "service-drain-hang",
+                    "trust-freshness-reconcile",
                     "service-failure-quarantine",
                 ],
                 "cases": [
-                    {"case_id": case_id, "fault": "synthetic-fault",
-                     "stable_reason": "UNAVAILABLE", "bounded_millis": 1,
-                     "recovered": True, "result": "PASS"}
+                    {
+                        "case_id": case_id,
+                        "fault": "synthetic-fault",
+                        "stable_reason": "UNAVAILABLE",
+                        "bounded_millis": 1,
+                        "recovered": True,
+                        "result": "PASS",
+                    }
                     for case_id in [
-                        "service-hang", "service-trap", "service-wrong-digest", "service-oversize",
-                        "service-caller-cancellation", "service-crash-isolation", "service-disable-failure",
-                        "service-disable-hang", "service-drain-hang", "trust-freshness-reconcile",
+                        "service-hang",
+                        "service-trap",
+                        "service-wrong-digest",
+                        "service-oversize",
+                        "service-caller-cancellation",
+                        "service-crash-isolation",
+                        "service-disable-failure",
+                        "service-disable-hang",
+                        "service-drain-hang",
+                        "trust-freshness-reconcile",
                         "service-failure-quarantine",
                     ]
                 ],
@@ -282,9 +317,16 @@ def main() -> int:
         stages[4]["service_crash_classified"] = True
         stages[4]["service_restart_recovered"] = True
         samples = [
-            {"elapsed_unix_ms": index + 1, "rss_bytes": 1, "threads": 1, "fds": 1,
-             "queued": 1 if index == 150 else 0, "in_flight": 1 if index == 150 else 0,
-             "manager_connections": 1, "manager_connections_peak": 1}
+            {
+                "elapsed_unix_ms": index + 1,
+                "rss_bytes": 1,
+                "threads": 1,
+                "fds": 1,
+                "queued": 1 if index == 150 else 0,
+                "in_flight": 1 if index == 150 else 0,
+                "manager_connections": 1,
+                "manager_connections_peak": 1,
+            }
             for index in range(300)
         ]
         write(
@@ -305,8 +347,12 @@ def main() -> int:
                 "max_in_flight": 1,
                 "max_manager_connections": 1,
                 "resource_growth": {
-                    "rss_bytes_delta": 0, "threads_delta": 0, "fds_delta": 0,
-                    "queued_final": 0, "in_flight_final": 0, "sample_count": 300,
+                    "rss_bytes_delta": 0,
+                    "threads_delta": 0,
+                    "fds_delta": 0,
+                    "queued_final": 0,
+                    "in_flight_final": 0,
+                    "sample_count": 300,
                     "leak_thresholds_passed": True,
                 },
                 "revocation_refresh_failures": 0,
@@ -358,11 +404,14 @@ def main() -> int:
                 str(run),
                 "--summary",
                 str(summary),
+                "--provisional",
                 "--negative-self-test",
             ],
             check=True,
         )
-        if not json.loads(summary.read_text(encoding="utf-8"))["overall_module_complete"]:
+        if not json.loads(summary.read_text(encoding="utf-8"))[
+            "overall_module_complete"
+        ]:
             raise SystemExit("synthetic evidence tool summary was not complete")
     print("plugin-host evidence tooling synthetic/negative tests: PASS")
     return 0

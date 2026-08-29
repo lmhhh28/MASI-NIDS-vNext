@@ -31,6 +31,8 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+
+	"masi-nids/control-go/internal/security"
 )
 
 // MetricKind, Temporality, DisplayHint, Quality, RunStatus mirror the closed
@@ -133,7 +135,7 @@ const (
 )
 
 var (
-	digestRE   = regexp.MustCompile(`^sha256:[0-9a-f]{64}$`)
+	digestRE   nonZeroDigestPattern
 	identityRE = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$`)
 	// forbiddenDefinitionFields matches any definition field VALUE that smells
 	// like an endpoint/credential/query/expression (STATISTICS-DEFINITION-NO-
@@ -143,6 +145,10 @@ var (
 	// (STATISTICS-DISPLAY-CLOSED-UNION: no URL/HTML/SVG/JS/ECharts/Vega).
 	forbiddenPayloadRE = regexp.MustCompile(`(?is)<\s*(script|svg|iframe|object|embed|link)\b|javascript:|v-html|data:text/html|on(?:error|load|click)\s*=|"option"\s*:|echarts\.init|vega\.embed|eval\(|new\s+Function\(`)
 )
+
+type nonZeroDigestPattern struct{}
+
+func (nonZeroDigestPattern) MatchString(value string) bool { return security.ValidDigest(value) }
 
 // ValidateDefinition validates an immutable definition BEFORE it is frozen
 // into a manifest revision. Unknown enum values, bound violations, forbidden

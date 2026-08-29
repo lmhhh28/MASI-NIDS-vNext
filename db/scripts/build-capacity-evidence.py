@@ -23,12 +23,16 @@ def main() -> int:
         "level": "MODULE",
         "applicability": "APPLICABLE",
         "result": "PASS",
-        "qualification": "QUALIFIED",
+        "qualification": "NOT_QUALIFIED",
         "identity": raw["identity"],
         "matrix": raw["capacity"],
         "threshold_status": "OBSERVED_ONLY_OWNER_NOT_FROZEN_DEC_001",
     }
-    if args.output.exists() or args.output.is_symlink() or not args.output.is_absolute():
+    if (
+        args.output.exists()
+        or args.output.is_symlink()
+        or not args.output.is_absolute()
+    ):
         raise ValueError("output must be a fresh absolute path")
     descriptor = os.open(args.output, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
     with os.fdopen(descriptor, "w", encoding="utf-8") as stream:

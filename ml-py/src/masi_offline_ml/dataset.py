@@ -28,6 +28,7 @@ from .contracts import (
     FEATURE_ORDER,
     feature_tensor_bytes,
     split_name,
+    telemetry_cell_selector_digest,
     validate_dataset_manifest,
     validate_dataset_sample,
 )
@@ -278,6 +279,43 @@ def verify_reference_extractor_golden(repo: Path) -> dict[str, Any]:
         raise ValidationError("p4_reference_golden", f"{observed} != {expected}")
     if telemetry["quality"] != {"status": "valid", "reasons": ["NONE"]}:
         raise ValidationError("p4_reference_quality", str(telemetry["quality"]))
+    source_profile_digest = str(telemetry["source_profile_digest"])
+    flow_identity = cast(dict[str, Any], telemetry["flow_identity_profile"])
+    sampling = cast(dict[str, Any], telemetry["sampling"])
+    if (
+        flow_identity["selector_algorithm"] != "p4-qualified-cell-selector/v1"
+        or flow_identity["selector_seed_digest"] != source_profile_digest
+        or sampling["seed_digest"] != source_profile_digest
+    ):
+        raise ValidationError("p4_selector_profile", "selector algorithm or seed digest drifted")
+    target_id = str(telemetry["target_id"])
+    epoch = int(telemetry["epoch"])
+    for cell in cells:
+        expected_selector = telemetry_cell_selector_digest(
+            target_id,
+            source_profile_digest,
+            epoch,
+            int(cell["index"]),
+        )
+        if cell["selector_digest"] != expected_selector:
+            raise ValidationError("p4_selector_digest", f"cell {cell['index']}")
+
+    p4_profile_path = resolve_repo_file(
+        repo,
+        "contracts/profiles/v1/p4-stateless-firewall-bmv2.json",
+        maximum_bytes=1024 * 1024,
+    )
+    p4_profile = cast(dict[str, Any], load_json(p4_profile_path))
+    artifact_digests = cast(dict[str, str], p4_profile["artifact_digests"])
+    expected_pipeline = {
+        "p4_program_digest": artifact_digests["p4_source"],
+        "p4info_digest": artifact_digests["p4info"],
+        "pipeline_digest": artifact_digests["device_config_wire"],
+    }
+    if telemetry["pipeline_identity"] != expected_pipeline:
+        raise ValidationError("p4_pipeline_identity", "telemetry golden differs from target profile")
+    if sha256_file(repo / "p4/src/masi_switch.p4") != artifact_digests["p4_source"]:
+        raise ValidationError("p4_source_digest", "target profile p4_source digest differs from source")
     return {
         "schema_version": "p4-window-reference-golden-result/v1",
         "result": "PASS",
@@ -285,6 +323,10 @@ def verify_reference_extractor_golden(repo: Path) -> dict[str, Any]:
         "feature_tensor_hex": feature_tensor_bytes(expected).hex(),
         "feature_tensor_digest": sha256_bytes(feature_tensor_bytes(expected)),
         "feature_values": list(expected),
+        **expected_pipeline,
+        "selector_algorithm": "p4-qualified-cell-selector/v1",
+        "selector_seed_digest": source_profile_digest,
+        "selector_digest_preimage": "target_id\\0source_profile_digest\\0epoch_decimal\\0cell_index_decimal",
     }
 
 
@@ -426,10 +468,12 @@ def generate_module_dataset(repo: Path, output: Path) -> dict[str, Any]:
             "implementation": "qualified-reference-extractor",
             "implementation_digest": sha256_file(repo / "ml-py/src/masi_offline_ml/dataset.py"),
             "p4_golden_digest": reference["telemetry_golden_digest"],
-            "p4_program_digest": "sha256:b228cf7423f083711d9f5c1ee4f097df868b452119d6c56a2f263e30c443823c",
-            "p4info_digest": "sha256:23b6d3554ca11843b7e0324352ed09752f068a05abbecf16c16d08a9839d2241",
-            "pipeline_digest": "sha256:06b99f73133ff8a7d0bfbcfe2b023ecdd5a9458f8e41afd5f11275e5d99d00ea",
-            "selector_digest": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+            "p4_program_digest": reference["p4_program_digest"],
+            "p4info_digest": reference["p4info_digest"],
+            "pipeline_digest": reference["pipeline_digest"],
+            "selector_algorithm": reference["selector_algorithm"],
+            "selector_seed_digest": reference["selector_seed_digest"],
+            "selector_digest_preimage": reference["selector_digest_preimage"],
             "cell_count": 256,
             "bank_count": 2,
             "snapshot_strategy": "dual-bank-sequence-before-after",

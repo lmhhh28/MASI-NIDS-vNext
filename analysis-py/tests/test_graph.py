@@ -20,11 +20,9 @@ from masi_analysis.models import (
 
 from .support import DIGEST_A, DIGEST_B, frozen_input, write_runtime
 
-ZERO = "sha256:" + "0" * 64
-
 
 def response_for(request: ProviderRequest, *, request_tool: bool) -> ProviderResponse:
-    response = ProviderResponse(
+    response = ProviderResponse.model_construct(
         schema_version="masi-analysis-provider-response/v1",
         request_id=request.request_id,
         input_digest=request.input_digest,
@@ -40,9 +38,11 @@ def response_for(request: ProviderRequest, *, request_tool: bool) -> ProviderRes
         generated_content=["Bounded incident analysis draft."],
         tool_requests=([ProviderToolRequest(kind="tool", name="masi.evidence.get", arguments={"evidence_id": "explanation-1"})] if request_tool else []),
         delegations=[] if not request_tool else [ProviderDelegation(peer_id="peer-unused", question="Provide bounded context")],
-        response_digest=ZERO,
+        response_digest="",
     )
-    return response.model_copy(update={"response_digest": compute_provider_response_digest(response)})
+    payload = response.model_dump(mode="json")
+    payload["response_digest"] = compute_provider_response_digest(response)
+    return ProviderResponse.model_validate(payload)
 
 
 class ProviderStub:
@@ -82,6 +82,9 @@ class MCPStub:
                 "valid",
                 False,
                 {
+                    "evidence_id": "explanation-1",
+                    "kind": "offline-model-explanation",
+                    "reference_digest": DIGEST_B,
                     "explanation": {
                         "evidence_id": "explanation-1",
                         "method": "tree-shap",
@@ -91,8 +94,18 @@ class MCPStub:
                         "sample_digest": DIGEST_B,
                         "coverage": 1.0,
                         "truncated": False,
+                        "truncation_reason": "none",
+                        "stability_status": "stable",
                         "limitations": ["Association is not causality."],
-                    }
+                        "safety": {
+                            "causal_claim": False,
+                            "realtime_inference_payload": False,
+                            "canonical_event_identity": False,
+                            "effect_eligibility": False,
+                            "llm_generated": False,
+                            "executable_content": False,
+                        },
+                    },
                 },
             )
         ]
@@ -130,6 +143,8 @@ class GraphTests(unittest.IsolatedAsyncioTestCase):
         self.assertFalse(artifact.deployment_eligible)
         self.assertEqual(artifact.topology_digest, TOPOLOGY_DIGEST)
         self.assertEqual(len(artifact.model_explanation_facts), 1)
+        self.assertEqual(artifact.inferred_claims, ["Additional investigation may be useful."])
+        self.assertEqual(artifact.llm_interpretations, [])
         self.assertEqual(provider.calls, 2)
         self.assertEqual(mcp.calls, 1)
         self.assertIn("GROUNDING_VALIDATED", trace)
@@ -145,6 +160,23 @@ class GraphTests(unittest.IsolatedAsyncioTestCase):
         artifact, _ = await graph.run(self.input_for_material(quality="low"))
         self.assertEqual(artifact.analysis_outcome, "limited")
         self.assertEqual(artifact.quality, "low")
+
+    async def test_explanation_reference_digest_and_safety_are_fail_closed(self) -> None:
+        provider = ProviderStub()
+        mcp = MCPStub()
+        original_execute = mcp.execute
+
+        async def wrong_digest(*args: Any, **kwargs: Any) -> list[ToolResult]:
+            results = await original_execute(*args, **kwargs)
+            results[0].structured["reference_digest"] = DIGEST_A
+            return results
+
+        mcp.execute = wrong_digest  # type: ignore[method-assign]
+        graph = AnalysisGraph(BindingState(self.material), provider, mcp, PeerStub())  # type: ignore[arg-type]
+        artifact, _ = await graph.run(self.input_for_material())
+        self.assertEqual(artifact.analysis_outcome, "limited")
+        self.assertEqual(artifact.model_explanation_facts, [])
+        self.assertTrue(any("attribution was not guessed" in value for value in artifact.limitations))
 
 
 if __name__ == "__main__":

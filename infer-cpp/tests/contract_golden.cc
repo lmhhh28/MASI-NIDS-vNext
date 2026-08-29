@@ -102,7 +102,7 @@ void test_inference_input_batch_frozen_bytes() {
 
   CHECK(!serialized.empty(), "InferenceInputBatch serialized to empty bytes");
   CHECK(digest.rfind("sha256:", 0) == 0, "InferenceInputBatch digest prefix wrong");
-  CHECK(digest == "sha256:3e44b21a90efb9cad3a0ec39675d59ef0733cebc0aa97d474d392a8844730102",
+  CHECK(digest == "sha256:ca1af1787eb38e09ee6ff1568f26ce24984a60750d09bf4deeb8fb3411d9fac3",
         "InferenceInputBatch frozen bytes drifted: " + digest);
   CHECK(digest.size() == 7 + 64, "InferenceInputBatch digest length wrong");
 
@@ -112,6 +112,20 @@ void test_inference_input_batch_frozen_bytes() {
 
   // The batch must carry at least one record.
   CHECK(batch.records_size() >= 1, "InferenceInputBatch has no records");
+}
+
+void test_golden_input_batch_digests() {
+  for (const std::string &name : {"valid-batch-v1.json", "valid-multi-record-batch-v1.json"}) {
+    const auto golden = load_golden_inference(name);
+    auto batch = masi::inf::test::build_batch_from_golden(name);
+    const std::string expected = golden["input"]["batch_digest"].get<std::string>();
+    batch.clear_batch_digest();
+    batch.set_attempt(0);
+    batch.set_deadline_unix_ms(0);
+    batch.clear_trace_id();
+    const std::string observed = sha256_hex(serialize_to_string(batch));
+    CHECK(expected == observed, name + ": canonical input batch digest mismatch; observed=" + observed);
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -188,8 +202,10 @@ void test_fallback_matrix() {
 void test_central_cpu_triton_binding() {
   const auto profile = load_json(contract_path("contracts/profiles/v1/central-inference-cpu.json"));
   const auto &triton = profile.at("triton");
-  CHECK(triton.at("image").get<std::string>() == "nvcr.io/nvidia/tritonserver:25.06-py3",
-        "central CPU profile Triton tag drifted");
+  CHECK(triton.at("image").get<std::string>() ==
+            "nvcr.io/nvidia/tritonserver@sha256:"
+            "75bcfa5b0043898ece3e603c17a5bbbb1c9bddc390563db24312ef59d83735e5",
+        "central CPU profile Triton immutable reference drifted");
   CHECK(triton.at("image_digest").get<std::string>() ==
             "sha256:75bcfa5b0043898ece3e603c17a5bbbb1c9bddc390563db24312ef59d83735e5",
         "central CPU profile Triton image digest drifted");
@@ -466,6 +482,7 @@ int main() {
   std::cout << "=== Central Inference contract golden tests ===\n";
   test_inference_record_frozen_bytes();
   test_inference_input_batch_frozen_bytes();
+  test_golden_input_batch_digests();
   test_result_fence_dimensions();
   test_fallback_matrix();
   test_central_cpu_triton_binding();

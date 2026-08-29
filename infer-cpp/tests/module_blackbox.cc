@@ -575,7 +575,7 @@ std::string build_test_envelope(const EnvelopeBinding &binding) {
   env.instance_group.kind = "KIND_CPU";
   env.instance_group.count = 1;
   env.instance_group.operator_partition_digest =
-      "sha256:0000000000000000000000000000000000000000000000000000000000000000";
+      "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
   env.proposed_binding_generation = 1;
   env.issued_at_unix_ms = 0;
   env.expires_at_unix_ms = 9999999999999LL;

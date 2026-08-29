@@ -7,10 +7,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"strings"
 	"time"
 
 	"masi-nids/control-go/internal/db"
+	"masi-nids/control-go/internal/security"
 )
 
 // IntentService is the only constructor for ordinary claimable effect intents.
@@ -296,9 +296,5 @@ func ValidateFence(f Fence) error {
 }
 
 func validSHA256(s string) bool {
-	if len(s) != 71 || !strings.HasPrefix(s, "sha256:") {
-		return false
-	}
-	_, err := hex.DecodeString(strings.TrimPrefix(s, "sha256:"))
-	return err == nil
+	return security.ValidDigest(s)
 }

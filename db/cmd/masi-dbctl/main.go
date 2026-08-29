@@ -234,7 +234,7 @@ func migrateCommand(args []string) error {
 	testOnly := set.Bool("require-test-database", false, "require database name containing test")
 	requireTLS := set.Bool("require-tls", true, "require TLS")
 	history := set.String("history-table", migrate.ProductionHistory, "migration history table")
-	expectedVersion := set.String("expected-schema-version", "21", "schema API version")
+	expectedVersion := set.String("expected-schema-version", "22", "schema API version")
 	sourceRevision := set.String("source-revision", "unknown", "source revision bound to history")
 	totalTimeout := set.Duration("total-timeout", 10*time.Minute, "total migration deadline")
 	lockTimeout := set.Duration("lock-timeout", 5*time.Second, "per migration lock timeout")

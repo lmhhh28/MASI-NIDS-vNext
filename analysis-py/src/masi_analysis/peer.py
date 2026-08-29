@@ -10,6 +10,7 @@ from typing import Any
 from pydantic import ValidationError
 
 from .canonical import canonical_digest, go_json_bytes
+from .concurrency import gather_cancel_on_error
 from .constants import A2A_VERSION, PLUGIN_ID
 from .errors import AnalysisError, PeerUnavailable
 from .models import FrozenInput, PeerConfig, PeerTask, PeerTaskResponse, ProviderDelegation
@@ -69,9 +70,14 @@ class PeerClient:
             return []
         if input_bundle.budgets.delegation_depth >= 1:
             raise AnalysisError("LOOP_DETECTED", "delegation depth exhausted", 422)
-        bounded = requests[: input_bundle.budgets.outbound_delegations]
+        if len(requests) > input_bundle.budgets.outbound_delegations:
+            raise AnalysisError(
+                "A2A_BUDGET_EXHAUSTED",
+                "provider delegation set exceeds the remaining outbound budget",
+                422,
+            )
         seen: set[str] = set()
-        for requested in bounded:
+        for requested in requests:
             if requested.peer_id not in allowed_peer_ids:
                 raise AnalysisError("PEER_CAPABILITY_DENIED", "provider requested a peer outside the exact binding", 422)
             if requested.peer_id in seen or requested.peer_id in input_bundle.delegation_path:
@@ -82,7 +88,7 @@ class PeerClient:
             return await self._delegate_one(index, request, input_bundle, secret_values)
 
         try:
-            results = await asyncio.gather(*(one(index, request) for index, request in enumerate(bounded, 1)))
+            results = await gather_cancel_on_error(one(index, request) for index, request in enumerate(requests, 1))
             self.last_status = "ok"
             self.last_observed_unix_ms = time.time_ns() // 1_000_000
             return list(results)

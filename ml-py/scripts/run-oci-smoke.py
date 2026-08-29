@@ -9,20 +9,96 @@ import json
 import os
 import shutil
 import subprocess
+import sys
 import tempfile
 import time
 import uuid
 from pathlib import Path
 from typing import Any, cast
 
+if __name__ == "__main__" and os.environ.get("MASI_RUNTIME_SMOKE_WRAPPED") != "1":
+    _repository = Path(__file__).resolve().parents[2]
+    os.execv(
+        sys.executable,
+        [
+            sys.executable,
+            str(_repository / "scripts/ci/run_bounded_runtime_smoke.py"),
+            "--repo",
+            str(_repository),
+            "--module",
+            "offline-ml",
+            "--timeout-seconds",
+            os.environ.get("MASI_OFFLINE_ML_OCI_TOTAL_TIMEOUT_SECONDS", "7200"),
+            "--",
+            sys.executable,
+            str(Path(__file__).resolve()),
+            *sys.argv[1:],
+        ],
+    )
 
-def command(arguments: list[str], *, check: bool = True) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(arguments, check=check, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+
+def command(arguments: list[str], *, check: bool = True, timeout: int = 120) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        arguments,
+        check=check,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        timeout=timeout,
+    )
 
 
 def inspect(image: str) -> dict[str, Any]:
     result = command(["docker", "image", "inspect", image])
     return cast(list[dict[str, Any]], json.loads(result.stdout))[0]
+
+
+def reject_duplicates(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    value: dict[str, Any] = {}
+    for key, item in pairs:
+        if key in value:
+            raise ValueError(f"duplicate JSON member: {key}")
+        value[key] = item
+    return value
+
+
+def safe_existing_file(path: Path, maximum_bytes: int) -> Path:
+    absolute = Path(os.path.abspath(path))
+    current = Path(absolute.anchor)
+    for part in absolute.parts[1:]:
+        current /= part
+        if current.is_symlink():
+            raise ValueError("input file path traverses a symlink")
+    if not absolute.is_file() or absolute.stat().st_size > maximum_bytes:
+        raise ValueError("input is not a bounded regular file")
+    return absolute
+
+
+def prepare_new_output(path: Path) -> Path:
+    absolute = Path(os.path.abspath(path))
+    current = Path(absolute.anchor)
+    for part in absolute.parts[1:-1]:
+        current /= part
+        if current.is_symlink() or not current.is_dir():
+            raise ValueError("evidence output parent path is unsafe or absent")
+    if absolute.exists() or absolute.is_symlink():
+        raise ValueError("evidence output already exists")
+    return absolute
+
+
+def write_new_file(path: Path, payload: bytes) -> None:
+    descriptor = os.open(
+        path,
+        os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_CLOEXEC | os.O_NOFOLLOW,
+        0o600,
+    )
+    try:
+        offset = 0
+        while offset < len(payload):
+            offset += os.write(descriptor, payload[offset:])
+        os.fsync(descriptor)
+    finally:
+        os.close(descriptor)
 
 
 def main() -> int:
@@ -31,15 +107,19 @@ def main() -> int:
     parser.add_argument("--expected-blackbox", type=Path, required=True)
     parser.add_argument("--evidence", type=Path, required=True)
     arguments = parser.parse_args()
-    if arguments.evidence.exists() or arguments.evidence.is_symlink():
-        raise SystemExit("evidence output already exists")
-    if (
-        arguments.expected_blackbox.is_symlink()
-        or not arguments.expected_blackbox.is_file()
-        or arguments.expected_blackbox.stat().st_size > 16 * 1024 * 1024
-    ):
-        raise SystemExit("expected blackbox evidence is invalid")
-    expected_document = cast(dict[str, Any], json.loads(arguments.expected_blackbox.read_text(encoding="utf-8")))
+    try:
+        evidence_path = prepare_new_output(arguments.evidence)
+        expected_blackbox = safe_existing_file(arguments.expected_blackbox, 16 * 1024 * 1024)
+    except ValueError as error:
+        raise SystemExit(str(error)) from error
+    expected_document = cast(
+        dict[str, Any],
+        json.loads(
+            expected_blackbox.read_text(encoding="utf-8"),
+            object_pairs_hook=reject_duplicates,
+            parse_constant=lambda token: (_ for _ in ()).throw(ValueError(token)),
+        ),
+    )
     expected_identity = cast(dict[str, str], expected_document.get("immutable_identity", {}))
     required_identity = {"model_digest", "repository_closure_digest", "archive_digest"}
     if expected_document.get("result") != "PASS" or not required_identity.issubset(expected_identity):
@@ -55,7 +135,39 @@ def main() -> int:
         raise SystemExit("image entrypoint mismatch")
 
     temporary = Path(tempfile.mkdtemp(prefix="masi-offline-ml-oci."))
-    os.chmod(temporary, 0o777)
+    os.chmod(temporary, 0o700)
+    command(
+        [
+            "docker",
+            "run",
+            "--rm",
+            "--network",
+            "none",
+            "--read-only",
+            "--user",
+            "0:0",
+            "--cap-drop",
+            "ALL",
+            "--cap-add",
+            "CHOWN",
+            "--security-opt",
+            "no-new-privileges:true",
+            "--pids-limit",
+            "16",
+            "--memory",
+            "64m",
+            "--cpus",
+            "0.25",
+            "--mount",
+            f"type=bind,src={temporary},dst=/output",
+            "--entrypoint",
+            "/usr/local/bin/python3.12",
+            arguments.image,
+            "-c",
+            "import os; os.chmod('/output', 0o700); os.chown('/output', 65532, 65532)",
+        ],
+        timeout=60,
+    )
     container = f"masi-offline-ml-smoke-{uuid.uuid4().hex[:12]}"
     try:
         version = command(
@@ -127,7 +239,7 @@ def main() -> int:
             raise SystemExit("container isolation mismatch")
         if host_config.get("CapDrop") != ["ALL"] or host_config.get("PidsLimit") != 128:
             raise SystemExit("container capability or PID limit mismatch")
-        exit_code = int(command(["docker", "wait", container]).stdout.strip())
+        exit_code = int(command(["docker", "wait", container], timeout=120).stdout.strip())
         elapsed_ms = (time.monotonic_ns() - started) / 1_000_000
         logs = command(["docker", "logs", container]).stdout
         if exit_code != 0:
@@ -206,8 +318,7 @@ def main() -> int:
             "model_digest": result["bundle"]["model_digest"],
             "repository_closure_digest": result["bundle"]["repository_closure_digest"],
             "archive_digest": result["archive"]["sha256"],
-            "expected_blackbox_digest": "sha256:"
-            + hashlib.sha256(arguments.expected_blackbox.read_bytes()).hexdigest(),
+            "expected_blackbox_digest": "sha256:" + hashlib.sha256(expected_blackbox.read_bytes()).hexdigest(),
             "expected_immutable_identity": expected_identity,
             "cross_runtime_identity_match": True,
             "output_verification": verified,
@@ -221,6 +332,7 @@ def main() -> int:
                 "memory_bytes": 2147483648,
                 "nano_cpus": 2000000000,
                 "bounded_tmpfs": True,
+                "output_directory_world_writable": False,
             },
             "service_health_endpoints": {
                 "applicability": "NOT_APPLICABLE",
@@ -228,12 +340,17 @@ def main() -> int:
             },
             "logs_digest": "sha256:" + hashlib.sha256(logs.encode()).hexdigest(),
         }
-        arguments.evidence.parent.mkdir(parents=True, exist_ok=True)
-        arguments.evidence.write_text(json.dumps(evidence, sort_keys=True, indent=2) + "\n", encoding="utf-8")
+        write_new_file(
+            evidence_path,
+            (json.dumps(evidence, sort_keys=True, indent=2) + "\n").encode(),
+        )
         print(json.dumps(evidence, sort_keys=True))
     finally:
         if container:
-            command(["docker", "rm", "-f", container], check=False)
+            try:
+                command(["docker", "rm", "-f", container], check=False, timeout=30)
+            except subprocess.TimeoutExpired:
+                pass
         shutil.rmtree(temporary, ignore_errors=True)
     return 0
 

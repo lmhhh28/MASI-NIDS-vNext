@@ -16,9 +16,13 @@ import (
 )
 
 var (
-	digestRE     = regexp.MustCompile(`^sha256:[0-9a-f]{64}$`)
+	digestRE     nonZeroDigestPattern
 	reasonCodeRE = regexp.MustCompile(`^[A-Z][A-Z0-9_]{0,63}$`)
 )
+
+type nonZeroDigestPattern struct{}
+
+func (nonZeroDigestPattern) MatchString(value string) bool { return security.ValidDigest(value) }
 
 // RevisionService registers immutable model revisions and append-only lifecycle
 // events. model_revisions is the current qualification projection; its history

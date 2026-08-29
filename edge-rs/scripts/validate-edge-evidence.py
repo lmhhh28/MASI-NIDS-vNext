@@ -105,8 +105,10 @@ def direct_run_file(run_root: Path, relative: str) -> Path | None:
     """Resolve one bounded relative evidence path without crossing a symlink."""
 
     pure = PurePosixPath(relative)
-    if pure.is_absolute() or not pure.parts or any(
-        part in {"", ".", ".."} for part in pure.parts
+    if (
+        pure.is_absolute()
+        or not pure.parts
+        or any(part in {"", ".", ".."} for part in pure.parts)
     ):
         return None
     try:
@@ -133,9 +135,9 @@ def schema_failures(schema: dict[str, Any], value: object) -> list[str]:
     return [
         f"{list(error.path)}: {error.message}"
         for error in sorted(
-            Draft202012Validator(
-                schema, format_checker=FormatChecker()
-            ).iter_errors(value),
+            Draft202012Validator(schema, format_checker=FormatChecker()).iter_errors(
+                value
+            ),
             key=lambda item: list(item.path),
         )
     ]
@@ -188,12 +190,16 @@ def current_source_tree_digest(repo: Path) -> str:
                 timeout=120,
             )
         except (OSError, subprocess.TimeoutExpired) as error:
-            raise EvidenceError(f"cannot rebuild the source-tree snapshot: {error}") from error
+            raise EvidenceError(
+                f"cannot rebuild the source-tree snapshot: {error}"
+            ) from error
         if result.returncode != 0 or not archive.is_file():
             detail = result.stderr.strip()[-1_000:]
             raise EvidenceError(f"cannot rebuild the source-tree snapshot: {detail}")
         if not 0 < archive.stat().st_size <= MAX_SOURCE_ARCHIVE_BYTES:
-            raise EvidenceError("rebuilt source-tree snapshot exceeds its resource bound")
+            raise EvidenceError(
+                "rebuilt source-tree snapshot exceeds its resource bound"
+            )
         return sha256(archive)
 
 
@@ -210,7 +216,9 @@ def git_identity(repo: Path) -> tuple[str, str]:
                 timeout=30,
             )
         except (OSError, subprocess.TimeoutExpired) as error:
-            raise EvidenceError(f"cannot resolve the source revision: {error}") from error
+            raise EvidenceError(
+                f"cannot resolve the source revision: {error}"
+            ) from error
         value = result.stdout.strip()
         if result.returncode != 0 or len(value) != 40:
             raise EvidenceError("cannot resolve the exact Git source identity")
@@ -230,12 +238,16 @@ def validate_run_snapshot(
         raise EvidenceError("working_tree_status_digest does not bind the run snapshot")
     status_bytes = status_file.read_bytes()
     if not status_bytes.endswith(b"\n"):
-        raise EvidenceError("working-tree status snapshot is not canonically terminated")
+        raise EvidenceError(
+            "working-tree status snapshot is not canonically terminated"
+        )
     derived_dirty = status_bytes != b"\n"
     if working_tree_dirty is not derived_dirty:
         raise EvidenceError("working_tree_dirty does not match the run status snapshot")
     if source_tree_digest != current_source_tree_digest(repo):
-        raise EvidenceError("source_tree_digest does not bind the checked-out source tree")
+        raise EvidenceError(
+            "source_tree_digest does not bind the checked-out source tree"
+        )
 
 
 class CompletionDeriver:
@@ -361,8 +373,7 @@ class CompletionDeriver:
             and value.get("result") == "PASS"
             and value.get("qualification") == "QUALIFIED"
             and value.get("edge_process") == "real Cargo-built masi-edge OS process"
-            and value.get("neighbor_boundary")
-            == "deterministic independent mTLS fakes"
+            and value.get("neighbor_boundary") == "deterministic independent mTLS fakes"
             and value.get("target_count") == 2
             and value.get("maximum_active_streams_per_device") == 1
             and value.get("central_retry_identity_stable") is True
@@ -494,10 +505,14 @@ class CompletionDeriver:
             if isinstance(value.get("trivy"), dict)
             else None
         )
-        required_empty = ("critical", "fixable_high", "misconfig_high_critical", "secrets")
+        required_empty = (
+            "critical",
+            "fixable_high",
+            "misconfig_high_critical",
+            "secrets",
+        )
         return (
-            value.get("schema_version")
-            == "rust-edge-agent-supply-verification/v1"
+            value.get("schema_version") == "rust-edge-agent-supply-verification/v1"
             and value.get("result") in {"PASS", "HOLD"}
             and CompletionDeriver.all_true(value.get("checks"))
             and value.get("failure_reasons") == []
@@ -601,14 +616,16 @@ class CompletionDeriver:
         )
         return "PASS" if exact else "FAIL"
 
-    def findings(self) -> tuple[str, int, str]:
+    def findings(self) -> tuple[str, int, str | None]:
         path = self.repo / "edge-rs/module-findings.json"
-        digest = sha256(path) if path.is_file() and not path.is_symlink() else "sha256:" + "0" * 64
+        digest = sha256(path) if path.is_file() and not path.is_symlink() else None
         try:
             value = load(path)
         except (OSError, UnicodeError, json.JSONDecodeError, EvidenceError):
             return "FAIL", 0, digest
-        findings = value.get("findings") if isinstance(value.get("findings"), list) else []
+        findings = (
+            value.get("findings") if isinstance(value.get("findings"), list) else []
+        )
         open_p0 = sum(
             1
             for finding in findings
@@ -649,7 +666,9 @@ class CompletionDeriver:
                 "oci-smoke", "oci-smoke/oci-smoke-evidence.json", self.oci_predicate
             ),
             "deep_runtime_checks": self.qualification_hold_evidence(
-                "deep-checks", "deep-checks/deep-check-summary.json", self.deep_predicate
+                "deep-checks",
+                "deep-checks/deep-check-summary.json",
+                self.deep_predicate,
             ),
             "supply_security_checks": self.qualification_hold_evidence(
                 "supply-chain",
@@ -665,7 +684,11 @@ class CompletionDeriver:
             name: digest_if_direct(self.run_root, relative)
             for name, relative in COMPLETION_EVIDENCE.items()
         }
-        status = "COMPLETE" if not blockers and all(evidence_digests.values()) else "INCOMPLETE"
+        status = (
+            "COMPLETE"
+            if not blockers and all(evidence_digests.values())
+            else "INCOMPLETE"
+        )
         if status == "INCOMPLETE" and not blockers:
             # A missing digest is itself an evidence failure.  Associate it with
             # the criterion that owns the missing artifact so the public blocker
@@ -691,7 +714,9 @@ class CompletionDeriver:
                 if digest is None:
                     owner = digest_owner[name]
                     criteria[owner] = "FAIL"
-            blockers = [name for name in COMPLETION_CRITERIA if criteria[name] != "PASS"]
+            blockers = [
+                name for name in COMPLETION_CRITERIA if criteria[name] != "PASS"
+            ]
         startup_test_blockers = sum(name != "known_p0_zero" for name in blockers)
         return {
             "decision_id": "DEC-044",
@@ -722,15 +747,16 @@ def expected_artifact_digests(
         "target_contract": repo / "contracts/target/v1/schema.json",
         "telemetry_contract": repo / "contracts/telemetry/v1/schema.json",
         "qualification_profile": repo / "contracts/profiles/v1/rust-edge-agent.json",
-        "soak_profile": repo
-        / "contracts/profiles/v1/qualification-soak-3600s.json",
+        "soak_profile": repo / "contracts/profiles/v1/qualification-soak-3600s.json",
         "traceability_manifest": repo / "edge-rs/requirements-traceability.json",
         "requirements_baseline": repo
         / "docs/masi-nids-vnext-system-requirements-2026-08-09.md",
     }
     result: dict[str, str | None] = {}
     for name, path in paths.items():
-        result[name] = sha256(path) if path.is_file() and not path.is_symlink() else None
+        result[name] = (
+            sha256(path) if path.is_file() and not path.is_symlink() else None
+        )
     run_paths = {
         "traceability_evidence": "traceability-summary.json",
         "oci_evidence": "oci-smoke/oci-smoke-evidence.json",
@@ -768,7 +794,9 @@ def validate_summary(repo: Path, evidence_path: Path) -> dict[str, Any]:
     )
     source_revision, baseline_git_tree = git_identity(repo)
     if evidence.get("source_revision") != source_revision:
-        raise EvidenceError("source_revision does not match the checked-out Git revision")
+        raise EvidenceError(
+            "source_revision does not match the checked-out Git revision"
+        )
     if evidence.get("baseline_git_tree") != baseline_git_tree:
         raise EvidenceError("baseline_git_tree does not match the checked-out Git tree")
     deriver = CompletionDeriver(
@@ -788,7 +816,9 @@ def validate_summary(repo: Path, evidence_path: Path) -> dict[str, Any]:
     release_passed = deriver.command("release-build")[0] == "PASS"
     expected_artifacts = expected_artifact_digests(repo, run_root, release_passed)
     if evidence.get("artifact_digests") != expected_artifacts:
-        raise EvidenceError("artifact_digests do not bind the exact public inputs and run evidence")
+        raise EvidenceError(
+            "artifact_digests do not bind the exact public inputs and run evidence"
+        )
     traceability = evidence.get("requirement_traceability")
     if not isinstance(traceability, dict):
         raise EvidenceError("requirement_traceability is absent")
@@ -816,7 +846,9 @@ def require_child_directory(parent: Path, name: str) -> Path:
     resolved_parent = parent.resolve(strict=True)
     resolved = path.resolve(strict=True)
     if resolved.parent != resolved_parent:
-        raise EvidenceError(f"child evidence directory {name} escapes its run directory")
+        raise EvidenceError(
+            f"child evidence directory {name} escapes its run directory"
+        )
     return resolved
 
 
@@ -831,7 +863,10 @@ def validate_child_evidence(
     }
     if schema_version not in expected_names:
         raise EvidenceError(f"unsupported Edge evidence schema {schema_version!r}")
-    if evidence_path.name != expected_names[schema_version] or evidence_path.is_symlink():
+    if (
+        evidence_path.name != expected_names[schema_version]
+        or evidence_path.is_symlink()
+    ):
         raise EvidenceError("child evidence has a noncanonical direct filename")
     schema = load(repo / "contracts/evidence/v1/edge-module-schema.json")
     failures = schema_failures(schema, evidence)
@@ -856,7 +891,9 @@ def validate_child_evidence(
         )
         source_revision, _ = git_identity(repo)
         if evidence.get("source_revision") != source_revision:
-            raise EvidenceError("child source_revision does not match the checked-out Git revision")
+            raise EvidenceError(
+                "child source_revision does not match the checked-out Git revision"
+            )
     if result == "PASS" and dirty:
         raise EvidenceError("dirty child evidence cannot claim PASS")
     if result == "HOLD" and not dirty:
@@ -871,13 +908,17 @@ def validate_child_evidence(
                 if dirty
                 else "CLEAN_SOURCE_SNAPSHOT"
             ):
-                raise EvidenceError("OCI qualification reason does not match its source state")
+                raise EvidenceError(
+                    "OCI qualification reason does not match its source state"
+                )
             probe = load(require_child_file(evidence_path.parent, "oci-probe.json"))
             archive = load(
                 require_child_file(evidence_path.parent, "oci-archive-inspection.json")
             )
             if evidence.get("probe") != probe or evidence.get("archive") != archive:
-                raise EvidenceError("OCI parent does not exactly embed its probe/archive evidence")
+                raise EvidenceError(
+                    "OCI parent does not exactly embed its probe/archive evidence"
+                )
     elif schema_version == "edge-deep-check-evidence/v1":
         predicate = CompletionDeriver.deep_predicate
         if result in {"PASS", "HOLD"}:
@@ -886,7 +927,9 @@ def validate_child_evidence(
                 if dirty
                 else "CLEAN_SOURCE_SNAPSHOT"
             ):
-                raise EvidenceError("deep-check qualification reason does not match its source state")
+                raise EvidenceError(
+                    "deep-check qualification reason does not match its source state"
+                )
             artifacts = evidence.get("artifact_digests")
             expected = {
                 "cargo_lock": sha256(repo / "edge-rs/Cargo.lock"),
@@ -894,7 +937,9 @@ def validate_child_evidence(
                 "qualification_profile": sha256(
                     repo / "contracts/profiles/v1/rust-edge-agent.json"
                 ),
-                "miri_log": sha256(require_child_file(evidence_path.parent, "miri.log")),
+                "miri_log": sha256(
+                    require_child_file(evidence_path.parent, "miri.log")
+                ),
                 "address_sanitizer_log": sha256(
                     require_child_file(evidence_path.parent, "asan.log")
                 ),
@@ -903,7 +948,9 @@ def validate_child_evidence(
                 ),
             }
             if artifacts != expected:
-                raise EvidenceError("deep-check artifact digests do not bind their exact inputs")
+                raise EvidenceError(
+                    "deep-check artifact digests do not bind their exact inputs"
+                )
     else:
         predicate = CompletionDeriver.supply_predicate
         if result in {"PASS", "HOLD"}:
@@ -920,9 +967,13 @@ def validate_child_evidence(
                 artifact_root, "release-manifest.sigstore.json"
             )
             if evidence.get("manifest_digest") != sha256(manifest):
-                raise EvidenceError("supply evidence does not bind its release manifest")
+                raise EvidenceError(
+                    "supply evidence does not bind its release manifest"
+                )
             if evidence.get("signature_bundle_digest") != sha256(signature):
-                raise EvidenceError("supply evidence does not bind its signature bundle")
+                raise EvidenceError(
+                    "supply evidence does not bind its signature bundle"
+                )
 
     if result in {"PASS", "HOLD"} and not predicate(evidence):
         raise EvidenceError("child operational checks are incomplete or inconsistent")

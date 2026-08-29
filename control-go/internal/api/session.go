@@ -260,9 +260,17 @@ func (st *SessionStore) WatchSession(id string) (<-chan struct{}, func(), bool) 
 		st.watchers[id] = make(map[chan struct{}]struct{})
 	}
 	st.watchers[id][ch] = struct{}{}
+	timer := time.AfterFunc(s.ExpiresAt.Sub(st.now()), func() {
+		st.mu.Lock()
+		defer st.mu.Unlock()
+		if current, exists := st.sessions[id]; exists && current == s {
+			st.invalidateLocked(id)
+		}
+	})
 	var once sync.Once
 	cancel := func() {
 		once.Do(func() {
+			timer.Stop()
 			st.mu.Lock()
 			defer st.mu.Unlock()
 			if watchers := st.watchers[id]; watchers != nil {

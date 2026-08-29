@@ -9,15 +9,38 @@ import os
 import re
 import runpy
 import shutil
+import signal
+import socket
 import subprocess
 import sys
 import tempfile
 import time
+import uuid
 from collections.abc import Callable
 from datetime import UTC, datetime
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any, cast
+
+if __name__ == "__main__" and os.environ.get("MASI_RUNTIME_SMOKE_WRAPPED") != "1":
+    _repository = Path(__file__).resolve().parents[2]
+    os.execv(
+        sys.executable,
+        [
+            sys.executable,
+            str(_repository / "scripts/ci/run_bounded_runtime_smoke.py"),
+            "--repo",
+            str(_repository),
+            "--module",
+            "analysis",
+            "--timeout-seconds",
+            os.environ.get("MASI_ANALYSIS_OCI_TOTAL_TIMEOUT_SECONDS", "3600"),
+            "--",
+            sys.executable,
+            str(Path(__file__).resolve()),
+            *sys.argv[1:],
+        ],
+    )
 
 import httpx
 
@@ -25,9 +48,60 @@ from masi_analysis.canonical import canonical_digest, file_digest, go_json_bytes
 from masi_analysis.models import BindingObservation
 
 
-def docker_json(*args: str) -> Any:
-    raw = subprocess.check_output(["docker", *args], text=True)
-    return json.loads(raw)
+def docker_output(*args: str, timeout: int = 30) -> str:
+    return subprocess.run(
+        ["docker", *args],
+        check=True,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        timeout=timeout,
+    ).stdout
+
+
+def docker_json(*args: str, timeout: int = 30) -> Any:
+    return json.loads(docker_output(*args, timeout=timeout))
+
+
+def prepare_evidence_path(value: str | None) -> Path | None:
+    if value is None:
+        return None
+    path = Path(os.path.abspath(value))
+    current = Path(path.anchor)
+    for part in path.parts[1:-1]:
+        current /= part
+        if current.is_symlink() or not current.is_dir():
+            raise ValueError("OCI evidence parent path is unsafe")
+    if path.exists() or path.is_symlink():
+        raise ValueError("OCI evidence output already exists or is a symlink")
+    return path
+
+
+def write_new_file(path: Path, payload: bytes) -> None:
+    descriptor = os.open(
+        path,
+        os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_CLOEXEC | os.O_NOFOLLOW,
+        0o600,
+    )
+    try:
+        offset = 0
+        while offset < len(payload):
+            offset += os.write(descriptor, payload[offset:])
+        os.fsync(descriptor)
+    finally:
+        os.close(descriptor)
+
+
+class PortReservation:
+    def __init__(self) -> None:
+        self._listener: socket.socket | None = socket.socket()
+        self._listener.bind(("127.0.0.1", 0))
+        self.port = int(self._listener.getsockname()[1])
+
+    def release(self) -> None:
+        if self._listener is not None:
+            self._listener.close()
+            self._listener = None
 
 
 def main() -> None:
@@ -37,10 +111,10 @@ def main() -> None:
     parser.add_argument("--evidence")
     parser.add_argument("--allow-local-candidate", action="store_true")
     args = parser.parse_args()
+    evidence_path = prepare_evidence_path(args.evidence)
     started_at = datetime.now(UTC).isoformat().replace("+00:00", "Z")
     repository = module_root.parent
     support = runpy.run_path(str(module_root / "scripts/run-blackbox.py"), run_name="analysis_blackbox_support")
-    free_port = cast(Callable[[], int], support["free_port"])
     generate_pki = cast(Callable[[Path], dict[str, str]], support["generate_pki"])
     write_runtime = support["write_runtime"]
     httpx_context = support["httpx_context"]
@@ -73,8 +147,20 @@ def main() -> None:
     with tempfile.TemporaryDirectory(prefix="masi-analysis-oci-") as temporary:
         root = Path(temporary)
         pki = generate_pki(root)
-        service_port, provider_port, mcp_port, peer_port = free_port(), free_port(), free_port(), free_port()
-        gateway = subprocess.check_output(["docker", "network", "inspect", "bridge", "--format", "{{(index .IPAM.Config 0).Gateway}}"], text=True).strip()
+        provider_reservation = PortReservation()
+        mcp_reservation = PortReservation()
+        peer_reservation = PortReservation()
+        service_port = 7446
+        provider_port = provider_reservation.port
+        mcp_port = mcp_reservation.port
+        peer_port = peer_reservation.port
+        gateway = docker_output(
+            "network",
+            "inspect",
+            "bridge",
+            "--format",
+            "{{(index .IPAM.Config 0).Gateway}}",
+        ).strip()
         if not gateway:
             raise RuntimeError("Docker bridge gateway unavailable")
         config_dir = root / "config"
@@ -190,90 +276,120 @@ def main() -> None:
             ],
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
+            timeout=60,
         )
         if mount_preflight.returncode != 0:
             raise RuntimeError("OCI mount or minimized-contract preflight failed")
 
         neighbor_log = (root / "neighbors.log").open("wb")
-        neighbors = subprocess.Popen(
-            [
-                sys.executable,
-                str(module_root / "tests/fake_neighbors.py"),
-                "--provider-port",
-                str(provider_port),
-                "--mcp-port",
-                str(mcp_port),
-                "--peer-port",
-                str(peer_port),
-                "--cert",
-                pki["server_cert"],
-                "--key",
-                pki["server_key"],
-                "--ca",
-                pki["ca"],
-                "--listen-host",
-                "0.0.0.0",
-            ],
-            stdout=neighbor_log,
-            stderr=subprocess.STDOUT,
-        )
-        container_name = f"masi-analysis-oci-{os.getpid()}"
+        neighbors: subprocess.Popen[bytes] | None = None
+        for neighbor_attempt in range(3):
+            if neighbor_attempt:
+                provider_reservation = PortReservation()
+                mcp_reservation = PortReservation()
+                peer_reservation = PortReservation()
+                provider_port = provider_reservation.port
+                mcp_port = mcp_reservation.port
+                peer_port = peer_reservation.port
+                config["provider"]["base_url"] = f"https://host.docker.internal:{provider_port}"
+                config["mcp"]["base_url"] = f"https://host.docker.internal:{mcp_port}"
+                config["a2a_peers"][0]["base_url"] = f"https://host.docker.internal:{peer_port}"
+                config_raw = go_json_bytes(config)
+                host_config_path.write_bytes(config_raw)
+                binding["config_digest"] = file_digest(config_raw)
+                binding["binding_digest"] = canonical_digest({key: value for key, value in binding.items() if key != "binding_digest"})
+                binding_path.write_bytes(go_json_bytes(binding))
+            provider_reservation.release()
+            mcp_reservation.release()
+            peer_reservation.release()
+            neighbors = subprocess.Popen(
+                [
+                    sys.executable,
+                    str(module_root / "tests/fake_neighbors.py"),
+                    "--provider-port",
+                    str(provider_port),
+                    "--mcp-port",
+                    str(mcp_port),
+                    "--peer-port",
+                    str(peer_port),
+                    "--cert",
+                    pki["server_cert"],
+                    "--key",
+                    pki["server_key"],
+                    "--ca",
+                    pki["ca"],
+                    "--listen-host",
+                    "0.0.0.0",
+                ],
+                stdout=neighbor_log,
+                stderr=subprocess.STDOUT,
+                start_new_session=True,
+            )
+            time.sleep(0.2)
+            if neighbors.poll() is None:
+                break
+            neighbors.wait(timeout=5)
+            neighbors = None
+        if neighbors is None:
+            raise RuntimeError("OCI neighbors exhausted bounded port retries")
+        container_name = f"masi-analysis-oci-{uuid.uuid4().hex[:12]}"
         container_id = ""
         try:
-            time.sleep(0.2)
             if neighbors.poll() is not None:
                 raise RuntimeError("OCI neighbors failed startup")
-            container_id = subprocess.check_output(
-                [
-                    "docker",
-                    "run",
-                    "--detach",
-                    "--name",
-                    container_name,
-                    "--read-only",
-                    "--user",
-                    "65532:65532",
-                    "--cap-drop",
-                    "ALL",
-                    "--security-opt",
-                    "no-new-privileges:true",
-                    "--pids-limit",
-                    "64",
-                    "--memory",
-                    "384m",
-                    "--cpus",
-                    "1.0",
-                    "--tmpfs",
-                    "/tmp:rw,noexec,nosuid,size=16m,uid=65532,gid=65532,mode=0700",
-                    "--tmpfs",
-                    "/var/lib/masi-analysis:rw,noexec,nosuid,size=96m,uid=65532,gid=65532,mode=0700",
-                    "--tmpfs",
-                    "/var/run/masi-analysis:rw,noexec,nosuid,size=4m,uid=65532,gid=65532,mode=0700",
-                    "--volume",
-                    f"{config_dir}:/run/masi-analysis-config:ro",
-                    "--volume",
-                    f"{secrets_dir}:/run/masi-analysis-secrets:ro",
-                    "--add-host",
-                    "host.docker.internal:host-gateway",
-                    "--publish",
-                    f"127.0.0.1:{service_port}:7446",
-                    image_id,
-                ],
-                text=True,
+            container_id = docker_output(
+                "run",
+                "--detach",
+                "--name",
+                container_name,
+                "--read-only",
+                "--user",
+                "65532:65532",
+                "--cap-drop",
+                "ALL",
+                "--security-opt",
+                "no-new-privileges:true",
+                "--pids-limit",
+                "64",
+                "--memory",
+                "384m",
+                "--cpus",
+                "1.0",
+                "--tmpfs",
+                "/tmp:rw,noexec,nosuid,size=16m,uid=65532,gid=65532,mode=0700",
+                "--tmpfs",
+                "/var/lib/masi-analysis:rw,noexec,nosuid,size=96m,uid=65532,gid=65532,mode=0700",
+                "--tmpfs",
+                "/var/run/masi-analysis:rw,noexec,nosuid,size=4m,uid=65532,gid=65532,mode=0700",
+                "--volume",
+                f"{config_dir}:/run/masi-analysis-config:ro",
+                "--volume",
+                f"{secrets_dir}:/run/masi-analysis-secrets:ro",
+                "--add-host",
+                "host.docker.internal:host-gateway",
+                "--publish",
+                "127.0.0.1::7446",
+                image_id,
+                timeout=60,
             ).strip()
+            published = docker_output("port", container_id, "7446/tcp").strip()
+            published_match = re.fullmatch(r"127\.0\.0\.1:([0-9]{1,5})", published)
+            if published_match is None:
+                raise RuntimeError("Docker did not allocate an exact loopback Analysis port")
+            service_port = int(published_match.group(1))
             deadline = time.monotonic() + 30
             health = ""
             while time.monotonic() < deadline:
                 state = docker_json("inspect", container_id)[0]["State"]
                 if not state.get("Running"):
-                    logs = subprocess.check_output(["docker", "logs", container_id], text=True, stderr=subprocess.STDOUT)
+                    logs = docker_output("logs", container_id)
                     raise RuntimeError(f"OCI Analysis exited early: {logs[-2000:]}")
                 health = (state.get("Health") or {}).get("Status", "")
                 if health == "healthy":
                     break
                 time.sleep(0.2)
             if health != "healthy":
-                logs = subprocess.check_output(["docker", "logs", container_id], text=True, stderr=subprocess.STDOUT)
+                logs = docker_output("logs", container_id)
                 health_log = docker_json("inspect", container_id)[0]["State"].get("Health", {}).get("Log", [])
                 raise RuntimeError(f"OCI health deadline exceeded: logs={logs[-2000:]!r} health={health_log[-3:]!r}")
             runtime = docker_json("inspect", container_id)[0]
@@ -293,6 +409,7 @@ def main() -> None:
                 ],
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
+                timeout=30,
             )
             if write_attempt.returncode == 0:
                 raise RuntimeError("read-only root filesystem write unexpectedly succeeded")
@@ -309,7 +426,13 @@ def main() -> None:
             if task["status"]["state"] != "TASK_STATE_COMPLETED" or artifact is None or not artifact.model_explanation_facts:
                 raise RuntimeError("OCI public A2A/MCP business oracle failed")
             started_stop = time.monotonic()
-            subprocess.run(["docker", "stop", "--time", "10", container_id], check=True, stdout=subprocess.DEVNULL)
+            subprocess.run(
+                ["docker", "stop", "--time", "10", container_id],
+                check=True,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.STDOUT,
+                timeout=20,
+            )
             stop_seconds = time.monotonic() - started_stop
             state = docker_json("inspect", container_id)[0]["State"]
             if state.get("ExitCode") != 0 or stop_seconds > 10:
@@ -353,18 +476,34 @@ def main() -> None:
                 "runtime_profile": labels.get("io.masi-nids.runtime-profile"),
             }
             raw = go_json_bytes(evidence) + b"\n"
-            if args.evidence:
-                Path(args.evidence).write_bytes(raw)
+            if evidence_path is not None:
+                write_new_file(evidence_path, raw)
             print(json.dumps(evidence, sort_keys=True))
         finally:
+            for reservation in (
+                provider_reservation,
+                mcp_reservation,
+                peer_reservation,
+            ):
+                reservation.release()
             if container_id:
-                subprocess.run(["docker", "rm", "--force", container_id], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-            neighbors.terminate()
+                try:
+                    subprocess.run(
+                        ["docker", "rm", "--force", container_id],
+                        stdout=subprocess.DEVNULL,
+                        stderr=subprocess.DEVNULL,
+                        timeout=30,
+                        check=False,
+                    )
+                except subprocess.TimeoutExpired:
+                    pass
+            if neighbors.poll() is None:
+                os.killpg(neighbors.pid, signal.SIGTERM)
             try:
                 neighbors.wait(timeout=5)
             except subprocess.TimeoutExpired:
-                neighbors.kill()
-                neighbors.wait()
+                os.killpg(neighbors.pid, signal.SIGKILL)
+                neighbors.wait(timeout=5)
             neighbor_log.close()
 
 

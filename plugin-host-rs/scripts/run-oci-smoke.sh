@@ -5,16 +5,23 @@ umask 077
 script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 host_root="$(cd -- "${script_dir}/.." && pwd)"
 repo_root="$(cd -- "${host_root}/.." && pwd)"
-evidence_dir="${MASI_PLUGIN_HOST_OCI_EVIDENCE_DIR:-${host_root}/evidence/oci-smoke}"
+if [[ "${MASI_RUNTIME_SMOKE_WRAPPED:-0}" != "1" ]]; then
+  exec python3 "${repo_root}/scripts/ci/run_bounded_runtime_smoke.py" \
+    --repo "${repo_root}" --module plugin-host \
+    --timeout-seconds "${MASI_PLUGIN_HOST_OCI_TOTAL_TIMEOUT_SECONDS:-7200}" -- \
+    "${script_dir}/run-oci-smoke.sh" "$@"
+fi
+evidence_input="${MASI_PLUGIN_HOST_OCI_EVIDENCE_DIR:-${host_root}/evidence/oci-smoke}"
+evidence_dir="$(realpath -m -s -- "${evidence_input}")"
 image_ref="${MASI_PLUGIN_HOST_IMAGE_REF:-masi-plugin-host:module-smoke}"
 temporary_root="$(mktemp -d /tmp/masi-plugin-host-oci.XXXXXX)"
 container_name="masi-plugin-host-oci-${$}"
 container_created=""
 
 cleanup() {
-  docker rm --force "${container_name}" >/dev/null 2>&1 || true
+  timeout --signal=TERM --kill-after=5s 30s docker rm --force "${container_name}" >/dev/null 2>&1 || true
   if [[ -n "${container_created}" ]]; then
-    docker rm --force "${container_created}" >/dev/null 2>&1 || true
+    timeout --signal=TERM --kill-after=5s 30s docker rm --force "${container_created}" >/dev/null 2>&1 || true
   fi
   if [[ "${temporary_root}" == /tmp/masi-plugin-host-oci.* ]]; then
     rm -rf -- "${temporary_root}"
@@ -27,9 +34,18 @@ fail() {
   exit 1
 }
 
-for command in cargo curl docker git jq openssl sha256sum tar; do
+for command in cargo curl docker git jq openssl realpath sha256sum tar timeout; do
   command -v "${command}" >/dev/null 2>&1 || fail "missing command ${command}"
 done
+docker_binary="$(command -v docker)"
+docker() {
+  timeout --signal=TERM --kill-after=30s \
+    "${MASI_PLUGIN_HOST_DOCKER_COMMAND_TIMEOUT_SECONDS:-1800}" "${docker_binary}" "$@"
+}
+[[ "$(realpath -m -- "${evidence_input}")" == "${evidence_dir}" \
+  && ! -L "${evidence_input}" && "${evidence_dir}" != "/" \
+  && "${evidence_dir}" != "${repo_root}" && "${evidence_dir}" != "${host_root}" ]] \
+  || fail "unsafe evidence directory"
 mkdir -p -- "${evidence_dir}" "${temporary_root}/config" "${temporary_root}/secrets" \
   "${temporary_root}/artifacts" "${temporary_root}/vendor"
 [[ ! -e "${evidence_dir}/oci-smoke-evidence.json" ]] \
@@ -124,18 +140,18 @@ tar --sort=name --mtime=@1787270400 --owner=0 --group=0 --numeric-owner \
   -cf "${source_archive}" -C "${repo_root}" plugin-host-rs contracts deploy/plugin-host
 source_tree_digest="sha256:$(sha256sum "${source_archive}" | awk '{print $1}')"
 
-CARGO_NET_OFFLINE=true cargo vendor --locked --versioned-dirs \
+CARGO_NET_OFFLINE=true timeout --signal=TERM --kill-after=30s 600s cargo vendor --locked --versioned-dirs \
   --manifest-path "${host_root}/Cargo.toml" "${temporary_root}/vendor" \
   >"${evidence_dir}/cargo-vendor-config.toml" \
   2>"${evidence_dir}/cargo-vendor.log"
-docker build --platform linux/amd64 --network none --provenance=false --sbom=false \
+timeout --signal=TERM --kill-after=60s 1800s docker build --platform linux/amd64 --network none --provenance=false --sbom=false \
   --build-context "cargo_vendor=${temporary_root}/vendor" \
   --file "${host_root}/Dockerfile" \
   --build-arg "SOURCE_REVISION=${source_revision}" \
   --build-arg "SOURCE_TREE_DIGEST=${source_tree_digest}" \
   --tag "${image_ref}" "${repo_root}" \
   >"${evidence_dir}/docker-build.log"
-cargo build --manifest-path "${host_root}/Cargo.toml" --locked --release \
+timeout --signal=TERM --kill-after=60s 1800s cargo build --manifest-path "${host_root}/Cargo.toml" --locked --release \
   --bin masi-plugin-hostctl --bin masi-plugin-host \
   >"${evidence_dir}/cargo-release-build.log"
 
@@ -147,7 +163,7 @@ image_source_digest="$(docker image inspect --format '{{index .Config.Labels "io
   || fail "image labels do not bind source"
 
 chown -R 65532:65532 "${temporary_root}/config" "${temporary_root}/secrets" "${temporary_root}/artifacts"
-docker run --detach --name "${container_name}" --read-only \
+timeout --signal=TERM --kill-after=10s 60s docker run --detach --name "${container_name}" --read-only \
   --cap-drop ALL --security-opt no-new-privileges:true --pids-limit 128 \
   --memory 384m --cpus 1 --tmpfs /tmp:rw,noexec,nosuid,size=16m \
   --publish 127.0.0.1:0:7445 --publish 127.0.0.1:0:8080 \
@@ -170,11 +186,12 @@ for _attempt in $(seq 1 100); do
   fi
   sleep 0.1
 done
-[[ "${manager_port}" =~ ^[0-9]+$ && "${health_port}" =~ ^[0-9]+$ ]] \
-  || fail "container did not publish bounded endpoints"
+[[ "${manager_port}" =~ ^[0-9]+$ && "${health_port}" =~ ^[0-9]+$ \
+  && "${container_health}" == "healthy" && -s "${evidence_dir}/readyz.json" ]] \
+  || fail "container did not reach healthy ready state on bounded endpoints"
 
 hostctl="${host_root}/target/release/masi-plugin-hostctl"
-"${hostctl}" --endpoint "https://127.0.0.1:${manager_port}" \
+timeout --signal=TERM --kill-after=5s 30s "${hostctl}" --endpoint "https://127.0.0.1:${manager_port}" \
   --server-name plugin-host.test \
   --ca "${temporary_root}/secrets/ca.pem" \
   --cert "${temporary_root}/secrets/manager.test.pem" \
@@ -182,7 +199,7 @@ hostctl="${host_root}/target/release/masi-plugin-hostctl"
   list --page-size 10 --trace-id oci-authorized-list \
   >"${evidence_dir}/authorized-list.json"
 
-if "${hostctl}" --endpoint "https://127.0.0.1:${manager_port}" \
+if timeout --signal=TERM --kill-after=5s 30s "${hostctl}" --endpoint "https://127.0.0.1:${manager_port}" \
   --server-name plugin-host.test \
   --ca "${temporary_root}/secrets/ca.pem" \
   --cert "${temporary_root}/secrets/other-manager.test.pem" \
@@ -192,7 +209,7 @@ if "${hostctl}" --endpoint "https://127.0.0.1:${manager_port}" \
   fail "non-allowlisted manager leaf was accepted"
 fi
 
-if openssl s_client -connect "127.0.0.1:${manager_port}" -servername plugin-host.test \
+if timeout --signal=TERM --kill-after=5s 15s openssl s_client -connect "127.0.0.1:${manager_port}" -servername plugin-host.test \
   -tls1_2 -CAfile "${temporary_root}/secrets/ca.pem" \
   -cert "${temporary_root}/secrets/manager.test.pem" \
   -key "${temporary_root}/secrets/manager.test.key" \
@@ -220,13 +237,13 @@ security_opt="$(docker inspect --format '{{json .HostConfig.SecurityOpt}}' "${co
   && "${security_opt}" == *"no-new-privileges:true"* ]] \
   || fail "container hardening drift"
 
-container_created="$(docker create "${image_ref}")"
-docker cp "${container_created}:/usr/local/bin/masi-plugin-host" "${temporary_root}/image-host"
+container_created="$(timeout --signal=TERM --kill-after=5s 30s docker create "${image_ref}")"
+timeout --signal=TERM --kill-after=5s 30s docker cp "${container_created}:/usr/local/bin/masi-plugin-host" "${temporary_root}/image-host"
 image_binary_digest="sha256:$(sha256sum "${temporary_root}/image-host" | awk '{print $1}')"
 release_binary_digest="sha256:$(sha256sum "${host_root}/target/release/masi-plugin-host" | awk '{print $1}')"
 
 started_stop="$(date +%s)"
-docker stop --time 10 "${container_name}" >/dev/null
+timeout --signal=TERM --kill-after=5s 30s docker stop --time 10 "${container_name}" >/dev/null
 stop_seconds="$(( $(date +%s) - started_stop ))"
 [[ "${stop_seconds}" -le 10 ]] || fail "SIGTERM drain exceeded 10 seconds"
 

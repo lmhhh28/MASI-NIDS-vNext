@@ -45,7 +45,7 @@ func InspectReplica(ctx context.Context, dsn, confirmedDatabase, marker string,
 		return nil, fmt.Errorf("replica inspect: state: %w", err)
 	}
 	if out.Database != confirmedDatabase || (requireTLS && !out.TLS) ||
-		out.InRecovery != expectRecovery || !out.MarkerPresent || out.SchemaVersion != "21" ||
+		out.InRecovery != expectRecovery || !out.MarkerPresent || out.SchemaVersion != "22" ||
 		out.TargetWriter || out.ModelWriter {
 		return nil, errors.New("replica inspect: identity, recovery, marker, schema or writer oracle mismatch")
 	}

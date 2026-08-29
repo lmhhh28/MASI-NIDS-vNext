@@ -632,10 +632,10 @@ for required_result in "${oci_result}" "${deep_result}" "${os_fault_result}" "${
   fi
 done
 
-conditional_applicability="$(jq -c '.conditional_applicability' \
-  "${edge_root}/requirements-traceability.json" 2>/dev/null || printf '[]\n')"
-requirement_ids="$(jq -c '[.requirements[].requirement_id]' \
-  "${edge_root}/requirements-traceability.json" 2>/dev/null || printf '["MOD-EDGE-001"]\n')"
+conditional_applicability="$(jq -ec '.conditional_applicability | if type == "array" then . else error("conditional_applicability") end' \
+  "${edge_root}/requirements-traceability.json")" || { echo "traceability manifest applicability is missing or invalid" >&2; exit 1; }
+requirement_ids="$(jq -ec '[.requirements[].requirement_id] | if length > 0 and all(.[]; type == "string") then . else error("requirement_ids") end' \
+  "${edge_root}/requirements-traceability.json")" || { echo "traceability manifest requirement IDs are missing or invalid" >&2; exit 1; }
 traceability_summary="${evidence_root}/traceability-summary.json"
 run_gate traceability-validator-negative-cases python3 \
   "${script_dir}/test-traceability-validator.py" --repo "${repo_root}" \

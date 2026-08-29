@@ -441,6 +441,9 @@ else
       image_config_digest:null,image_binary_digest:null,read_only_rootfs:null,
       graceful_shutdown_exit_code:null
     }' >"${oci_evidence}/oci-smoke-evidence.json"
+  python3 "${script_dir}/validate-evidence.py" \
+    --schema "${repo_root}/contracts/evidence/central-inference-oci/v1/schema.json" \
+    --document "${oci_evidence}/oci-smoke-evidence.json" >/dev/null
 fi
 
 deep_result="NOT_RUN"
@@ -715,10 +718,10 @@ if [[ "${blackbox_e2e_status}" -ne 0 && "${blackbox_e2e_status}" -ne 77 ]]; then
   overall_status="FAIL"
 fi
 
-conditional_applicability="$(jq -c '.conditional_applicability' \
-  "${inf_root}/requirements-traceability.json" 2>/dev/null || printf '[]\n')"
-requirement_ids="$(jq -c '[.requirements[].requirement_id]' \
-  "${inf_root}/requirements-traceability.json" 2>/dev/null || printf '["MOD-INF-001"]\n')"
+conditional_applicability="$(jq -ec '.conditional_applicability | if type == "array" then . else error("conditional_applicability") end' \
+  "${inf_root}/requirements-traceability.json")" || { echo "traceability manifest applicability is missing or invalid" >&2; exit 1; }
+requirement_ids="$(jq -ec '[.requirements[].requirement_id] | if length > 0 and all(.[]; type == "string") then . else error("requirement_ids") end' \
+  "${inf_root}/requirements-traceability.json")" || { echo "traceability manifest requirement IDs are missing or invalid" >&2; exit 1; }
 
 module_complete=true
 

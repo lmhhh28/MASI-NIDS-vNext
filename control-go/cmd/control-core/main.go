@@ -2,9 +2,9 @@
 // configuration, opens the bounded PostgreSQL pool, verifies schema
 // compatibility (fail-closed), wires the authorization foundation, and serves
 // the health/readiness/liveness HTTP endpoints with graceful drain/shutdown.
-//
-// Business subdomains (Event, Governance/Effect, Firewall, Target/Fleet, Rule,
-// Model, Plugin, Statistics, API/OIDC, gRPC) are wired in subsequent phases.
+// Event, Governance/Effect, Firewall, Target/Fleet, Rule, Model, Plugin,
+// Statistics, API/OIDC, and gRPC subdomains are wired below as one modular
+// monolith; production outbound boundaries require explicit mTLS clients.
 package main
 
 import (
@@ -80,7 +80,7 @@ func run() error {
 	slog.Info("postgres pool ready", "max_conns", cfg.Resource.MaxPoolConnections)
 
 	// Schema compatibility check (fail closed on unknown/wrong version).
-	mr := db.NewMigrationReader(pool, 21, cfg.SchemaMigrationDigest)
+	mr := db.NewMigrationReader(pool, 22, cfg.SchemaMigrationDigest)
 	if err := mr.CheckSchemaVersion(ctx); err != nil {
 		// In the first release the schema_meta row may not yet exist when the
 		// DB is brought up by the (not-yet-started) db/ module. We fail closed
@@ -88,11 +88,11 @@ func run() error {
 		return err
 	}
 
-	var effectClient governance.EdgeEffectClient = stubEdgeEffect{}
-	var effectCompiler governance.EdgeEffectPreflightClient = stubEdgeEffect{}
-	var effectReadback governance.EdgeEffectReadbackClient = stubEdgeEffect{}
-	var deploymentClient model.DeploymentAdapterClient = stubDeploymentAdapter{}
-	var routeClient model.EdgeRouteClient = stubEdgeRoute{}
+	var effectClient governance.EdgeEffectClient = disabledEdgeEffect{}
+	var effectCompiler governance.EdgeEffectPreflightClient = disabledEdgeEffect{}
+	var effectReadback governance.EdgeEffectReadbackClient = disabledEdgeEffect{}
+	var deploymentClient model.DeploymentAdapterClient = disabledDeploymentAdapter{}
+	var routeClient model.EdgeRouteClient = disabledEdgeRoute{}
 	var statisticsExecutor pluginstat.Executor
 	var outbound *outboundRuntime
 	if cfg.RuntimeProfile == "production" {
@@ -126,8 +126,12 @@ func run() error {
 	// mapping is the sole authorization source — the test login route mints
 	// identity only and never grants scopes.
 	mapping := &security.RoleScopeMapping{
-		Version: "v1", Digest: "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+		Version:     "v1",
 		ActorScopes: map[string][]security.Scope{}, DefaultDeny: true,
+	}
+	mapping.Digest, err = security.RoleMappingContentDigest(*mapping)
+	if err != nil {
+		return fmt.Errorf("default-deny role mapping digest: %w", err)
 	}
 	if cfg.RoleMappingPath != "" {
 		mapping, err = security.LoadRoleScopeMapping(cfg.RoleMappingPath, cfg.RoleMappingDigest)
@@ -190,6 +194,10 @@ func run() error {
 	// HTTP surface: health + same-origin API + SSE.
 	store := api.NewSessionStoreWithStepUpACRs(cfg.SessionCookieName, cfg.OIDCStepUpACRValues)
 	hub := api.NewHub()
+	pluginStat.SetPostCommitHook(func(token pluginstat.ClaimToken, _ pluginstat.Artifact) {
+		_ = hub.PublishScoped(api.ResPluginRun, token.RunID, token.Scope, time.Now().UnixMilli(), 0)
+		_ = hub.PublishScoped(api.ResPluginCur, token.DefinitionID, token.Scope, time.Now().UnixMilli(), 0)
+	})
 	cursorKey := make([]byte, 32)
 	if cfg.RuntimeProfile == "production" {
 		secret, err := readSecretReference(cfg.SSEHMACKeyRef)
@@ -242,6 +250,7 @@ func run() error {
 		Reconcile:          reconcile,
 		Capture:            capture,
 		Analysis:           analysisClient,
+		Invalidations:      hub,
 		AcceptMutation:     checker.AcceptingMutations,
 	}
 	mcpServer := &controlmcp.Server{Pool: pool, AllowedOrigin: cfg.PublicOrigin,
@@ -300,6 +309,12 @@ func run() error {
 		MaxBatchRecords: 256,
 		MaxBatchBytes:   4 * 1024 * 1024,
 		Accepting:       checker.AcceptingMutations,
+		Invalidations:   hub,
+		ScopeForTarget: func(ctx context.Context, targetID string) (string, error) {
+			var scope string
+			err := pool.QueryRow(ctx, `SELECT scope FROM targets WHERE target_id=$1`, targetID).Scan(&scope)
+			return scope, err
+		},
 	}
 	if cfg.RuntimeProfile != "test" {
 		sink.AuthorizeTarget = func(ctx context.Context, targetID string) error {
@@ -342,7 +357,7 @@ func run() error {
 	// never fabricate a successful Artifact.
 	startMaintenance(maintenanceCtx, slog, pool, dispatcher, reconcile, firewallOverlays, pluginStat,
 		statisticsExecutor, ingest, ruleObs, mapping, cfg.Resource.EventRetention,
-		cfg.Resource.PluginStatRetention, cfg.Resource.IdempotencyRetention, statisticsOwner, checker.MarkProgress)
+		cfg.Resource.PluginStatRetention, cfg.Resource.IdempotencyRetention, statisticsOwner, hub, checker.MarkProgress)
 
 	sig := make(chan os.Signal, 1)
 	signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)

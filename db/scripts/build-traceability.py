@@ -45,47 +45,63 @@ def main() -> int:
         for command_id in item["command_ids"]:
             sidecar = sidecars.get(command_id)
             if sidecar is None:
-                raise ValueError(f"requirement references missing command: {command_id}")
+                raise ValueError(
+                    f"requirement references missing command: {command_id}"
+                )
             result, qualification = sidecar["result"], sidecar["qualification"]
             all_pass = all_pass and result == "PASS"
-            targets.append({
-                "target": ",".join(bindings[command_id]["targets"]),
-                "command_id": command_id,
-                "result": result,
-                "qualification": qualification,
-            })
-            evidence.append({
-                "path": f"{command_id}.command.json",
-                "kind": "json-evidence",
-                "schema_version": sidecar["schema_version"],
-                "test_id": item["scenario_ids"][0],
-                "requirement_ids": [item["requirement_id"]],
-                "result": result,
-                "qualification": qualification,
-            })
-        requirements.append({
-            "requirement_id": item["requirement_id"],
-            "scenario_ids": item["scenario_ids"],
-            "test_targets": targets,
-            "evidence": evidence,
-            "evidence_result": "PASS" if all(target["result"] == "PASS" for target in targets) else "FAIL",
-            "qualification": "QUALIFIED" if all(target["result"] == "PASS" for target in targets) else "NOT_QUALIFIED",
-            "qualification_limit": item["qualification_limit"],
-        })
-    artifacts = [{
-        "path": "db/requirements-traceability.json",
-        "sha256": digest(args.manifest),
-        "bytes": args.manifest.stat().st_size,
-        "media_type": "application/json",
-    }]
+            targets.append(
+                {
+                    "target": ",".join(bindings[command_id]["targets"]),
+                    "command_id": command_id,
+                    "result": result,
+                    "qualification": qualification,
+                }
+            )
+            evidence.append(
+                {
+                    "path": f"{command_id}.command.json",
+                    "kind": "json-evidence",
+                    "schema_version": sidecar["schema_version"],
+                    "test_id": item["scenario_ids"][0],
+                    "requirement_ids": [item["requirement_id"]],
+                    "result": result,
+                    "qualification": qualification,
+                }
+            )
+        requirements.append(
+            {
+                "requirement_id": item["requirement_id"],
+                "scenario_ids": item["scenario_ids"],
+                "test_targets": targets,
+                "evidence": evidence,
+                "evidence_result": "PASS"
+                if all(target["result"] == "PASS" for target in targets)
+                else "FAIL",
+                "qualification": "QUALIFIED"
+                if all(target["result"] == "PASS" for target in targets)
+                else "NOT_QUALIFIED",
+                "qualification_limit": item["qualification_limit"],
+            }
+        )
+    artifacts = [
+        {
+            "path": "db/requirements-traceability.json",
+            "sha256": digest(args.manifest),
+            "bytes": args.manifest.stat().st_size,
+            "media_type": "application/json",
+        }
+    ]
     for command_id in sorted(sidecars):
         path = args.run_directory / f"{command_id}.command.json"
-        artifacts.append({
-            "path": f"{command_id}.command.json",
-            "sha256": digest(path),
-            "bytes": path.stat().st_size,
-            "media_type": "application/json",
-        })
+        artifacts.append(
+            {
+                "path": f"{command_id}.command.json",
+                "sha256": digest(path),
+                "bytes": path.stat().st_size,
+                "media_type": "application/json",
+            }
+        )
     document = {
         "schema_version": "postgresql-state-requirement-traceability/v1",
         "module_id": "MOD-DB-001",
@@ -95,13 +111,21 @@ def main() -> int:
         "result": "PASS" if all_pass else "FAIL",
         "qualification": "QUALIFIED" if all_pass else "NOT_QUALIFIED",
         "requirements": requirements,
-        "requirement_ids": [item["requirement_id"] for item in manifest["requirements"]],
+        "requirement_ids": [
+            item["requirement_id"] for item in manifest["requirements"]
+        ],
         "conditional_applicability": manifest["conditional_applicability"],
         "artifacts": artifacts,
-        "failures": [] if all_pass else ["one or more required command gates did not pass"],
+        "failures": []
+        if all_pass
+        else ["one or more required command gates did not pass"],
         "valid": all_pass,
     }
-    if args.output.exists() or args.output.is_symlink() or not args.output.is_absolute():
+    if (
+        args.output.exists()
+        or args.output.is_symlink()
+        or not args.output.is_absolute()
+    ):
         raise ValueError("output must be a fresh absolute path")
     descriptor = os.open(args.output, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
     with os.fdopen(descriptor, "w", encoding="utf-8") as stream:

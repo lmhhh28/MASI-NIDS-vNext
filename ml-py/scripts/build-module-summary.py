@@ -24,12 +24,30 @@ def digest(path: Path) -> str:
     return "sha256:" + hashlib.sha256(path.read_bytes()).hexdigest()
 
 
-def ref(run_dir: Path, relative: str) -> dict[str, str]:
+def validate(schema_path: Path, document: dict[str, Any], label: str) -> None:
+    schema = load(schema_path)
+    errors = list(Draft202012Validator(schema, format_checker=FormatChecker()).iter_errors(document))
+    if errors:
+        raise ValueError(
+            f"{label} schema rejected: "
+            + "; ".join(f"{list(error.absolute_path)}: {error.message}" for error in errors)
+        )
+
+
+def ref(repo: Path, run_dir: Path, relative: str, schema_relative: str) -> dict[str, str]:
     path = run_dir / relative
     document = load(path)
-    if document.get("result") != "PASS":
-        raise ValueError(f"evidence is not PASS: {relative}")
-    return {"path": relative, "digest": digest(path), "result": "PASS"}
+    validate(repo / "contracts/evidence" / schema_relative, document, relative)
+    result = document.get("result")
+    qualification = document.get("qualification")
+    if result != "PASS" or qualification not in {"QUALIFIED", "NOT_QUALIFIED"}:
+        raise ValueError(f"evidence is not a valid PASS: {relative}")
+    return {
+        "path": relative,
+        "digest": digest(path),
+        "result": result,
+        "qualification": qualification,
+    }
 
 
 def main() -> int:
@@ -45,10 +63,12 @@ def main() -> int:
     metadata = load(run_dir / "run-metadata.json")
     manifest = load(repo / "ml-py/requirements-traceability.json")
     expected_commands = [str(item["command_id"]) for item in manifest["execution_bindings"] if item["required"]]
+    command_schema = repo / "contracts/evidence/command/v1/schema.json"
     executed: dict[str, str] = {}
     for command_id in expected_commands:
         sidecar_path = run_dir / f"{command_id}.command.json"
         sidecar = load(sidecar_path)
+        validate(command_schema, sidecar, f"command {command_id}")
         log = cast(dict[str, Any], sidecar["log"])
         if (
             sidecar.get("result") != "PASS"
@@ -57,22 +77,22 @@ def main() -> int:
             or digest(run_dir / str(log["path"])) != log["sha256"]
         ):
             raise SystemExit(f"invalid command sidecar: {command_id}")
-        executed[command_id] = "PASS"
+        executed[command_id] = str(sidecar["result"])
 
     evidence_refs = {
-        "static": ref(run_dir, "static.json"),
-        "release": ref(run_dir, "release.json"),
-        "blackbox": ref(run_dir, "blackbox.json"),
-        "central_consumer": ref(run_dir, "central-consumer.json"),
-        "triton": ref(run_dir, "triton.json"),
-        "fault": ref(run_dir, "fault.json"),
-        "performance": ref(run_dir, "performance.json"),
-        "image_build": ref(run_dir, "image-build.json"),
-        "oci": ref(run_dir, "oci.json"),
-        "deployment": ref(run_dir, "deployment.json"),
-        "supply": ref(run_dir, "supply/supply-chain-evidence.json"),
-        "soak": ref(run_dir, "soak.json"),
-        "traceability": ref(run_dir, "traceability.json"),
+        "static": ref(repo, run_dir, "static.json", "offline-ml-static/v1/schema.json"),
+        "release": ref(repo, run_dir, "release.json", "offline-ml-release/v1/schema.json"),
+        "blackbox": ref(repo, run_dir, "blackbox.json", "offline-ml-blackbox/v1/schema.json"),
+        "central_consumer": ref(repo, run_dir, "central-consumer.json", "offline-ml-central-consumer/v1/schema.json"),
+        "triton": ref(repo, run_dir, "triton.json", "offline-ml-triton/v1/schema.json"),
+        "fault": ref(repo, run_dir, "fault.json", "offline-ml-fault/v1/schema.json"),
+        "performance": ref(repo, run_dir, "performance.json", "offline-ml-performance/v1/schema.json"),
+        "image_build": ref(repo, run_dir, "image-build.json", "offline-ml-image-build/v1/schema.json"),
+        "oci": ref(repo, run_dir, "oci.json", "offline-ml-oci/v1/schema.json"),
+        "deployment": ref(repo, run_dir, "deployment.json", "offline-ml-deployment/v1/schema.json"),
+        "supply": ref(repo, run_dir, "supply/supply-chain-evidence.json", "offline-ml-supply/v1/schema.json"),
+        "soak": ref(repo, run_dir, "soak.json", "offline-ml-soak/v1/schema.json"),
+        "traceability": ref(repo, run_dir, "traceability.json", "traceability/v1/schema.json"),
     }
     static = load(run_dir / "static.json")
     release = load(run_dir / "release.json")
@@ -165,6 +185,8 @@ def main() -> int:
         "findings_registry": digest(findings_path),
         "requirements_manifest": digest(repo / "ml-py/requirements-traceability.json"),
         "dataset_profile": digest(repo / "contracts/profiles/v1/dataset-p4-window-binary.json"),
+        "p4_target_profile": digest(repo / "contracts/profiles/v1/p4-stateless-firewall-bmv2.json"),
+        "p4_source": digest(repo / "p4/src/masi_switch.p4"),
         "explanation_profile": digest(repo / "contracts/profiles/v1/model-explanation-evidence.json"),
         "runtime_profile": digest(repo / "contracts/profiles/v1/offline-ml-runtime.json"),
         "performance_profile": digest(repo / "contracts/profiles/v1/offline-ml-performance.json"),
@@ -180,12 +202,50 @@ def main() -> int:
         "triton_image": triton["triton_image_id"],
         "supply_manifest": supply["manifest_digest"],
     }
+    contracts_frozen = all(static["checks"].values()) and static["contract_validation"]["result"] == "PASS"
+    mandatory_candidates = int(blackbox["candidate_executions_per_run"])
+    completion = {
+        "contracts_frozen": contracts_frozen,
+        "mandatory_candidates_executed": mandatory_candidates,
+        "formal_soak_executed": soak["mode"] == "formal"
+        and soak["configured_qualified_seconds"] == 3600
+        and soak["result"] == "PASS",
+        "no_required_not_run": all(result == "PASS" for result in executed.values())
+        and all(reference["result"] == "PASS" for reference in evidence_refs.values()),
+        "open_p0_zero": not any(item["severity"] == "P0" for item in opened),
+        "operational_gates_pass": all(result == "PASS" for result in executed.values()),
+        "real_release_process_started": blackbox["real_release_process"] is True,
+        "real_oci_started": isinstance(oci.get("container_id"), str)
+        and bool(oci["container_id"])
+        and oci["full_pipeline_exit_code"] == 0,
+        "real_triton_consumer_started": isinstance(triton.get("container_id"), str)
+        and bool(triton["container_id"])
+        and triton["strict_readiness"] is True,
+        "central_cpp_consumer_passed": central["consumer_result"]["result"] == "PASS",
+    }
+    overall_module_complete = (
+        all(
+            value == 9 if key == "mandatory_candidates_executed" else value is True for key, value in completion.items()
+        )
+        and not opened
+    )
+    if not overall_module_complete:
+        raise SystemExit("Offline ML operational completion could not be derived")
+    qualification_gates = {
+        "module_operational": "PASS" if completion["operational_gates_pass"] else "HOLD",
+        "official_corpus": "HOLD",
+        "protected_baseline": "HOLD",
+        "pairwise": "HOLD",
+        "system": "HOLD",
+        "production": "HOLD",
+    }
     document = {
         "schema_version": "offline-ml-module-gates/v1",
         "module_id": "MOD-ML-001",
+        "run_id": str(metadata["run_id"]),
         "level": "MODULE",
         "applicability": "APPLICABLE",
-        "result": "PASS",
+        "result": "HOLD" if "HOLD" in qualification_gates.values() else "PASS",
         "qualification": "NOT_QUALIFIED",
         "generated_at": dt.datetime.now(dt.UTC).isoformat(timespec="seconds").replace("+00:00", "Z"),
         "source_revision": metadata["source_revision"],
@@ -193,31 +253,17 @@ def main() -> int:
         "working_tree_dirty": metadata["working_tree_dirty"],
         "working_tree_status_digest": status_digest,
         "executed_gates": executed,
-        "completion": {
-            "contracts_frozen": True,
-            "mandatory_candidates_executed": 9,
-            "formal_soak_executed": True,
-            "no_required_not_run": True,
-            "open_p0_zero": True,
-            "operational_gates_pass": True,
-            "real_release_process_started": True,
-            "real_oci_started": True,
-            "real_triton_consumer_started": True,
-            "central_cpp_consumer_passed": True,
+        "completion": completion,
+        "findings": {
+            "open_total": len(opened),
+            "open_p0": sum(item["severity"] == "P0" for item in opened),
+            "registry_digest": digest(findings_path),
         },
-        "findings": {"open_total": 0, "open_p0": 0, "registry_digest": digest(findings_path)},
         "evidence_refs": evidence_refs,
         "conditional_applicability": manifest["conditional_applicability"],
         "requirement_ids": traceability["requirement_ids"],
         "artifact_digests": artifacts,
-        "qualification_gates": {
-            "module_operational": "PASS",
-            "official_corpus": "HOLD",
-            "protected_baseline": "HOLD",
-            "pairwise": "HOLD",
-            "system": "HOLD",
-            "production": "HOLD",
-        },
+        "qualification_gates": qualification_gates,
         "remaining_holds": [
             "OFFICIAL_CORPUS_LICENSE_PRIVACY_GROUND_TRUTH_NOT_QUALIFIED",
             "PROTECTED_RELEASE_BASELINE_NOT_FORMED",
@@ -226,7 +272,7 @@ def main() -> int:
             "PRODUCTION_HA_AND_ABSOLUTE_PRODUCTION_CAPACITY_NOT_QUALIFIED",
             "WEB_MODULE_AND_NINE_MODULE_GLOBAL_GATE_REMAIN_HOLD",
         ],
-        "overall_module_complete": True,
+        "overall_module_complete": overall_module_complete,
     }
     schema = load(repo / "contracts/evidence/offline-ml-module/v1/schema.json")
     errors = list(Draft202012Validator(schema, format_checker=FormatChecker()).iter_errors(document))
@@ -254,7 +300,11 @@ def main() -> int:
     arguments.output.write_text(json.dumps(document, sort_keys=True, indent=2) + "\n", encoding="utf-8")
     print(
         json.dumps(
-            {"schema_version": document["schema_version"], "result": "PASS", "overall_module_complete": True},
+            {
+                "schema_version": document["schema_version"],
+                "result": document["result"],
+                "overall_module_complete": overall_module_complete,
+            },
             sort_keys=True,
         )
     )

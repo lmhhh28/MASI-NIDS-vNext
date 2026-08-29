@@ -24,23 +24,31 @@ import (
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
 
+	"masi-nids/control-go/internal/api"
 	"masi-nids/control-go/internal/event"
 	edgev1 "masi-nids/control-go/internal/grpc/edgev1"
 	"masi-nids/control-go/internal/ruleobs"
+	"masi-nids/control-go/internal/security"
 	"masi-nids/control-go/internal/target"
 )
 
 // ControlSinkServer implements the Edge → Go sink. It is registered on the
 // production mTLS gRPC server; Edge is the only intended client.
+type ResultIngestor interface {
+	IngestBatch(context.Context, []event.InferenceResult) ([]event.CanonicalACK, error)
+}
+
 type ControlSinkServer struct {
 	edgev1.UnimplementedControlSinkServer
-	Ingest          *event.IngestService
+	Ingest          ResultIngestor
 	RuleObs         *ruleobs.Projector
 	TargetRegistry  *target.RegistryService
 	MaxBatchRecords int
 	MaxBatchBytes   int
 	Accepting       func() bool
 	AuthorizeTarget func(context.Context, string) error
+	Invalidations   api.InvalidationPublisher
+	ScopeForTarget  func(context.Context, string) (string, error)
 }
 
 func (s *ControlSinkServer) authorizeTarget(ctx context.Context, targetID string) error {
@@ -241,6 +249,24 @@ func (s *ControlSinkServer) CommitResults(ctx context.Context, batch *edgev1.Inf
 		return nil, status.Errorf(codes.Internal, "canonical ACK digest: %v", err)
 	}
 	out.AckBatchDigest = digest
+	for index, acknowledgement := range acks {
+		if s.Invalidations == nil {
+			break
+		}
+		if index >= len(results) || acknowledgement.CanonicalEventID == "" ||
+			(acknowledgement.CommitStatus != event.StatusCommitted && acknowledgement.CommitStatus != event.StatusIdempotent) {
+			continue
+		}
+		result := results[index]
+		_ = s.Invalidations.PublishScoped(api.ResEvent, acknowledgement.CanonicalEventID,
+			result.Scope, result.EventTimeUnixMS, 0)
+		if result.Decision == event.DecisionAlert && result.ExecutionStatus == event.ExecutionOK &&
+			result.Quality == event.QualityValid && !result.Abstain && !result.OutOfDistribution {
+			incidentID := "inc-" + strings.TrimPrefix(acknowledgement.CanonicalEventID, "evt-")
+			_ = s.Invalidations.PublishScoped(api.ResIncident, incidentID,
+				result.Scope, result.EventTimeUnixMS, 0)
+		}
+	}
 	return out, nil
 }
 
@@ -304,15 +330,7 @@ func inferenceQuality(code edgev1.DataQuality) (string, bool) {
 }
 
 func wireDigest(s string) bool {
-	if len(s) != 71 || !strings.HasPrefix(s, "sha256:") {
-		return false
-	}
-	for _, c := range strings.TrimPrefix(s, "sha256:") {
-		if !strings.ContainsRune("0123456789abcdef", c) {
-			return false
-		}
-	}
-	return true
+	return security.ValidDigest(s)
 }
 
 func canonicalCommitStatus(s event.CommitStatus) edgev1.CanonicalCommitStatus {
@@ -349,6 +367,11 @@ func (s *ControlSinkServer) PublishRuleObservations(ctx context.Context, batch *
 		return nil, status.Error(codes.Unavailable, "rule observation projector not wired")
 	}
 	accepted, rejected := 0, 0
+	type acceptedObservation struct {
+		targetID, ruleID string
+		dataTimeUnixMS   int64
+	}
+	acceptedObservations := make([]acceptedObservation, 0, len(batch.GetObservations()))
 	var lastReason string
 	for _, o := range batch.GetObservations() {
 		if o == nil || o.GetTargetId() == "" || o.GetEntityId() == "" || o.GetRuleId() == "" ||
@@ -398,10 +421,16 @@ func (s *ControlSinkServer) PublishRuleObservations(ctx context.Context, batch *
 			continue
 		}
 		accepted++
+		acceptedObservations = append(acceptedObservations, acceptedObservation{
+			targetID: o.GetTargetId(), ruleID: o.GetRuleId(), dataTimeUnixMS: o.GetReadCompletedAtUnixMs(),
+		})
 	}
 	rc := "ACCEPTED"
 	if rejected > 0 {
 		rc = fmt.Sprintf("PARTIAL_ACCEPTED_%d_REJECTED_%d_%s", accepted, rejected, lastReason)
+	}
+	for _, observation := range acceptedObservations {
+		s.publishTargetScoped(ctx, api.ResRuleEff, observation.ruleID, observation.targetID, observation.dataTimeUnixMS)
 	}
 	return &edgev1.PublishAck{Status: "accepted", Identity: batch.GetBatchId(), Digest: batch.GetBatchDigest(), ReasonCode: rc}, nil
 }
@@ -476,6 +505,12 @@ func (s *ControlSinkServer) PublishTargetStatus(ctx context.Context, batch *edge
 			lastReason = result.ReasonCode
 		}
 	}
+	for index, result := range results {
+		if result.Accepted && index < len(observations) {
+			s.publishTargetScoped(ctx, api.ResTarget, result.TargetID, result.TargetID,
+				observations[index].ObservedAtUnixMS)
+		}
+	}
 	reason := "ACCEPTED"
 	if rejected > 0 {
 		reason = fmt.Sprintf("PARTIAL_ACCEPTED_%d_REJECTED_%d_%s", accepted, rejected, lastReason)
@@ -484,6 +519,18 @@ func (s *ControlSinkServer) PublishTargetStatus(ctx context.Context, batch *edge
 		Status: "accepted", Identity: batch.GetBatchId(), Digest: batch.GetBatchDigest(),
 		ReasonCode: reason, StatusCode: edgev1.PublishStatus_PUBLISH_STATUS_ACCEPTED,
 	}, nil
+}
+
+func (s *ControlSinkServer) publishTargetScoped(
+	ctx context.Context, kind api.SSEResourceKind, resourceID, targetID string, dataTimeUnixMS int64,
+) {
+	if s == nil || s.Invalidations == nil || s.ScopeForTarget == nil {
+		return
+	}
+	scope, err := s.ScopeForTarget(ctx, targetID)
+	if err == nil {
+		_ = s.Invalidations.PublishScoped(kind, resourceID, scope, dataTimeUnixMS, 0)
+	}
 }
 
 func freshnessString(status edgev1.FreshnessStatus) string {

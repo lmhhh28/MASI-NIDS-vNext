@@ -26,6 +26,7 @@ from .models import (
 )
 
 Float64Array = npt.NDArray[np.float64]
+EMPTY_DIGEST = sha256_bytes(b"")
 
 
 @dataclass(frozen=True)
@@ -94,7 +95,7 @@ def _lr_material(
         base_values=base_values,
         raw_values=raw,
         probabilities=candidate.calibration.probability(raw),
-        background_digest="sha256:" + "0" * 64,
+        background_digest=EMPTY_DIGEST,
         background_count=0,
         method_id="lr-raw-margin/v1",
         domain="raw-margin",
@@ -169,7 +170,7 @@ def _ae_material(
         base_values=np.zeros(indices.size, dtype=np.float64),
         raw_values=raw,
         probabilities=candidate.calibration.probability(raw),
-        background_digest="sha256:" + "0" * 64,
+        background_digest=EMPTY_DIGEST,
         background_count=0,
         method_id="ae-scaled-log-smoothl1-residual/v1",
         domain="scaled-log-residual",
@@ -378,9 +379,7 @@ def _document(
         samples.append(sample)
     coverage, truncation = _coverage(dataset, material.indices)
     scaler_digest = (
-        sha256_bytes(canonical_json_bytes(candidate.scaler.as_dict()))
-        if candidate.scaler is not None
-        else "sha256:" + "0" * 64
+        sha256_bytes(canonical_json_bytes(candidate.scaler.as_dict())) if candidate.scaler is not None else EMPTY_DIGEST
     )
     median, stability_status, stability_digest = stability
     background_status = "verified" if material.background_count else "not_applicable"

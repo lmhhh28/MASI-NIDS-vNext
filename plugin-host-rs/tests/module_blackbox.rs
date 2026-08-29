@@ -340,72 +340,11 @@ async fn real_process_mtls_lifecycle_service_statistics_and_isolation()
         })
         .await?;
 
-    let definition_digest = digest("fixture-statistics-definition");
-    let mut frozen = FrozenInputBundle {
-        schema_version: "masi-plugin-statistics/v1".to_owned(),
-        record_type: "input-bundle".to_owned(),
-        record_id: "bundle-run-1".to_owned(),
-        bundle_digest: String::new(),
-        run_id: "statistics-run-1".to_owned(),
-        request_digest: digest("statistics-request-1"),
-        plugin_id: WASM_STATISTICS_PLUGIN_ID.to_owned(),
-        plugin_revision: statistics_binding.plugin_revision.clone(),
-        config_digest: statistics_binding.config_digest.clone(),
-        binding_generation: statistics_binding.binding_generation,
-        definition_id: STATISTICS_DEFINITION_ID.to_owned(),
-        definition_revision: "fixture-row-count-v1".to_owned(),
-        definition_digest: definition_digest.clone(),
-        source_revision: "source-revision-1".to_owned(),
-        source_profile_digest: digest("fixture-source-profile"),
-        source_generation: 1,
-        source_epoch: "source-epoch-1".to_owned(),
-        source_sequence_start: 1,
-        source_sequence_end: 2,
-        coverage: 1.0,
-        quality: "valid".to_owned(),
-        frozen_input_digest: String::new(),
-        scope: PLUGIN_SCOPE.to_owned(),
-        data_class_ref: "data-class.internal".to_owned(),
-        window_start_unix_ms: 1,
-        window_end_unix_ms: 2,
-        as_of_unix_ms: 2,
-        rows: ["event-1", "event-2"]
-            .into_iter()
-            .map(|event_id| {
-                std::collections::BTreeMap::from([(
-                    "event_id".to_owned(),
-                    serde_json::Value::String(event_id.to_owned()),
-                )])
-            })
-            .collect(),
-        external_source_capability_refs: Vec::new(),
-        bytes_limit: 2_097_152,
-        cardinality_limit: 10_000,
-        deadline_ms: 5000,
-        actor_ref: "control-plugin-statistics".to_owned(),
-        reason_code: "INPUT_FROZEN".to_owned(),
-        trace_id: "statistics-input-trace-1".to_owned(),
-    };
-    frozen.frozen_input_digest = compute_frozen_input_digest(&frozen)?;
-    frozen.bundle_digest = compute_input_bundle_digest(&frozen)?;
-    let frozen_digest = frozen.frozen_input_digest.clone();
-    let input = serde_json::to_vec(&frozen)?;
-    let statistics_request = StatisticsExecutionRequest {
-        schema_version: "control-plugin-statistics-execution/v1".to_owned(),
-        run_id: "statistics-run-1".to_owned(),
-        lease_id: "statistics-lease-1".to_owned(),
-        claim_generation: 1,
-        result_fence: "statistics-fence-1".to_owned(),
-        binding_generation: 1,
-        definition_id: STATISTICS_DEFINITION_ID.to_owned(),
-        definition_digest,
-        scope: PLUGIN_SCOPE.to_owned(),
-        expires_at_unix_ms: unix_ms()?.saturating_add(30_000),
-        deadline_ms: 5000,
-        input_bundle_json: input,
-        frozen_input_digest: frozen_digest,
-        trace_id: "statistics-trace-1".to_owned(),
-    };
+    let (statistics_request, frozen) = build_statistics_request(
+        &statistics_binding,
+        "statistics-run-1",
+        unix_ms()?.saturating_add(30_000),
+    )?;
     let mut statistics = PluginStatisticsExecutorClient::new(channel.clone());
     let mut unbound_definition = statistics_request.clone();
     unbound_definition.run_id = "statistics-run-unbound-digest".to_owned();
@@ -432,14 +371,13 @@ async fn real_process_mtls_lifecycle_service_statistics_and_isolation()
         wrong_revision.err().map(|status| status.code()),
         Some(Code::FailedPrecondition)
     );
-    let first = statistics
-        .execute_statistics(statistics_request.clone())
-        .await?
-        .into_inner();
-    let repeated = statistics
-        .execute_statistics(statistics_request.clone())
-        .await?
-        .into_inner();
+    let mut concurrent_statistics = PluginStatisticsExecutorClient::new(channel.clone());
+    let (first, repeated) = tokio::join!(
+        statistics.execute_statistics(statistics_request.clone()),
+        concurrent_statistics.execute_statistics(statistics_request.clone()),
+    );
+    let first = first?.into_inner();
+    let repeated = repeated?.into_inner();
     assert_eq!(first.artifact_digest, repeated.artifact_digest);
     assert_eq!(first.artifact_json, repeated.artifact_json);
     let artifact: StatisticsArtifact = serde_json::from_slice(&first.artifact_json)?;
@@ -656,6 +594,96 @@ async fn in_process_generation_monotonicity_and_explicit_rollback()
     let observation = state.apply_binding(roll_forward).await?;
     assert_eq!(observation.binding_generation, 2);
     assert_eq!(observation.observed_state, "active");
+    Ok(())
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn statistics_result_rechecks_lease_and_lifecycle_after_runtime()
+-> Result<(), Box<dyn std::error::Error>> {
+    {
+        let environment = TestEnvironment::new(true)?;
+        let binding = environment.service_statistics_binding("active")?;
+        let fixture_config =
+            environment.write_service_fixture_config(&binding, "statistics-slow")?;
+        let mut service = ProcessGuard::spawn(
+            &service_binary(),
+            &["--config", path_text(&fixture_config)?],
+            &environment.temporary.path().join("statistics-lease.log"),
+        )?;
+        wait_for_socket(&environment.service_socket).await?;
+        let state = HostState::new(environment.config.clone());
+        state.apply_binding(binding.clone()).await?;
+        let (request, _) = build_statistics_request(
+            &binding,
+            "statistics-expiring-run",
+            unix_ms()?.saturating_add(75),
+        )?;
+        let error = state
+            .execute_statistics(request)
+            .await
+            .err()
+            .ok_or("statistics result published after its lease expired")?;
+        assert_eq!(error.reason, ReasonCode::Fenced);
+        service.terminate()?;
+    }
+
+    {
+        let environment = TestEnvironment::new(true)?;
+        let binding = environment.service_statistics_binding("active")?;
+        let fixture_config =
+            environment.write_service_fixture_config(&binding, "statistics-slow")?;
+        let mut service = ProcessGuard::spawn(
+            &service_binary(),
+            &["--config", path_text(&fixture_config)?],
+            &environment.temporary.path().join("statistics-drain.log"),
+        )?;
+        wait_for_socket(&environment.service_socket).await?;
+        let state = HostState::new(environment.config.clone());
+        state.apply_binding(binding.clone()).await?;
+        let (request, _) = build_statistics_request(
+            &binding,
+            "statistics-drained-run",
+            unix_ms()?.saturating_add(30_000),
+        )?;
+        let task = {
+            let state = state.clone();
+            let request = request.clone();
+            tokio::spawn(async move { state.execute_statistics(request).await })
+        };
+        let mut entered_runtime = false;
+        for _ in 0..100 {
+            if state.runtime_gauges().await.1 > 0 {
+                entered_runtime = true;
+                break;
+            }
+            tokio::time::sleep(Duration::from_millis(2)).await;
+        }
+        assert!(entered_runtime, "statistics fixture did not enter runtime");
+        state
+            .drain_binding_authorized(
+                "statistics-post-execution-drain",
+                &binding.plugin_id,
+                binding.binding_generation,
+                1000,
+                "statistics-post-execution-drain-trace",
+                "platform-admin:test",
+                "DRAIN_AUTHORIZED",
+                &binding.envelope_digest,
+                &digest("statistics-post-execution-drain-authorization"),
+            )
+            .await?;
+        let error = task
+            .await?
+            .err()
+            .ok_or("statistics result published after binding drain")?;
+        assert_eq!(error.reason, ReasonCode::Fenced);
+        let retry = state.execute_statistics(request).await;
+        assert_eq!(
+            retry.err().map(|error| error.reason),
+            Some(ReasonCode::Unavailable)
+        );
+        service.terminate()?;
+    }
     Ok(())
 }
 
@@ -1143,6 +1171,78 @@ async fn admission_negative_matrix_and_restart_quarantine() -> Result<(), Box<dy
         Some(ReasonCode::CircuitOpen)
     );
     Ok(())
+}
+
+fn build_statistics_request(
+    binding: &masi_plugin_host::contract::host::BindingEnvelope,
+    run_id: &str,
+    expires_at_unix_ms: i64,
+) -> Result<(StatisticsExecutionRequest, FrozenInputBundle), Box<dyn std::error::Error>> {
+    let definition_digest = digest("fixture-statistics-definition");
+    let mut frozen = FrozenInputBundle {
+        schema_version: "masi-plugin-statistics/v1".to_owned(),
+        record_type: "input-bundle".to_owned(),
+        record_id: format!("bundle-{run_id}"),
+        bundle_digest: String::new(),
+        run_id: run_id.to_owned(),
+        request_digest: digest(&format!("request-{run_id}")),
+        plugin_id: binding.plugin_id.clone(),
+        plugin_revision: binding.plugin_revision.clone(),
+        config_digest: binding.config_digest.clone(),
+        binding_generation: binding.binding_generation,
+        definition_id: STATISTICS_DEFINITION_ID.to_owned(),
+        definition_revision: "fixture-row-count-v1".to_owned(),
+        definition_digest: definition_digest.clone(),
+        source_revision: "source-revision-1".to_owned(),
+        source_profile_digest: digest("fixture-source-profile"),
+        source_generation: 1,
+        source_epoch: "source-epoch-1".to_owned(),
+        source_sequence_start: 1,
+        source_sequence_end: 2,
+        coverage: 1.0,
+        quality: "valid".to_owned(),
+        frozen_input_digest: String::new(),
+        scope: PLUGIN_SCOPE.to_owned(),
+        data_class_ref: "data-class.internal".to_owned(),
+        window_start_unix_ms: 1,
+        window_end_unix_ms: 2,
+        as_of_unix_ms: 2,
+        rows: ["event-1", "event-2"]
+            .into_iter()
+            .map(|event_id| {
+                std::collections::BTreeMap::from([(
+                    "event_id".to_owned(),
+                    serde_json::Value::String(event_id.to_owned()),
+                )])
+            })
+            .collect(),
+        external_source_capability_refs: Vec::new(),
+        bytes_limit: 2_097_152,
+        cardinality_limit: 10_000,
+        deadline_ms: 5000,
+        actor_ref: "control-plugin-statistics".to_owned(),
+        reason_code: "INPUT_FROZEN".to_owned(),
+        trace_id: format!("input-{run_id}"),
+    };
+    frozen.frozen_input_digest = compute_frozen_input_digest(&frozen)?;
+    frozen.bundle_digest = compute_input_bundle_digest(&frozen)?;
+    let request = StatisticsExecutionRequest {
+        schema_version: "control-plugin-statistics-execution/v1".to_owned(),
+        run_id: run_id.to_owned(),
+        lease_id: format!("lease-{run_id}"),
+        claim_generation: 1,
+        result_fence: format!("fence-{run_id}"),
+        binding_generation: binding.binding_generation,
+        definition_id: STATISTICS_DEFINITION_ID.to_owned(),
+        definition_digest,
+        scope: PLUGIN_SCOPE.to_owned(),
+        expires_at_unix_ms,
+        deadline_ms: 5000,
+        input_bundle_json: serde_json::to_vec(&frozen)?,
+        frozen_input_digest: frozen.frozen_input_digest.clone(),
+        trace_id: format!("trace-{run_id}"),
+    };
+    Ok((request, frozen))
 }
 
 fn execute_request(

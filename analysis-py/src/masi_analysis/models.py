@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Annotated, Any, Literal, Self
 
-from pydantic import BaseModel, ConfigDict, Field, StringConstraints, model_validator
+from pydantic import AfterValidator, BaseModel, ConfigDict, Field, StringConstraints, model_validator
 
 from .constants import (
     HARD_A2A_DELEGATIONS,
@@ -26,9 +26,22 @@ from .constants import (
     SKILLS,
 )
 
+
+def _nonzero_digest(value: str) -> str:
+    if value == "sha256:" + ("0" * 64):
+        raise ValueError("all-zero digest sentinel is forbidden")
+    return value
+
+
+def _nonzero_revision(value: str) -> str:
+    if value == "0" * 40:
+        raise ValueError("all-zero revision sentinel is forbidden")
+    return value
+
+
 Identity = Annotated[str, StringConstraints(min_length=1, max_length=128, pattern=r"^[A-Za-z0-9][A-Za-z0-9._:-]*$")]
-Digest = Annotated[str, StringConstraints(pattern=r"^sha256:[0-9a-f]{64}$")]
-Revision = Annotated[str, StringConstraints(pattern=r"^[0-9a-f]{40}$")]
+Digest = Annotated[str, StringConstraints(pattern=r"^sha256:[0-9a-f]{64}$"), AfterValidator(_nonzero_digest)]
+Revision = Annotated[str, StringConstraints(pattern=r"^[0-9a-f]{40}$"), AfterValidator(_nonzero_revision)]
 ReasonCode = Annotated[str, StringConstraints(pattern=r"^[A-Z][A-Z0-9_]{0,63}$")]
 
 
@@ -130,9 +143,19 @@ class ModelExplanationFact(StrictModel):
     model_digest: Digest
     scaler_digest: Digest | None
     sample_digest: Digest
-    coverage: float = Field(ge=0, le=1)
+    coverage: float = Field(gt=0, le=1)
     truncated: bool
-    limitations: list[str] = Field(max_length=32)
+    limitations: list[str] = Field(min_length=1, max_length=32)
+
+    @model_validator(mode="after")
+    def qualified_method_inputs(self) -> Self:
+        if self.method == "tree-shap" and self.background_digest is None:
+            raise ValueError("TreeSHAP explanation requires a qualified background digest")
+        if self.method in {"logistic-contribution", "reconstruction-residual"} and self.scaler_digest is None:
+            raise ValueError("scaled explanation method requires the exact scaler digest")
+        if len(self.limitations) != len(set(self.limitations)) or any(not value or len(value) > 1024 for value in self.limitations):
+            raise ValueError("explanation limitations must be non-empty, bounded and unique")
+        return self
 
 
 class Recommendation(StrictModel):

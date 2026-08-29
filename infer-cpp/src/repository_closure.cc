@@ -26,6 +26,13 @@ bool is_symlink_path(const fs::path &p) {
   return false;
 }
 
+bool valid_revision(const std::string &value) {
+  return value.size() == 40 &&
+         std::all_of(value.begin(), value.end(),
+                     [](unsigned char c) { return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f'); }) &&
+         std::any_of(value.begin(), value.end(), [](char c) { return c != '0'; });
+}
+
 bool is_readonly(const fs::path &p) {
   std::error_code ec;
   auto perms = fs::status(p, ec).permissions();
@@ -200,6 +207,9 @@ BundleManifest load_bundle_manifest(const std::string &repository_root) {
   }
   b.model_id = j.at("model_id").get<std::string>();
   b.revision = j.at("revision").get<std::string>();
+  if (!valid_revision(b.revision))
+    throw error::Exception(error::Code::kInvalidManifest,
+                           "bundle-manifest revision must be non-zero 40-hex");
   b.model_digest = j.at("model_digest").get<std::string>();
   b.model_revision_digest = j.at("model_revision_digest").get<std::string>();
 

@@ -40,8 +40,31 @@ const (
 	ResPluginBind   SSEResourceKind = "plugin-binding"
 	ResPluginRun    SSEResourceKind = "plugin-statistics-run"
 	ResPluginCur    SSEResourceKind = "plugin-statistics-current"
+	ResCapture      SSEResourceKind = "bounded-capture"
+	ResFirewallBind SSEResourceKind = "firewall-binding"
+	ResModelRollout SSEResourceKind = "model-rollout-group"
+	ResModelPool    SSEResourceKind = "model-pool"
+	ResPlugin       SSEResourceKind = "plugin"
+	ResPluginDef    SSEResourceKind = "plugin-statistics-definition"
+	ResPluginSched  SSEResourceKind = "plugin-statistics-schedule"
+	ResAnalysisTask SSEResourceKind = "analysis-task"
+	ResAnalysisArt  SSEResourceKind = "analysis-artifact"
+	ResAudit        SSEResourceKind = "audit"
 	ResSystemHealth SSEResourceKind = "system-health"
 )
+
+// InvalidationPublisher is the post-commit cache-invalidation boundary shared
+// by HTTP mutations, gRPC ingest, and Go-owned background derivations. It never
+// carries a business payload and must only be invoked after durable mutation.
+type InvalidationPublisher interface {
+	PublishScoped(SSEResourceKind, string, string, int64, uint64) error
+}
+
+func publishInvalidation(deps Deps, kind SSEResourceKind, resourceID, scope string, dataTimeUnixMS int64) {
+	if deps.Invalidations != nil {
+		_ = deps.Invalidations.PublishScoped(kind, resourceID, scope, dataTimeUnixMS, 0)
+	}
+}
 
 // SSEEvent is the bounded invalidation envelope. ScopeID is an internal
 // authorization dimension and is deliberately omitted from the browser wire;
@@ -63,17 +86,18 @@ type SSEEvent struct {
 }
 
 type subscription struct {
-	scopes map[string]struct{}
+	scopes     map[string]struct{}
+	sequence   uint64
+	generation uint64
 }
 
 // Hub is the bounded, scope-aware SSE fan-out. A subscriber receives only the
 // resource scopes currently granted by the server-side RoleScopeMapping.
 type Hub struct {
 	mu         sync.Mutex
-	subs       map[chan SSEEvent]subscription
+	subs       map[chan SSEEvent]*subscription
 	max        int
 	now        func() time.Time
-	sequence   uint64
 	generation uint64
 }
 
@@ -81,7 +105,7 @@ const defaultHubMaxSubscribers = 512
 
 func NewHub() *Hub {
 	return &Hub{
-		subs: make(map[chan SSEEvent]subscription), max: defaultHubMaxSubscribers,
+		subs: make(map[chan SSEEvent]*subscription), max: defaultHubMaxSubscribers,
 		now: time.Now, generation: 1,
 	}
 }
@@ -104,7 +128,7 @@ func (h *Hub) Subscribe(scopes []string) (chan SSEEvent, error) {
 		allowed[scope] = struct{}{}
 	}
 	ch := make(chan SSEEvent, 64)
-	h.subs[ch] = subscription{scopes: allowed}
+	h.subs[ch] = &subscription{scopes: allowed, generation: h.generation}
 	return ch, nil
 }
 
@@ -130,11 +154,11 @@ func (h *Hub) PublishScoped(kind SSEResourceKind, resourceID, scopeID string, da
 	if generation == 0 {
 		generation = h.generation
 	}
-	ev := h.newEventLocked(SSEInvalidate, kind, resourceID, scopeID, dataTimeUnixMS, generation)
 	for ch, sub := range h.subs {
 		if _, ok := sub.scopes[scopeID]; !ok {
 			continue
 		}
+		ev := h.newEventForSubscriptionLocked(sub, SSEInvalidate, kind, resourceID, scopeID, dataTimeUnixMS, generation)
 		select {
 		case ch <- ev:
 		default:
@@ -144,7 +168,7 @@ func (h *Hub) PublishScoped(kind SSEResourceKind, resourceID, scopeID string, da
 			case <-ch:
 			default:
 			}
-			refetch := h.newEventLocked(SSERefetchNeeded, kind, resourceID, scopeID, dataTimeUnixMS, generation)
+			refetch := h.newEventForSubscriptionLocked(sub, SSERefetchNeeded, kind, resourceID, scopeID, dataTimeUnixMS, generation)
 			select {
 			case ch <- refetch:
 			default:
@@ -154,15 +178,19 @@ func (h *Hub) PublishScoped(kind SSEResourceKind, resourceID, scopeID string, da
 	return nil
 }
 
-func (h *Hub) newEventLocked(eventType SSEEventType, kind SSEResourceKind, resourceID, scopeID string, dataTimeUnixMS int64, generation uint64) SSEEvent {
-	h.sequence++
+func (h *Hub) newEventForSubscriptionLocked(sub *subscription, eventType SSEEventType, kind SSEResourceKind, resourceID, scopeID string, dataTimeUnixMS int64, generation uint64) SSEEvent {
+	if sub.generation != generation {
+		sub.generation = generation
+		sub.sequence = 0
+	}
+	sub.sequence++
 	now := h.now().UnixMilli()
 	if dataTimeUnixMS <= 0 {
 		dataTimeUnixMS = now
 	}
 	ev := SSEEvent{
 		EventType: eventType, ResourceKind: kind, ResourceID: resourceID,
-		Sequence: h.sequence, Generation: generation, ScopeID: scopeID,
+		Sequence: sub.sequence, Generation: generation, ScopeID: scopeID,
 		ProducedAtUnixMS: now, DataTimeUnixMS: dataTimeUnixMS, EmittedAtUnixMS: now,
 	}
 	ev.Cursor = "sse:" + strconv.FormatUint(generation, 10) + ":" + strconv.FormatUint(ev.Sequence, 10)
@@ -216,7 +244,8 @@ func (h *Hub) ServeEvents(st *SessionStore, mapping *security.RoleScopeMapping, 
 		w.Header().Set("X-Content-Type-Options", "nosniff")
 		w.Header().Set("X-Accel-Buffering", "no")
 		h.mu.Lock()
-		initial := h.newEventLocked(SSERefetchNeeded, ResSystemHealth, "boot", "", h.now().UnixMilli(), h.generation)
+		subscription := h.subs[ch]
+		initial := h.newEventForSubscriptionLocked(subscription, SSERefetchNeeded, ResSystemHealth, "boot", "", h.now().UnixMilli(), h.generation)
 		h.mu.Unlock()
 		writeSSE(w, flusher, initial)
 
@@ -235,7 +264,7 @@ func (h *Hub) ServeEvents(st *SessionStore, mapping *security.RoleScopeMapping, 
 				writeSSE(w, flusher, ev)
 			case <-heartbeat.C:
 				h.mu.Lock()
-				hb := h.newEventLocked(SSEHeartbeat, ResSystemHealth, "heartbeat", "", h.now().UnixMilli(), h.generation)
+				hb := h.newEventForSubscriptionLocked(subscription, SSEHeartbeat, ResSystemHealth, "heartbeat", "", h.now().UnixMilli(), h.generation)
 				h.mu.Unlock()
 				writeSSE(w, flusher, hb)
 			}
@@ -286,7 +315,9 @@ func validResourceKind(kind SSEResourceKind) bool {
 	switch kind {
 	case ResEvent, ResIncident, ResEvidence, ResProposal, ResDecision, ResIntent,
 		ResFirewallRev, ResTarget, ResFleetOp, ResRuleEff, ResModelRev, ResModelBinding,
-		ResPluginBind, ResPluginRun, ResPluginCur, ResSystemHealth:
+		ResPluginBind, ResPluginRun, ResPluginCur, ResCapture, ResFirewallBind,
+		ResModelRollout, ResModelPool, ResPlugin, ResPluginDef, ResPluginSched,
+		ResAnalysisTask, ResAnalysisArt, ResAudit, ResSystemHealth:
 		return true
 	default:
 		return false

@@ -1,6 +1,10 @@
 package migrate
 
-import "testing"
+import (
+	"context"
+	"strings"
+	"testing"
+)
 
 func TestMigrationBody(t *testing.T) {
 	body, err := MigrationBody([]byte("-- x\nBEGIN;\nSELECT 1;\nCOMMIT;\n"))
@@ -12,5 +16,19 @@ func TestMigrationBody(t *testing.T) {
 	}
 	if _, err := MigrationBody([]byte("BEGIN;\nBEGIN;\nCOMMIT;")); err == nil {
 		t.Fatal("nested envelope must fail")
+	}
+}
+
+func TestRunnerCannotTargetProductionHistory(t *testing.T) {
+	err := Run(context.Background(), Config{
+		DSN:                 "postgres://invalid",
+		Directory:           t.TempDir(),
+		ConfirmedDatabase:   "masi_state",
+		RequireTestDatabase: false,
+		HistoryTable:        "masi_migration_history",
+		AdvisoryLockName:    "forbidden-production-run",
+	})
+	if err == nil || !strings.Contains(err.Error(), "test-only runner") {
+		t.Fatalf("production-capable migration configuration was not rejected: %v", err)
 	}
 }

@@ -8,12 +8,18 @@ import (
 	"math"
 	"regexp"
 	"strings"
+
+	"masi-nids/control-go/internal/security"
 )
 
 var (
-	digestRE   = regexp.MustCompile(`^sha256:[0-9a-f]{64}$`)
+	digestRE   nonZeroDigestPattern
 	identityRE = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._:-]*$`)
 )
+
+type nonZeroDigestPattern struct{}
+
+func (nonZeroDigestPattern) MatchString(value string) bool { return security.ValidDigest(value) }
 
 // CanonicalEventID derives the stable, never-reused canonical event id from the
 // fence dimensions. The id is deterministic over (event_idempotency_key,

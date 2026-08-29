@@ -33,6 +33,9 @@ FEATURE_ORDER = (
 )
 SEEDS = (17, 29, 43)
 _MUTATION_TOKEN = re.compile(r"([^.[\]]+)|\[([0-9]+)\]")
+_DIGEST = re.compile(r"sha256:(?!0{64}$)[0-9a-f]{64}")
+_SOURCE_REVISION = re.compile(r"(?:(?!0{40}$)[0-9a-f]{40}|dirty:(?!0{64}$)[0-9a-f]{64})")
+_REVISION64 = re.compile(r"(?!0{64}$)[0-9a-f]{64}")
 
 
 def _mapping(value: object, where: str) -> dict[str, Any]:
@@ -68,6 +71,20 @@ def _string(value: object, where: str) -> str:
     return value
 
 
+def _validate_digest_members(value: object, where: str = "") -> None:
+    if isinstance(value, Mapping):
+        for key, item in value.items():
+            location = f"{where}.{key}" if where else str(key)
+            if (str(key).endswith("_digest") or key == "sha256") and (
+                not isinstance(item, str) or _DIGEST.fullmatch(item) is None
+            ):
+                raise ValidationError("digest", location)
+            _validate_digest_members(item, location)
+    elif isinstance(value, Sequence) and not isinstance(value, (str, bytes, bytearray)):
+        for index, item in enumerate(value):
+            _validate_digest_members(item, f"{where}[{index}]")
+
+
 def _validate_schema(schema: Mapping[str, Any], document: object, *, code: str) -> None:
     validator = Draft202012Validator(schema, format_checker=FormatChecker())
     errors = sorted(validator.iter_errors(cast(Any, document)), key=lambda error: list(error.absolute_path))
@@ -93,6 +110,22 @@ def split_name(source_revision: str, capture_family_id: str) -> str:
     return "blind_test"
 
 
+def telemetry_cell_selector_digest(
+    target_id: str,
+    source_profile_digest: str,
+    epoch: int,
+    cell_index: int,
+) -> str:
+    if not target_id or "\0" in target_id:
+        raise ValidationError("selector_target", "target identity is empty or contains NUL")
+    if _DIGEST.fullmatch(source_profile_digest) is None:
+        raise ValidationError("selector_seed", "source profile digest is malformed")
+    if epoch < 1 or not 0 <= cell_index <= 255:
+        raise ValidationError("selector_coordinates", f"{epoch}:{cell_index}")
+    preimage = f"{target_id}\0{source_profile_digest}\0{epoch}\0{cell_index}".encode()
+    return sha256_bytes(preimage)
+
+
 def feature_tensor_bytes(values: Sequence[object]) -> bytes:
     if len(values) != 6:
         raise ValidationError("feature_count", str(len(values)))
@@ -106,9 +139,22 @@ def feature_tensor_bytes(values: Sequence[object]) -> bytes:
 
 def validate_dataset_manifest(document: Mapping[str, Any]) -> None:
     ensure_finite(document)
+    _validate_digest_members(document)
+    if _REVISION64.fullmatch(_string(document["dataset_revision"], "dataset_revision")) is None:
+        raise ValidationError("dataset_revision", "dataset_revision")
+    producer = _mapping(document["producer"], "producer")
+    if _SOURCE_REVISION.fullmatch(_string(producer["source_revision"], "producer.source_revision")) is None:
+        raise ValidationError("source_revision", "producer.source_revision")
     feature = _mapping(document["feature_contract"], "feature_contract")
     if tuple(_sequence(feature["order"], "feature_contract.order")) != FEATURE_ORDER:
         raise ValidationError("feature_order", "dataset feature order drift")
+    extractor = _mapping(document["extractor"], "extractor")
+    if (
+        extractor["selector_algorithm"] != "p4-qualified-cell-selector/v1"
+        or extractor["selector_digest_preimage"]
+        != "target_id\\0source_profile_digest\\0epoch_decimal\\0cell_index_decimal"
+    ):
+        raise ValidationError("selector_identity", "dataset selector identity semantics drifted")
 
     files = _mapping(document["files"], "files")
     features = _mapping(files["features"], "files.features")

@@ -30,6 +30,8 @@ grpc::Status validate_route_fence(const masi::edge::v1::InferenceRoute &route,
                                   const PoolReadback &readback);
 grpc::Status validate_record_fence(const masi::edge::v1::InferenceRoute &route,
                                    const masi::edge::v1::InferenceRecord &record);
+grpc::Status validate_triton_output_shape(const TritonInferResult &result, size_t record_count,
+                                          size_t class_count);
 
 // CentralInference gRPC service implementation.
 //

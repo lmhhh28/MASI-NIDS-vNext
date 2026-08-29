@@ -649,21 +649,21 @@ async fn collect_resource_sample(
         .unwrap_or("");
     Ok(serde_json::json!({
         "elapsed_unix_ms": support::unix_ms().map_err(|error| error.to_string())?,
-        "rss_bytes": metric_value(body, "masi_plugin_host_process_rss_bytes"),
-        "threads": metric_value(body, "masi_plugin_host_process_threads"),
-        "fds": metric_value(body, "masi_plugin_host_process_fds"),
-        "queued": metric_value(body, "masi_plugin_host_queued"),
-        "in_flight": metric_value(body, "masi_plugin_host_in_flight"),
-        "manager_connections": metric_value(body, "masi_plugin_host_manager_connections"),
-        "manager_connections_peak": metric_value(body, "masi_plugin_host_manager_connections_peak")
+        "rss_bytes": metric_value(body, "masi_plugin_host_process_rss_bytes")?,
+        "threads": metric_value(body, "masi_plugin_host_process_threads")?,
+        "fds": metric_value(body, "masi_plugin_host_process_fds")?,
+        "queued": metric_value(body, "masi_plugin_host_queued")?,
+        "in_flight": metric_value(body, "masi_plugin_host_in_flight")?,
+        "manager_connections": metric_value(body, "masi_plugin_host_manager_connections")?,
+        "manager_connections_peak": metric_value(body, "masi_plugin_host_manager_connections_peak")?
     }))
 }
 
-fn metric_value(body: &str, name: &str) -> u64 {
+fn metric_value(body: &str, name: &str) -> Result<u64, String> {
     body.lines()
         .find_map(|line| line.strip_prefix(&format!("{name} ")))
         .and_then(|value| value.parse().ok())
-        .unwrap_or(0)
+        .ok_or_else(|| format!("required metric is missing or invalid: {name}"))
 }
 
 async fn manager_channel(

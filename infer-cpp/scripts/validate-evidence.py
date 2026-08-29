@@ -15,6 +15,16 @@ from jsonschema import Draft202012Validator, FormatChecker
 
 
 MAX_JSON_BYTES = 67_108_864
+ZERO_DIGEST = "sha256:" + "0" * 64
+
+
+def reject_duplicate_pairs(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    value: dict[str, Any] = {}
+    for key, item in pairs:
+        if key in value:
+            raise ValueError(f"duplicate JSON member: {key}")
+        value[key] = item
+    return value
 
 
 def absolute_path_chain_has_symlink(path: Path) -> bool:
@@ -37,7 +47,9 @@ def load_object(path: Path) -> dict[str, Any]:
             raise ValueError(f"JSON input is not a bounded regular file: {path}")
         payload = bytearray()
         while True:
-            chunk = os.read(descriptor, min(1_048_576, MAX_JSON_BYTES + 1 - len(payload)))
+            chunk = os.read(
+                descriptor, min(1_048_576, MAX_JSON_BYTES + 1 - len(payload))
+            )
             if not chunk:
                 break
             payload.extend(chunk)
@@ -55,6 +67,7 @@ def load_object(path: Path) -> dict[str, Any]:
         os.close(descriptor)
     value = json.loads(
         payload.decode("utf-8"),
+        object_pairs_hook=reject_duplicate_pairs,
         parse_constant=lambda token: (_ for _ in ()).throw(ValueError(token)),
     )
     if not isinstance(value, dict):
@@ -72,7 +85,9 @@ def sha256(path: Path) -> str:
 
 def validate_schema(schema: dict[str, Any], document: dict[str, Any]) -> None:
     validator = Draft202012Validator(schema, format_checker=FormatChecker())
-    errors = sorted(validator.iter_errors(document), key=lambda error: list(error.absolute_path))
+    errors = sorted(
+        validator.iter_errors(document), key=lambda error: list(error.absolute_path)
+    )
     if errors:
         raise ValueError(
             "\n".join(
@@ -90,16 +105,23 @@ def validate_soak(document: dict[str, Any], profile_path: Path | None) -> None:
     profile = load_object(profile_path)
     if document.get("profile_digest") != sha256(profile_path):
         raise ValueError("soak profile digest does not bind the frozen profile")
-    if document.get("level") != "MODULE" or document.get("qualification") != "QUALIFIED":
+    if (
+        document.get("level") != "MODULE"
+        or document.get("qualification") != "QUALIFIED"
+    ):
         raise ValueError("PASS soak must be MODULE/QUALIFIED")
-    if int(document.get("monotonic_end_ns", 0)) <= int(document.get("monotonic_start_ns", 0)):
+    if int(document.get("monotonic_end_ns", 0)) <= int(
+        document.get("monotonic_start_ns", 0)
+    ):
         raise ValueError("soak monotonic interval is not positive")
     phases = document.get("phases")
     if not isinstance(phases, list) or len(phases) != len(profile.get("phases", [])):
         raise ValueError("soak phase count does not match the frozen profile")
     prior_phase_end = int(document.get("warmup_elapsed_ms", 0))
     batch_sizes = (32, 128, 256, 1)
-    target_batches_per_second = int(profile.get("load", {}).get("batch_requests_per_second", -1))
+    target_batches_per_second = int(
+        profile.get("load", {}).get("batch_requests_per_second", -1)
+    )
     if target_batches_per_second <= 0:
         raise ValueError("soak profile has no positive batch request rate")
     for expected, observed, records_per_batch in zip(
@@ -137,7 +159,9 @@ def validate_soak(document: dict[str, Any], profile_path: Path | None) -> None:
             or int(metrics.get("phase_end_offset_ms", -1))
             <= int(metrics.get("phase_start_offset_ms", -1))
         ):
-            raise ValueError(f"soak phase is not a complete formal PASS: {expected.get('name')}")
+            raise ValueError(
+                f"soak phase is not a complete formal PASS: {expected.get('name')}"
+            )
         prior_phase_end = int(metrics["phase_end_offset_ms"])
     samples = document.get("samples")
     if not isinstance(samples, list) or not samples:
@@ -156,7 +180,9 @@ def validate_soak(document: dict[str, Any], profile_path: Path | None) -> None:
             != "none-gateway-submits-directly-to-triton"
             or sample_metrics.get("queue_depth_source") != "gateway-has-no-owned-queue"
         ):
-            raise ValueError("PASS soak sample lacks provider/queue observation provenance")
+            raise ValueError(
+                "PASS soak sample lacks provider/queue observation provenance"
+            )
         provider_counts.append(
             (
                 int(sample_metrics.get("provider_inference_count", -1)),
@@ -168,9 +194,15 @@ def validate_soak(document: dict[str, Any], profile_path: Path | None) -> None:
         raise ValueError("soak sample offsets are not strictly monotonic")
     for index in range(1, len(samples)):
         delta = offsets[index] - offsets[index - 1]
-        declared = int(samples[index].get("module_metrics", {}).get("actual_sample_interval_ms", -1))
+        declared = int(
+            samples[index]
+            .get("module_metrics", {})
+            .get("actual_sample_interval_ms", -1)
+        )
         if not 9_000 <= delta <= 11_000 or abs(declared - delta) > 250:
-            raise ValueError("PASS soak sample interval drifted from the frozen 10-second cadence")
+            raise ValueError(
+                "PASS soak sample interval drifted from the frozen 10-second cadence"
+            )
     if any(
         current[dimension] < previous[dimension]
         for previous, current in zip(provider_counts, provider_counts[1:])
@@ -215,16 +247,19 @@ def validate_module(document: dict[str, Any]) -> None:
         raise ValueError("a complete module requires zero open P0 findings")
     formal = document.get("qualification_gates", {}).get("formal_soak_3600_seconds", {})
     artifacts = document.get("artifact_digests", {})
+    if any(value == ZERO_DIGEST for value in artifacts.values()):
+        raise ValueError("a complete module cannot contain all-zero artifact digests")
     formal_digest = artifacts.get("formal_soak_evidence")
     if (
         formal.get("result") != "PASS"
         or formal.get("qualification") != "QUALIFIED"
         or formal.get("evidence") != "formal-soak/formal-soak-evidence.json"
         or formal.get("evidence_digest") != formal_digest
-        or not isinstance(formal_digest, str)
-        or not formal_digest.startswith("sha256:")
+        or not valid_digest(formal_digest)
     ):
-        raise ValueError("a complete module is not bound to a qualified formal-soak evidence digest")
+        raise ValueError(
+            "a complete module is not bound to a qualified formal-soak evidence digest"
+        )
     for name in (
         "release_binary",
         "oci_evidence",
@@ -233,7 +268,7 @@ def validate_module(document: dict[str, Any]) -> None:
         "numeric_golden_evidence",
     ):
         digest = artifacts.get(name)
-        if not isinstance(digest, str) or not digest.startswith("sha256:"):
+        if not valid_digest(digest):
             raise ValueError(f"a complete module is missing the {name} digest")
     executed = document.get("executed_gates", {})
     for name in (
@@ -259,11 +294,23 @@ def validate_module(document: dict[str, Any]) -> None:
             raise ValueError(f"a complete module requires executed {name} evidence")
 
 
+def valid_digest(value: Any) -> bool:
+    return (
+        isinstance(value, str)
+        and value != ZERO_DIGEST
+        and len(value) == 71
+        and value.startswith("sha256:")
+        and all(character in "0123456789abcdef" for character in value[7:])
+    )
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--schema", type=Path, required=True)
     parser.add_argument("--document", type=Path, required=True)
-    parser.add_argument("--kind", choices=("generic", "soak", "module"), default="generic")
+    parser.add_argument(
+        "--kind", choices=("generic", "soak", "module"), default="generic"
+    )
     parser.add_argument("--profile", type=Path)
     args = parser.parse_args()
 

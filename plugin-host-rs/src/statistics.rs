@@ -808,6 +808,7 @@ fn validate_digest_text(value: &str) -> HostResult<()> {
         || !value[7..]
             .bytes()
             .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+        || value[7..].bytes().all(|byte| byte == b'0')
     {
         return Err(HostError::new(
             ReasonCode::InvalidArgument,
@@ -903,5 +904,11 @@ mod tests {
             reason_code: "STATISTICS_COMPUTED".to_owned(),
         };
         assert!(validate_candidate(&mut candidate).is_err());
+    }
+
+    #[test]
+    fn rejects_all_zero_digest_sentinel() {
+        assert!(validate_digest_text(&format!("sha256:{}", "0".repeat(64))).is_err());
+        assert!(validate_digest_text(&format!("sha256:{}", "a".repeat(64))).is_ok());
     }
 }

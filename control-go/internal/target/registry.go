@@ -19,9 +19,13 @@ import (
 var (
 	endpointRE = regexp.MustCompile(`^https://[^/?#]+:[0-9]{1,5}$`)
 	identityRE = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._:-]*$`)
-	digestRE   = regexp.MustCompile(`^sha256:[0-9a-f]{64}$`)
+	digestRE   nonZeroDigestPattern
 	reasonRE   = regexp.MustCompile(`^[A-Z][A-Z0-9_]{0,63}$`)
 )
+
+type nonZeroDigestPattern struct{}
+
+func (nonZeroDigestPattern) MatchString(value string) bool { return security.ValidDigest(value) }
 
 // RegistryService owns the stable target identity and lifecycle. target_id is
 // never reused: rename/address/chassis change cannot reuse an ID, and a retired

@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -106,6 +107,7 @@ func handleRegisterBoundedCapture(deps Deps) http.HandlerFunc {
 			WriteError(w, http.StatusConflict, "BOUNDED_CAPTURE_REJECTED")
 			return
 		}
+		publishInvalidation(deps, ResCapture, out.CaptureID, body.Scope, time.Now().UnixMilli())
 		writeJSON(w, http.StatusCreated, map[string]any{"capture": out})
 	}
 }
@@ -147,12 +149,14 @@ func handleSubmitAnalysisTask(deps Deps) http.HandlerFunc {
 		out, err := deps.Analysis.Submit(r.Context(), body.Input, actor)
 		if err != nil {
 			if out != nil && out.Status == "unknown" {
+				publishInvalidation(deps, ResAnalysisTask, out.TaskID, body.Input.Scope, time.Now().UnixMilli())
 				writeJSON(w, http.StatusAccepted, out)
 				return
 			}
 			WriteError(w, http.StatusConflict, "ANALYSIS_TASK_REJECTED")
 			return
 		}
+		publishInvalidation(deps, ResAnalysisTask, out.TaskID, body.Input.Scope, time.Now().UnixMilli())
 		writeJSON(w, http.StatusAccepted, out)
 	}
 }
@@ -189,7 +193,28 @@ func handlePollAnalysisTask(deps Deps) http.HandlerFunc {
 			WriteError(w, http.StatusConflict, "ANALYSIS_POLL_REJECTED")
 			return
 		}
+		publishAnalysisInvalidations(r.Context(), deps, taskID, scope)
 		writeJSON(w, http.StatusOK, out)
+	}
+}
+
+func publishAnalysisInvalidations(ctx context.Context, deps Deps, taskID, scope string) {
+	publishInvalidation(deps, ResAnalysisTask, taskID, scope, time.Now().UnixMilli())
+	if deps.Pool == nil {
+		return
+	}
+	rows, err := deps.Pool.Pool.Query(ctx,
+		`SELECT artifact_id FROM analysis_artifacts WHERE task_id=$1 AND scope=$2 ORDER BY artifact_sequence LIMIT 8`,
+		taskID, scope)
+	if err != nil {
+		return
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var artifactID string
+		if rows.Scan(&artifactID) == nil {
+			publishInvalidation(deps, ResAnalysisArt, artifactID, scope, time.Now().UnixMilli())
+		}
 	}
 }
 
@@ -253,6 +278,8 @@ func handleCreateBoundedCaptureIntent(deps Deps) http.HandlerFunc {
 			WriteError(w, http.StatusConflict, "BOUNDED_CAPTURE_INTENT_REJECTED")
 			return
 		}
+		publishInvalidation(deps, ResIntent, body.EffectIntentID, scope, time.Now().UnixMilli())
+		publishInvalidation(deps, ResCapture, captureID, scope, time.Now().UnixMilli())
 		writeJSON(w, http.StatusAccepted, out)
 	}
 }
@@ -286,6 +313,8 @@ func handleCreateFleetOperation(deps Deps) http.HandlerFunc {
 			WriteError(w, http.StatusConflict, "FLEET_OPERATION_REJECTED")
 			return
 		}
+		publishInvalidation(deps, ResFleetOp, fleet.FleetOperationID, fleet.Scope, time.Now().UnixMilli())
+		publishInvalidation(deps, ResDecision, decision.DecisionID, fleet.Scope, decision.CreatedAtUnixMS)
 		writeJSON(w, http.StatusCreated, map[string]any{"fleet": fleet, "decision": decision})
 	}
 }
@@ -345,6 +374,7 @@ func handleAdvanceFleetWave(deps Deps) http.HandlerFunc {
 			WriteError(w, http.StatusConflict, "FLEET_WAVE_REJECTED")
 			return
 		}
+		publishInvalidation(deps, ResFleetOp, fleetID, scope, time.Now().UnixMilli())
 		writeJSON(w, http.StatusOK, map[string]any{"fleet_operation_id": fleetID, "opened_wave": body.NextWave})
 	}
 }
@@ -379,6 +409,8 @@ func handleRollbackFleetOperation(deps Deps) http.HandlerFunc {
 			WriteError(w, http.StatusConflict, "FLEET_ROLLBACK_REJECTED")
 			return
 		}
+		publishInvalidation(deps, ResFleetOp, fleet.FleetOperationID, fleet.Scope, time.Now().UnixMilli())
+		publishInvalidation(deps, ResDecision, decision.DecisionID, fleet.Scope, decision.CreatedAtUnixMS)
 		writeJSON(w, http.StatusCreated, map[string]any{"fleet": fleet, "decision": decision})
 	}
 }
@@ -417,6 +449,7 @@ func handleRegisterTarget(deps Deps) http.HandlerFunc {
 			WriteError(w, http.StatusBadRequest, "TARGET_REGISTRATION_REJECTED")
 			return
 		}
+		publishInvalidation(deps, ResTarget, out.TargetID, out.Scope, time.Now().UnixMilli())
 		writeJSON(w, http.StatusCreated, out)
 	}
 }
@@ -465,6 +498,7 @@ func handleTargetLifecycle(deps Deps, activate bool) http.HandlerFunc {
 			WriteError(w, http.StatusConflict, "TARGET_LIFECYCLE_REJECTED")
 			return
 		}
+		publishInvalidation(deps, ResTarget, targetID, body.Scope, time.Now().UnixMilli())
 		writeJSON(w, http.StatusOK, map[string]string{"target_id": targetID,
 			"status":       map[bool]string{true: "active", false: "retired"}[activate],
 			"operation_id": lifecycleOperationID(r, deps, targetID, body.TraceID)})
@@ -494,6 +528,7 @@ func handleCreateFirewallRevision(deps Deps) http.HandlerFunc {
 			WriteError(w, http.StatusBadRequest, "FIREWALL_REVISION_REJECTED")
 			return
 		}
+		publishInvalidation(deps, ResFirewallRev, body.Revision.RevisionID, body.Revision.Scope, time.Now().UnixMilli())
 		writeJSON(w, http.StatusCreated, out)
 	}
 }
@@ -521,6 +556,8 @@ func handlePrepareFirewallActivation(deps Deps) http.HandlerFunc {
 			WriteError(w, http.StatusConflict, "FIREWALL_ACTIVATION_REJECTED")
 			return
 		}
+		publishInvalidation(deps, ResFirewallBind, body.OperationID, body.Scope, time.Now().UnixMilli())
+		publishInvalidation(deps, ResFirewallRev, body.RevisionID, body.Scope, time.Now().UnixMilli())
 		writeJSON(w, http.StatusAccepted, out)
 	}
 }
@@ -549,6 +586,8 @@ func handleCreateFirewallOverlay(deps Deps) http.HandlerFunc {
 			WriteError(w, http.StatusConflict, "FIREWALL_OVERLAY_REJECTED")
 			return
 		}
+		publishInvalidation(deps, ResIntent, body.Overlay.UpsertIntent.EffectIntentID, body.Overlay.Scope, time.Now().UnixMilli())
+		publishInvalidation(deps, ResIntent, body.Overlay.DeleteIntent.EffectIntentID, body.Overlay.Scope, time.Now().UnixMilli())
 		writeJSON(w, http.StatusCreated, map[string]any{"overlay_rule_id": body.Overlay.OverlayRuleID,
 			"upsert_operation_id": body.Overlay.UpsertIntent.OperationID,
 			"delete_operation_id": body.Overlay.DeleteIntent.OperationID, "status": "pending"})
@@ -577,6 +616,7 @@ func handleRegisterModelRevision(deps Deps) http.HandlerFunc {
 			WriteError(w, http.StatusBadRequest, "MODEL_REVISION_REJECTED")
 			return
 		}
+		publishInvalidation(deps, ResModelRev, body.Revision.ModelRevisionID, body.Revision.Scope, time.Now().UnixMilli())
 		writeJSON(w, http.StatusCreated, out)
 	}
 }
@@ -605,6 +645,7 @@ func handleRevokeModelRevision(deps Deps) http.HandlerFunc {
 			WriteError(w, http.StatusConflict, "MODEL_REVOKE_REJECTED")
 			return
 		}
+		publishInvalidation(deps, ResModelRev, id, body.Scope, time.Now().UnixMilli())
 		writeJSON(w, http.StatusOK, map[string]string{"model_revision_id": id, "qualification_status": "revoked"})
 	}
 }
@@ -655,6 +696,8 @@ func handleCreateModelRolloutGroup(deps Deps) http.HandlerFunc {
 			WriteError(w, http.StatusConflict, "MODEL_ROLLOUT_GROUP_REJECTED")
 			return
 		}
+		publishInvalidation(deps, ResModelRollout, body.GroupID, body.Scope, time.Now().UnixMilli())
+		publishInvalidation(deps, ResModelBinding, body.GroupID, body.Scope, time.Now().UnixMilli())
 		writeJSON(w, http.StatusCreated, out)
 	}
 }
@@ -691,6 +734,10 @@ func handleAdvanceModelRolloutGroup(deps Deps) http.HandlerFunc {
 			WriteError(w, http.StatusConflict, "MODEL_ROLLOUT_ADVANCE_REJECTED")
 			return
 		}
+		if err == nil {
+			publishInvalidation(deps, ResModelRollout, groupID, persistedScope, time.Now().UnixMilli())
+			publishInvalidation(deps, ResModelBinding, groupID, persistedScope, time.Now().UnixMilli())
+		}
 		writeJSON(w, http.StatusAccepted, out)
 	}
 }
@@ -717,6 +764,7 @@ func handleRegisterPluginManifest(deps Deps) http.HandlerFunc {
 			WriteError(w, http.StatusBadRequest, "PLUGIN_MANIFEST_REJECTED")
 			return
 		}
+		publishInvalidation(deps, ResPlugin, body.Manifest.PluginID, body.Manifest.Scope, time.Now().UnixMilli())
 		writeJSON(w, http.StatusCreated, out)
 	}
 }
@@ -746,6 +794,7 @@ func handleQualifyPlugin(deps Deps) http.HandlerFunc {
 			WriteError(w, http.StatusConflict, "PLUGIN_QUALIFICATION_REJECTED")
 			return
 		}
+		publishInvalidation(deps, ResPlugin, pluginID, body.Scope, time.Now().UnixMilli())
 		writeJSON(w, http.StatusCreated, map[string]any{"plugin_id": pluginID, "qualification_status": body.Status})
 	}
 }
@@ -774,6 +823,8 @@ func handleActivatePluginBinding(deps Deps) http.HandlerFunc {
 			WriteError(w, http.StatusConflict, "PLUGIN_BINDING_REJECTED")
 			return
 		}
+		publishInvalidation(deps, ResPluginBind, pluginID, body.Binding.Scope, time.Now().UnixMilli())
+		publishInvalidation(deps, ResPlugin, pluginID, body.Binding.Scope, time.Now().UnixMilli())
 		writeJSON(w, http.StatusCreated, out)
 	}
 }
@@ -815,6 +866,8 @@ func handlePluginBindingLifecycle(deps Deps, action string) http.HandlerFunc {
 			WriteError(w, http.StatusConflict, "PLUGIN_LIFECYCLE_REJECTED")
 			return
 		}
+		publishInvalidation(deps, ResPluginBind, pluginID, body.Scope, time.Now().UnixMilli())
+		publishInvalidation(deps, ResPlugin, pluginID, body.Scope, time.Now().UnixMilli())
 		writeJSON(w, http.StatusOK, map[string]string{"plugin_id": pluginID, "status": action})
 	}
 }
@@ -842,6 +895,7 @@ func handleRegisterPluginStatDefinition(deps Deps) http.HandlerFunc {
 			WriteError(w, http.StatusConflict, "STATISTICS_DEFINITION_REJECTED")
 			return
 		}
+		publishInvalidation(deps, ResPluginDef, body.Definition.DefinitionID, body.Scope, time.Now().UnixMilli())
 		writeJSON(w, http.StatusCreated, map[string]string{"definition_id": body.Definition.DefinitionID, "definition_digest": body.Definition.DefinitionDigest})
 	}
 }
@@ -878,6 +932,7 @@ func handleCreatePluginStatSchedule(deps Deps) http.HandlerFunc {
 			WriteError(w, http.StatusConflict, "STATISTICS_SCHEDULE_REJECTED")
 			return
 		}
+		publishInvalidation(deps, ResPluginSched, body.ScheduleID, body.Scope, time.Now().UnixMilli())
 		writeJSON(w, http.StatusCreated, map[string]any{"schedule_id": body.ScheduleID, "schedule_revision": revision, "disabled": body.Disabled})
 	}
 }
