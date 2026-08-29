@@ -87,6 +87,8 @@ GitHub-hosted quick CI 对应的本地快速检查：
 
 这只是快速静态/契约检查，不启动完整系统，也不是 Module、pairwise 或 System E2E PASS。模块级命令请直接使用对应 README：
 
+上述 `unittest discover` 同时执行 legacy snapshot 的逐文件摘要、生成物/secret 排除、Docker context 和生产依赖零引用回归检查。
+
 - [`p4/README.md`](p4/README.md)
 - [`edge-rs/README.md`](edge-rs/README.md)
 - [`infer-cpp/README.md`](infer-cpp/README.md)

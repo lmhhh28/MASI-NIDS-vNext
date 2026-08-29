@@ -50,3 +50,14 @@ vNext `web/` 则是 Node `22.22.3` 构建的 Vue 3/Vite 静态 SPA，无 Node pr
 源仓库及前端子树在捕获时没有 `LICENSE`、`COPYING` 或 `NOTICE` 文件。该快照由本仓库用户明确要求迁入，但没有因此形成项目级或下游许可证授予。参考源码和其 npm dependency closure均未被 vNext supply-chain registry采用；在 Owner/法律/NOTICE/SBOM审查完成前，它保持 `REFERENCE_ONLY`，不能进入发布制品或生产运行时。
 
 `legacy-reference` 已由根 `.dockerignore` 排除。即使根目录作为 Docker build context，该快照也不会发送给 builder。
+
+## Preserved security and build risks
+
+完整快照有意保留原 Dockerfile、package scripts 与endpoint defaults，因此源码目录技术上仍可被人手直接执行；“参考”边界依靠仓库policy、嵌套`AGENTS.md`、CI isolation test和根build排除共同约束，而不是修改历史源码使其无法解析。
+
+- 旧 Dockerfile执行裸`npm ci`。lockfile标记`esbuild@0.28.1`、`msw@2.15.0`、`unrs-resolver@1.11.1`及可选`fsevents`含install script；`package.json#allowScripts`没有被vNext供应链门禁资格化。
+- Docker/Next配置默认使用`http://nids-backend:8090`、`http://127.0.0.1:8090`和`http://127.0.0.1:8088`。它们是legacy本地默认值，不满足vNext production TLS身份边界。
+- 旧UI允许提交可编辑source endpoint，并只在UI设置`loopback_only`默认值；后端是否强制SSRF/loopback约束不在本次前端快照审计范围，前端字段不能作为安全边界。
+- 测试中的`fake-access-*`、`fake-sensitive-marker`和密码字段是fixture；当前扫描未发现真实credential，但正式重用前仍须重新执行secret、SBOM、许可证、install-script和endpoint审查。
+
+任何人或自动化代理均不得在该目录运行`npm ci/install`、`npm run dev/build/start/test`或`docker build`。完整约束见同目录[`AGENTS.md`](AGENTS.md)。

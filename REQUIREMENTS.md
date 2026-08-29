@@ -107,9 +107,13 @@ P4、Mininet、PTF、Tcpreplay 和 netem 仅可用于隔离测试，不能成为
 ```bash
 cd legacy-reference/masi-nids-frontend/source
 sha256sum --check ../files.sha256
+cd ../../..
+.venv/bin/python scripts/ci/test_legacy_reference_isolation.py
 ```
 
 旧页面/测试只可提供行为、信息架构、数据与性能线索。需要保留的行为必须依照 vNext OpenAPI/Web contracts在 `web/` clean-room 重写并重新通过 Web 门禁；禁止复制旧 BFF、auth store、Workflow/Review/Event-v2 DTO、P4/Admin mutation或旧 API path。源仓库在快照时没有 LICENSE/COPYING/NOTICE，所以下游不得把入库本身解释为许可证授予或生产供应链准入。
+
+快照内部的 Dockerfile/Next server技术上仍可被人手直接构建，但这属于明确禁止的绕过路径，不是vNext入口。旧Dockerfile执行裸`npm ci`，lockfile中有`esbuild`、`msw`、`unrs-resolver`等install-script依赖；`package.json#allowScripts`尚未被本项目资格化为安全控制。旧配置还包含明文loopback/backend默认端点和可编辑source endpoint，后端SSRF enforcement不在本次快照审计范围。这些风险只被记录和隔离，不因源码入库而关闭。
 
 ## 一次性初始化
 

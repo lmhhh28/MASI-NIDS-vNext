@@ -59,6 +59,20 @@
     "status": "UNDECLARED_IN_SOURCE_TREE",
     "downstream_license_grant": false
   },
+  "known_risks": {
+    "direct_docker_build_technically_possible": true,
+    "npm_ci_runs_dependency_install_scripts": true,
+    "install_script_packages": [
+      "esbuild@0.28.1",
+      "msw@2.15.0",
+      "unrs-resolver@1.11.1",
+      "fsevents optional platform packages"
+    ],
+    "package_allow_scripts_qualified_by_vnext": false,
+    "plaintext_local_endpoint_defaults": true,
+    "user_editable_source_endpoint": true,
+    "backend_ssrf_enforcement_audited": false
+  },
   "forbidden_uses": [
     "vnext-build-input",
     "vnext-runtime-dependency",
