@@ -19,5 +19,5 @@
     "producer_consumer_model_digest_match": {"const": true},
     "producer_consumer_closure_digest_match": {"const": true}
   },
-  "$defs": {"digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}}
+  "$defs": {"digest": {"type": "string", "pattern": "^sha256:(?!0{64}$)[0-9a-f]{64}$"}}
 }

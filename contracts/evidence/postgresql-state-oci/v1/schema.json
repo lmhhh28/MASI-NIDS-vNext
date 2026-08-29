@@ -31,14 +31,14 @@
     },
     "read_only_rootfs": {"const": true},
     "capabilities_dropped": {"const": true},
-    "migration_count": {"const": 29},
+    "migration_count": {"const": 31},
     "migration_chain_digest": {"$ref": "#/$defs/digest"},
     "pgbouncer_version": {"type": "string", "pattern": "^PgBouncer 1\\.25\\.2(?:\\n|$)", "maxLength": 2048},
     "postgres_version": {"const": "postgres (PostgreSQL) 18.6"},
     "gosu_version": {"type": "string", "pattern": "^1\\.19 \\(go1\\.26\\.6 on linux/amd64; gc\\)$"}
   },
   "$defs": {
-    "digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "digest": {"type": "string", "pattern": "^sha256:(?!0{64}$)[0-9a-f]{64}$"},
     "images": {
       "type": "object",
       "additionalProperties": false,

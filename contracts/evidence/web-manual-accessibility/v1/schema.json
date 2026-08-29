@@ -1,0 +1,100 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://masi-nids.example/contracts/evidence/web-manual-accessibility/v1/schema.json",
+  "title": "Manual Web accessibility review evidence",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "module_id", "profile", "source_tree_digest", "image_digest",
+    "reviewed_at", "reviewer_id", "assistive_technology", "platform", "flows",
+    "evidence_artifacts", "level", "applicability", "result", "qualification", "reason_code"
+  ],
+  "properties": {
+    "schema_version": {"const": "web-manual-accessibility-evidence/v1"},
+    "module_id": {"const": "MOD-WEB-001"},
+    "profile": {"const": "web-browser/v1"},
+    "source_tree_digest": {"$ref": "#/$defs/digest"},
+    "image_digest": {"$ref": "#/$defs/digest"},
+    "reviewed_at": {"type": ["string", "null"], "format": "date-time"},
+    "reviewer_id": {"type": ["string", "null"], "pattern": "^[A-Za-z0-9][A-Za-z0-9._:@-]{1,127}$"},
+    "assistive_technology": {"type": ["string", "null"], "minLength": 1, "maxLength": 256},
+    "platform": {"type": ["string", "null"], "minLength": 1, "maxLength": 256},
+    "flows": {
+      "type": "array", "minItems": 4, "maxItems": 4,
+      "prefixItems": [
+        {"$ref": "#/$defs/screen_reader"}, {"$ref": "#/$defs/full_keyboard"},
+        {"$ref": "#/$defs/zoom_reflow"}, {"$ref": "#/$defs/high_risk_focus"}
+      ],
+      "items": false
+    },
+    "evidence_artifacts": {
+      "type": "array", "maxItems": 16, "uniqueItems": true,
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["kind", "digest"],
+        "properties": {
+          "kind": {"enum": ["screen-reader-log", "keyboard-checklist", "zoom-reflow-capture", "high-risk-focus-capture", "review-notes"]},
+          "digest": {"$ref": "#/$defs/digest"}
+        }
+      }
+    },
+    "level": {"const": "MODULE"},
+    "applicability": {"const": "APPLICABLE"},
+    "result": {"enum": ["PASS", "HOLD", "FAIL", "NOT_RUN"]},
+    "qualification": {"enum": ["QUALIFIED", "NOT_QUALIFIED"]},
+    "reason_code": {"type": "string", "pattern": "^[A-Z][A-Z0-9_]{2,127}$"}
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"result": {"const": "PASS"}}, "required": ["result"]},
+      "then": {
+        "properties": {
+          "reviewed_at": {"type": "string", "format": "date-time"},
+          "reviewer_id": {"type": "string"},
+          "assistive_technology": {"type": "string"},
+          "platform": {"type": "string"},
+          "flows": {
+            "prefixItems": [
+              {"allOf": [{"$ref": "#/$defs/screen_reader"}, {"properties": {"result": {"const": "PASS"}}}]},
+              {"allOf": [{"$ref": "#/$defs/full_keyboard"}, {"properties": {"result": {"const": "PASS"}}}]},
+              {"allOf": [{"$ref": "#/$defs/zoom_reflow"}, {"properties": {"result": {"const": "PASS"}}}]},
+              {"allOf": [{"$ref": "#/$defs/high_risk_focus"}, {"properties": {"result": {"const": "PASS"}}}]}
+            ],
+            "items": false
+          },
+          "evidence_artifacts": {
+            "minItems": 4,
+            "allOf": [
+              {"contains": {"properties": {"kind": {"const": "screen-reader-log"}}}, "minContains": 1},
+              {"contains": {"properties": {"kind": {"const": "keyboard-checklist"}}}, "minContains": 1},
+              {"contains": {"properties": {"kind": {"const": "zoom-reflow-capture"}}}, "minContains": 1},
+              {"contains": {"properties": {"kind": {"const": "high-risk-focus-capture"}}}, "minContains": 1}
+            ]
+          },
+          "qualification": {"const": "QUALIFIED"},
+          "reason_code": {"const": "MANUAL_ACCESSIBILITY_REVIEW_PASSED"}
+        }
+      }
+    },
+    {
+      "if": {"properties": {"result": {"enum": ["HOLD", "FAIL", "NOT_RUN"]}}, "required": ["result"]},
+      "then": {"properties": {"qualification": {"const": "NOT_QUALIFIED"}}}
+    }
+  ],
+  "$defs": {
+    "digest": {"type": "string", "pattern": "^sha256:(?!0{64}$)[0-9a-f]{64}$"},
+    "flow": {
+      "type": "object", "additionalProperties": false,
+      "required": ["flow_id", "result", "notes"],
+      "properties": {
+        "flow_id": {"enum": ["screen-reader-navigation", "full-keyboard", "zoom-200-reflow", "high-risk-dialog-focus"]},
+        "result": {"enum": ["PASS", "FAIL", "NOT_RUN"]},
+        "notes": {"type": "string", "minLength": 1, "maxLength": 2048}
+      }
+    },
+    "screen_reader": {"allOf": [{"$ref": "#/$defs/flow"}, {"properties": {"flow_id": {"const": "screen-reader-navigation"}}}]},
+    "full_keyboard": {"allOf": [{"$ref": "#/$defs/flow"}, {"properties": {"flow_id": {"const": "full-keyboard"}}}]},
+    "zoom_reflow": {"allOf": [{"$ref": "#/$defs/flow"}, {"properties": {"flow_id": {"const": "zoom-200-reflow"}}}]},
+    "high_risk_focus": {"allOf": [{"$ref": "#/$defs/flow"}, {"properties": {"flow_id": {"const": "high-risk-dialog-focus"}}}]}
+  }
+}

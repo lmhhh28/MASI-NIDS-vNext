@@ -50,13 +50,13 @@
     "official_corpus": {"$ref": "#/$defs/notApplicable"}
   },
   "$defs": {
-    "digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "digest": {"type": "string", "pattern": "^sha256:(?!0{64}$)[0-9a-f]{64}$"},
     "identity": {
       "type": "object",
       "additionalProperties": false,
       "required": ["dataset_revision", "model_digest", "model_revision_digest", "repository_closure_digest", "archive_digest"],
       "properties": {
-        "dataset_revision": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "dataset_revision": {"type": "string", "pattern": "^(?!0{64}$)[0-9a-f]{64}$"},
         "model_digest": {"$ref": "#/$defs/digest"},
         "model_revision_digest": {"$ref": "#/$defs/digest"},
         "repository_closure_digest": {"$ref": "#/$defs/digest"},

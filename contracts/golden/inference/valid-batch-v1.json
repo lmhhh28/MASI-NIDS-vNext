@@ -33,7 +33,7 @@
       }
     ],
     "deadline_unix_ms": 9999999999999,
-    "batch_digest": "sha256:computed-from-canonicalization"
+    "batch_digest": "sha256:32bcb91b23b395e8afcf30fffd974bbdfca732e0e060a9def20a28348bbb33fb"
   },
   "adapter": {
     "adapter_id": "masi-window-adapter-v1",

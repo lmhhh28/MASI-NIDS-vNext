@@ -30,5 +30,5 @@
     "level": {"const": "REHEARSAL"}, "applicability": {"const": "APPLICABLE"}, "result": {"const": "PASS"}, "qualification": {"const": "NOT_QUALIFIED"},
     "qualification_scope": {"type": "string", "minLength": 1, "maxLength": 512}
   },
-  "$defs": {"digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}}
+  "$defs": {"digest": {"type": "string", "pattern": "^sha256:(?!0{64}$)[0-9a-f]{64}$"}}
 }

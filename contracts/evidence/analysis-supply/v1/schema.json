@@ -8,5 +8,5 @@
     "scan_counts": {"type": "object", "additionalProperties": false, "required": ["critical_vulnerabilities", "fixable_high_vulnerabilities", "python_builder_selected_library_critical_vulnerabilities", "python_builder_selected_library_fixable_high_vulnerabilities", "python_builder_secrets", "image_secrets", "source_secrets", "high_critical_misconfigurations"], "properties": {"critical_vulnerabilities": {"const": 0}, "fixable_high_vulnerabilities": {"const": 0}, "python_builder_selected_library_critical_vulnerabilities": {"const": 0}, "python_builder_selected_library_fixable_high_vulnerabilities": {"const": 0}, "python_builder_secrets": {"const": 0}, "image_secrets": {"const": 0}, "source_secrets": {"const": 0}, "high_critical_misconfigurations": {"const": 0}}},
     "checks": {"type": "object", "minProperties": 36, "maxProperties": 48, "additionalProperties": {"const": true}}, "failure_reasons": {"type": "array", "maxItems": 0}, "result": {"const": "PASS"}, "qualification": {"const": "NOT_QUALIFIED"}, "reason_code": {"const": "ANALYSIS_SUPPLY_CHAIN_VERIFIED"}
   },
-  "$defs": {"digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}}
+  "$defs": {"digest": {"type": "string", "pattern": "^sha256:(?!0{64}$)[0-9a-f]{64}$"}}
 }

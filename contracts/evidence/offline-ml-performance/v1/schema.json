@@ -31,5 +31,5 @@
     },
     "checks": {"type": "object", "minProperties": 13, "additionalProperties": {"const": true}}
   },
-  "$defs": {"digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}}
+  "$defs": {"digest": {"type": "string", "pattern": "^sha256:(?!0{64}$)[0-9a-f]{64}$"}}
 }

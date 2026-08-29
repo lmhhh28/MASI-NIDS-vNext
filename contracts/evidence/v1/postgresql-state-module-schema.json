@@ -27,14 +27,14 @@
     "module_id": {"const": "MOD-DB-001"},
     "run_id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$"},
     "generated_at": {"type": "string", "format": "date-time"},
-    "source_revision": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
-    "source_tree_digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "source_revision": {"type": "string", "pattern": "^(?!0{40}$)[0-9a-f]{40}$"},
+    "source_tree_digest": {"type": "string", "pattern": "^sha256:(?!0{64}$)[0-9a-f]{64}$"},
     "working_tree_dirty": {"type": "boolean"},
-    "working_tree_status_digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "working_tree_status_digest": {"type": "string", "pattern": "^sha256:(?!0{64}$)[0-9a-f]{64}$"},
     "overall_module_complete": {"type": "boolean"},
     "artifact_digests": {
       "type": "object", "minProperties": 12, "maxProperties": 64,
-      "additionalProperties": {"type": ["string", "null"], "pattern": "^sha256:[0-9a-f]{64}$"}
+      "additionalProperties": {"type": ["string", "null"], "pattern": "^sha256:(?!0{64}$)[0-9a-f]{64}$"}
     },
     "executed_gates": {
       "type": "object", "minProperties": 20, "maxProperties": 64,
@@ -115,7 +115,7 @@
       "properties": {
         "result": {"enum": ["PASS", "FAIL", "HOLD", "NOT_RUN"]},
         "evidence": {"type": "string", "minLength": 1, "maxLength": 512},
-        "digest": {"type": ["string", "null"], "pattern": "^sha256:[0-9a-f]{64}$"}
+        "digest": {"type": ["string", "null"], "pattern": "^sha256:(?!0{64}$)[0-9a-f]{64}$"}
       }
     }
   }

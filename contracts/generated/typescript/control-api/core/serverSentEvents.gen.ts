@@ -104,8 +104,6 @@ export function createSseClient<TData = unknown>({
     while (true) {
       if (signal.aborted) break;
 
-      attempt++;
-
       const headers =
         options.headers instanceof Headers
           ? options.headers
@@ -135,6 +133,9 @@ export function createSseClient<TData = unknown>({
         if (!response.ok) throw new Error(`SSE failed: ${response.status} ${response.statusText}`);
 
         if (!response.body) throw new Error('No body in SSE response');
+
+        // A successfully established stream resets consecutive connection failures.
+        attempt = 0;
 
         const reader = response.body.pipeThrough(new TextDecoderStream()).getReader();
 
@@ -220,12 +221,14 @@ export function createSseClient<TData = unknown>({
           reader.releaseLock();
         }
 
-        break; // exit loop on normal completion
+        throw new Error('SSE stream ended');
       } catch (error) {
-        // connection failed or aborted; retry after delay
+        if (signal.aborted) break;
+        // Connection failure and unexpected EOF share one bounded consecutive retry budget.
+        attempt++;
         onSseError?.(error);
 
-        if (sseMaxRetryAttempts !== undefined && attempt >= sseMaxRetryAttempts) {
+        if (attempt >= (sseMaxRetryAttempts ?? 8)) {
           break; // stop after firing error
         }
 

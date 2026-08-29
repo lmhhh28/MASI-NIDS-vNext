@@ -11,7 +11,7 @@
   "error_contract": "contracts/model/v1/error-semantics.json",
   "incarnation_policy": "contracts/model/v1/model-control-incarnation.json",
   "triton": {
-    "image": "nvcr.io/nvidia/tritonserver:25.06-py3",
+    "image": "nvcr.io/nvidia/tritonserver@sha256:75bcfa5b0043898ece3e603c17a5bbbb1c9bddc390563db24312ef59d83735e5",
     "image_digest": "sha256:75bcfa5b0043898ece3e603c17a5bbbb1c9bddc390563db24312ef59d83735e5",
     "version_tag": "25.06-py3",
     "triton_version": "2.59.0",
@@ -56,12 +56,14 @@
     "commit": "26250ae74d2c9a3c6860625ba4a147ddfb936907",
     "archive": "onnxruntime-linux-x64-1.19.0.tgz",
     "archive_url": "https://github.com/microsoft/onnxruntime/releases/download/v1.19.0/onnxruntime-linux-x64-1.19.0.tgz",
-    "archive_sha256": "TBD-compute-after-download",
+    "archive_sha256": "sha256:8627cae49b51544ed15bb70c8ecf25b187f22a301c99c1ced5f4f3af5c36b44c",
     "api_version": 19,
     "selected_provider": "CPUExecutionProvider",
     "cuda_ep_linked": false,
-    "readback_api": "Ort::GetAvailableProviders",
-    "readback_scope": "process-level",
+    "readback_api": "Triton ModelConfig/ModelStatistics",
+    "readback_scope": "gateway-observed-triton-runtime",
+    "provider_observation": "KIND_CPU instance-group readback plus successful ModelInfer",
+    "gateway_ort_linkage": "forbidden",
     "io_binding": "not-required-cpu-only"
   },
   "fixture_model": {

@@ -48,6 +48,10 @@
   },
   "bounds": {
     "http_concurrency_per_tab": 8,
+    "http_pending_requests_per_tab": 128,
+    "http_admission_timeout_ms": 5000,
+    "http_request_timeout_ms": 15000,
+    "http_response_bytes": 4194304,
     "sse_connections_per_tab": 1,
     "sse_event_bytes": 65536,
     "sse_pending_events": 1000,

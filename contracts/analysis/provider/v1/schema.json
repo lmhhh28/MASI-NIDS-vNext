@@ -5,7 +5,7 @@
   "oneOf": [{"$ref": "#/$defs/request"}, {"$ref": "#/$defs/response"}],
   "$defs": {
     "identity": {"type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"},
-    "digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "digest": {"type": "string", "pattern": "^sha256:(?!0{64}$)[0-9a-f]{64}$"},
     "texts": {"type": "array", "maxItems": 64, "items": {"type": "string", "minLength": 1, "maxLength": 2048}},
     "fact": {"type": "object", "additionalProperties": false, "required": ["id", "digest", "kind"], "properties": {"id": {"$ref": "#/$defs/identity"}, "digest": {"$ref": "#/$defs/digest"}, "kind": {"enum": ["event", "incident", "evidence", "runtime", "tool-result", "peer-result"]}, "summary": {"oneOf": [{"type": "null"}, {"type": "string", "maxLength": 2048}]}}},
     "request": {

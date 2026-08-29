@@ -7,9 +7,10 @@
   "properties": {
     "schema_version": {"const": "offline-ml-module-gates/v1"},
     "module_id": {"const": "MOD-ML-001"},
+    "run_id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{1,127}$"},
     "level": {"const": "MODULE"},
     "applicability": {"const": "APPLICABLE"},
-    "result": {"const": "PASS"},
+    "result": {"enum": ["PASS", "HOLD"]},
     "qualification": {"const": "NOT_QUALIFIED"},
     "generated_at": {"type": "string", "format": "date-time"},
     "source_revision": {"type": "string", "pattern": "^[0-9a-f]{40,64}$"},
@@ -28,7 +29,7 @@
     "overall_module_complete": {"const": true}
   },
   "$defs": {
-    "digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
-    "ref": {"type": "object", "additionalProperties": false, "required": ["path", "digest", "result"], "properties": {"path": {"type": "string", "minLength": 1}, "digest": {"$ref": "#/$defs/digest"}, "result": {"const": "PASS"}}}
+    "digest": {"type": "string", "pattern": "^sha256:(?!0{64}$)[0-9a-f]{64}$"},
+    "ref": {"type": "object", "additionalProperties": false, "required": ["path", "digest", "result"], "properties": {"path": {"type": "string", "minLength": 1}, "digest": {"$ref": "#/$defs/digest"}, "result": {"const": "PASS"}, "qualification": {"enum": ["QUALIFIED", "NOT_QUALIFIED"]}}}
   }
 }

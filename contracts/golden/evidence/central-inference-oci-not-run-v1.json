@@ -9,7 +9,7 @@
   "result": "NOT_RUN",
   "qualification": "NOT_QUALIFIED",
   "image_tag": "masi-inference-cpu:module-smoke",
-  "image_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+  "image_digest": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
   "non_root_uid": 65532,
   "read_only_rootfs": false,
   "cap_drop_all": false,

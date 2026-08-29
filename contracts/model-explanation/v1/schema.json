@@ -118,7 +118,7 @@
     }
   },
   "$defs": {
-    "digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "digest": {"type": "string", "pattern": "^sha256:(?!0{64}$)[0-9a-f]{64}$"},
     "finite_number": {"type": "number"},
     "feature_order": {
       "type": "array",
@@ -163,7 +163,7 @@
       "properties": {
         "candidate_id": {"enum": ["lr-window-binary/v1", "xgb-window-binary/v1", "ae-window-benign/v1"]},
         "model_id": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]{1,127}$"},
-        "revision": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+        "revision": {"type": "string", "pattern": "^(?!0{40}$)[0-9a-f]{40}$"},
         "bundle_digest": {"$ref": "#/$defs/digest"},
         "model_digest": {"$ref": "#/$defs/digest"},
         "seed": {"enum": [17, 29, 43]}
@@ -175,7 +175,7 @@
       "required": ["dataset_id", "dataset_revision", "dataset_manifest_digest", "feature_schema_digest", "scaler_digest", "label_taxonomy_digest", "output_adapter_digest", "sample_manifest_digest"],
       "properties": {
         "dataset_id": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]{1,127}$"},
-        "dataset_revision": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "dataset_revision": {"type": "string", "pattern": "^(?!0{64}$)[0-9a-f]{64}$"},
         "dataset_manifest_digest": {"$ref": "#/$defs/digest"},
         "feature_schema_digest": {"$ref": "#/$defs/digest"},
         "scaler_digest": {"$ref": "#/$defs/digest"},

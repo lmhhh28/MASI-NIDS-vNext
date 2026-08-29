@@ -249,7 +249,7 @@ export type PrepareFirewallActivationRequest = {
 
 export type FirewallRevisionInput = {
     revision_id: Identity;
-    revision_digest?: string;
+    revision_digest?: Digest;
     target_id: Identity;
     default_action: 'permit-and-continue' | 'drop';
     rules: Array<BaselineRule>;
@@ -266,7 +266,7 @@ export type OverlayIntentInput = {
     fleet_operation_id?: string;
     is_fleet_parent?: false;
     fence: Fence;
-    effect_digest?: string;
+    effect_digest?: Digest;
     effect_payload?: {
         [key: string]: unknown;
     };
@@ -418,7 +418,7 @@ export type RegisterPluginManifestRequest = {
 export type PluginManifestInput = {
     manifest_id: Identity;
     manifest_revision: number;
-    manifest_digest?: string;
+    manifest_digest?: Digest;
     plugin_id: Identity;
     kind: 'analysis-agent' | 'read-only-tool' | 'pure-transform';
     publisher: Identity;
@@ -439,8 +439,8 @@ export type PluginManifestInput = {
         queue_depth: number;
     };
     runtime_profile: 'wasm-component/v1' | 'grpc-service/v1';
-    wit_digest?: string;
-    service_proto_digest?: string;
+    wit_digest?: Digest;
+    service_proto_digest?: Digest;
     sbom_digest: Digest;
     provenance_digest: Digest;
     signature_status: 'signed';

@@ -713,7 +713,7 @@ components:
     Error503: {description: dependency unavailable or process not accepting mutations, content: {application/json: {schema: {$ref: '#/components/schemas/Error'}}}}
   schemas:
     Identity: {type: string, minLength: 1, maxLength: 128, pattern: '^[A-Za-z0-9][A-Za-z0-9._:-]*$'}
-    Digest: {type: string, pattern: '^sha256:[0-9a-f]{64}$'}
+    Digest: {type: string, pattern: '^sha256:(?!0{64}$)[0-9a-f]{64}$'}
     ReasonCode: {type: string, pattern: '^[A-Z][A-Z0-9_]{0,63}$'}
     IdempotencyKey: {type: string, minLength: 1, maxLength: 128, pattern: '^[A-Za-z0-9][A-Za-z0-9._:-]*$'}
     Error:
@@ -995,7 +995,7 @@ components:
       required: [revision_id, target_id, default_action, rules, scope]
       properties:
         revision_id: {$ref: '#/components/schemas/Identity'}
-        revision_digest: {type: string, maxLength: 71}
+        revision_digest: {$ref: '#/components/schemas/Digest'}
         target_id: {$ref: '#/components/schemas/Identity'}
         default_action: {enum: [permit-and-continue, drop]}
         rules: {type: array, maxItems: 4096, items: {$ref: '../../p4/firewall-policy/v1/schema.json#/$defs/baseline_rule'}}
@@ -1014,7 +1014,7 @@ components:
         fleet_operation_id: {type: string, maxLength: 128}
         is_fleet_parent: {const: false}
         fence: {$ref: '../../effect/v1/schema.json#/$defs/fence'}
-        effect_digest: {type: string, maxLength: 71}
+        effect_digest: {$ref: '#/components/schemas/Digest'}
         effect_payload: {type: object, maxProperties: 6}
         authorization_digest: {$ref: '#/components/schemas/Digest'}
         effect_kind: {const: firewall-overlay}
@@ -1169,7 +1169,7 @@ components:
       properties:
         manifest_id: {$ref: '#/components/schemas/Identity'}
         manifest_revision: {type: integer, minimum: 1}
-        manifest_digest: {type: string, maxLength: 71}
+        manifest_digest: {$ref: '#/components/schemas/Digest'}
         plugin_id: {$ref: '#/components/schemas/Identity'}
         kind: {enum: [analysis-agent, read-only-tool, pure-transform]}
         publisher: {$ref: '#/components/schemas/Identity'}
@@ -1189,8 +1189,8 @@ components:
             output_bytes: {type: integer, minimum: 1, maximum: 4194304}
             queue_depth: {type: integer, minimum: 1, maximum: 1024}
         runtime_profile: {enum: [wasm-component/v1, grpc-service/v1]}
-        wit_digest: {type: string, maxLength: 71}
-        service_proto_digest: {type: string, maxLength: 71}
+        wit_digest: {$ref: '#/components/schemas/Digest'}
+        service_proto_digest: {$ref: '#/components/schemas/Digest'}
         sbom_digest: {$ref: '#/components/schemas/Digest'}
         provenance_digest: {$ref: '#/components/schemas/Digest'}
         signature_status: {const: signed}

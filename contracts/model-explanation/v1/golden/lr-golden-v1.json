@@ -33,7 +33,7 @@
     },
     "background": {
       "status": "not_applicable",
-      "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+      "digest": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "sample_count": 0,
       "maximum": 256,
       "selection": "not-applicable-method-does-not-use-background"

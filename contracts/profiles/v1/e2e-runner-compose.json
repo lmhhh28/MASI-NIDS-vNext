@@ -22,6 +22,11 @@
     "distribution": "Alpine Linux",
     "distribution_version": "3.24.1",
     "architecture": "x86_64",
+    "python": "3.13.15",
+    "p4runtime": "1.4.1",
+    "grpcio": "1.80.0",
+    "ptf": "0.12.0",
+    "scapy": "2.6.1",
     "iproute2": {
       "tool_version": "7.0.0",
       "package_version": "7.0.0-r0"

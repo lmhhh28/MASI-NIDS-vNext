@@ -18,11 +18,11 @@
     "user": {"const": "65532:65532"},
     "entrypoint": {"const": ["/usr/local/bin/masi-offline-ml"]},
     "version": {"const": "masi-offline-ml 1.0.0"},
-    "container_id": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "container_id": {"type": "string", "pattern": "^(?!0{64}$)[0-9a-f]{64}$"},
     "full_pipeline_exit_code": {"const": 0},
     "full_pipeline_elapsed_ms": {"type": "number", "maximum": 30000},
     "candidate_executions": {"const": 9},
-    "dataset_revision": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "dataset_revision": {"type": "string", "pattern": "^(?!0{64}$)[0-9a-f]{64}$"},
     "model_digest": {"$ref": "#/$defs/digest"},
     "repository_closure_digest": {"$ref": "#/$defs/digest"},
     "archive_digest": {"$ref": "#/$defs/digest"},
@@ -34,5 +34,5 @@
     "service_health_endpoints": {"type": "object", "properties": {"applicability": {"const": "NOT_APPLICABLE"}, "stable_reason": {"type": "string"}}, "required": ["applicability", "stable_reason"]},
     "logs_digest": {"$ref": "#/$defs/digest"}
   },
-  "$defs": {"digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}}
+  "$defs": {"digest": {"type": "string", "pattern": "^sha256:(?!0{64}$)[0-9a-f]{64}$"}}
 }

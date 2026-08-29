@@ -3,10 +3,14 @@
   "$id": "https://masi-nids.example/contracts/evidence/edge-central-pairwise-rehearsal/v1/schema.json",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema_version", "run_id", "started_at", "finished_at", "participants", "real_boundaries", "fixtures", "triton_statistics", "edge_evidence", "central_oci_result", "process_logs", "level", "applicability", "result", "qualification", "qualification_scope"],
+  "required": ["schema_version", "run_id", "source_revision", "source_tree_digest", "working_tree_dirty", "working_tree_status_digest", "started_at", "finished_at", "participants", "real_boundaries", "fixtures", "triton_statistics", "edge_evidence", "central_oci_result", "process_logs", "cleanup", "level", "applicability", "result", "qualification", "qualification_scope"],
   "properties": {
     "schema_version": {"const": "edge-central-pairwise-rehearsal/v1"},
     "run_id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$"},
+    "source_revision": {"type": "string", "pattern": "^(?!0{40}$)[0-9a-f]{40}$"},
+    "source_tree_digest": {"$ref": "#/$defs/digest"},
+    "working_tree_dirty": {"type": "boolean"},
+    "working_tree_status_digest": {"$ref": "#/$defs/digest"},
     "started_at": {"type": "string", "format": "date-time"},
     "finished_at": {"type": "string", "format": "date-time"},
     "participants": {
@@ -67,11 +71,12 @@
         "triton": {"$ref": "#/$defs/digest"}
       }
     },
+    "cleanup": {"type": "object", "additionalProperties": false, "required": ["attempted", "result", "commands", "remaining_resources", "processes_reaped_or_not_started"], "properties": {"attempted": {"const": true}, "result": {"const": "PASS"}, "commands": {"type": "array", "maxItems": 0}, "remaining_resources": {"type": "array", "maxItems": 0}, "processes_reaped_or_not_started": {"type": "object", "additionalProperties": false, "required": ["edge", "central", "control", "plugin_sideplane", "analysis_sideplane", "observer"], "properties": {"edge": {"const": true}, "central": {"const": true}, "control": {"const": true}, "plugin_sideplane": {"const": true}, "analysis_sideplane": {"const": true}, "observer": {"const": true}}}}},
     "level": {"const": "REHEARSAL"},
     "applicability": {"const": "APPLICABLE"},
     "result": {"const": "PASS"},
     "qualification": {"const": "NOT_QUALIFIED"},
     "qualification_scope": {"type": "string", "minLength": 1, "maxLength": 512}
   },
-  "$defs": {"digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}}
+  "$defs": {"digest": {"type": "string", "pattern": "^sha256:(?!0{64}$)[0-9a-f]{64}$"}}
 }

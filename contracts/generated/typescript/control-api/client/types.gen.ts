@@ -48,7 +48,7 @@ export interface Config<T extends ClientOptions = ClientOptions>
   /**
    * Throw an error instead of returning it in the response?
    *
-   * @default false
+   * @default true
    */
   throwOnError?: T['throwOnError'];
 }

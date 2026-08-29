@@ -1,0 +1,65 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://masi-nids.example/contracts/evidence/quick-ci/v1/schema.json",
+  "title": "Hosted quick CI rehearsal summary",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "run_id", "source_revision", "jobs", "level", "applicability", "result", "qualification", "qualification_scope"],
+  "properties": {
+    "schema_version": {"const": "quick-ci-rehearsal-summary/v1"},
+    "run_id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$"},
+    "source_revision": {"type": "string", "pattern": "^(?!0{40}$)[0-9a-f]{40}$"},
+    "jobs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "repository-hygiene", "p4-contracts", "edge-rust", "plugin-host-rust",
+        "control-go", "postgresql-state", "analysis-python", "offline-ml-python",
+        "web", "inference-contracts"
+      ],
+      "properties": {
+        "repository-hygiene": {"$ref": "#/$defs/jobResult"},
+        "p4-contracts": {"$ref": "#/$defs/jobResult"},
+        "edge-rust": {"$ref": "#/$defs/jobResult"},
+        "plugin-host-rust": {"$ref": "#/$defs/jobResult"},
+        "control-go": {"$ref": "#/$defs/jobResult"},
+        "postgresql-state": {"$ref": "#/$defs/jobResult"},
+        "analysis-python": {"$ref": "#/$defs/jobResult"},
+        "offline-ml-python": {"$ref": "#/$defs/jobResult"},
+        "web": {"$ref": "#/$defs/jobResult"},
+        "inference-contracts": {"$ref": "#/$defs/jobResult"}
+      }
+    },
+    "level": {"const": "REHEARSAL"},
+    "applicability": {"const": "APPLICABLE"},
+    "result": {"enum": ["PASS", "FAIL"]},
+    "qualification": {"const": "NOT_QUALIFIED"},
+    "qualification_scope": {"const": "HOSTED_UNPRIVILEGED_FAST_FEEDBACK_ONLY; NO_MODULE_PAIRWISE_SYSTEM_OR_RELEASE_QUALIFICATION"}
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"result": {"const": "PASS"}}, "required": ["result"]},
+      "then": {
+        "properties": {
+          "jobs": {
+            "properties": {
+              "repository-hygiene": {"const": "success"},
+              "p4-contracts": {"const": "success"},
+              "edge-rust": {"const": "success"},
+              "plugin-host-rust": {"const": "success"},
+              "control-go": {"const": "success"},
+              "postgresql-state": {"const": "success"},
+              "analysis-python": {"const": "success"},
+              "offline-ml-python": {"const": "success"},
+              "web": {"const": "success"},
+              "inference-contracts": {"const": "success"}
+            }
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "jobResult": {"enum": ["success", "failure", "cancelled", "skipped"]}
+  }
+}

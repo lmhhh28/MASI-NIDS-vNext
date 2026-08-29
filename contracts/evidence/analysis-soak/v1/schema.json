@@ -13,5 +13,5 @@
     "resource_samples": {"type": "array", "minItems": 100, "maxItems": 1000, "items": {"type": "object", "additionalProperties": false, "required": ["phase", "elapsed_ms", "rss_bytes", "fd_count", "queue_depth", "in_flight"], "properties": {"phase": {"enum": ["steady", "peak", "saturation", "recovery"]}, "elapsed_ms": {"type": "number", "minimum": 0}, "rss_bytes": {"type": "integer", "minimum": 1}, "fd_count": {"type": "integer", "minimum": 1}, "queue_depth": {"type": "integer", "minimum": 0, "maximum": 16}, "in_flight": {"type": "integer", "minimum": 0, "maximum": 8}}}},
     "rss_growth_bytes": {"type": "integer", "maximum": 67108864}, "fd_growth": {"type": "integer", "maximum": 32}, "final_queue_depth": {"const": 0}, "final_in_flight": {"const": 0}, "binary_digest": {"$ref": "#/$defs/digest"}, "config_digest": {"$ref": "#/$defs/digest"}, "cleanup": {"const": true}, "process_exit_code": {"const": 0}, "checks": {"type": "object", "minProperties": 10, "maxProperties": 10, "additionalProperties": {"const": true}}
   },
-  "$defs": {"digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}}
+  "$defs": {"digest": {"type": "string", "pattern": "^sha256:(?!0{64}$)[0-9a-f]{64}$"}}
 }

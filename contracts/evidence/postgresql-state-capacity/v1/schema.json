@@ -37,7 +37,7 @@
   },
   "allOf": [{
     "if": {"properties": {"result": {"const": "PASS"}}, "required": ["result"]},
-    "then": {"properties": {"qualification": {"const": "QUALIFIED"}}}
+    "then": {"properties": {"qualification": {"const": "NOT_QUALIFIED"}}}
   }],
   "$defs": {
     "measurement": {

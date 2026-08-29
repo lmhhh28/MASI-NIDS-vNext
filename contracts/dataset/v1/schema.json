@@ -25,7 +25,7 @@
   "properties": {
     "schema_version": {"const": "dataset-p4-window-binary/v1"},
     "dataset_id": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]{1,127}$"},
-    "dataset_revision": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "dataset_revision": {"type": "string", "pattern": "^(?!0{64}$)[0-9a-f]{64}$"},
     "created_at": {"type": "string", "format": "date-time"},
     "status": {
       "type": "object",
@@ -47,7 +47,7 @@
         "version": {"type": "string", "pattern": "^v[0-9]+$"},
         "config_digest": {"$ref": "#/$defs/digest"},
         "toolchain_digest": {"$ref": "#/$defs/digest"},
-        "source_revision": {"type": "string", "pattern": "^(?:[0-9a-f]{40}|dirty:[0-9a-f]{64})$"}
+        "source_revision": {"type": "string", "pattern": "^(?:(?!0{40}$)[0-9a-f]{40}|dirty:(?!0{64}$)[0-9a-f]{64})$"}
       }
     },
     "feature_contract": {
@@ -81,16 +81,18 @@
     "extractor": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["profile_id", "implementation", "implementation_digest", "p4_golden_digest", "p4_program_digest", "p4info_digest", "pipeline_digest", "selector_digest", "cell_count", "bank_count", "snapshot_strategy", "golden_verified"],
+      "required": ["profile_id", "implementation", "implementation_digest", "p4_golden_digest", "p4_program_digest", "p4info_digest", "pipeline_digest", "selector_algorithm", "selector_seed_digest", "selector_digest_preimage", "cell_count", "bank_count", "snapshot_strategy", "golden_verified"],
       "properties": {
         "profile_id": {"const": "p4-window-reference-extractor/v1"},
         "implementation": {"enum": ["exact-bmv2-p4runtime", "qualified-reference-extractor"]},
         "implementation_digest": {"$ref": "#/$defs/digest"},
         "p4_golden_digest": {"$ref": "#/$defs/digest"},
-        "p4_program_digest": {"$ref": "#/$defs/digest"},
+        "p4_program_digest": {"$ref": "#/$defs/digest", "description": "SHA-256 of the exact P4_16 source artifact, not the compiled BMv2 JSON."},
         "p4info_digest": {"$ref": "#/$defs/digest"},
         "pipeline_digest": {"$ref": "#/$defs/digest"},
-        "selector_digest": {"$ref": "#/$defs/digest"},
+        "selector_algorithm": {"const": "p4-qualified-cell-selector/v1"},
+        "selector_seed_digest": {"$ref": "#/$defs/digest"},
+        "selector_digest_preimage": {"const": "target_id\\0source_profile_digest\\0epoch_decimal\\0cell_index_decimal"},
         "cell_count": {"const": 256},
         "bank_count": {"const": 2},
         "snapshot_strategy": {"const": "dual-bank-sequence-before-after"},
@@ -272,7 +274,7 @@
     }
   },
   "$defs": {
-    "digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "digest": {"type": "string", "pattern": "^sha256:(?!0{64}$)[0-9a-f]{64}$"},
     "relative_path": {"type": "string", "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))[a-zA-Z0-9][a-zA-Z0-9._/-]{0,511}$"},
     "feature_order": {
       "type": "array",
@@ -389,6 +391,8 @@
     {"constraint_id": "DATASET-FEATURE-BYTES", "operator": "multiply-equals", "fields": ["/files/features/record_count", "/files/features/record_bytes", "/files/features/bytes"]},
     {"constraint_id": "DATASET-SPLIT-SUM", "operator": "sum-equals", "fields": ["/quality_summary/split_counts", "/quality_summary/sample_count"]},
     {"constraint_id": "DATASET-GROUND-TRUTH-COVERAGE", "operator": "ratio-equals", "fields": ["/quality_summary/ground_truth/labeled_eligible_packets", "/quality_summary/ground_truth/eligible_packets", "/quality_summary/ground_truth/coverage"]},
-    {"constraint_id": "DATASET-SOURCE-DECISION", "operator": "source-decision-status-consistent", "fields": ["/source_profiles"]}
+    {"constraint_id": "DATASET-SOURCE-DECISION", "operator": "source-decision-status-consistent", "fields": ["/source_profiles"]},
+    {"constraint_id": "DATASET-EXTRACTOR-P4-SOURCE", "operator": "equals-qualified-p4-source-artifact", "fields": ["/extractor/p4_program_digest"]},
+    {"constraint_id": "DATASET-EXTRACTOR-SELECTOR", "operator": "algorithm-seed-preimage-not-per-cell-placeholder", "fields": ["/extractor/selector_algorithm", "/extractor/selector_seed_digest", "/extractor/selector_digest_preimage"]}
   ]
 }

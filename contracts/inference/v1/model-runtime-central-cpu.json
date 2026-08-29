@@ -44,16 +44,16 @@
         "commit": {"const": "26250ae74d2c9a3c6860625ba4a147ddfb936907"},
         "archive": {"const": "onnxruntime-linux-x64-1.19.0.tgz"},
         "archive_url": {"const": "https://github.com/microsoft/onnxruntime/releases/download/v1.19.0/onnxruntime-linux-x64-1.19.0.tgz"},
-        "archive_sha256": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+        "archive_sha256": {"type": "string", "pattern": "^sha256:(?!0{64}$)[0-9a-f]{64}$"},
         "api_version": {"const": 19},
         "provider": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["selected", "available_providers_assertion", "cuda_ep_linkage"],
+          "required": ["selected", "selection_observation", "cuda_ep_policy"],
           "properties": {
             "selected": {"const": "CPUExecutionProvider"},
-            "available_providers_assertion": {"const": "exactly-CPUExecutionProvider-at-startup"},
-            "cuda_ep_linkage": {"const": "not-linked-cpu-only-archive"}
+            "selection_observation": {"const": "Triton-KIND_CPU-readback-plus-successful-ModelInfer"},
+            "cuda_ep_policy": {"const": "not-selected-and-no-GPU-device-exposed"}
           }
         },
         "provider_partition_policy": {
@@ -66,10 +66,11 @@
             "readback_mechanism": {
               "type": "object",
               "additionalProperties": false,
-              "required": ["api", "scope", "ort_version_constraint"],
+              "required": ["api", "scope", "gateway_ort_linkage", "ort_version_constraint"],
               "properties": {
-                "api": {"const": "Ort::GetAvailableProviders"},
-                "scope": {"const": "process-level"},
+                "api": {"const": "Triton ModelConfig/ModelStatistics"},
+                "scope": {"const": "gateway-observed-triton-runtime"},
+                "gateway_ort_linkage": {"const": "forbidden"},
                 "ort_version_constraint": {"const": "ORT_1_19_x_no_per_session_ep_graph_assignment_info"}
               }
             }

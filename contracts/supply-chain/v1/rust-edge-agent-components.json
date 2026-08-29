@@ -38,7 +38,7 @@
     {
       "name": "Cargo.lock dependency closure",
       "decision": "ADOPT",
-      "digest": "sha256:30dc546e3c448e5db6fb1fe542bbdd2e86fa07d5c0ab3789fef74ccfeed66ab6",
+      "digest": "sha256:3f04c8d6d4eab51b394af590e1d829c46d5bdaee181352634f12cd04886015bb",
       "license": "per-package SPDX license in source/image SBOM",
       "authority": "library code only within Edge ownership; cannot create a second control plane",
       "runtime_download": false,
@@ -93,7 +93,7 @@
     {
       "name": "rustls-ring TLS stack through Tonic",
       "decision": "ADOPT",
-      "version": "Cargo.lock closure sha256:30dc546e3c448e5db6fb1fe542bbdd2e86fa07d5c0ab3789fef74ccfeed66ab6",
+      "version": "Cargo.lock closure sha256:3f04c8d6d4eab51b394af590e1d829c46d5bdaee181352634f12cd04886015bb",
       "license": "per-package SPDX license in source/image SBOM",
       "authority": "mTLS authentication and encryption only; endpoint allowlist remains Edge-owned",
       "runtime_download": false,

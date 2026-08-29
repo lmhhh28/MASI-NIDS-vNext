@@ -12,7 +12,7 @@
     "task_id": {"$ref": "#/$defs/identity"},
     "run_id": {"$ref": "#/$defs/identity"},
     "plugin_id": {"$ref": "#/$defs/identity"},
-    "plugin_revision": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "plugin_revision": {"type": "string", "pattern": "^(?!0{40}$)[0-9a-f]{40}$"},
     "config_digest": {"$ref": "#/$defs/digest"},
     "binding_generation": {"type": "integer", "minimum": 1},
     "input_digest": {"$ref": "#/$defs/digest"},
@@ -43,7 +43,7 @@
   },
   "$defs": {
     "identity": {"type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"},
-    "digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "digest": {"type": "string", "pattern": "^sha256:(?!0{64}$)[0-9a-f]{64}$"},
     "texts": {"type": "array", "maxItems": 128, "items": {"type": "string", "minLength": 1, "maxLength": 4096}},
     "grounded_claim": {
       "type": "object", "additionalProperties": false, "required": ["claim", "evidence_refs"],
@@ -61,10 +61,20 @@
         "model_digest": {"$ref": "#/$defs/digest"},
         "scaler_digest": {"oneOf": [{"type": "null"}, {"$ref": "#/$defs/digest"}]},
         "sample_digest": {"$ref": "#/$defs/digest"},
-        "coverage": {"type": "number", "minimum": 0, "maximum": 1},
+        "coverage": {"type": "number", "exclusiveMinimum": 0, "maximum": 1},
         "truncated": {"type": "boolean"},
-        "limitations": {"type": "array", "maxItems": 32, "items": {"type": "string", "minLength": 1, "maxLength": 1024}}
-      }
+        "limitations": {"type": "array", "minItems": 1, "maxItems": 32, "uniqueItems": true, "items": {"type": "string", "minLength": 1, "maxLength": 1024}}
+      },
+      "allOf": [
+        {
+          "if": {"properties": {"method": {"const": "tree-shap"}}, "required": ["method"]},
+          "then": {"properties": {"background_digest": {"$ref": "#/$defs/digest"}}}
+        },
+        {
+          "if": {"properties": {"method": {"enum": ["logistic-contribution", "reconstruction-residual"]}}, "required": ["method"]},
+          "then": {"properties": {"scaler_digest": {"$ref": "#/$defs/digest"}}}
+        }
+      ]
     },
     "recommendation": {
       "type": "object", "additionalProperties": false,

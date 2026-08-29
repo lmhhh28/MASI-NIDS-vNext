@@ -4,13 +4,16 @@
   "title": "Full deployable-set startup rehearsal evidence",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema_version", "run_id", "started_at", "finished_at", "source_revision", "profile", "components", "real_connected_boundaries", "remaining_unintegrated_boundaries", "operational_startup_result", "level", "applicability", "result", "qualification", "qualification_scope", "full_system_e2e"],
+  "required": ["schema_version", "run_id", "started_at", "finished_at", "source_revision", "source_tree_digest", "working_tree_dirty", "working_tree_status_digest", "profile", "components", "cleanup", "real_connected_boundaries", "remaining_unintegrated_boundaries", "operational_startup_result", "level", "applicability", "result", "qualification", "qualification_scope", "full_system_e2e"],
   "properties": {
     "schema_version": {"const": "system-startup-rehearsal/v1"},
     "run_id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$"},
     "started_at": {"type": "string", "format": "date-time"},
     "finished_at": {"type": "string", "format": "date-time"},
-    "source_revision": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "source_revision": {"type": "string", "pattern": "^(?!0{40}$)[0-9a-f]{40}$"},
+    "source_tree_digest": {"type": "string", "pattern": "^sha256:(?!0{64}$)[0-9a-f]{64}$"},
+    "working_tree_dirty": {"type": "boolean"},
+    "working_tree_status_digest": {"type": "string", "pattern": "^sha256:(?!0{64}$)[0-9a-f]{64}$"},
     "profile": {"const": "full-deployable-startup-rehearsal/v1"},
     "components": {
       "type": "array",
@@ -19,17 +22,43 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["component_id", "actual_runtime", "boundary_scope", "neighbor_mode", "duration_ms", "exit_code", "result", "log_digest"],
+        "required": ["component_id", "actual_runtime", "process_reaped", "boundary_scope", "neighbor_mode", "duration_ms", "exit_code", "result", "log_digest"],
         "properties": {
           "component_id": {"enum": ["p4-switch", "edge", "central-inference", "control-postgresql-web", "go-analysis-pairwise", "plugin-host", "plugin-statistics-wasm", "analysis-agent", "offline-ml"]},
-          "actual_runtime": {"const": true},
+          "actual_runtime": {"type": "boolean"},
+          "process_reaped": {"const": true},
           "boundary_scope": {"type": "string", "minLength": 1, "maxLength": 256},
           "neighbor_mode": {"enum": ["real", "external-fixture", "isolated", "mixed"]},
           "duration_ms": {"type": "integer", "minimum": 0, "maximum": 21600000},
           "exit_code": {"type": "integer", "minimum": 0, "maximum": 255},
           "result": {"enum": ["PASS", "FAIL", "HOLD"]},
-          "log_digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}
-        }
+          "log_digest": {"type": "string", "pattern": "^sha256:(?!0{64}$)[0-9a-f]{64}$"}
+        },
+        "allOf": [
+          {
+            "if": {"properties": {"result": {"enum": ["PASS", "HOLD"]}}, "required": ["result"]},
+            "then": {"properties": {"actual_runtime": {"const": true}}}
+          }
+        ]
+      }
+    },
+    "cleanup": {
+      "type": "object", "additionalProperties": false,
+      "required": ["schema_version", "attempted", "result", "component_processes_reaped", "new_docker_resources", "run_identity_process_residuals"],
+      "properties": {
+        "schema_version": {"const": "system-startup-cleanup/v1"},
+        "attempted": {"const": true}, "result": {"const": "PASS"},
+        "component_processes_reaped": {"const": true},
+        "new_docker_resources": {
+          "type": "object", "additionalProperties": false,
+          "required": ["containers", "networks", "volumes"],
+          "properties": {
+            "containers": {"type": "array", "maxItems": 0},
+            "networks": {"type": "array", "maxItems": 0},
+            "volumes": {"type": "array", "maxItems": 0}
+          }
+        },
+        "run_identity_process_residuals": {"type": "array", "maxItems": 0}
       }
     },
     "real_connected_boundaries": {"type": "array", "minItems": 2, "maxItems": 32, "uniqueItems": true, "items": {"type": "string", "minLength": 1, "maxLength": 128}},

@@ -40,6 +40,10 @@
     "query_cache_bytes": 16777216,
     "chart_instances": 4,
     "dom_nodes": 5000,
+    "heap_growth_bytes": 67108864,
+    "resource_timing_entries": 10000,
+    "event_listener_growth": 64,
+    "application_timer_growth": 0,
     "route_navigation_p95_ms": 500,
     "long_task_ms_max": 200
   },

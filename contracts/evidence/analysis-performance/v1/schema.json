@@ -13,5 +13,5 @@
     "resources": {"type": "object", "additionalProperties": false, "required": ["rss_bytes", "fd_count", "thread_count", "cpu_user_seconds", "cpu_system_seconds", "voluntary_context_switches", "involuntary_context_switches", "io_read_bytes", "io_write_bytes"], "properties": {"rss_bytes": {"type": "integer", "minimum": 1, "maximum": 402653184}, "fd_count": {"type": "integer", "minimum": 1, "maximum": 512}, "thread_count": {"type": "integer", "minimum": 1, "maximum": 512}, "cpu_user_seconds": {"type": "number", "minimum": 0}, "cpu_system_seconds": {"type": "number", "minimum": 0}, "voluntary_context_switches": {"type": "integer", "minimum": 0}, "involuntary_context_switches": {"type": "integer", "minimum": 0}, "io_read_bytes": {"type": "integer", "minimum": 0}, "io_write_bytes": {"type": "integer", "minimum": 0}}},
     "cleanup": {"const": true}, "process_exit_code": {"const": 0}, "checks": {"type": "object", "minProperties": 7, "maxProperties": 7, "additionalProperties": {"const": true}}
   },
-  "$defs": {"digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}}
+  "$defs": {"digest": {"type": "string", "pattern": "^sha256:(?!0{64}$)[0-9a-f]{64}$"}}
 }

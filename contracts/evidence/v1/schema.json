@@ -8,6 +8,10 @@
     "schema_version",
     "module",
     "run_id",
+    "source_revision",
+    "source_tree_digest",
+    "working_tree_dirty",
+    "working_tree_status_digest",
     "started_at",
     "finished_at",
     "level",
@@ -16,6 +20,8 @@
     "qualification",
     "claim_scope",
     "environment",
+    "phase_bindings",
+    "cleanup",
     "tests",
     "performance",
     "remaining_holds",
@@ -27,6 +33,10 @@
     "schema_version": {"const": "qualification-evidence/v1"},
     "module": {"const": "p4-switch"},
     "run_id": {"type": "string", "minLength": 1, "maxLength": 128},
+    "source_revision": {"type": "string", "pattern": "^(?!0{40}$)[0-9a-f]{40}$"},
+    "source_tree_digest": {"type": "string", "pattern": "^sha256:(?!0{64}$)[0-9a-f]{64}$"},
+    "working_tree_dirty": {"type": "boolean"},
+    "working_tree_status_digest": {"type": "string", "pattern": "^sha256:(?!0{64}$)[0-9a-f]{64}$"},
     "started_at": {"type": "string", "format": "date-time"},
     "finished_at": {"type": "string", "format": "date-time"},
     "level": {"enum": ["REHEARSAL", "MODULE", "PAIRWISE", "SYSTEM_E2E", "PRODUCTION"]},
@@ -58,16 +68,115 @@
         "availability_profile": {"const": "availability-single/v1"},
         "deployment_tier": {"const": "acceptance"},
         "topology_profile": {"const": "p4-traffic-replay-bmv2-compose/v1"},
-        "environment_profile_digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
-        "runtime_digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
-        "program_digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
-        "p4info_digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
-        "device_config_digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
-        "config_digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
-        "contract_set_digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}
+        "environment_profile_digest": {"type": "string", "pattern": "^sha256:(?!0{64}$)[0-9a-f]{64}$"},
+        "runtime_digest": {"type": "string", "pattern": "^sha256:(?!0{64}$)[0-9a-f]{64}$"},
+        "program_digest": {"type": "string", "pattern": "^sha256:(?!0{64}$)[0-9a-f]{64}$"},
+        "p4info_digest": {"type": "string", "pattern": "^sha256:(?!0{64}$)[0-9a-f]{64}$"},
+        "device_config_digest": {"type": "string", "pattern": "^sha256:(?!0{64}$)[0-9a-f]{64}$"},
+        "config_digest": {"type": "string", "pattern": "^sha256:(?!0{64}$)[0-9a-f]{64}$"},
+        "contract_set_digest": {"type": "string", "pattern": "^sha256:(?!0{64}$)[0-9a-f]{64}$"}
       }
     },
     "environment": {"type": "object", "minProperties": 1},
+    "phase_bindings": {
+      "type": "array",
+      "minItems": 12,
+      "maxItems": 12,
+      "uniqueItems": true,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["phase", "run_id", "source_revision", "source_tree_digest", "working_tree_dirty", "working_tree_status_digest", "document_digest"],
+        "properties": {
+          "phase": {"enum": ["unit", "runner-environment", "compiler", "p4testgen", "mininet", "functional", "performance", "crash-orchestration", "crash-recovery", "lifecycle", "soak", "supply-chain"]},
+          "run_id": {"type": "string", "minLength": 1, "maxLength": 128},
+          "source_revision": {"type": "string", "pattern": "^(?!0{40}$)[0-9a-f]{40}$"},
+          "source_tree_digest": {"type": "string", "pattern": "^sha256:(?!0{64}$)[0-9a-f]{64}$"},
+          "working_tree_dirty": {"type": "boolean"},
+          "working_tree_status_digest": {"type": "string", "pattern": "^sha256:(?!0{64}$)[0-9a-f]{64}$"},
+          "document_digest": {"type": "string", "pattern": "^sha256:(?!0{64}$)[0-9a-f]{64}$"}
+        }
+      }
+    },
+    "cleanup": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema_version", "run_id", "source_revision", "source_tree_digest", "working_tree_dirty", "working_tree_status_digest", "finished_at", "attempted", "result", "qualification", "commands", "remaining_resources", "host_checks", "query_error", "host_error"],
+      "properties": {
+        "schema_version": {"const": "p4-global-cleanup/v1"},
+        "run_id": {"type": "string", "minLength": 1, "maxLength": 128},
+        "source_revision": {"type": "string", "pattern": "^(?!0{40}$)[0-9a-f]{40}$"},
+        "source_tree_digest": {"type": "string", "pattern": "^sha256:(?!0{64}$)[0-9a-f]{64}$"},
+        "working_tree_dirty": {"type": "boolean"},
+        "working_tree_status_digest": {"type": "string", "pattern": "^sha256:(?!0{64}$)[0-9a-f]{64}$"},
+        "finished_at": {"type": "string", "format": "date-time"},
+        "attempted": {"type": "boolean"},
+        "result": {"enum": ["PASS", "FAIL"]},
+        "qualification": {"enum": ["QUALIFIED", "NOT_QUALIFIED"]},
+        "commands": {
+          "type": "array",
+          "maxItems": 8,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["command", "exit_code", "output", "timed_out"],
+            "properties": {
+              "command": {"type": "array", "minItems": 1, "maxItems": 32, "items": {"type": "string", "maxLength": 4096}},
+              "exit_code": {"type": "integer", "minimum": 0, "maximum": 255},
+              "output": {"type": "string", "maxLength": 4096},
+              "timed_out": {"type": "boolean"}
+            }
+          }
+        },
+        "remaining_resources": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["containers", "networks", "volumes"],
+          "properties": {
+            "containers": {"type": "array", "maxItems": 128, "items": {"type": "string", "minLength": 1, "maxLength": 128}},
+            "networks": {"type": "array", "maxItems": 128, "items": {"type": "string", "minLength": 1, "maxLength": 128}},
+            "volumes": {"type": "array", "maxItems": 128, "items": {"type": "string", "minLength": 1, "maxLength": 128}}
+          }
+        },
+        "host_checks": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["mininet_phase_cleanup_valid", "mininet_host_processes_absent", "mininet_switch_interfaces_absent", "host_interface_masi_s1_absent", "host_interface_masi_s2_absent"],
+          "properties": {
+            "mininet_phase_cleanup_valid": {"type": "boolean"},
+            "mininet_host_processes_absent": {"type": "boolean"},
+            "mininet_switch_interfaces_absent": {"type": "boolean"},
+            "host_interface_masi_s1_absent": {"type": "boolean"},
+            "host_interface_masi_s2_absent": {"type": "boolean"}
+          }
+        },
+        "query_error": {"type": "string", "maxLength": 1024},
+        "host_error": {"type": "string", "maxLength": 1024}
+      },
+      "allOf": [
+        {
+          "if": {"properties": {"result": {"const": "PASS"}}, "required": ["result"]},
+          "then": {
+            "properties": {
+              "qualification": {"const": "QUALIFIED"},
+              "attempted": {"const": true},
+              "query_error": {"const": ""},
+              "host_error": {"const": ""},
+              "host_checks": {
+                "properties": {
+                  "mininet_phase_cleanup_valid": {"const": true},
+                  "mininet_host_processes_absent": {"const": true},
+                  "mininet_switch_interfaces_absent": {"const": true},
+                  "host_interface_masi_s1_absent": {"const": true},
+                  "host_interface_masi_s2_absent": {"const": true}
+                }
+              }
+            }
+          },
+          "else": {"properties": {"qualification": {"const": "NOT_QUALIFIED"}}}
+        }
+      ]
+    },
     "tests": {
       "type": "array",
       "minItems": 1,
@@ -89,7 +198,14 @@
           "qualification": {"enum": ["QUALIFIED", "NOT_QUALIFIED"]},
           "duration_ms": {"type": "number", "minimum": 0},
           "evidence": {"type": "object"}
-        }
+        },
+        "allOf": [
+          {
+            "if": {"properties": {"result": {"const": "PASS"}}, "required": ["result"]},
+            "then": {"properties": {"qualification": {"const": "QUALIFIED"}}},
+            "else": {"properties": {"qualification": {"const": "NOT_QUALIFIED"}}}
+          }
+        ]
       }
     },
     "performance": {
@@ -106,7 +222,14 @@
           "packet_oracle_pps": {"type": "number", "minimum": 0},
           "result": {"enum": ["PASS", "FAIL", "HOLD", "NOT_RUN"]},
           "qualification": {"enum": ["QUALIFIED", "NOT_QUALIFIED"]}
-        }
+        },
+        "allOf": [
+          {
+            "if": {"properties": {"result": {"const": "PASS"}}, "required": ["result"]},
+            "then": {"properties": {"qualification": {"const": "QUALIFIED"}}},
+            "else": {"properties": {"qualification": {"const": "NOT_QUALIFIED"}}}
+          }
+        ]
       }
     },
     "remaining_holds": {"type": "array", "items": {"type": "string", "minLength": 1}},
@@ -117,7 +240,7 @@
       "properties": {
         "open_total": {"type": "integer", "minimum": 0, "maximum": 4096},
         "open_p0": {"type": "integer", "minimum": 0, "maximum": 4096},
-        "registry_digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}
+        "registry_digest": {"type": "string", "pattern": "^sha256:(?!0{64}$)[0-9a-f]{64}$"}
       }
     },
     "completion": {
@@ -173,8 +296,12 @@
         "required": ["result"]
       },
       "then": {
-        "properties": {"overall_module_complete": {"const": true}}
-      }
+        "properties": {
+          "overall_module_complete": {"const": true},
+          "qualification": {"const": "QUALIFIED"}
+        }
+      },
+      "else": {"properties": {"qualification": {"const": "NOT_QUALIFIED"}}}
     }
   ]
 }

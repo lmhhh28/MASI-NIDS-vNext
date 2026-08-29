@@ -18,5 +18,5 @@
     "cleanup_complete": {"const": true},
     "artifact_identity": {"type": "object", "minProperties": 3, "additionalProperties": {"$ref": "#/$defs/digest"}}
   },
-  "$defs": {"digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}}
+  "$defs": {"digest": {"type": "string", "pattern": "^sha256:(?!0{64}$)[0-9a-f]{64}$"}}
 }

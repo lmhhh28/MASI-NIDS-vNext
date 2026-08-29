@@ -10,7 +10,7 @@
   "vectors": [
     {
       "vector_id": "numeric-valid-benign-v1",
-      "input_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+      "input_digest": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
       "output_digest": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
       "python_reference_match": true,
       "class_order_correct": true,
@@ -33,7 +33,7 @@
     {
       "vector_id": "numeric-nan-reject-v1",
       "input_digest": "sha256:4444444444444444444444444444444444444444444444444444444444444444",
-      "output_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+      "output_digest": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
       "python_reference_match": true,
       "class_order_correct": true,
       "nan_inf_rejected": true,

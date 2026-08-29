@@ -40,6 +40,6 @@
     "reason_code": {"const": "MODULE_OCI_BOUNDARY_VERIFIED"}
   },
   "$defs": {
-    "digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}
+    "digest": {"type": "string", "pattern": "^sha256:(?!0{64}$)[0-9a-f]{64}$"}
   }
 }

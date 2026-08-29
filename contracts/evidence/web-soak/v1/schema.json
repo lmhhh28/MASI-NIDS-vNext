@@ -1,0 +1,177 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://masi-nids.example/contracts/evidence/web-soak/v1/schema.json",
+  "title": "Web runtime soak evidence",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "module_id", "profile", "base_url", "source_tree_digest", "image_digest",
+    "browser", "started_at", "finished_at", "warmup_seconds", "warmup_excluded", "phase_seconds",
+    "phases", "qualified_elapsed_seconds", "samples", "maxima", "recovery", "errors",
+    "measurement_holds", "level", "applicability", "result", "qualification", "qualification_scope"
+  ],
+  "properties": {
+    "schema_version": {"const": "web-soak-evidence/v1"},
+    "module_id": {"const": "MOD-WEB-001"},
+    "profile": {"const": "qualification-soak-3600s/v1"},
+    "base_url": {"type": "string", "format": "uri", "maxLength": 2048},
+    "source_tree_digest": {"$ref": "#/$defs/nullable_digest"},
+    "image_digest": {"$ref": "#/$defs/nullable_digest"},
+    "browser": {"$ref": "#/$defs/browser"},
+    "started_at": {"type": "string", "format": "date-time"},
+    "finished_at": {"type": "string", "format": "date-time"},
+    "warmup_seconds": {"type": "integer", "minimum": 0, "maximum": 3600},
+    "warmup_excluded": {"const": true},
+    "phase_seconds": {"type": "integer", "minimum": 0, "maximum": 7200},
+    "phases": {
+      "type": "array", "minItems": 4, "maxItems": 4,
+      "prefixItems": [
+        {"$ref": "#/$defs/steady_phase"}, {"$ref": "#/$defs/peak_phase"},
+        {"$ref": "#/$defs/saturation_phase"}, {"$ref": "#/$defs/recovery_phase"}
+      ],
+      "items": false
+    },
+    "qualified_elapsed_seconds": {"type": "number", "minimum": 0, "maximum": 28860},
+    "samples": {"type": "array", "maxItems": 10000, "items": {"$ref": "#/$defs/sample"}},
+    "maxima": {"$ref": "#/$defs/maxima"},
+    "recovery": {
+      "type": "object", "additionalProperties": false,
+      "required": ["network_offline_online"],
+      "properties": {"network_offline_online": {"type": "boolean"}}
+    },
+    "errors": {"$ref": "#/$defs/reasons"},
+    "measurement_holds": {"$ref": "#/$defs/reasons"},
+    "level": {"const": "MODULE"},
+    "applicability": {"const": "APPLICABLE"},
+    "result": {"enum": ["PASS", "HOLD", "FAIL"]},
+    "qualification": {"enum": ["QUALIFIED", "NOT_QUALIFIED"]},
+    "qualification_scope": {"type": "string", "minLength": 1, "maxLength": 512}
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"result": {"const": "PASS"}}, "required": ["result"]},
+      "then": {
+        "properties": {
+          "source_tree_digest": {"$ref": "#/$defs/digest"},
+          "image_digest": {"$ref": "#/$defs/digest"},
+          "errors": {"maxItems": 0},
+          "measurement_holds": {"maxItems": 0},
+          "samples": {"minItems": 1}
+        }
+      }
+    },
+    {
+      "if": {"properties": {"result": {"const": "HOLD"}}, "required": ["result"]},
+      "then": {"properties": {"errors": {"maxItems": 0}, "measurement_holds": {"minItems": 1}}}
+    },
+    {
+      "if": {"properties": {"result": {"const": "FAIL"}}, "required": ["result"]},
+      "then": {"properties": {"errors": {"minItems": 1}}}
+    },
+    {
+      "if": {"properties": {"qualification": {"const": "QUALIFIED"}}, "required": ["qualification"]},
+      "then": {
+        "properties": {
+          "warmup_seconds": {"const": 60},
+          "phase_seconds": {"const": 900},
+          "qualified_elapsed_seconds": {"minimum": 3600},
+          "result": {"const": "PASS"}
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "digest": {"type": "string", "pattern": "^sha256:(?!0{64}$)[0-9a-f]{64}$"},
+    "nullable_digest": {"oneOf": [{"$ref": "#/$defs/digest"}, {"type": "null"}]},
+    "nullable_nonnegative": {"type": ["number", "null"], "minimum": 0},
+    "nullable_signed": {"type": ["number", "null"]},
+    "reasons": {
+      "type": "array", "maxItems": 10000, "uniqueItems": true,
+      "items": {"type": "string", "minLength": 1, "maxLength": 1024}
+    },
+    "browser": {
+      "type": "object", "additionalProperties": false,
+      "required": ["engine", "expected_product_build", "expected_version", "observed_version", "expected_playwright_revision", "observed_playwright_revision"],
+      "properties": {
+        "engine": {"const": "chromium"},
+        "expected_product_build": {"type": "string", "minLength": 1, "maxLength": 128},
+        "expected_version": {"type": "string", "minLength": 1, "maxLength": 64},
+        "observed_version": {"type": "string", "minLength": 1, "maxLength": 64},
+        "expected_playwright_revision": {"type": "integer", "minimum": 1},
+        "observed_playwright_revision": {"type": ["integer", "null"], "minimum": 1}
+      }
+    },
+    "phase": {
+      "type": "object", "additionalProperties": false,
+      "required": ["phase", "elapsed_seconds", "iterations", "samples"],
+      "properties": {
+        "phase": {"enum": ["steady", "peak", "saturation", "recovery"]},
+        "elapsed_seconds": {"type": "number", "minimum": 0, "maximum": 7260},
+        "iterations": {"type": "integer", "minimum": 0},
+        "samples": {"type": "integer", "minimum": 0}
+      }
+    },
+    "steady_phase": {"allOf": [{"$ref": "#/$defs/phase"}, {"properties": {"phase": {"const": "steady"}}}]},
+    "peak_phase": {"allOf": [{"$ref": "#/$defs/phase"}, {"properties": {"phase": {"const": "peak"}}}]},
+    "saturation_phase": {"allOf": [{"$ref": "#/$defs/phase"}, {"properties": {"phase": {"const": "saturation"}}}]},
+    "recovery_phase": {"allOf": [{"$ref": "#/$defs/phase"}, {"properties": {"phase": {"const": "recovery"}}}]},
+    "sample": {
+      "type": "object", "additionalProperties": false,
+      "required": [
+        "phase", "elapsed_seconds", "heap_bytes", "documents", "frames", "nodes_metric",
+        "event_listeners", "dom_nodes", "canvases", "resource_entries", "current_path",
+        "query_cache_entries", "query_cache_bytes", "chart_instances", "application_timers",
+        "runtime_readback_status", "api_active", "sse_active"
+      ],
+      "properties": {
+        "phase": {"enum": ["warmup", "steady", "peak", "saturation", "recovery", "final"]},
+        "elapsed_seconds": {"type": "number", "minimum": 0, "maximum": 33000},
+        "heap_bytes": {"$ref": "#/$defs/nullable_nonnegative"},
+        "documents": {"$ref": "#/$defs/nullable_nonnegative"},
+        "frames": {"$ref": "#/$defs/nullable_nonnegative"},
+        "nodes_metric": {"$ref": "#/$defs/nullable_nonnegative"},
+        "event_listeners": {"$ref": "#/$defs/nullable_nonnegative"},
+        "dom_nodes": {"type": "integer", "minimum": 1},
+        "canvases": {"type": "integer", "minimum": 0},
+        "resource_entries": {"type": "integer", "minimum": 0},
+        "current_path": {"type": "string", "pattern": "^/", "maxLength": 2048},
+        "query_cache_entries": {"$ref": "#/$defs/nullable_nonnegative"},
+        "query_cache_bytes": {"$ref": "#/$defs/nullable_nonnegative"},
+        "chart_instances": {"$ref": "#/$defs/nullable_nonnegative"},
+        "application_timers": {"$ref": "#/$defs/nullable_nonnegative"},
+        "runtime_readback_status": {"enum": ["MEASURED", "NOT_MEASURED"]},
+        "api_active": {"type": "integer", "minimum": 0},
+        "sse_active": {"type": "integer", "minimum": 0}
+      }
+    },
+    "maxima": {
+      "type": "object", "additionalProperties": false,
+      "required": [
+        "heap_bytes", "heap_growth_bytes", "dom_nodes", "canvases", "resource_entries",
+        "event_listeners", "event_listener_growth", "documents", "document_growth", "frames",
+        "frame_growth", "query_cache_entries", "query_cache_bytes", "chart_instances",
+        "application_timers", "application_timer_growth", "api_concurrency", "sse_connections_per_tab"
+      ],
+      "properties": {
+        "heap_bytes": {"$ref": "#/$defs/nullable_nonnegative"},
+        "heap_growth_bytes": {"$ref": "#/$defs/nullable_signed"},
+        "dom_nodes": {"$ref": "#/$defs/nullable_nonnegative"},
+        "canvases": {"$ref": "#/$defs/nullable_nonnegative"},
+        "resource_entries": {"$ref": "#/$defs/nullable_nonnegative"},
+        "event_listeners": {"$ref": "#/$defs/nullable_nonnegative"},
+        "event_listener_growth": {"$ref": "#/$defs/nullable_signed"},
+        "documents": {"$ref": "#/$defs/nullable_nonnegative"},
+        "document_growth": {"$ref": "#/$defs/nullable_signed"},
+        "frames": {"$ref": "#/$defs/nullable_nonnegative"},
+        "frame_growth": {"$ref": "#/$defs/nullable_signed"},
+        "query_cache_entries": {"$ref": "#/$defs/nullable_nonnegative"},
+        "query_cache_bytes": {"$ref": "#/$defs/nullable_nonnegative"},
+        "chart_instances": {"$ref": "#/$defs/nullable_nonnegative"},
+        "application_timers": {"$ref": "#/$defs/nullable_nonnegative"},
+        "application_timer_growth": {"$ref": "#/$defs/nullable_signed"},
+        "api_concurrency": {"type": "integer", "minimum": 0},
+        "sse_connections_per_tab": {"type": "integer", "minimum": 0}
+      }
+    }
+  }
+}

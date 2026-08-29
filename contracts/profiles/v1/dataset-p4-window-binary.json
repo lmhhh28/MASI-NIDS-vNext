@@ -30,7 +30,12 @@
   "extractor": {
     "profile_id": "p4-window-reference-extractor/v1",
     "p4_golden": "contracts/golden/telemetry/snapshot-v1.json",
-    "p4_golden_digest": "sha256:7fe11b023a6514aa2aa7c39d7aafee9c3f9a64c88425967b088528c03e906213",
+    "p4_golden_digest": "sha256:0c9544c45de4caa42edff5cd65cb0d50c3fe96d3a3d7052432600c3ba6648c0b",
+    "p4_target_profile": "contracts/profiles/v1/p4-stateless-firewall-bmv2.json",
+    "p4_program_digest_semantics": "sha256-exact-p4-source-artifact",
+    "selector_algorithm": "p4-qualified-cell-selector/v1",
+    "selector_seed": "source-profile-digest",
+    "selector_digest_preimage": "target_id\\0source_profile_digest\\0epoch_decimal\\0cell_index_decimal",
     "cell_count": 256,
     "bank_count": 2,
     "snapshot_strategy": "dual-bank-sequence-before-after",

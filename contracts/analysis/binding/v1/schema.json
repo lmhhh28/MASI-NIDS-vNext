@@ -8,7 +8,7 @@
   "properties": {
     "schema_version": {"const": "masi-analysis-binding/v1"},
     "plugin_id": {"const": "masi.analysis.langgraph"},
-    "plugin_revision": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "plugin_revision": {"type": "string", "pattern": "^(?!0{40}$)[0-9a-f]{40}$"},
     "manifest_digest": {"$ref": "#/$defs/digest"},
     "manifest_content_digest": {"$ref": "#/$defs/digest"},
     "config_digest": {"$ref": "#/$defs/digest"},
@@ -29,7 +29,7 @@
   },
   "$defs": {
     "identity": {"type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"},
-    "digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}
+    "digest": {"type": "string", "pattern": "^sha256:(?!0{64}$)[0-9a-f]{64}$"}
   },
   "x-masi-semantic-constraints": [
     {"constraint_id": "ANALYSIS-BINDING-EXACT-ACTIVE", "fields": ["/activation_state", "/qualification_status"], "operator": "active-requires-qualified"},

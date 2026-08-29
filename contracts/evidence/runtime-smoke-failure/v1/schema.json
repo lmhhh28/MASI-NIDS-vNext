@@ -1,0 +1,82 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://masi-nids.example/contracts/evidence/runtime-smoke-failure/v1/schema.json",
+  "title": "Bounded Runtime Smoke Failure V1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "module",
+    "module_id",
+    "run_id",
+    "generated_at",
+    "timeout_seconds",
+    "timed_out",
+    "exit_code",
+    "result",
+    "qualification",
+    "stable_reason",
+    "source_revision",
+    "source_tree_digest",
+    "working_tree_dirty",
+    "working_tree_status_digest",
+    "argv",
+    "log"
+  ],
+  "properties": {
+    "schema_version": {"const": "runtime-smoke-failure/v1"},
+    "module": {"enum": ["p4", "edge", "inference", "control", "db", "plugin-host", "analysis", "offline-ml", "web"]},
+    "module_id": {"enum": ["MOD-SW-001", "MOD-EDGE-001", "MOD-INF-001", "MOD-CTRL-001", "MOD-DB-001", "MOD-PLUGIN-001", "MOD-AGENT-001", "MOD-ML-001", "MOD-WEB-001"]},
+    "run_id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$"},
+    "generated_at": {"type": "string", "format": "date-time"},
+    "timeout_seconds": {"type": "integer", "minimum": 1, "maximum": 21600},
+    "timed_out": {"type": "boolean"},
+    "exit_code": {"type": "integer", "minimum": 1, "maximum": 255},
+    "result": {"enum": ["FAIL", "HOLD"]},
+    "qualification": {"const": "NOT_QUALIFIED"},
+    "stable_reason": {"enum": ["RUNTIME_SMOKE_FAILED", "RUNTIME_SMOKE_TIMED_OUT", "RUNTIME_SMOKE_HOLD", "RUNTIME_SMOKE_LAUNCH_FAILED"]},
+    "source_revision": {"type": "string", "pattern": "^(?!0{40}$)[0-9a-f]{40}$"},
+    "source_tree_digest": {"$ref": "#/$defs/digest"},
+    "working_tree_dirty": {"type": "boolean"},
+    "working_tree_status_digest": {"$ref": "#/$defs/digest"},
+    "argv": {"type": "array", "minItems": 1, "maxItems": 128, "items": {"type": "string", "maxLength": 4096}},
+    "log": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "digest", "bytes", "truncated", "maximum_bytes"],
+      "properties": {
+        "path": {"const": "runtime-smoke.log"},
+        "digest": {"$ref": "#/$defs/digest"},
+        "bytes": {"type": "integer", "minimum": 0, "maximum": 67108864},
+        "truncated": {"type": "boolean"},
+        "maximum_bytes": {"const": 67108864}
+      }
+    }
+  },
+  "allOf": [
+    {"if": {"properties": {"module": {"const": "p4"}}, "required": ["module"]}, "then": {"properties": {"module_id": {"const": "MOD-SW-001"}}}},
+    {"if": {"properties": {"module": {"const": "edge"}}, "required": ["module"]}, "then": {"properties": {"module_id": {"const": "MOD-EDGE-001"}}}},
+    {"if": {"properties": {"module": {"const": "inference"}}, "required": ["module"]}, "then": {"properties": {"module_id": {"const": "MOD-INF-001"}}}},
+    {"if": {"properties": {"module": {"const": "control"}}, "required": ["module"]}, "then": {"properties": {"module_id": {"const": "MOD-CTRL-001"}}}},
+    {"if": {"properties": {"module": {"const": "db"}}, "required": ["module"]}, "then": {"properties": {"module_id": {"const": "MOD-DB-001"}}}},
+    {"if": {"properties": {"module": {"const": "plugin-host"}}, "required": ["module"]}, "then": {"properties": {"module_id": {"const": "MOD-PLUGIN-001"}}}},
+    {"if": {"properties": {"module": {"const": "analysis"}}, "required": ["module"]}, "then": {"properties": {"module_id": {"const": "MOD-AGENT-001"}}}},
+    {"if": {"properties": {"module": {"const": "offline-ml"}}, "required": ["module"]}, "then": {"properties": {"module_id": {"const": "MOD-ML-001"}}}},
+    {"if": {"properties": {"module": {"const": "web"}}, "required": ["module"]}, "then": {"properties": {"module_id": {"const": "MOD-WEB-001"}}}},
+    {
+      "if": {"properties": {"timed_out": {"const": true}}, "required": ["timed_out"]},
+      "then": {"properties": {"exit_code": {"const": 124}, "result": {"const": "FAIL"}, "stable_reason": {"const": "RUNTIME_SMOKE_TIMED_OUT"}}}
+    },
+    {
+      "if": {"properties": {"result": {"const": "HOLD"}}, "required": ["result"]},
+      "then": {"properties": {"exit_code": {"const": 2}, "stable_reason": {"const": "RUNTIME_SMOKE_HOLD"}}}
+    },
+    {
+      "if": {"properties": {"stable_reason": {"const": "RUNTIME_SMOKE_LAUNCH_FAILED"}}, "required": ["stable_reason"]},
+      "then": {"properties": {"exit_code": {"const": 127}, "result": {"const": "FAIL"}, "timed_out": {"const": false}}}
+    }
+  ],
+  "$defs": {
+    "digest": {"type": "string", "pattern": "^sha256:(?!0{64}$)[0-9a-f]{64}$"}
+  }
+}

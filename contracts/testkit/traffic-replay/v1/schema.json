@@ -40,7 +40,7 @@
   },
   "$defs": {
     "identity": {"type": "string", "minLength": 1, "maxLength": 128},
-    "digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "digest": {"type": "string", "pattern": "^sha256:(?!0{64}$)[0-9a-f]{64}$"},
     "source": {
       "type": "object",
       "additionalProperties": false,
@@ -208,11 +208,16 @@
     "runner_environment": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["distribution", "distribution_version", "architecture", "iproute2", "tcpreplay"],
+      "required": ["distribution", "distribution_version", "architecture", "python", "p4runtime", "grpcio", "ptf", "scapy", "iproute2", "tcpreplay"],
       "properties": {
         "distribution": {"const": "Alpine Linux"},
         "distribution_version": {"const": "3.24.1"},
         "architecture": {"const": "x86_64"},
+        "python": {"const": "3.13.15"},
+        "p4runtime": {"const": "1.4.1"},
+        "grpcio": {"const": "1.80.0"},
+        "ptf": {"const": "0.12.0"},
+        "scapy": {"const": "2.6.1"},
         "iproute2": {
           "type": "object",
           "additionalProperties": false,

@@ -53,7 +53,7 @@
         "exact": {"type": "boolean"},
         "extra_model_rejected": {"type": "boolean"},
         "read_only_mount": {"type": "boolean"},
-        "closure_digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}
+        "closure_digest": {"type": "string", "pattern": "^sha256:(?!0{64}$)[0-9a-f]{64}$"}
       }
     },
     "instance_group_explicit": {"type": "boolean"},
@@ -66,7 +66,7 @@
         "identity_exact": {"type": "boolean"},
         "digest_match": {"type": "boolean"},
         "loaded_not_current": {"type": "boolean"},
-        "pool_observation_digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}
+        "pool_observation_digest": {"type": "string", "pattern": "^sha256:(?!0{64}$)[0-9a-f]{64}$"}
       }
     },
     "startup_stages": {

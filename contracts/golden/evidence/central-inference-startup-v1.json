@@ -16,7 +16,7 @@
     "exact": true,
     "extra_model_rejected": true,
     "read_only_mount": true,
-    "closure_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+    "closure_digest": "sha256:1111111111111111111111111111111111111111111111111111111111111111"
   },
   "instance_group_explicit": true,
   "implicit_instance_group_rejected": true,
@@ -24,7 +24,7 @@
     "identity_exact": true,
     "digest_match": true,
     "loaded_not_current": true,
-    "pool_observation_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+    "pool_observation_digest": "sha256:1111111111111111111111111111111111111111111111111111111111111111"
   },
   "startup_stages": [
     {"name": "read-profile", "started_at": "2026-08-16T00:00:00Z", "finished_at": "2026-08-16T00:00:01Z", "result": "PASS", "duration_ms": 1000},

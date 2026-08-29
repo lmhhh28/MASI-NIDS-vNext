@@ -34,7 +34,7 @@
     "schema_version": {"const": "central-inference-cpu-supply-release/v1"},
     "release_id": {"type": "string", "pattern": "^central-inference-cpu-supply-[A-Za-z0-9][A-Za-z0-9._-]{0,127}$", "maxLength": 160},
     "created_at": {"type": "string", "format": "date-time", "maxLength": 64},
-    "source_revision": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "source_revision": {"type": "string", "pattern": "^(?!0{40}$)[0-9a-f]{40}$"},
     "source_tree_digest": {"$ref": "#/$defs/sha256"},
     "working_tree_dirty": {"type": "boolean"},
     "working_tree_status_digest": {"$ref": "#/$defs/sha256"},
@@ -141,9 +141,9 @@
     "resource_limits": {"$ref": "#/$defs/resourceLimits"}
   },
   "$defs": {
-    "sha256": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "sha256": {"type": "string", "pattern": "^sha256:(?!0{64}$)[0-9a-f]{64}$"},
     "safePath": {"type": "string", "pattern": "^(?!\\.{1,2}(?:/|$))(?!.*\\/\\.{1,2}(?:/|$))[-A-Za-z0-9._+@=()]+(?:/[-A-Za-z0-9._+@=()]+)*$", "minLength": 1, "maxLength": 1024},
-    "pinnedImage": {"type": "string", "pattern": "^[^\\s@]+@sha256:[0-9a-f]{64}$", "maxLength": 512},
+    "pinnedImage": {"type": "string", "pattern": "^[^\\s@]+@sha256:(?!0{64}$)[0-9a-f]{64}$", "maxLength": 512},
     "digestFile": {
       "type": "object",
       "additionalProperties": false,
@@ -183,7 +183,7 @@
           "type": "object",
           "additionalProperties": false,
           "required": ["sha256"],
-          "properties": {"sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}}
+          "properties": {"sha256": {"type": "string", "pattern": "^(?!0{64}$)[0-9a-f]{64}$"}}
         }
       }
     },

@@ -37,7 +37,7 @@
     "applicability": {"const": "APPLICABLE"},
     "result": {"enum": ["PASS", "HOLD", "FAIL", "NOT_RUN"]},
     "qualification": {"enum": ["QUALIFIED", "NOT_QUALIFIED"]},
-    "source_revision": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "source_revision": {"type": "string", "pattern": "^(?!0{40}$)[0-9a-f]{40}$"},
     "source_tree_digest": {"$ref": "#/$defs/sha256"},
     "working_tree_dirty": {"type": "boolean"},
     "working_tree_status_digest": {"$ref": "#/$defs/sha256"},
@@ -50,7 +50,7 @@
       ]
     },
     "archive": {"$ref": "#/$defs/ociArchiveInspection"},
-    "baseline_git_tree": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "baseline_git_tree": {"type": "string", "pattern": "^(?!0{40}$)[0-9a-f]{40}$"},
     "cap_drop": {"type": "array", "maxItems": 64, "items": {"type": "string", "maxLength": 128}},
     "checks": {
       "anyOf": [
@@ -79,7 +79,7 @@
     "module_id": {"const": "MOD-EDGE-001"},
     "nano_cpus": {"type": "integer", "minimum": 1},
     "negative_verification": {"$ref": "#/$defs/negativeVerification"},
-    "nightly_commit": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "nightly_commit": {"type": "string", "pattern": "^(?!0{40}$)[0-9a-f]{40}$"},
     "offline_rebuild_digest": {"$ref": "#/$defs/sha256"},
     "overall_status": {"enum": ["PASS", "HOLD", "FAIL", "NOT_RUN"]},
     "pids_limit": {"type": "integer", "minimum": 1},
@@ -328,7 +328,7 @@
     }
   ],
   "$defs": {
-    "sha256": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "sha256": {"type": "string", "pattern": "^sha256:(?!0{64}$)[0-9a-f]{64}$"},
     "emptyObject": {"type": "object", "maxProperties": 0},
     "status": {"enum": ["PASS", "HOLD", "FAIL", "NOT_RUN"]},
     "moduleArtifactDigests": {
@@ -468,7 +468,7 @@
         "known_p0_count": {"type": "integer", "minimum": 0, "maximum": 4096},
         "real_startup_test_blocker_count": {"type": "integer", "minimum": 0, "maximum": 11},
         "findings_registry": {"const": "edge-rs/module-findings.json"},
-        "findings_registry_digest": {"$ref": "#/$defs/sha256"},
+        "findings_registry_digest": {"anyOf": [{"$ref": "#/$defs/sha256"}, {"type": "null"}]},
         "blockers": {
           "type": "array",
           "maxItems": 12,
@@ -502,6 +502,7 @@
             "status": {"const": "COMPLETE"},
             "known_p0_count": {"const": 0},
             "real_startup_test_blocker_count": {"const": 0},
+            "findings_registry_digest": {"$ref": "#/$defs/sha256"},
             "blockers": {"maxItems": 0},
             "criteria": {"additionalProperties": {"const": "PASS"}},
             "evidence_digests": {"$ref": "#/$defs/completeCompletionEvidenceDigests"}

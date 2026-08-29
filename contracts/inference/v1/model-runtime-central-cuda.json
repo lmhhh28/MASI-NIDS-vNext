@@ -46,7 +46,7 @@
         "commit": {"const": "26250ae74d2c9a3c6860625ba4a147ddfb936907"},
         "archive": {"const": "onnxruntime-linux-x64-gpu-1.19.0.tgz"},
         "archive_url": {"const": "https://github.com/microsoft/onnxruntime/releases/download/v1.19.0/onnxruntime-linux-x64-gpu-1.19.0.tgz"},
-        "archive_sha256": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+        "archive_sha256": {"type": "string", "pattern": "^sha256:(?!0{64}$)[0-9a-f]{64}$"},
         "api_version": {"const": 19},
         "provider": {
           "type": "object",

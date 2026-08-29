@@ -53,7 +53,7 @@
   "allOf": [{
     "if": {"properties": {"result": {"const": "PASS"}}, "required": ["result"]},
     "then": {"properties": {
-      "qualification": {"const": "QUALIFIED"},
+      "qualification": {"const": "NOT_QUALIFIED"},
       "pitr": {"properties": {
         "basebackup_verified": {"const": true}, "archive_failures": {"const": 0},
         "included_marker_present": {"const": true}, "excluded_marker_absent": {"const": true},
@@ -66,5 +66,5 @@
       }}
     }}
   }],
-  "$defs": {"digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}}
+  "$defs": {"digest": {"type": "string", "pattern": "^sha256:(?!0{64}$)[0-9a-f]{64}$"}}
 }

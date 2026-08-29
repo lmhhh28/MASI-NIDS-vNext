@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://masi-nids.example/contracts/evidence/module-runner-failure/v1/schema.json",
+  "title": "Formal module runner failure evidence",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "module", "module_id", "run_id", "generated_at",
+    "failed_command_id", "exit_code", "result", "qualification",
+    "stable_reason", "source_revision", "source_tree_digest",
+    "working_tree_status_digest", "command_evidence", "log_evidence",
+    "overall_module_complete"
+  ],
+  "properties": {
+    "schema_version": {"const": "module-runner-failure/v1"},
+    "module": {"enum": ["p4", "edge", "inference", "control", "db", "plugin-host", "analysis", "offline-ml", "web"]},
+    "module_id": {"enum": ["MOD-SW-001", "MOD-EDGE-001", "MOD-INF-001", "MOD-CTRL-001", "MOD-DB-001", "MOD-PLUGIN-001", "MOD-AGENT-001", "MOD-ML-001", "MOD-WEB-001"]},
+    "run_id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$"},
+    "generated_at": {"type": "string", "format": "date-time"},
+    "failed_command_id": {"type": "string", "pattern": "^[a-z][a-z0-9-]{0,63}$"},
+    "exit_code": {"type": "integer", "minimum": 1, "maximum": 255},
+    "result": {"enum": ["HOLD", "FAIL"]},
+    "qualification": {"const": "NOT_QUALIFIED"},
+    "stable_reason": {"type": "string", "pattern": "^[A-Z][A-Z0-9_]{3,127}$"},
+    "source_revision": {"type": "string", "pattern": "^(?!0{40}$)[0-9a-f]{40}$"},
+    "source_tree_digest": {"$ref": "#/$defs/sha256"},
+    "working_tree_status_digest": {"$ref": "#/$defs/sha256"},
+    "command_evidence": {"$ref": "#/$defs/fileRef"},
+    "log_evidence": {"$ref": "#/$defs/fileRef"},
+    "overall_module_complete": {"const": false}
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"result": {"const": "HOLD"}}, "required": ["result"]},
+      "then": {"properties": {"exit_code": {"const": 2}}}
+    },
+    {"if": {"properties": {"module": {"const": "p4"}}}, "then": {"properties": {"module_id": {"const": "MOD-SW-001"}}}},
+    {"if": {"properties": {"module": {"const": "edge"}}}, "then": {"properties": {"module_id": {"const": "MOD-EDGE-001"}}}},
+    {"if": {"properties": {"module": {"const": "inference"}}}, "then": {"properties": {"module_id": {"const": "MOD-INF-001"}}}},
+    {"if": {"properties": {"module": {"const": "control"}}}, "then": {"properties": {"module_id": {"const": "MOD-CTRL-001"}}}},
+    {"if": {"properties": {"module": {"const": "db"}}}, "then": {"properties": {"module_id": {"const": "MOD-DB-001"}}}},
+    {"if": {"properties": {"module": {"const": "plugin-host"}}}, "then": {"properties": {"module_id": {"const": "MOD-PLUGIN-001"}}}},
+    {"if": {"properties": {"module": {"const": "analysis"}}}, "then": {"properties": {"module_id": {"const": "MOD-AGENT-001"}}}},
+    {"if": {"properties": {"module": {"const": "offline-ml"}}}, "then": {"properties": {"module_id": {"const": "MOD-ML-001"}}}},
+    {"if": {"properties": {"module": {"const": "web"}}}, "then": {"properties": {"module_id": {"const": "MOD-WEB-001"}}}}
+  ],
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^sha256:(?!0{64}$)[0-9a-f]{64}$"},
+    "fileRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "digest", "bytes"],
+      "properties": {
+        "path": {"type": "string", "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))[A-Za-z0-9._/-]{1,512}$"},
+        "digest": {"$ref": "#/$defs/sha256"},
+        "bytes": {"type": "integer", "minimum": 0, "maximum": 67108864}
+      }
+    }
+  }
+}

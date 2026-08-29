@@ -43,14 +43,14 @@
     "applicability": {"const": "APPLICABLE"},
     "result": {"enum": ["PASS", "HOLD", "FAIL", "NOT_RUN"]},
     "qualification": {"enum": ["QUALIFIED", "NOT_QUALIFIED"]},
-    "source_revision": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
-    "source_tree_digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "source_revision": {"type": "string", "pattern": "^(?!0{40}$)[0-9a-f]{40}$"},
+    "source_tree_digest": {"type": "string", "pattern": "^sha256:(?!0{64}$)[0-9a-f]{64}$"},
     "working_tree_dirty": {"type": "boolean"},
-    "working_tree_status_digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "working_tree_status_digest": {"type": "string", "pattern": "^sha256:(?!0{64}$)[0-9a-f]{64}$"},
     "overall_module_complete": {"type": "boolean"},
     "run_id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$"},
     "generated_at": {"type": "string", "format": "date-time"},
-    "baseline_git_tree": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "baseline_git_tree": {"type": "string", "pattern": "^(?!0{40}$)[0-9a-f]{40}$"},
     "overall_status": {"enum": ["PASS", "HOLD", "FAIL", "NOT_RUN"]},
     "module_id": {"const": "MOD-CTRL-001"},
     "completion": {"type": "object"},
@@ -82,7 +82,7 @@
       ],
       "additionalProperties": {
         "type": ["string", "null"],
-        "pattern": "^sha256:[0-9a-f]{64}$"
+        "pattern": "^sha256:(?!0{64}$)[0-9a-f]{64}$"
       }
     },
     "requirement_traceability": {
@@ -90,12 +90,12 @@
       "required": ["manifest", "digest", "requirement_count"],
       "properties": {
         "manifest": {"const": "control-go/requirements-traceability.json"},
-        "digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+        "digest": {"type": "string", "pattern": "^sha256:(?!0{64}$)[0-9a-f]{64}$"},
         "requirement_count": {"type": "integer", "minimum": 1}
       }
     },
     "findings_registry": {"type": "string", "minLength": 1, "maxLength": 256},
-    "findings_registry_digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "findings_registry_digest": {"type": "string", "pattern": "^sha256:(?!0{64}$)[0-9a-f]{64}$"},
     "blackbox_e2e": {
       "type": "object",
       "additionalProperties": false,

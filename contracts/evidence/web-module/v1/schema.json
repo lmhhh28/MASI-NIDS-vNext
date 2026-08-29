@@ -11,6 +11,7 @@
     "run_id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{1,127}$"},
     "started_at": {"type": "string", "format": "date-time"},
     "finished_at": {"type": "string", "format": "date-time"},
+    "source_revision": {"type": "string", "pattern": "^[0-9a-f]{40,64}$"},
     "source_tree_digest": {"$ref": "#/$defs/digest"},
     "working_tree_dirty": {"type": "boolean"},
     "working_tree_status_digest": {"$ref": "#/$defs/digest"},
@@ -54,13 +55,13 @@
       "additionalProperties": false,
       "required": ["lcp_p75_ms", "inp_p75_ms", "cls_p75", "route_navigation_p95_ms", "api_concurrency", "sse_connections_per_tab", "result"],
       "properties": {
-        "lcp_p75_ms": {"type": "number", "minimum": 0, "maximum": 2500},
-        "inp_p75_ms": {"type": "number", "minimum": 0, "maximum": 200},
-        "cls_p75": {"type": "number", "minimum": 0, "maximum": 0.1},
-        "route_navigation_p95_ms": {"type": "number", "minimum": 0, "maximum": 500},
-        "api_concurrency": {"type": "integer", "minimum": 0, "maximum": 8},
-        "sse_connections_per_tab": {"type": "integer", "minimum": 0, "maximum": 1},
-        "result": {"const": "PASS"}
+        "lcp_p75_ms": {"type": ["number", "null"], "minimum": 0, "maximum": 2500},
+        "inp_p75_ms": {"type": ["number", "null"], "minimum": 0, "maximum": 200},
+        "cls_p75": {"type": ["number", "null"], "minimum": 0, "maximum": 0.1},
+        "route_navigation_p95_ms": {"type": ["number", "null"], "minimum": 0, "maximum": 500},
+        "api_concurrency": {"type": ["integer", "null"], "minimum": 0, "maximum": 8},
+        "sse_connections_per_tab": {"type": ["integer", "null"], "minimum": 0, "maximum": 1},
+        "result": {"enum": ["PASS", "HOLD", "FAIL", "NOT_RUN"]}
       }
     },
     "oci": {
@@ -89,11 +90,40 @@
         "result": {"const": "PASS"}
       }
     },
+    "manual_accessibility": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["result", "qualification", "evidence_digest", "passed_flows"],
+      "properties": {
+        "result": {"enum": ["PASS", "HOLD", "FAIL", "NOT_RUN"]},
+        "qualification": {"enum": ["QUALIFIED", "NOT_QUALIFIED"]},
+        "evidence_digest": {"$ref": "#/$defs/digest"},
+        "passed_flows": {"type": "integer", "minimum": 0, "maximum": 4}
+      }
+    },
     "findings": {
       "type": "object",
       "additionalProperties": false,
       "required": ["open_p0", "registry_digest"],
       "properties": {"open_p0": {"const": 0}, "registry_digest": {"$ref": "#/$defs/digest"}}
+    },
+    "qualification_gates": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["automated_accessibility", "manual_accessibility", "module_operational", "go_web_pairwise", "protected_release_baseline", "system_e2e", "production_ha"],
+      "properties": {
+        "automated_accessibility": {"enum": ["PASS", "FAIL"]},
+        "manual_accessibility": {"enum": ["PASS", "HOLD", "FAIL", "NOT_RUN"]},
+        "module_operational": {"enum": ["PASS", "HOLD"]},
+        "go_web_pairwise": {"const": "HOLD"},
+        "protected_release_baseline": {"const": "HOLD"},
+        "system_e2e": {"const": "HOLD"},
+        "production_ha": {"const": "HOLD"}
+      }
+    },
+    "remaining_holds": {
+      "type": "array", "minItems": 3, "maxItems": 8, "uniqueItems": true,
+      "items": {"type": "string", "minLength": 1, "maxLength": 512}
     },
     "level": {"const": "MODULE"},
     "applicability": {"const": "APPLICABLE"},
@@ -102,8 +132,23 @@
     "qualification_scope": {"type": "string", "minLength": 1, "maxLength": 512},
     "overall_module_complete": {"type": "boolean"}
   },
+  "allOf": [
+    {
+      "if": {"properties": {"overall_module_complete": {"const": true}}, "required": ["overall_module_complete"]},
+      "then": {
+        "properties": {
+          "commands": {"items": {"properties": {"result": {"const": "PASS"}}}},
+          "manual_accessibility": {
+            "properties": {"result": {"const": "PASS"}, "qualification": {"const": "QUALIFIED"}, "passed_flows": {"const": 4}}
+          },
+          "qualification_gates": {"properties": {"module_operational": {"const": "PASS"}}},
+          "result": {"const": "HOLD"}
+        }
+      }
+    }
+  ],
   "$defs": {
-    "digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "digest": {"type": "string", "pattern": "^sha256:(?!0{64}$)[0-9a-f]{64}$"},
     "command": {
       "type": "object",
       "additionalProperties": false,

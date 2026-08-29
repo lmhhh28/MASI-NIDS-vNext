@@ -1,0 +1,281 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://masi-nids.example/contracts/evidence/web-performance/v1/schema.json",
+  "title": "Web performance measurement evidence",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "module_id", "profile", "measured_at", "source_tree_digest", "image_digest",
+    "base_url", "browser", "environment", "workload", "thresholds", "groups", "samples",
+    "failures", "measurement_holds", "level", "applicability", "result", "qualification",
+    "qualification_scope"
+  ],
+  "properties": {
+    "schema_version": {"const": "web-performance-evidence/v1"},
+    "module_id": {"const": "MOD-WEB-001"},
+    "profile": {"const": "web-performance/v1"},
+    "measured_at": {"type": "string", "format": "date-time"},
+    "source_tree_digest": {"$ref": "#/$defs/nullable_digest"},
+    "image_digest": {"$ref": "#/$defs/nullable_digest"},
+    "base_url": {"type": "string", "format": "uri", "maxLength": 2048},
+    "browser": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["engine", "expected_product_build", "expected_version", "observed_version", "expected_playwright_revision", "observed_playwright_revision"],
+      "properties": {
+        "engine": {"const": "chromium"},
+        "expected_product_build": {"type": "string", "minLength": 1, "maxLength": 128},
+        "expected_version": {"type": "string", "minLength": 1, "maxLength": 64},
+        "observed_version": {"type": "string", "minLength": 1, "maxLength": 64},
+        "expected_playwright_revision": {"type": "integer", "minimum": 1},
+        "observed_playwright_revision": {"type": ["integer", "null"], "minimum": 1}
+      }
+    },
+    "environment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["platform", "release", "cpu_model", "logical_cpus", "total_memory_bytes", "free_memory_bytes_end"],
+      "properties": {
+        "platform": {"type": "string", "minLength": 1, "maxLength": 64},
+        "release": {"type": "string", "minLength": 1, "maxLength": 256},
+        "cpu_model": {"type": "string", "minLength": 1, "maxLength": 512},
+        "logical_cpus": {"type": "integer", "minimum": 1, "maximum": 65536},
+        "total_memory_bytes": {"type": "integer", "minimum": 1},
+        "free_memory_bytes_end": {"type": "integer", "minimum": 0}
+      }
+    },
+    "workload": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["cold_trials", "warm_trials", "networks", "viewports"],
+      "properties": {
+        "cold_trials": {"type": "integer", "minimum": 1, "maximum": 1000},
+        "warm_trials": {"type": "integer", "minimum": 1, "maximum": 1000},
+        "networks": {"type": "array", "minItems": 2, "maxItems": 2, "items": {"$ref": "#/$defs/network"}},
+        "viewports": {"type": "array", "minItems": 2, "maxItems": 2, "items": {"$ref": "#/$defs/viewport"}}
+      }
+    },
+    "thresholds": {"$ref": "#/$defs/thresholds"},
+    "groups": {"type": "array", "minItems": 8, "maxItems": 8, "items": {"$ref": "#/$defs/group"}},
+    "samples": {"type": "array", "maxItems": 10000, "items": {"$ref": "#/$defs/sample"}},
+    "failures": {"$ref": "#/$defs/reasons"},
+    "measurement_holds": {"$ref": "#/$defs/reasons"},
+    "level": {"const": "MODULE"},
+    "applicability": {"const": "APPLICABLE"},
+    "result": {"enum": ["PASS", "HOLD", "FAIL"]},
+    "qualification": {"const": "NOT_QUALIFIED"},
+    "qualification_scope": {"type": "string", "minLength": 1, "maxLength": 512}
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"result": {"const": "PASS"}}, "required": ["result"]},
+      "then": {
+        "properties": {
+          "source_tree_digest": {"$ref": "#/$defs/digest"},
+          "image_digest": {"$ref": "#/$defs/digest"},
+          "failures": {"maxItems": 0},
+          "measurement_holds": {"maxItems": 0},
+          "groups": {"items": {"$ref": "#/$defs/fully_measured_group"}}
+        }
+      }
+    },
+    {
+      "if": {"properties": {"result": {"const": "HOLD"}}, "required": ["result"]},
+      "then": {"properties": {"failures": {"maxItems": 0}, "measurement_holds": {"minItems": 1}}}
+    },
+    {
+      "if": {"properties": {"result": {"const": "FAIL"}}, "required": ["result"]},
+      "then": {"properties": {"failures": {"minItems": 1}}}
+    }
+  ],
+  "$defs": {
+    "digest": {"type": "string", "pattern": "^sha256:(?!0{64}$)[0-9a-f]{64}$"},
+    "nullable_digest": {"oneOf": [{"$ref": "#/$defs/digest"}, {"type": "null"}]},
+    "nullable_number": {"type": ["number", "null"], "minimum": 0},
+    "nullable_integer": {"type": ["integer", "null"], "minimum": 0},
+    "reasons": {
+      "type": "array", "maxItems": 10000, "uniqueItems": true,
+      "items": {"type": "string", "minLength": 1, "maxLength": 1024}
+    },
+    "network": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "latency", "downMbps", "upMbps"],
+      "properties": {
+        "id": {"enum": ["controlled-lan", "controlled-weak"]},
+        "latency": {"type": "number", "minimum": 0},
+        "downMbps": {"type": "number", "exclusiveMinimum": 0},
+        "upMbps": {"type": "number", "exclusiveMinimum": 0}
+      }
+    },
+    "viewport": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "width", "height"],
+      "properties": {
+        "id": {"enum": ["soc-desktop", "soc-narrow-readonly"]},
+        "width": {"type": "integer", "minimum": 1},
+        "height": {"type": "integer", "minimum": 1}
+      }
+    },
+    "thresholds": {
+      "type": "object", "additionalProperties": false,
+      "required": ["lcp_p75_ms", "inp_p75_ms", "cls_p75", "route_navigation_p95_ms", "dom_nodes", "long_task_ms", "api_concurrency", "sse_connections", "query_cache_entries", "query_cache_bytes", "chart_instances"],
+      "properties": {
+        "lcp_p75_ms": {"type": "number", "exclusiveMinimum": 0},
+        "inp_p75_ms": {"type": "number", "exclusiveMinimum": 0},
+        "cls_p75": {"type": "number", "exclusiveMinimum": 0},
+        "route_navigation_p95_ms": {"type": "number", "exclusiveMinimum": 0},
+        "dom_nodes": {"type": "integer", "minimum": 1},
+        "long_task_ms": {"type": "number", "exclusiveMinimum": 0},
+        "api_concurrency": {"type": "integer", "minimum": 1},
+        "sse_connections": {"type": "integer", "minimum": 1},
+        "query_cache_entries": {"type": "integer", "minimum": 1},
+        "query_cache_bytes": {"type": "integer", "minimum": 1},
+        "chart_instances": {"type": "integer", "minimum": 1}
+      }
+    },
+    "measurement": {
+      "type": "object", "additionalProperties": false,
+      "required": ["status", "sample_count", "expected_sample_count"],
+      "properties": {
+        "status": {"enum": ["MEASURED", "PARTIAL", "NOT_MEASURED"]},
+        "sample_count": {"type": "integer", "minimum": 0, "maximum": 1000},
+        "expected_sample_count": {"type": "integer", "minimum": 1, "maximum": 1000}
+      }
+    },
+    "group": {
+      "type": "object", "additionalProperties": false,
+      "required": [
+        "network", "viewport", "cache", "trials", "expected_trials", "measurements",
+        "lcp_p75_ms", "inp_p75_ms", "cls_p75", "initial_ready_p95_ms",
+        "refresh_driver_roundtrip_p95_ms", "route_navigation_p95_ms", "heap_max_bytes",
+        "event_listeners_max", "dom_max_nodes", "long_task_max_ms", "api_concurrency_max",
+        "sse_connections_max", "query_cache_entries_max", "query_cache_bytes_max",
+        "chart_instances_max", "application_timers_max"
+      ],
+      "properties": {
+        "network": {"enum": ["controlled-lan", "controlled-weak"]},
+        "viewport": {"enum": ["soc-desktop", "soc-narrow-readonly"]},
+        "cache": {"enum": ["cold", "warm"]},
+        "trials": {"type": "integer", "minimum": 0, "maximum": 1000},
+        "expected_trials": {"type": "integer", "minimum": 1, "maximum": 1000},
+        "measurements": {
+          "type": "object", "additionalProperties": false,
+          "required": ["lcp", "inp", "cls", "heap", "long_task", "event_listener", "query_cache", "chart_instance", "application_timer"],
+          "properties": {
+            "lcp": {"$ref": "#/$defs/measurement"},
+            "inp": {"$ref": "#/$defs/measurement"},
+            "cls": {"$ref": "#/$defs/measurement"},
+            "heap": {"$ref": "#/$defs/measurement"},
+            "long_task": {"$ref": "#/$defs/measurement"},
+            "event_listener": {"$ref": "#/$defs/measurement"},
+            "query_cache": {"$ref": "#/$defs/measurement"},
+            "chart_instance": {"$ref": "#/$defs/measurement"},
+            "application_timer": {"$ref": "#/$defs/measurement"}
+          }
+        },
+        "lcp_p75_ms": {"$ref": "#/$defs/nullable_number"},
+        "inp_p75_ms": {"$ref": "#/$defs/nullable_number"},
+        "cls_p75": {"$ref": "#/$defs/nullable_number"},
+        "initial_ready_p95_ms": {"$ref": "#/$defs/nullable_number"},
+        "refresh_driver_roundtrip_p95_ms": {"$ref": "#/$defs/nullable_number"},
+        "route_navigation_p95_ms": {"$ref": "#/$defs/nullable_number"},
+        "heap_max_bytes": {"$ref": "#/$defs/nullable_number"},
+        "event_listeners_max": {"$ref": "#/$defs/nullable_integer"},
+        "dom_max_nodes": {"$ref": "#/$defs/nullable_integer"},
+        "long_task_max_ms": {"$ref": "#/$defs/nullable_number"},
+        "api_concurrency_max": {"$ref": "#/$defs/nullable_integer"},
+        "sse_connections_max": {"$ref": "#/$defs/nullable_integer"},
+        "query_cache_entries_max": {"$ref": "#/$defs/nullable_integer"},
+        "query_cache_bytes_max": {"$ref": "#/$defs/nullable_integer"},
+        "chart_instances_max": {"$ref": "#/$defs/nullable_integer"},
+        "application_timers_max": {"$ref": "#/$defs/nullable_integer"}
+      }
+    },
+    "fully_measured_group": {
+      "allOf": [
+        {"$ref": "#/$defs/group"},
+        {
+          "properties": {
+            "measurements": {
+              "properties": {
+                "lcp": {"properties": {"status": {"const": "MEASURED"}}},
+                "inp": {"properties": {"status": {"const": "MEASURED"}}},
+                "cls": {"properties": {"status": {"const": "MEASURED"}}},
+                "heap": {"properties": {"status": {"const": "MEASURED"}}},
+                "long_task": {"properties": {"status": {"const": "MEASURED"}}},
+                "event_listener": {"properties": {"status": {"const": "MEASURED"}}},
+                "query_cache": {"properties": {"status": {"const": "MEASURED"}}},
+                "chart_instance": {"properties": {"status": {"const": "MEASURED"}}},
+                "application_timer": {"properties": {"status": {"const": "MEASURED"}}}
+              }
+            },
+            "lcp_p75_ms": {"type": "number"},
+            "inp_p75_ms": {"type": "number"},
+            "cls_p75": {"type": "number"},
+            "initial_ready_p95_ms": {"type": "number"},
+            "refresh_driver_roundtrip_p95_ms": {"type": "number"},
+            "route_navigation_p95_ms": {"type": "number"},
+            "heap_max_bytes": {"type": "number"},
+            "event_listeners_max": {"type": "integer"},
+            "dom_max_nodes": {"type": "integer"},
+            "long_task_max_ms": {"type": "number"},
+            "api_concurrency_max": {"type": "integer"},
+            "sse_connections_max": {"type": "integer"},
+            "query_cache_entries_max": {"type": "integer"},
+            "query_cache_bytes_max": {"type": "integer"},
+            "chart_instances_max": {"type": "integer"},
+            "application_timers_max": {"type": "integer"}
+          }
+        }
+      ]
+    },
+    "sample": {
+      "type": "object", "additionalProperties": false,
+      "required": [
+        "network", "viewport", "cache", "trial", "lcp_ms", "lcp_status", "lcp_entry_count",
+        "inp_ms", "inp_status", "inp_interaction_count", "cls", "cls_status", "cls_entry_count",
+        "initial_ready_ms", "refresh_driver_roundtrip_ms", "route_navigation_ms", "long_task_max_ms",
+        "long_task_status", "long_task_count", "heap_bytes", "heap_status", "event_listeners",
+        "event_listener_status", "dom_nodes", "resource_requests", "maximum_concurrent_api_requests",
+        "sse_connections", "query_cache_entries", "query_cache_bytes", "chart_instances",
+        "application_timers", "runtime_readback_status", "observer_errors"
+      ],
+      "properties": {
+        "network": {"enum": ["controlled-lan", "controlled-weak"]},
+        "viewport": {"enum": ["soc-desktop", "soc-narrow-readonly"]},
+        "cache": {"enum": ["cold", "warm"]},
+        "trial": {"type": "integer", "minimum": 1, "maximum": 1000},
+        "lcp_ms": {"$ref": "#/$defs/nullable_number"},
+        "lcp_status": {"$ref": "#/$defs/observer_status"},
+        "lcp_entry_count": {"type": "integer", "minimum": 0},
+        "inp_ms": {"$ref": "#/$defs/nullable_number"},
+        "inp_status": {"$ref": "#/$defs/observer_status"},
+        "inp_interaction_count": {"type": "integer", "minimum": 0, "maximum": 10000},
+        "cls": {"$ref": "#/$defs/nullable_number"},
+        "cls_status": {"$ref": "#/$defs/observer_status"},
+        "cls_entry_count": {"type": "integer", "minimum": 0},
+        "initial_ready_ms": {"type": "number", "minimum": 0},
+        "refresh_driver_roundtrip_ms": {"type": "number", "minimum": 0},
+        "route_navigation_ms": {"type": "number", "minimum": 0},
+        "long_task_max_ms": {"$ref": "#/$defs/nullable_number"},
+        "long_task_status": {"$ref": "#/$defs/observer_status"},
+        "long_task_count": {"type": "integer", "minimum": 0},
+        "heap_bytes": {"$ref": "#/$defs/nullable_number"},
+        "heap_status": {"enum": ["MEASURED", "NOT_MEASURED"]},
+        "event_listeners": {"$ref": "#/$defs/nullable_integer"},
+        "event_listener_status": {"enum": ["MEASURED", "NOT_MEASURED"]},
+        "dom_nodes": {"type": "integer", "minimum": 1},
+        "resource_requests": {"type": "integer", "minimum": 0},
+        "maximum_concurrent_api_requests": {"type": "integer", "minimum": 0},
+        "sse_connections": {"type": "integer", "minimum": 0},
+        "query_cache_entries": {"$ref": "#/$defs/nullable_integer"},
+        "query_cache_bytes": {"$ref": "#/$defs/nullable_integer"},
+        "chart_instances": {"$ref": "#/$defs/nullable_integer"},
+        "application_timers": {"$ref": "#/$defs/nullable_integer"},
+        "runtime_readback_status": {"enum": ["MEASURED", "NOT_MEASURED"]},
+        "observer_errors": {"type": "array", "maxItems": 16, "items": {"type": "string", "minLength": 1, "maxLength": 1024}}
+      }
+    },
+    "observer_status": {"enum": ["MEASURED", "NOT_MEASURED", "UNSUPPORTED", "ERROR"]}
+  }
+}

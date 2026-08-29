@@ -37,7 +37,7 @@
   },
   "$defs": {
     "identity": {"type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"},
-    "digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "digest": {"type": "string", "pattern": "^sha256:(?!0{64}$)[0-9a-f]{64}$"},
     "input_part": {
       "type": "object", "additionalProperties": false, "required": ["data", "mediaType"],
       "properties": {"data": {"$ref": "../../input/v1/schema.json"}, "mediaType": {"const": "application/json"}}

@@ -113,6 +113,16 @@
             "plugin-binding",
             "plugin-statistics-run",
             "plugin-statistics-current",
+            "bounded-capture",
+            "firewall-binding",
+            "model-rollout-group",
+            "model-pool",
+            "plugin",
+            "plugin-statistics-definition",
+            "plugin-statistics-schedule",
+            "analysis-task",
+            "analysis-artifact",
+            "audit",
             "system-health"
           ]
         },
@@ -122,7 +132,7 @@
         "generation": {"type": "integer", "minimum": 1},
         "produced_at_unix_ms": {"type": "integer", "minimum": 1},
         "data_time_unix_ms": {"type": "integer", "minimum": 1},
-        "payload_digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+        "payload_digest": {"type": "string", "pattern": "^sha256:(?!0{64}$)[0-9a-f]{64}$"},
         "bytes": {"type": "integer", "minimum": 1, "maximum": 65536},
         "emitted_at_unix_ms": {"type": "integer", "minimum": 1}
       }

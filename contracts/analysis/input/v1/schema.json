@@ -11,7 +11,7 @@
     "run_id": {"$ref": "#/$defs/identity"},
     "skill": {"enum": ["analyze_nids_incident", "compare_event_windows", "draft_mitigation_advice", "generate_incident_content"]},
     "plugin_id": {"$ref": "#/$defs/identity"},
-    "plugin_revision": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "plugin_revision": {"type": "string", "pattern": "^(?!0{40}$)[0-9a-f]{40}$"},
     "config_digest": {"$ref": "#/$defs/digest"},
     "binding_generation": {"type": "integer", "minimum": 1},
     "scope": {"type": "string", "minLength": 1, "maxLength": 256},
@@ -40,7 +40,7 @@
   },
   "$defs": {
     "identity": {"type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"},
-    "digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "digest": {"type": "string", "pattern": "^sha256:(?!0{64}$)[0-9a-f]{64}$"},
     "identity_array": {"type": "array", "maxItems": 128, "uniqueItems": true, "items": {"$ref": "#/$defs/identity"}},
     "fact_ref": {
       "type": "object",

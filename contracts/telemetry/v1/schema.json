@@ -84,7 +84,7 @@
   },
   "$defs": {
     "identity": {"type": "string", "minLength": 1, "maxLength": 128},
-    "digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "digest": {"type": "string", "pattern": "^sha256:(?!0{64}$)[0-9a-f]{64}$"},
     "pipeline_identity": {
       "type": "object",
       "additionalProperties": false,
@@ -316,6 +316,8 @@
     {"constraint_id": "TELEMETRY-WINDOW-TIME", "operator": "strict-time-order", "fields": ["/window/window_start", "/window/window_end", "/window/finalized_at", "/window/produced_at"]},
     {"constraint_id": "TELEMETRY-SNAPSHOT-BANK", "operator": "dual-bank-exact", "fields": ["/bank", "/snapshot/frozen_bank", "/snapshot/active_bank_after_flip"]},
     {"constraint_id": "TELEMETRY-CELL-CARDINALITY", "left": "/reported_nonzero_cells", "operator": "equals-array-length", "right": "/cells"},
-    {"constraint_id": "TELEMETRY-AGGREGATE-SUM", "left": "/aggregate", "operator": "counter-sum", "right": "/cells"}
+    {"constraint_id": "TELEMETRY-AGGREGATE-SUM", "left": "/aggregate", "operator": "counter-sum", "right": "/cells"},
+    {"constraint_id": "TELEMETRY-SELECTOR-SEED", "operator": "all-equal", "fields": ["/source_profile_digest", "/flow_identity_profile/selector_seed_digest", "/sampling/seed_digest"]},
+    {"constraint_id": "TELEMETRY-CELL-SELECTOR-DIGEST", "operator": "sha256-nul-joined-target-source-profile-epoch-index", "fields": ["/target_id", "/source_profile_digest", "/epoch", "/cells"]}
   ]
 }

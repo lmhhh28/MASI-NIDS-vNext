@@ -18,7 +18,7 @@
     "strict_readiness": {"const": true},
     "repository_read_only": {"const": true},
     "network_external": {"const": false},
-    "container_id": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "container_id": {"type": "string", "pattern": "^(?!0{64}$)[0-9a-f]{64}$"},
     "startup_elapsed_ms": {"type": "number", "maximum": 30000},
     "model_metadata": {"type": "object"},
     "model_config": {"type": "object"},
@@ -28,5 +28,5 @@
     "repository_closure_digest": {"$ref": "#/$defs/digest"},
     "logs_digest": {"$ref": "#/$defs/digest"}
   },
-  "$defs": {"digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}}
+  "$defs": {"digest": {"type": "string", "pattern": "^sha256:(?!0{64}$)[0-9a-f]{64}$"}}
 }

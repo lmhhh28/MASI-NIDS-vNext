@@ -3,10 +3,14 @@
   "$id": "https://masi-nids.example/contracts/evidence/connected-detection-graph-rehearsal/v1/schema.json",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema_version", "run_id", "started_at", "finished_at", "participants", "real_boundaries", "fixtures", "pipeline_loader", "traffic", "triton_statistics", "edge_evidence", "event_evidence", "central_oci_result", "process_logs", "level", "applicability", "result", "qualification", "qualification_scope"],
+  "required": ["schema_version", "run_id", "source_revision", "source_tree_digest", "working_tree_dirty", "working_tree_status_digest", "started_at", "finished_at", "participants", "real_boundaries", "fixtures", "pipeline_loader", "traffic", "triton_statistics", "edge_evidence", "event_evidence", "central_oci_result", "process_logs", "cleanup", "level", "applicability", "result", "qualification", "qualification_scope"],
   "properties": {
     "schema_version": {"const": "connected-detection-graph-rehearsal/v1"},
     "run_id": {"type": "string", "minLength": 8, "maxLength": 128},
+    "source_revision": {"type": "string", "pattern": "^(?!0{40}$)[0-9a-f]{40}$"},
+    "source_tree_digest": {"$ref": "#/$defs/digest"},
+    "working_tree_dirty": {"type": "boolean"},
+    "working_tree_status_digest": {"$ref": "#/$defs/digest"},
     "started_at": {"type": "string", "format": "date-time"},
     "finished_at": {"type": "string", "format": "date-time"},
     "participants": {
@@ -37,8 +41,9 @@
     "event_evidence": {"type": "object", "required": ["schema_version", "event_id", "event_idempotency_key", "input_digest", "output_digest", "worker_id", "worker_digest", "commit_status", "event_count", "incident_count"], "properties": {"schema_version": {"const": "go-event-commit-observation/v1"}, "event_id": {"type": "string", "minLength": 1}, "event_idempotency_key": {"type": "string", "minLength": 1}, "input_digest": {"$ref": "#/$defs/digest"}, "output_digest": {"$ref": "#/$defs/digest"}, "worker_id": {"type": "string", "minLength": 1}, "worker_digest": {"$ref": "#/$defs/digest"}, "commit_status": {"const": "committed"}, "event_count": {"const": 1}, "incident_count": {"type": "integer", "minimum": 0, "maximum": 1}}},
     "central_oci_result": {"enum": ["PASS", "HOLD"]},
     "process_logs": {"type": "object", "additionalProperties": false, "required": ["edge", "central", "gateway", "triton", "control", "bmv2", "p4_compiler", "p4_loader", "p4_traffic"], "properties": {"edge": {"$ref": "#/$defs/digest"}, "central": {"$ref": "#/$defs/digest"}, "gateway": {"$ref": "#/$defs/digest"}, "triton": {"$ref": "#/$defs/digest"}, "control": {"$ref": "#/$defs/digest"}, "bmv2": {"$ref": "#/$defs/digest"}, "p4_compiler": {"$ref": "#/$defs/digest"}, "p4_loader": {"$ref": "#/$defs/digest"}, "p4_traffic": {"$ref": "#/$defs/digest"}}},
+    "cleanup": {"type": "object", "additionalProperties": false, "required": ["attempted", "result", "commands", "remaining_resources", "processes_reaped_or_not_started"], "properties": {"attempted": {"const": true}, "result": {"const": "PASS"}, "commands": {"type": "array", "minItems": 2, "maxItems": 2, "items": {"type": "object", "additionalProperties": false, "required": ["name", "exit_code", "output_tail"], "properties": {"name": {"enum": ["postgresql-compose", "p4-compose"]}, "exit_code": {"const": 0}, "output_tail": {"type": "string", "maxLength": 1024}}}}, "remaining_resources": {"type": "array", "maxItems": 0}, "processes_reaped_or_not_started": {"type": "object", "additionalProperties": false, "required": ["edge", "central", "control", "plugin_sideplane", "analysis_sideplane", "observer"], "properties": {"edge": {"const": true}, "central": {"const": true}, "control": {"const": true}, "plugin_sideplane": {"const": true}, "analysis_sideplane": {"const": true}, "observer": {"const": true}}}}},
     "level": {"const": "REHEARSAL"}, "applicability": {"const": "APPLICABLE"}, "result": {"const": "PASS"}, "qualification": {"const": "NOT_QUALIFIED"},
     "qualification_scope": {"type": "string", "minLength": 1, "maxLength": 512}
   },
-  "$defs": {"digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}}
+  "$defs": {"digest": {"type": "string", "pattern": "^sha256:(?!0{64}$)[0-9a-f]{64}$"}}
 }

@@ -311,6 +311,8 @@ export const createConfig = <T extends ClientOptions = ClientOptions>(
   ...jsonBodySerializer,
   headers: defaultHeaders,
   parseAs: 'auto',
+  responseStyle: 'fields',
+  throwOnError: true,
   querySerializer: defaultQuerySerializer,
   ...override,
 });

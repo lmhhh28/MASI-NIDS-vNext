@@ -76,7 +76,7 @@
       "required": ["immutable", "digest", "delivery"],
       "properties": {
         "immutable": {"type": "boolean", "const": true},
-        "digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+        "digest": {"type": "string", "pattern": "^sha256:(?!0{64}$)[0-9a-f]{64}$"},
         "delivery": {"const": "controlled-plain-file-or-authenticated-deploy-interface-no-symlink"}
       }
     },

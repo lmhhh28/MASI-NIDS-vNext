@@ -211,7 +211,7 @@ export const createClient = (config: Config = {}): Client => {
         throw finalError;
       }
 
-      // TODO: we probably want to return error and improve types
+      // Field-style responses preserve the structured error when throwOnError is explicitly disabled.
       return responseStyle === 'data'
         ? undefined
         : {

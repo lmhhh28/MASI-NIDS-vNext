@@ -159,7 +159,7 @@
       "maxLength": 128,
       "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
     },
-    "digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "digest": {"type": "string", "pattern": "^sha256:(?!0{64}$)[0-9a-f]{64}$"},
     "reason_code": {"type": "string", "pattern": "^[A-Z][A-Z0-9_]{0,63}$"},
     "quality": {
       "enum": [

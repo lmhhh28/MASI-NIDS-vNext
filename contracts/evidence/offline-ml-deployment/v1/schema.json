@@ -11,7 +11,7 @@
     "applicability": {"const": "APPLICABLE"},
     "result": {"const": "PASS"},
     "qualification": {"const": "NOT_QUALIFIED"},
-    "compose_digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "compose_digest": {"type": "string", "pattern": "^sha256:(?!0{64}$)[0-9a-f]{64}$"},
     "checks": {"type": "object", "minProperties": 14, "additionalProperties": {"const": true}},
     "health_endpoints": {"type": "object", "properties": {"applicability": {"const": "NOT_APPLICABLE"}, "result": {"const": "NOT_RUN"}, "stable_reason": {"const": "BOUNDED_OFFLINE_JOB_EXITS_AFTER_ATOMIC_ARTIFACT_PUBLICATION"}}, "required": ["applicability", "result", "stable_reason"]}
   }

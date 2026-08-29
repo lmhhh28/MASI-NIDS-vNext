@@ -46,11 +46,11 @@
     "applicability": {"const": "APPLICABLE"},
     "result": {"enum": ["PASS", "FAIL", "HOLD", "NOT_RUN"]},
     "qualification": {"enum": ["QUALIFIED", "NOT_QUALIFIED"]},
-    "source_revision": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
-    "source_tree_digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "source_revision": {"type": "string", "pattern": "^(?!0{40}$)[0-9a-f]{40}$"},
+    "source_tree_digest": {"type": "string", "pattern": "^sha256:(?!0{64}$)[0-9a-f]{64}$"},
     "working_tree_dirty": {"type": "boolean"},
-    "working_tree_status_digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
-    "manifest_digest": {"type": ["string", "null"], "pattern": "^sha256:[0-9a-f]{64}$"},
+    "working_tree_status_digest": {"type": "string", "pattern": "^sha256:(?!0{64}$)[0-9a-f]{64}$"},
+    "manifest_digest": {"type": ["string", "null"], "pattern": "^sha256:(?!0{64}$)[0-9a-f]{64}$"},
     "offline_rebuild": {
       "type": "object",
       "additionalProperties": false,
@@ -59,8 +59,8 @@
         "attempted": {"type": "boolean"},
         "binary_digest_equal": {"type": "boolean"},
         "network_used": {"type": "boolean"},
-        "source_bundle_digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
-        "rebuilt_binary_digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}
+        "source_bundle_digest": {"type": "string", "pattern": "^sha256:(?!0{64}$)[0-9a-f]{64}$"},
+        "rebuilt_binary_digest": {"type": "string", "pattern": "^sha256:(?!0{64}$)[0-9a-f]{64}$"}
       }
     },
     "sbom": {
@@ -71,7 +71,7 @@
         "generated": {"type": "boolean"},
         "format": {"const": "spdx"},
         "path": {"type": "string", "minLength": 1, "maxLength": 512},
-        "digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}
+        "digest": {"type": "string", "pattern": "^sha256:(?!0{64}$)[0-9a-f]{64}$"}
       }
     },
     "vulnerability_scan": {
@@ -83,7 +83,7 @@
         "db_offline": {"type": "boolean"},
         "policy_loaded": {"type": "boolean"},
         "findings_path": {"type": "string", "minLength": 1, "maxLength": 512},
-        "findings_digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}
+        "findings_digest": {"type": "string", "pattern": "^sha256:(?!0{64}$)[0-9a-f]{64}$"}
       }
     },
     "secret_scan": {
@@ -122,7 +122,7 @@
       "additionalProperties": false,
       "required": ["digest", "closure_equal"],
       "properties": {
-        "digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+        "digest": {"type": "string", "pattern": "^sha256:(?!0{64}$)[0-9a-f]{64}$"},
         "closure_equal": {"type": "boolean"},
         "max_bytes": {"type": "integer", "minimum": 1},
         "sha256sums_match": {"type": "boolean"}

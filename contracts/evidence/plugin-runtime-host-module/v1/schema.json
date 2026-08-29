@@ -14,8 +14,10 @@
   "properties": {
     "schema_version": {"const": "plugin-runtime-host-module-gates/v1"},
     "module_id": {"const": "MOD-PLUGIN-001"},
+    "run_id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{1,127}$"},
     "level": {"const": "MODULE"},
     "applicability": {"const": "APPLICABLE"},
+    "result": {"const": "HOLD"},
     "qualification": {"const": "NOT_QUALIFIED"},
     "generated_at": {"type": "string", "format": "date-time"},
     "source_revision": {"type": "string", "pattern": "^[0-9a-f]{40,64}$"},
@@ -110,15 +112,26 @@
     "overall_module_complete": {"const": true}
   },
   "$defs": {
-    "digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "digest": {"type": "string", "pattern": "^sha256:(?!0{64}$)[0-9a-f]{64}$"},
     "evidenceRef": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["evidence", "digest", "result"],
+      "required": [
+        "evidence", "digest", "result", "qualification", "run_id",
+        "source_revision", "source_tree_digest", "working_tree_status_digest",
+        "producer_command_id", "producer_command_digest"
+      ],
       "properties": {
         "evidence": {"type": "string", "minLength": 1, "maxLength": 512},
         "digest": {"$ref": "#/$defs/digest"},
-        "result": {"const": "PASS"}
+        "result": {"const": "PASS"},
+        "qualification": {"enum": ["QUALIFIED", "NOT_QUALIFIED"]},
+        "run_id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{1,127}$"},
+        "source_revision": {"type": "string", "pattern": "^[0-9a-f]{40,64}$"},
+        "source_tree_digest": {"$ref": "#/$defs/digest"},
+        "working_tree_status_digest": {"$ref": "#/$defs/digest"},
+        "producer_command_id": {"type": "string", "pattern": "^[a-z][a-z0-9-]{0,63}$"},
+        "producer_command_digest": {"$ref": "#/$defs/digest"}
       }
     }
   }

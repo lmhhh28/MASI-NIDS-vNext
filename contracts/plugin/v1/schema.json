@@ -27,7 +27,7 @@
   "properties": {
     "schema_version": {"const": "masi-plugin/v1"},
     "plugin_id": {"$ref": "#/$defs/identity"},
-    "revision": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "revision": {"type": "string", "pattern": "^(?!0{40}$)[0-9a-f]{40}$"},
     "manifest_digest": {"$ref": "#/$defs/digest"},
     "kind": {"enum": ["analysis-agent", "read-only-tool", "pure-transform"]},
     "publisher": {"$ref": "#/$defs/identity"},
@@ -83,7 +83,7 @@
       "maxLength": 128,
       "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
     },
-    "digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "digest": {"type": "string", "pattern": "^sha256:(?!0{64}$)[0-9a-f]{64}$"},
     "reason_code": {"type": "string", "pattern": "^[A-Z][A-Z0-9_]{0,63}$"},
     "provenance": {
       "type": "object",

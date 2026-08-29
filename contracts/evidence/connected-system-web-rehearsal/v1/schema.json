@@ -5,15 +5,19 @@
   "type": "object",
   "additionalProperties": false,
   "required": [
-    "schema_version", "run_id", "started_at", "finished_at", "participants",
+    "schema_version", "run_id", "source_revision", "source_tree_digest", "working_tree_dirty", "working_tree_status_digest", "started_at", "finished_at", "participants",
     "real_boundaries", "fixtures", "pipeline_loader", "traffic", "triton_statistics",
     "edge_evidence", "event_evidence", "plugin_statistics_evidence", "plugin_runtime", "analysis_evidence",
-    "analysis_runtime", "web_observations", "central_oci_result", "process_logs",
+    "analysis_runtime", "web_observations", "central_oci_result", "process_logs", "cleanup",
     "level", "applicability", "result", "qualification", "qualification_scope"
   ],
   "properties": {
     "schema_version": {"const": "connected-system-web-rehearsal/v1"},
     "run_id": {"type": "string", "minLength": 8, "maxLength": 128},
+    "source_revision": {"type": "string", "pattern": "^(?!0{40}$)[0-9a-f]{40}$"},
+    "source_tree_digest": {"$ref": "#/$defs/digest"},
+    "working_tree_dirty": {"type": "boolean"},
+    "working_tree_status_digest": {"$ref": "#/$defs/digest"},
     "started_at": {"type": "string", "format": "date-time"},
     "finished_at": {"type": "string", "format": "date-time"},
     "participants": {
@@ -373,6 +377,26 @@
         "analysis_go_test": {"$ref": "#/$defs/digest"}
       }
     },
+    "cleanup": {
+      "type": "object", "additionalProperties": false,
+      "required": ["attempted", "result", "commands", "remaining_resources", "processes_reaped_or_not_started"],
+      "properties": {
+        "attempted": {"const": true}, "result": {"const": "PASS"},
+        "commands": {
+          "type": "array", "minItems": 3, "maxItems": 3,
+          "items": {
+            "type": "object", "additionalProperties": false,
+            "required": ["name", "exit_code", "output_tail"],
+            "properties": {
+              "name": {"enum": ["web-containers", "postgresql-compose", "p4-compose"]},
+              "exit_code": {"const": 0}, "output_tail": {"type": "string", "maxLength": 1024}
+            }
+          }
+        },
+        "remaining_resources": {"type": "array", "maxItems": 0},
+        "processes_reaped_or_not_started": {"type": "object", "additionalProperties": false, "required": ["edge", "central", "control", "plugin_sideplane", "analysis_sideplane", "observer"], "properties": {"edge": {"const": true}, "central": {"const": true}, "control": {"const": true}, "plugin_sideplane": {"const": true}, "analysis_sideplane": {"const": true}, "observer": {"const": true}}}
+      }
+    },
     "level": {"const": "REHEARSAL"},
     "applicability": {"const": "APPLICABLE"},
     "result": {"const": "PASS"},
@@ -380,6 +404,6 @@
     "qualification_scope": {"type": "string", "minLength": 1, "maxLength": 512}
   },
   "$defs": {
-    "digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}
+    "digest": {"type": "string", "pattern": "^sha256:(?!0{64}$)[0-9a-f]{64}$"}
   }
 }

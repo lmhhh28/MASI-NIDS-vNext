@@ -17,5 +17,5 @@
     "scenario_count": {"const": 14},
     "scenarios": {"type": "array", "minItems": 14, "maxItems": 14, "uniqueItems": true, "items": {"type": "object", "additionalProperties": false, "required": ["scenario_id", "result"], "properties": {"scenario_id": {"enum": ["A2A_AGENT_CARD", "A2A_MCP_GROUNDED_SUCCESS", "A2A_OUTBOUND_DELEGATION_LOOP_FENCE", "A2A_IDEMPOTENCY_CONFLICT", "A2A_REQUESTER_TASK_ISOLATION", "A2A_VERSION_FRAMING_NEGATIVES", "LIMITED_TIMEOUT_SECURITY_XAI_NEGATIVES", "FOUR_SKILLS", "TRACE_METRICS_REDACTION", "TLS13_MTLS_IDENTITY", "MCP_BUDGET_SESSION_CLEANUP", "BINDING_REVOKE_LATE_FENCE", "ZERO_CORE_P4_EFFECT_MUTATION", "BOUNDED_DRAIN_SHUTDOWN"]}, "result": {"const": "PASS"}}}}
   },
-  "$defs": {"digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}}
+  "$defs": {"digest": {"type": "string", "pattern": "^sha256:(?!0{64}$)[0-9a-f]{64}$"}}
 }

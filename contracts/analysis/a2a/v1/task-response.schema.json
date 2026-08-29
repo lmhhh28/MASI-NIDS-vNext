@@ -27,7 +27,7 @@
   },
   "$defs": {
     "identity": {"type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"},
-    "digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}, "reason": {"type": "string", "pattern": "^[A-Z][A-Z0-9_]{0,63}$"},
+    "digest": {"type": "string", "pattern": "^sha256:(?!0{64}$)[0-9a-f]{64}$"}, "reason": {"type": "string", "pattern": "^[A-Z][A-Z0-9_]{0,63}$"},
     "data_part": {"type": "object", "additionalProperties": false, "required": ["data", "mediaType"], "properties": {"data": {"$ref": "../../artifact/v1/schema.json"}, "mediaType": {"const": "application/json"}}},
     "artifact": {
       "type": "object", "additionalProperties": false, "required": ["artifactId", "name", "description", "parts", "metadata"],

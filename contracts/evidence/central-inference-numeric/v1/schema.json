@@ -41,8 +41,8 @@
         "required": ["vector_id", "input_digest", "output_digest", "python_reference_match", "class_order_correct", "nan_inf_rejected"],
         "properties": {
           "vector_id": {"type": "string", "pattern": "^[a-z][a-z0-9-]{1,127}$"},
-          "input_digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
-          "output_digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+          "input_digest": {"type": "string", "pattern": "^sha256:(?!0{64}$)[0-9a-f]{64}$"},
+          "output_digest": {"type": "string", "pattern": "^sha256:(?!0{64}$)[0-9a-f]{64}$"},
           "python_reference_match": {"type": "boolean"},
           "class_order_correct": {"type": "boolean"},
           "nan_inf_rejected": {"type": "boolean"},

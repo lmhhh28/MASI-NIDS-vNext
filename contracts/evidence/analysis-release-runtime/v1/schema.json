@@ -8,5 +8,5 @@
     "source_revision": {"type": "string", "pattern": "^[0-9a-f]{40,64}$"}, "source_tree_digest": {"$ref": "#/$defs/digest"}, "working_tree_status_digest": {"$ref": "#/$defs/digest"}, "working_tree_dirty": {"type": "boolean"},
     "python_version": {"const": "3.12.13"}, "package_version": {"const": "1.0.0"}, "wheel_digest": {"$ref": "#/$defs/digest"}, "second_build_wheel_digest": {"$ref": "#/$defs/digest"}, "reproducible_wheel": {"const": true}, "lock_digest": {"$ref": "#/$defs/digest"}, "entrypoint_digest": {"$ref": "#/$defs/digest"}, "locked_install": {"const": true}, "pytest_absent": {"const": true}
   },
-  "$defs": {"digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}}
+  "$defs": {"digest": {"type": "string", "pattern": "^sha256:(?!0{64}$)[0-9a-f]{64}$"}}
 }

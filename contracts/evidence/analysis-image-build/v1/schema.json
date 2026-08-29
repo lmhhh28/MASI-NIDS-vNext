@@ -11,5 +11,5 @@
     "runtime_versions": {"type": "object", "additionalProperties": false, "required": ["python", "openssl", "sqlite", "zlib"], "properties": {"python": {"const": "3.12.13"}, "openssl": {"const": "OpenSSL 3.0.20 7 Apr 2026"}, "sqlite": {"const": "3.53.4"}, "zlib": {"const": "1.3.2"}}},
     "wheelhouse_digest": {"$ref": "#/$defs/digest"}, "lock_digest": {"$ref": "#/$defs/digest"}, "offline_image_build": {"const": true}, "runtime_download": {"const": false}
   },
-  "$defs": {"digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}}
+  "$defs": {"digest": {"type": "string", "pattern": "^sha256:(?!0{64}$)[0-9a-f]{64}$"}}
 }
