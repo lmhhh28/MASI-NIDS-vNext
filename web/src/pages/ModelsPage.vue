@@ -1,9 +1,18 @@
 <script setup lang="ts">
-import { computed, reactive, ref } from 'vue'
+import { computed, reactive, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import type { LocationQueryRaw } from 'vue-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import { ElAlert, ElButton, ElDialog } from 'element-plus'
 import { Plus, Promotion, Refresh } from '@element-plus/icons-vue'
-import { fetchResource, resourceDefinitions, type ResourceColumn, type ResourceKey } from '@/api/resources'
+import {
+  fetchResource,
+  fetchResourceDetail,
+  resourceDefinitions,
+  supportsResourceDetail,
+  type ResourceColumn,
+  type ResourceKey,
+} from '@/api/resources'
 import { submitRollout, submitRolloutAdvance } from '@/api/models'
 import { useSessionQuery } from '@/api/session'
 import { useUiStore } from '@/stores/ui'
@@ -12,6 +21,7 @@ import ResourceTable from '@/components/ResourceTable.vue'
 import StatePanel from '@/components/StatePanel.vue'
 import StatusMark from '@/components/StatusMark.vue'
 import FactDrawer from '@/components/FactDrawer.vue'
+import { sessionBoundKey } from '@/api/context'
 
 type ModelTab = 'model-bindings' | 'model-rollouts' | 'model-pools' | 'model-revisions'
 const tabs: Array<{ key: ModelTab; label: string }> = [
@@ -20,12 +30,17 @@ const tabs: Array<{ key: ModelTab; label: string }> = [
   { key: 'model-pools', label: 'Inference pools' },
   { key: 'model-revisions', label: 'Revisions' },
 ]
-const tab = ref<ModelTab>('model-bindings')
+const route = useRoute()
+const router = useRouter()
+function routeTab(value: unknown): ModelTab {
+  return tabs.some((entry) => entry.key === value) ? value as ModelTab : 'model-bindings'
+}
+const tab = ref<ModelTab>(routeTab(route.query.tab))
 const queries = {
-  'model-bindings': useQuery({ queryKey: ['resource', 'model-bindings', '', 50], queryFn: () => fetchResource('model-bindings') }),
-  'model-rollouts': useQuery({ queryKey: ['resource', 'model-rollouts', '', 50], queryFn: () => fetchResource('model-rollouts') }),
-  'model-pools': useQuery({ queryKey: ['resource', 'model-pools', '', 50], queryFn: () => fetchResource('model-pools') }),
-  'model-revisions': useQuery({ queryKey: ['resource', 'model-revisions', '', 50], queryFn: () => fetchResource('model-revisions') }),
+  'model-bindings': useQuery({ queryKey: sessionBoundKey('resource', 'model-bindings', '', 50), queryFn: () => fetchResource('model-bindings') }),
+  'model-rollouts': useQuery({ queryKey: sessionBoundKey('resource', 'model-rollouts', '', 50), queryFn: () => fetchResource('model-rollouts') }),
+  'model-pools': useQuery({ queryKey: sessionBoundKey('resource', 'model-pools', '', 50), queryFn: () => fetchResource('model-pools') }),
+  'model-revisions': useQuery({ queryKey: sessionBoundKey('resource', 'model-revisions', '', 50), queryFn: () => fetchResource('model-revisions') }),
 }
 const activeQuery = computed(() => queries[tab.value])
 const definition = computed(() => resourceDefinitions[tab.value as ResourceKey])
@@ -35,8 +50,7 @@ const bindingExtraColumns: ResourceColumn[] = [
   { field: 'ready', label: 'Ready', kind: 'status' },
 ]
 const columns = computed(() => tab.value === 'model-bindings' ? [...definition.value.columns, ...bindingExtraColumns] : definition.value.columns)
-const selected = ref<Record<string, unknown> | null>(null)
-const drawerOpen = ref(false)
+const selectedID = computed(() => typeof route.query.fact === 'string' ? route.query.fact : '')
 const dialogOpen = ref(false)
 const dialogKind = ref<'create' | 'advance'>('create')
 const errorMessage = ref('')
@@ -44,6 +58,47 @@ const successMessage = ref('')
 const session = useSessionQuery()
 const queryClient = useQueryClient()
 const ui = useUiStore()
+const selectedFromPage = computed(() => activeQuery.value.data.value?.items.find((item) => {
+  const identity = item[definition.value.identityField]
+  return typeof identity === 'string' && identity === selectedID.value
+}) ?? null)
+const detail = useQuery({
+  queryKey: sessionBoundKey('resource-detail', tab, selectedID),
+  queryFn: () => fetchResourceDetail(tab.value, selectedID.value),
+  enabled: computed(() =>
+    selectedID.value !== ''
+    && activeQuery.value.isSuccess.value
+    && selectedFromPage.value === null
+    && supportsResourceDetail(tab.value),
+  ),
+})
+const selected = computed(() => selectedFromPage.value ?? detail.data.value ?? null)
+const drawerOpen = computed({
+  get: () => selectedID.value !== '',
+  set: (open: boolean) => {
+    if (!open) {
+      const next = { ...route.query }
+      delete next.fact
+      void router.replace({ query: next })
+    }
+  },
+})
+const detailLoading = computed(() =>
+  selectedID.value !== ''
+  && selectedFromPage.value === null
+  && supportsResourceDetail(tab.value)
+  && detail.isFetching.value,
+)
+const detailError = computed(() => {
+  if (!selectedID.value || selected.value) return ''
+  if (!supportsResourceDetail(tab.value)) {
+    return 'This model view has no exact detail endpoint; select a fact from the loaded bounded page.'
+  }
+  return detail.isError.value
+    ? (detail.error.value instanceof Error ? detail.error.value.message : 'The exact model detail failed closed.')
+    : ''
+})
+watch(() => route.query.tab, (value) => { tab.value = routeTab(value) })
 
 const form = reactive({
   groupID: `rollout-${crypto.randomUUID()}`, orderedShards: '', logicalPoolID: '',
@@ -52,7 +107,7 @@ const form = reactive({
   availabilityProfile: 'availability-single/v1',
   minReadyReplicas: 1, incarnationID: '',
 })
-const digestPattern = /^sha256:[0-9a-f]{64}$/
+const digestPattern = /^sha256:(?!0{64}$)[0-9a-f]{64}$/
 const shards = computed(() => [...new Set(form.orderedShards.split(',').map((value) => value.trim()).filter(Boolean))])
 
 function validationError(): string {
@@ -86,12 +141,23 @@ const mutation = useMutation({
       ? 'One shard step was advanced. Mixed/current state remains per-shard and requires readback.'
       : 'The ordered rollout group was frozen. No replica or route is current until staged readback and commit complete.'
     errorMessage.value = ''; dialogOpen.value = false
-    void queryClient.invalidateQueries({ queryKey: ['resource'] }); void queryClient.invalidateQueries({ queryKey: ['dashboard'] })
+    void queryClient.invalidateQueries({ queryKey: ['session-bound'] })
   },
   onError: (error) => { errorMessage.value = error instanceof Error ? error.message : 'Model operation failed closed.' },
 })
 
-function inspect(item: Record<string, unknown>): void { selected.value = item; drawerOpen.value = true }
+function inspect(item: Record<string, unknown>): void {
+  const identity = item[definition.value.identityField]
+  if (typeof identity === 'string' && identity !== '') {
+    void router.push({ query: { ...route.query, tab: tab.value, fact: identity } })
+  }
+}
+function selectTab(value: ModelTab): void {
+  tab.value = value
+  const next: LocationQueryRaw = { ...route.query, tab: value }
+  delete next.fact
+  void router.push({ query: next })
+}
 function createRollout(): void { dialogKind.value = 'create'; form.groupID = `rollout-${crypto.randomUUID()}`; errorMessage.value = ''; dialogOpen.value = true }
 function advanceRollout(item: Record<string, unknown>): void {
   dialogKind.value = 'advance'
@@ -153,7 +219,7 @@ function refreshAll(): void { for (const query of Object.values(queries)) void q
         :key="entry.key"
         type="button"
         :aria-current="tab === entry.key ? 'page' : undefined"
-        @click="tab = entry.key"
+        @click="selectTab(entry.key)"
       >
         {{ entry.label }}
       </button>
@@ -208,8 +274,10 @@ function refreshAll(): void { for (const query of Object.values(queries)) void q
     </aside>
     <FactDrawer
       v-model:open="drawerOpen"
-      :title="selected ? String(selected[definition.identityField] ?? 'Model fact') : 'Model fact'"
+      :title="selected ? String(selected[definition.identityField] ?? selectedID) : (selectedID || 'Model fact')"
       :item="selected"
+      :loading="detailLoading"
+      :error="detailError"
     />
 
     <ElDialog
@@ -273,21 +341,21 @@ function refreshAll(): void { for (const query of Object.values(queries)) void q
           <label class="wide"><span>Central wire profile digest · inference-central-grpc-batch/v1</span><input
             v-model="form.wireProfileDigest"
             class="mono"
-            pattern="sha256:[0-9a-f]{64}"
+            pattern="sha256:(?!0{64}$)[0-9a-f]{64}"
             required
             autocomplete="off"
           ></label>
           <label class="wide"><span>Selected CPU/CUDA runtime profile digest</span><input
             v-model="form.runtimeProfileDigest"
             class="mono"
-            pattern="sha256:[0-9a-f]{64}"
+            pattern="sha256:(?!0{64}$)[0-9a-f]{64}"
             required
             autocomplete="off"
           ></label>
           <label class="wide"><span>Optimization profile digest</span><input
             v-model="form.optimizationProfileDigest"
             class="mono"
-            pattern="sha256:[0-9a-f]{64}"
+            pattern="sha256:(?!0{64}$)[0-9a-f]{64}"
             required
             autocomplete="off"
           ></label>

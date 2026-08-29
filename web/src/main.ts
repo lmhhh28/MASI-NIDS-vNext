@@ -3,7 +3,8 @@ import { createPinia } from 'pinia'
 import { VueQueryPlugin } from '@tanstack/vue-query'
 import App from './App.vue'
 import { router } from './router'
-import { queryClient } from './query'
+import { queryCacheMetrics, queryClient } from './query'
+import { runtimeResourceMetrics } from './runtime-metrics'
 import './styles/base.css'
 import 'element-plus/theme-chalk/base.css'
 import 'element-plus/theme-chalk/el-button.css'
@@ -19,6 +20,13 @@ import 'element-plus/theme-chalk/el-pagination.css'
 import 'element-plus/theme-chalk/el-tabs.css'
 import 'element-plus/theme-chalk/el-tag.css'
 import 'element-plus/theme-chalk/el-alert.css'
+
+Object.defineProperty(window, '__masiRuntimeReadback', {
+  configurable: false,
+  enumerable: false,
+  writable: false,
+  value: () => ({ ...queryCacheMetrics(), ...runtimeResourceMetrics() }),
+})
 
 const app = createApp(App)
 app.use(createPinia())

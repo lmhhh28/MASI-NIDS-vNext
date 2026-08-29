@@ -40,7 +40,7 @@ const firewallForm = reactive({
   expiryMinutes: 30, operationID: '', scope: '',
 })
 
-const digestPattern = /^sha256:[0-9a-f]{64}$/
+const digestPattern = /^sha256:(?!0{64}$)[0-9a-f]{64}$/
 const phishingResistant = computed(() => ['webauthn-fido2', 'passkey', 'hardware-key'].includes(session.data.value?.step_up ?? 'none'))
 const sameMaker = computed(() => proposalDetail.value?.actor_ref === session.data.value?.actor_ref)
 const dialogTitle = computed(() => ({
@@ -122,8 +122,7 @@ const mutation = useMutation({
       : 'The immutable governance fact was accepted. No external effect is implied.'
     operationError.value = ''
     dialogOpen.value = false
-    void queryClient.invalidateQueries({ queryKey: ['resource'] })
-    void queryClient.invalidateQueries({ queryKey: ['dashboard'] })
+    void queryClient.invalidateQueries({ queryKey: ['session-bound'] })
   },
   onError: (error) => {
     operationError.value = error instanceof Error ? error.message : 'The mutation failed closed.'
@@ -263,7 +262,7 @@ function openFirewall(item: Record<string, unknown>, kind: 'firewall-proposal' |
           v-model="proposalForm.policyDigest"
           class="mono"
           required
-          pattern="sha256:[0-9a-f]{64}"
+          pattern="sha256:(?!0{64}$)[0-9a-f]{64}"
           autocomplete="off"
         ></label>
         <label><span>Risk level</span><select v-model="proposalForm.riskLevel"><option value="R1">R1 · scoped operator</option><option value="R2">R2 · maker-checker</option></select></label>
@@ -371,7 +370,7 @@ function openFirewall(item: Record<string, unknown>, kind: 'firewall-proposal' |
           v-model="firewallForm.targetSetDigest"
           class="mono"
           required
-          pattern="sha256:[0-9a-f]{64}"
+          pattern="sha256:(?!0{64}$)[0-9a-f]{64}"
           autocomplete="off"
         ></label>
         <template v-if="dialogKind === 'firewall-proposal'">

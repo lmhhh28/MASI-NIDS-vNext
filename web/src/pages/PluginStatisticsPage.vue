@@ -1,28 +1,28 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
-import { useRoute } from 'vue-router'
+import { computed } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { useQuery } from '@tanstack/vue-query'
 import { ElButton } from 'element-plus'
 import { Refresh } from '@element-plus/icons-vue'
-import { fetchResource } from '@/api/resources'
+import { fetchResource, fetchResourceDetail } from '@/api/resources'
 import { fetchStatisticsArtifact } from '@/api/statistics'
 import { formatTime } from '@/format'
 import PageHeading from '@/components/PageHeading.vue'
 import PluginArtifactRenderer from '@/components/PluginArtifactRenderer.vue'
 import StatePanel from '@/components/StatePanel.vue'
 import StatusMark from '@/components/StatusMark.vue'
+import { sessionBoundKey } from '@/api/context'
 
 const route = useRoute()
-const selectedArtifactID = ref('')
-const selectedDefinitionID = ref('')
-const selectedDisplayHint = ref('')
+const router = useRouter()
+const selectedArtifactID = computed(() => typeof route.query.artifact === 'string' ? route.query.artifact : '')
 
-const definitions = useQuery({ queryKey: ['resource', 'statistics-definitions', '', 50], queryFn: () => fetchResource('statistics-definitions') })
-const current = useQuery({ queryKey: ['resource', 'statistics-current', '', 50], queryFn: () => fetchResource('statistics-current') })
-const runs = useQuery({ queryKey: ['resource', 'statistics-runs', '', 50], queryFn: () => fetchResource('statistics-runs') })
-const schedules = useQuery({ queryKey: ['resource', 'statistics-schedules', '', 50], queryFn: () => fetchResource('statistics-schedules') })
+const definitions = useQuery({ queryKey: sessionBoundKey('resource', 'statistics-definitions', '', 50), queryFn: () => fetchResource('statistics-definitions') })
+const current = useQuery({ queryKey: sessionBoundKey('resource', 'statistics-current', '', 50), queryFn: () => fetchResource('statistics-current') })
+const runs = useQuery({ queryKey: sessionBoundKey('resource', 'statistics-runs', '', 50), queryFn: () => fetchResource('statistics-runs') })
+const schedules = useQuery({ queryKey: sessionBoundKey('resource', 'statistics-schedules', '', 50), queryFn: () => fetchResource('statistics-schedules') })
 const artifact = useQuery({
-  queryKey: computed(() => ['statistics-artifact', selectedArtifactID.value]),
+  queryKey: sessionBoundKey('statistics-artifact', selectedArtifactID),
   queryFn: () => fetchStatisticsArtifact(selectedArtifactID.value),
   enabled: computed(() => selectedArtifactID.value !== ''),
 })
@@ -31,24 +31,65 @@ const pluginID = computed(() => typeof route.params.pluginId === 'string' ? rout
 const visibleDefinitions = computed(() => (definitions.data.value?.items ?? []).filter((definition) => pluginID.value === '' || definition.plugin_id === pluginID.value))
 const visibleDefinitionIDs = computed(() => new Set(visibleDefinitions.value.map((definition) => String(definition.definition_id))))
 const visibleCurrent = computed(() => (current.data.value?.items ?? []).filter((entry) => pluginID.value === '' || visibleDefinitionIDs.value.has(String(entry.definition_id))))
+const selectedCurrent = computed(() => visibleCurrent.value.find(
+  (entry) => entry.artifact_id === selectedArtifactID.value,
+) ?? null)
+const selectedDefinitionID = computed(() => {
+  if (typeof route.query.definition === 'string') return route.query.definition
+  if (typeof selectedCurrent.value?.definition_id === 'string') return selectedCurrent.value.definition_id
+  return artifact.data.value?.definition_id ?? ''
+})
+
+const selectedDefinitionFromPage = computed(() => visibleDefinitions.value.find(
+  (item) => item.definition_id === selectedDefinitionID.value,
+) ?? null)
+const definitionDetail = useQuery({
+  queryKey: sessionBoundKey('resource-detail', 'statistics-definitions', selectedDefinitionID),
+  queryFn: () => fetchResourceDetail('statistics-definitions', selectedDefinitionID.value),
+  enabled: computed(() =>
+    selectedDefinitionID.value !== ''
+    && definitions.isSuccess.value
+    && selectedDefinitionFromPage.value === null,
+  ),
+})
+const selectedDefinition = computed(() => selectedDefinitionFromPage.value ?? definitionDetail.data.value ?? null)
 
 function displayHint(definitionID: string): string {
   const definition = visibleDefinitions.value.find((item) => item.definition_id === definitionID)
   return typeof definition?.display_hint === 'string' ? definition.display_hint : ''
 }
+const selectedDisplayHint = computed(() => typeof selectedDefinition.value?.display_hint === 'string' ? selectedDefinition.value.display_hint : '')
+const artifactContractError = computed(() => {
+  const value = artifact.data.value
+  const definition = selectedDefinition.value
+  if (!value || !definition) return ''
+  if (value.definition_id !== selectedDefinitionID.value || definition.definition_id !== selectedDefinitionID.value) {
+    return 'The artifact and exact definition identities do not match.'
+  }
+  if (value.definition_digest !== definition.definition_digest) {
+    return 'The artifact definition digest does not match the qualified definition.'
+  }
+  if (value.provenance.plugin_id !== definition.plugin_id
+      || value.provenance.binding_generation !== definition.binding_generation) {
+    return 'The artifact provenance does not match the qualified plugin binding.'
+  }
+  if (pluginID.value !== '' && definition.plugin_id !== pluginID.value) {
+    return 'The artifact definition is outside this plugin route.'
+  }
+  return ''
+})
 
 function openArtifact(item: Record<string, unknown>): void {
   const artifactID = typeof item.artifact_id === 'string' ? item.artifact_id : ''
   const definitionID = typeof item.definition_id === 'string' ? item.definition_id : ''
   if (!artifactID || !definitionID) return
-  selectedArtifactID.value = artifactID
-  selectedDefinitionID.value = definitionID
-  selectedDisplayHint.value = displayHint(definitionID)
+  void router.push({ query: { ...route.query, artifact: artifactID, definition: definitionID } })
 }
 
 function refreshAll(): void {
   void definitions.refetch(); void current.refetch(); void runs.refetch(); void schedules.refetch()
   if (selectedArtifactID.value) void artifact.refetch()
+  if (selectedDefinitionID.value && selectedDefinitionFromPage.value === null) void definitionDetail.refetch()
 }
 </script>
 
@@ -142,6 +183,23 @@ function refreshAll(): void {
             :detail="artifact.error.value instanceof Error ? artifact.error.value.message : 'Artifact validation failed.'"
             retryable
             @retry="artifact.refetch()"
+          />
+          <StatePanel
+            v-else-if="definitionDetail.isFetching.value"
+            state="loading"
+            detail="Loading the exact immutable statistics definition."
+          />
+          <StatePanel
+            v-else-if="definitionDetail.isError.value || !selectedDefinition"
+            state="unsupported"
+            title="Definition unavailable"
+            detail="The exact qualified display definition is required; the artifact is not rendered without it."
+          />
+          <StatePanel
+            v-else-if="artifactContractError"
+            state="unsupported"
+            title="Artifact binding rejected"
+            :detail="artifactContractError"
           />
           <PluginArtifactRenderer
             v-else-if="artifact.data.value"

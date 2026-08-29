@@ -3,11 +3,14 @@ import { computed } from 'vue'
 import { ElDrawer } from 'element-plus'
 import { displayText, formatTime } from '@/format'
 import StatusMark from './StatusMark.vue'
+import StatePanel from './StatePanel.vue'
 
 const props = defineProps<{
   open: boolean
   title: string
   item: Record<string, unknown> | null
+  loading?: boolean
+  error?: string
 }>()
 
 defineEmits<{ 'update:open': [value: boolean] }>()
@@ -35,8 +38,19 @@ function label(field: string): string {
     destroy-on-close
     @update:model-value="$emit('update:open', $event)"
   >
+    <StatePanel
+      v-if="loading"
+      state="loading"
+      detail="Loading the exact authorized detail boundary."
+    />
+    <StatePanel
+      v-else-if="error"
+      state="unsupported"
+      title="Detail unavailable"
+      :detail="error"
+    />
     <dl
-      v-if="item"
+      v-else-if="item"
       class="facts"
     >
       <div

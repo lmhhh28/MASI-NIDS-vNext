@@ -15,6 +15,9 @@ const schemas = [
   'contracts/evidence/module-findings/v1/schema.json',
   'contracts/evidence/command/v1/schema.json',
   'contracts/evidence/traceability/v1/schema.json',
+  'contracts/evidence/web-performance/v1/schema.json',
+  'contracts/evidence/web-soak/v1/schema.json',
+  'contracts/evidence/web-manual-accessibility/v1/schema.json',
   'contracts/evidence/web-module/v1/schema.json',
 ]
 for (const path of schemas) {
@@ -52,6 +55,26 @@ const dashboard = {
 assertValid('contracts/web/v1/dashboard.schema.json', dashboard, 'dashboard-positive')
 assertRejected('contracts/web/v1/dashboard.schema.json', { ...dashboard, target_health: Array.from({ length: 9 }, () => ({})) }, 'dashboard-section-overflow')
 
+const manualAccessibility = {
+  schema_version: 'web-manual-accessibility-evidence/v1', module_id: 'MOD-WEB-001', profile: 'web-browser/v1',
+  source_tree_digest: `sha256:${'a'.repeat(64)}`, image_digest: `sha256:${'b'.repeat(64)}`,
+  reviewed_at: null, reviewer_id: null, assistive_technology: null, platform: null,
+  flows: [
+    { flow_id: 'screen-reader-navigation', result: 'NOT_RUN', notes: 'Human review not supplied.' },
+    { flow_id: 'full-keyboard', result: 'NOT_RUN', notes: 'Human review not supplied.' },
+    { flow_id: 'zoom-200-reflow', result: 'NOT_RUN', notes: 'Human review not supplied.' },
+    { flow_id: 'high-risk-dialog-focus', result: 'NOT_RUN', notes: 'Human review not supplied.' },
+  ],
+  evidence_artifacts: [], level: 'MODULE', applicability: 'APPLICABLE', result: 'NOT_RUN',
+  qualification: 'NOT_QUALIFIED', reason_code: 'MANUAL_ACCESSIBILITY_REVIEW_NOT_SUPPLIED',
+}
+assertValid('contracts/evidence/web-manual-accessibility/v1/schema.json', manualAccessibility, 'manual-accessibility-not-run')
+assertRejected('contracts/evidence/web-manual-accessibility/v1/schema.json', {
+  ...manualAccessibility, result: 'PASS', qualification: 'QUALIFIED', reviewed_at: new Date().toISOString(),
+  reviewer_id: 'reviewer:a', assistive_technology: 'screen reader', platform: 'test platform',
+  reason_code: 'MANUAL_ACCESSIBILITY_REVIEW_PASSED',
+}, 'manual-accessibility-fake-pass-without-flow-or-artifact-evidence')
+
 assertValid('contracts/supply-chain/v1/schema.json', load('contracts/supply-chain/v1/web-components.json'), 'web-supply-registry')
 assertValid('contracts/evidence/module-findings/v1/schema.json', load('web/module-findings.json'), 'web-findings')
 
@@ -80,4 +103,4 @@ for (const operation of ['getDashboard', 'listAuditFacts', 'listAnalysisArtifact
   if (!sdk.includes(`export const ${operation}`)) throw new Error(`generated SDK missing ${operation}`)
 }
 
-process.stdout.write(`${JSON.stringify({ schema_version: 'web-contract-validation/v1', schemas: schemas.length, positive_vectors: 4, negative_vectors: 5, generated_operations: 5, result: 'PASS', qualification: 'NOT_QUALIFIED', qualification_scope: 'CONTRACT_AND_GENERATED_CLIENT_GATE' })}\n`)
+process.stdout.write(`${JSON.stringify({ schema_version: 'web-contract-validation/v1', schemas: schemas.length, positive_vectors: 5, negative_vectors: 6, generated_operations: 5, result: 'PASS', qualification: 'NOT_QUALIFIED', qualification_scope: 'CONTRACT_AND_GENERATED_CLIENT_GATE' })}\n`)

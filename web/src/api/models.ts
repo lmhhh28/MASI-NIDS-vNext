@@ -52,13 +52,13 @@ export async function submitRollout(draft: RolloutDraft, session: Session): Prom
     min_ready_replicas: draft.minReadyReplicas,
     model_control_incarnation_id: draft.modelControlIncarnationID,
   }
-  const result: unknown = await withRequestSlot(() => createModelRolloutGroup({ client: controlClient, body, headers: headers(session) }))
+  const result: unknown = await withRequestSlot((signal) => createModelRolloutGroup({ client: controlClient, body, headers: headers(session), signal }))
   return responseData(result)
 }
 
 export async function submitRolloutAdvance(groupID: string, scope: string, orderedShards: string[], session: Session): Promise<unknown> {
   const targetSetDigest = await frozenIdentityDigest(orderedShards)
-  const result: unknown = await withRequestSlot(() => advanceModelRolloutGroup({
+  const result: unknown = await withRequestSlot((signal) => advanceModelRolloutGroup({
     client: controlClient,
     path: { groupID },
     body: {
@@ -67,6 +67,7 @@ export async function submitRolloutAdvance(groupID: string, scope: string, order
       idempotency_key: identity('web-model-advance'),
     },
     headers: headers(session),
+    signal,
   }))
   return responseData(result)
 }

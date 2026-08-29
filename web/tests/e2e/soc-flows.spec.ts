@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test'
+import axe from 'axe-core'
 
 test('opens one bounded Overview snapshot and preserves a single SSE connection', async ({ page }) => {
   let streams = 0
@@ -63,6 +64,26 @@ test('serves every primary deep link from the immutable SPA artifact', async ({ 
     await page.goto(route)
     await expect(page.getByRole('heading', { name: heading })).toBeVisible()
   }
+})
+
+test('restores exact fact, tab, and artifact context from shareable URLs', async ({ page }) => {
+  await page.goto('/detection/events?cursor=deep-link-page&fact=evt-2026-0001')
+  await expect(page.getByRole('heading', { name: 'Detection events' })).toBeVisible()
+  await expect(page.getByText('evt-2026-0001', { exact: true }).last()).toBeVisible()
+  await page.reload()
+  await expect(page.getByText('COMMITTED', { exact: true }).last()).toBeVisible()
+
+  await page.goto('/operations/models?tab=model-rollouts&fact=rollout-10')
+  await expect(page.getByRole('button', { name: 'Rollout groups' })).toHaveAttribute('aria-current', 'page')
+  await expect(page.getByText('rollout-10', { exact: true }).last()).toBeVisible()
+
+  await page.goto('/analysis?tab=analysis-artifacts&fact=analysis-artifact-8')
+  await expect(page.getByRole('button', { name: 'Artifacts' })).toHaveAttribute('aria-current', 'page')
+  await expect(page.getByText('analysis-artifact-8', { exact: true }).last()).toBeVisible()
+
+  await page.goto('/plugins/statistics?artifact=stat-artifact-17&definition=fixture.alert-rate')
+  await expect(page.getByRole('heading', { name: 'fixture.alert-rate' })).toBeVisible()
+  await expect(page.locator('canvas')).toBeVisible()
 })
 
 test('submits target and fleet control facts without collapsing child outcomes', async ({ page }) => {
@@ -142,4 +163,43 @@ test('reflows at 320 CSS pixels and honors keyboard and reduced-motion preferenc
   expect(metrics.documentWidth).toBeLessThanOrEqual(metrics.viewport)
   expect(metrics.animationDurationSeconds).toBeLessThanOrEqual(0.00001)
   expect(metrics.transitionDurationSeconds).toBeLessThanOrEqual(0.00001)
+})
+
+test('has no automated WCAG A or AA violations on every page and responsive variant', async ({ page }) => {
+  test.setTimeout(120_000)
+  const routes = [
+    '/overview', '/detection/events', '/detection/incidents', '/evidence', '/evidence/captures',
+    '/governance/response-rules', '/governance/firewall-policies', '/governance/approvals',
+    '/governance/operations', '/governance/rule-effectiveness', '/analysis', '/plugins/catalog',
+    '/plugins/statistics', '/plugins/masi.statistics.fixture/statistics', '/operations/targets',
+    '/operations/fleet', '/operations/models', '/operations/audit', '/route-not-found',
+  ]
+  const variants = [
+    { id: 'desktop-light', theme: 'light', width: 1440, height: 900 },
+    { id: 'desktop-dark', theme: 'dark', width: 1440, height: 900 },
+    { id: 'narrow-light', theme: 'light', width: 390, height: 844 },
+  ] as const
+  for (const variant of variants) {
+    await page.setViewportSize({ width: variant.width, height: variant.height })
+    await page.goto('/overview')
+    await page.evaluate((value) => window.localStorage.setItem('masi.theme', value), variant.theme)
+    for (const route of routes) {
+      await page.goto(route)
+      await page.locator('main').waitFor()
+      await page.evaluate(axe.source)
+      const violations = await page.evaluate(async () => {
+        const runtime = (window as unknown as {
+          axe: { run: (context: Document, options: unknown) => Promise<{ violations: Array<{ id: string; nodes: Array<{ target: unknown; failureSummary?: string }> }> }> }
+        }).axe
+        const result = await runtime.run(document, {
+          runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa'] },
+        })
+        return result.violations.map((violation) => ({
+          id: violation.id,
+          nodes: violation.nodes.map((node) => ({ target: node.target, failure: node.failureSummary ?? '' })),
+        }))
+      })
+      expect(violations, `${variant.id} ${route} accessibility violations`).toEqual([])
+    }
+  }
 })

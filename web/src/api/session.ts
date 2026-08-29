@@ -8,11 +8,12 @@ export const sessionQueryKey = ['session'] as const
 export const sessionQueryOptions = queryOptions({
   queryKey: sessionQueryKey,
   queryFn: async (): Promise<Session> => {
-    const result: unknown = await withRequestSlot(() => getSession({ client: controlClient }))
+    const result: unknown = await withRequestSlot((signal) => getSession({ client: controlClient, signal }))
     return assertSession(responseData(result))
   },
-  staleTime: 30_000,
-  gcTime: 300_000,
+  staleTime: 0,
+  gcTime: 0,
+  refetchOnMount: 'always',
   retry: false,
 })
 

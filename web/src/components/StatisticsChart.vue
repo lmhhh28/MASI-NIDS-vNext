@@ -6,6 +6,7 @@ import { BarChart, HeatmapChart, LineChart } from 'echarts/charts'
 import { AriaComponent, DatasetComponent, GridComponent, LegendComponent, TooltipComponent } from 'echarts/components'
 import { CanvasRenderer } from 'echarts/renderers'
 import type { ArtifactRecord } from '@masi/control-api'
+import { adjustChartInstances } from '@/runtime-metrics'
 
 use([LineChart, BarChart, HeatmapChart, AriaComponent, DatasetComponent, GridComponent, LegendComponent, TooltipComponent, CanvasRenderer])
 
@@ -71,14 +72,23 @@ const option = computed<EChartsCoreOption>(() => {
 
 function render(): void {
   if (!container.value) return
-  chart ??= init(container.value, undefined, { renderer: 'canvas' })
+  if (!chart) {
+    chart = init(container.value, undefined, { renderer: 'canvas' })
+    adjustChartInstances(1)
+  }
   chart.setOption(option.value, { notMerge: true })
 }
 
 onMounted(render)
 watch(option, render)
 useResizeObserver(container, () => chart?.resize())
-onBeforeUnmount(() => { chart?.dispose(); chart = undefined })
+onBeforeUnmount(() => {
+  if (chart) {
+    chart.dispose()
+    chart = undefined
+    adjustChartInstances(-1)
+  }
+})
 </script>
 
 <template>

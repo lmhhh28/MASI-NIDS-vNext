@@ -1,5 +1,18 @@
 import {
   getDashboard,
+  getAnalysisArtifact,
+  getDecision,
+  getEffectIntent,
+  getEvent,
+  getFirewallRevision,
+  getFleetOperation,
+  getModelPool,
+  getModelRolloutGroup,
+  getProposal,
+  getStatisticsDefinition,
+  getStatisticsRun,
+  getStatisticsSchedule,
+  getTarget,
   listAnalysisArtifacts,
   listAnalysisTasks,
   listAuditFacts,
@@ -27,7 +40,9 @@ import {
   type DashboardSchema,
 } from '@masi/control-api'
 import { controlClient, withRequestSlot } from './client'
-import { assertDashboard, assertProjection, responseData, type Projection } from './guards'
+import { asRecord, assertDashboard, assertProjection, ContractError, responseData, type Projection } from './guards'
+
+const resourceIdentityPattern = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/
 
 export type ResourceKey =
   | 'events'
@@ -103,8 +118,8 @@ interface ListQuery {
   page_size: number
 }
 
-async function invokeList(key: ResourceKey, query: ListQuery): Promise<unknown> {
-  const options = { client: controlClient, query }
+async function invokeList(key: ResourceKey, query: ListQuery, signal: AbortSignal): Promise<unknown> {
+  const options = { client: controlClient, query, signal }
   switch (key) {
     case 'events': return listEvents(options)
     case 'incidents': return listIncidents(options)
@@ -136,11 +151,96 @@ async function invokeList(key: ResourceKey, query: ListQuery): Promise<unknown> 
 export async function fetchResource(key: ResourceKey, cursor = '', pageSize = 50): Promise<Projection> {
   const definition = resourceDefinitions[key]
   const query: ListQuery = cursor === '' ? { page_size: pageSize } : { page_size: pageSize, cursor }
-  const result = await withRequestSlot(() => invokeList(key, query))
-  return assertProjection(responseData(result), definition.contractKind)
+  const result = await withRequestSlot((signal) => invokeList(key, query, signal))
+  const projection = assertProjection(responseData(result), definition.contractKind)
+  const identities = new Set<string>()
+  for (const item of projection.items) {
+    const identity = item[definition.identityField]
+    if (typeof identity !== 'string' || !resourceIdentityPattern.test(identity) || identities.has(identity)) {
+      throw new ContractError('PROJECTION_IDENTITY_INVALID', 'Projection item identities are missing, invalid, or duplicated.')
+    }
+    identities.add(identity)
+  }
+  return projection
 }
 
 export async function fetchDashboard(): Promise<DashboardSchema> {
-  const result: unknown = await withRequestSlot(() => getDashboard({ client: controlClient }))
+  const result: unknown = await withRequestSlot((signal) => getDashboard({ client: controlClient, signal }))
   return assertDashboard(responseData(result))
+}
+
+const detailResources = new Set<ResourceKey>([
+  'events',
+  'proposals',
+  'decisions',
+  'intents',
+  'targets',
+  'fleet',
+  'firewall-revisions',
+  'model-rollouts',
+  'model-pools',
+  'statistics-definitions',
+  'statistics-runs',
+  'statistics-schedules',
+  'analysis-artifacts',
+])
+
+export function supportsResourceDetail(key: ResourceKey): boolean {
+  return detailResources.has(key)
+}
+
+async function invokeDetail(key: ResourceKey, identity: string, signal: AbortSignal): Promise<unknown> {
+  const options = { client: controlClient, signal }
+  switch (key) {
+    case 'events': return getEvent({ ...options, path: { id: identity } })
+    case 'proposals': return getProposal({ ...options, path: { proposalID: identity } })
+    case 'decisions': return getDecision({ ...options, path: { decisionID: identity } })
+    case 'intents': return getEffectIntent({ ...options, path: { intentID: identity } })
+    case 'targets': return getTarget({ ...options, path: { targetID: identity } })
+    case 'fleet': return getFleetOperation({ ...options, path: { fleetID: identity } })
+    case 'firewall-revisions': return getFirewallRevision({ ...options, path: { revisionID: identity } })
+    case 'model-rollouts': return getModelRolloutGroup({ ...options, path: { groupID: identity } })
+    case 'model-pools': return getModelPool({ ...options, path: { poolID: identity } })
+    case 'statistics-definitions': return getStatisticsDefinition({ ...options, path: { definitionID: identity } })
+    case 'statistics-runs': return getStatisticsRun({ ...options, path: { runID: identity } })
+    case 'statistics-schedules': return getStatisticsSchedule({ ...options, path: { scheduleID: identity } })
+    case 'analysis-artifacts': return getAnalysisArtifact({ ...options, path: { artifactID: identity } })
+    default: throw new ContractError('RESOURCE_DETAIL_UNSUPPORTED', 'This resource has no exact detail boundary.')
+  }
+}
+
+export async function fetchResourceDetail(
+  key: ResourceKey,
+  identity: string,
+): Promise<Record<string, unknown>> {
+  if (!resourceIdentityPattern.test(identity) || !supportsResourceDetail(key)) {
+    throw new ContractError('RESOURCE_DETAIL_UNSUPPORTED', 'The requested exact detail boundary is unavailable.')
+  }
+  const result = await withRequestSlot((signal) => invokeDetail(key, identity, signal))
+  return assertResourceDetailValue(key, identity, responseData(result))
+}
+
+export function assertResourceDetailValue(
+  key: ResourceKey,
+  identity: string,
+  value: unknown,
+): Record<string, unknown> {
+  const definition = resourceDefinitions[key]
+  if (key === 'proposals' || key === 'analysis-artifacts') {
+    const record = asRecord(value, 'RESOURCE_DETAIL_INVALID')
+    if (record[definition.identityField] !== identity) {
+      throw new ContractError('RESOURCE_DETAIL_IDENTITY_MISMATCH', 'The exact detail response identity changed.')
+    }
+    return record
+  }
+  const projection = assertProjection(value, definition.contractKind)
+  const item = projection.items[0]
+  if (
+    projection.resource_id !== identity
+    || projection.items.length !== 1
+    || item?.[definition.identityField] !== identity
+  ) {
+    throw new ContractError('RESOURCE_DETAIL_IDENTITY_MISMATCH', 'The exact detail response identity changed.')
+  }
+  return item
 }

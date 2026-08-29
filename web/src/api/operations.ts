@@ -50,7 +50,7 @@ export async function submitTargetRegistration(draft: TargetRegistrationDraft, s
     idempotency_key: requestIdentity('web-target-register'),
     trace_id: requestIdentity('web-trace'),
   }
-  const result: unknown = await withRequestSlot(() => registerTarget({ client: controlClient, body, headers: headers(session) }))
+  const result: unknown = await withRequestSlot((signal) => registerTarget({ client: controlClient, body, headers: headers(session), signal }))
   return responseData(result)
 }
 
@@ -72,14 +72,15 @@ export async function submitTargetLifecycle(
     idempotency_key: requestIdentity(`web-target-${action}`),
   }
   const options = { client: controlClient, path: { targetID }, body, headers: headers(session) }
-  const result: unknown = await withRequestSlot(() => {
+  const result: unknown = await withRequestSlot((signal) => {
+    const requestOptions = { ...options, signal }
     switch (action) {
-      case 'verify': return verifyTarget(options)
-      case 'activate': return activateTarget(options)
-      case 'drain': return drainTarget(options)
-      case 'disable': return disableTarget(options)
-      case 'quarantine': return quarantineTarget(options)
-      case 'retire': return retireTarget(options)
+      case 'verify': return verifyTarget(requestOptions)
+      case 'activate': return activateTarget(requestOptions)
+      case 'drain': return drainTarget(requestOptions)
+      case 'disable': return disableTarget(requestOptions)
+      case 'quarantine': return quarantineTarget(requestOptions)
+      case 'retire': return retireTarget(requestOptions)
     }
   })
   return responseData(result)
@@ -107,11 +108,12 @@ export async function submitFleetAdvance(draft: FleetAdvanceDraft, session: Sess
     ...(draft.gateProposalID ? { gate_proposal_id: draft.gateProposalID } : {}),
     ...(draft.decisionReason ? { decision_reason: draft.decisionReason } : {}),
   }
-  const result: unknown = await withRequestSlot(() => advanceFleetWave({
+  const result: unknown = await withRequestSlot((signal) => advanceFleetWave({
     client: controlClient,
     path: { fleetID: draft.fleetID },
     body,
     headers: headers(session),
+    signal,
   }))
   return responseData(result)
 }

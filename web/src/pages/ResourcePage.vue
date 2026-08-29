@@ -1,37 +1,89 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import type { LocationQueryRaw } from 'vue-router'
 import { useQuery } from '@tanstack/vue-query'
 import { ElButton } from 'element-plus'
 import { Refresh } from '@element-plus/icons-vue'
-import { fetchResource, resourceDefinitions, type ResourceKey } from '@/api/resources'
+import {
+  fetchResource,
+  fetchResourceDetail,
+  resourceDefinitions,
+  supportsResourceDetail,
+  type ResourceKey,
+} from '@/api/resources'
 import PageHeading from '@/components/PageHeading.vue'
 import ResourceTable from '@/components/ResourceTable.vue'
 import StatePanel from '@/components/StatePanel.vue'
 import StatusMark from '@/components/StatusMark.vue'
 import FactDrawer from '@/components/FactDrawer.vue'
+import { sessionBoundKey } from '@/api/context'
 
 const route = useRoute()
 const router = useRouter()
-const pageSize = ref(Number(route.query.page_size ?? 50))
+const initialPageSize = Number(route.query.page_size ?? 50)
+const pageSize = ref([50, 100, 200].includes(initialPageSize) ? initialPageSize : 50)
 const cursor = computed(() => (typeof route.query.cursor === 'string' ? route.query.cursor : ''))
 const resourceKey = computed(() => route.meta.resource as ResourceKey)
 const definition = computed(() => resourceDefinitions[resourceKey.value])
-const selected = ref<Record<string, unknown> | null>(null)
-const drawerOpen = ref(false)
+const selectedID = computed(() => (typeof route.query.fact === 'string' ? route.query.fact : ''))
 
 const query = useQuery({
-  queryKey: computed(() => ['resource', resourceKey.value, cursor.value, pageSize.value]),
+  queryKey: sessionBoundKey('resource', resourceKey, cursor, pageSize),
   queryFn: () => fetchResource(resourceKey.value, cursor.value, pageSize.value),
 })
 
+const selectedFromPage = computed(() => query.data.value?.items.find((item) => {
+  const identity = item[definition.value.identityField]
+  return typeof identity === 'string' && identity === selectedID.value
+}) ?? null)
+const detail = useQuery({
+  queryKey: sessionBoundKey('resource-detail', resourceKey, selectedID),
+  queryFn: () => fetchResourceDetail(resourceKey.value, selectedID.value),
+  enabled: computed(() =>
+    selectedID.value !== ''
+    && query.isSuccess.value
+    && selectedFromPage.value === null
+    && supportsResourceDetail(resourceKey.value),
+  ),
+})
+const selected = computed(() => selectedFromPage.value ?? detail.data.value ?? null)
+const drawerOpen = computed({
+  get: () => selectedID.value !== '',
+  set: (open: boolean) => {
+    if (!open) {
+      const next = { ...route.query }
+      delete next.fact
+      void router.replace({ query: next })
+    }
+  },
+})
+const detailError = computed(() => {
+  if (!selectedID.value || selected.value) return ''
+  if (!supportsResourceDetail(resourceKey.value)) {
+    return 'This list has no exact detail endpoint; open a fact from the currently loaded bounded page.'
+  }
+  return detail.isError.value
+    ? (detail.error.value instanceof Error ? detail.error.value.message : 'The exact detail request failed closed.')
+    : ''
+})
+const detailLoading = computed(() =>
+  selectedID.value !== ''
+  && selectedFromPage.value === null
+  && supportsResourceDetail(resourceKey.value)
+  && detail.isFetching.value,
+)
+
 watch(pageSize, (value) => {
-  void router.replace({ query: { page_size: String(value) } })
+  const next: LocationQueryRaw = { ...route.query, page_size: String(value) }
+  delete next.cursor
+  void router.replace({ query: next })
 })
 
 function inspect(item: Record<string, unknown>): void {
-  selected.value = item
-  drawerOpen.value = true
+  const identity = item[definition.value.identityField]
+  if (typeof identity !== 'string' || identity === '') return
+  void router.push({ query: { ...route.query, fact: identity } })
 }
 
 function nextPage(): void {
@@ -126,13 +178,15 @@ function firstPage(): void {
 
     <FactDrawer
       v-model:open="drawerOpen"
-      :title="selected ? String(selected[definition.identityField] ?? 'Fact details') : 'Fact details'"
+      :title="selected ? String(selected[definition.identityField] ?? selectedID) : (selectedID || 'Fact details')"
       :item="selected"
+      :loading="detailLoading"
+      :error="detailError"
     />
   </div>
 </template>
 
 <style scoped>
-.resource-page { display: grid; gap: var(--space-5); }.page-size select { min-height: 2.5rem; padding: 0 var(--space-3); border: 1px solid var(--border-strong); border-radius: var(--radius-sm); background: var(--surface-panel); color: var(--text-primary); }.projection-strip { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-4); min-height: 2.5rem; color: var(--text-secondary); font-size: var(--text-sm); }.projection-strip__scope { margin-left: auto; max-width: 30rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }.pagination { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); color: var(--text-muted); font-size: var(--text-sm); }
+.resource-page { display: grid; gap: var(--space-5); }.page-size select { min-height: 2.5rem; padding: 0 var(--space-3); border: 1px solid var(--border-strong); border-radius: var(--radius-sm); background: var(--surface-panel); color: var(--text-primary); }.projection-strip { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-4); min-height: 2.5rem; color: var(--text-secondary); font-size: var(--text-sm); }.projection-strip__scope { margin-left: auto; max-width: 30rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }.pagination { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); color: var(--text-secondary); font-size: var(--text-sm); }
 @media (max-width: 40rem) { .projection-strip__scope { width: 100%; margin-left: 0; }.pagination span { display: none; } }
 </style>

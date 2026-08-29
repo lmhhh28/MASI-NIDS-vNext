@@ -1,6 +1,7 @@
 import { readFileSync, readdirSync, writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { createHash } from 'node:crypto'
+import { execFileSync } from 'node:child_process'
 import Ajv2020 from 'ajv/dist/2020.js'
 import addFormats from 'ajv-formats'
 
@@ -18,6 +19,7 @@ const startedAt = argument('--started-at')
 const sourceTreeDigest = argument('--source-tree-digest')
 const workingTreeDirty = argument('--working-tree-dirty') === 'true'
 const workingTreeStatusDigest = argument('--working-tree-status-digest')
+const sourceRevision = execFileSync('git', ['-C', repoRoot, 'rev-parse', 'HEAD'], { encoding: 'utf8' }).trim()
 
 const load = (path) => JSON.parse(readFileSync(path, 'utf8'))
 const sha256 = (path) => `sha256:${createHash('sha256').update(readFileSync(path)).digest('hex')}`
@@ -26,7 +28,7 @@ const commands = readdirSync(commandDirectory)
   .filter((name) => name.endsWith('.json'))
   .sort()
   .map((name) => load(resolve(commandDirectory, name)))
-  .map(({ command_id, result, qualification, duration_ms, log_digest }) => ({ command_id, result, qualification, duration_ms, log_digest }))
+  .map(({ command_id, result, qualification, duration_ms, log }) => ({ command_id, result, qualification, duration_ms, log_digest: log.sha256 }))
 
 const parseLastObject = (path, schemaVersion) => {
   const lines = readFileSync(path, 'utf8').trim().split('\n').reverse()
@@ -44,21 +46,54 @@ const browser = load(resolve(runRoot, 'browser.json'))
 const oci = load(resolve(runRoot, 'oci.json'))
 const performanceEvidence = load(resolve(runRoot, 'performance.json'))
 const soak = load(resolve(runRoot, 'soak.json'))
+const manualAccessibilityPath = resolve(runRoot, 'manual-accessibility.json')
+const manualAccessibility = load(manualAccessibilityPath)
+const ajv = new Ajv2020({ allErrors: true, strict: false })
+addFormats(ajv)
+const performanceSchema = load(resolve(repoRoot, 'contracts/evidence/web-performance/v1/schema.json'))
+const validatePerformance = ajv.compile(performanceSchema)
+if (!validatePerformance(performanceEvidence)) throw new Error(`performance evidence: ${ajv.errorsText(validatePerformance.errors)}`)
+const soakSchema = load(resolve(repoRoot, 'contracts/evidence/web-soak/v1/schema.json'))
+const validateSoak = ajv.compile(soakSchema)
+if (!validateSoak(soak)) throw new Error(`soak evidence: ${ajv.errorsText(validateSoak.errors)}`)
+const manualAccessibilitySchema = load(resolve(repoRoot, 'contracts/evidence/web-manual-accessibility/v1/schema.json'))
+const validateManualAccessibility = ajv.compile(manualAccessibilitySchema)
+if (!validateManualAccessibility(manualAccessibility)) throw new Error(`manual accessibility evidence: ${ajv.errorsText(validateManualAccessibility.errors)}`)
 const findingsPath = resolve(moduleRoot, 'module-findings.json')
 const findings = load(findingsPath)
 const openP0 = findings.findings.filter((entry) => entry.status === 'OPEN' && entry.severity === 'P0').length
-const commandFailures = commands.filter((entry) => entry.result !== 'PASS')
+const commandFailures = commands.filter((entry) => entry.result === 'FAIL')
+const commandHolds = commands.filter((entry) => entry.result === 'HOLD' || entry.result === 'NOT_RUN')
 const browserFailures = (browser.stats?.unexpected ?? 0) + (browser.stats?.flaky ?? 0)
 const browserTests = browser.stats?.expected ?? 0
 const formalSoak = soak.warmup_seconds === 60 && soak.phase_seconds === 900 && soak.qualified_elapsed_seconds >= 3600 && soak.qualification === 'QUALIFIED'
-const performanceMaximum = (field) => Math.max(...performanceEvidence.groups.map((entry) => entry[field]))
-const operationalComplete = commandFailures.length === 0
+const performanceMaximum = (field) => {
+  const values = performanceEvidence.groups.map((entry) => entry[field]).filter((value) => typeof value === 'number' && Number.isFinite(value))
+  return values.length === 0 ? null : Math.max(...values)
+}
+const operationalComplete = commandFailures.length === 0 && commandHolds.length === 0
   && browserTests >= 18 && browserFailures === 0
   && bundle.result === 'PASS' && oci.result === 'PASS'
   && oci.source_tree_digest === sourceTreeDigest
   && performanceEvidence.result === 'PASS'
   && soak.result === 'PASS' && formalSoak && soak.errors.length === 0
+  && manualAccessibility.result === 'PASS' && manualAccessibility.qualification === 'QUALIFIED'
   && openP0 === 0
+const qualificationGates = {
+  automated_accessibility: browserFailures === 0 ? 'PASS' : 'FAIL',
+  manual_accessibility: manualAccessibility.result,
+  module_operational: operationalComplete ? 'PASS' : 'HOLD',
+  go_web_pairwise: 'HOLD',
+  protected_release_baseline: 'HOLD',
+  system_e2e: 'HOLD',
+  production_ha: 'HOLD',
+}
+const remainingHolds = [
+  ...(manualAccessibility.result === 'PASS' ? [] : ['Exact-image human screen-reader, keyboard, zoom/reflow, and high-risk focus review remains NOT_RUN.']),
+  'Formal Go/Web pairwise and the ten system waves remain unqualified.',
+  'A protected signed release baseline and immutable retention bundle are not established.',
+  'Production HA and multi-failure-domain qualification remain unqualified.',
+]
 
 const summary = {
   schema_version: 'web-spa-module-gate-summary/v1',
@@ -66,6 +101,7 @@ const summary = {
   run_id: runID,
   started_at: startedAt,
   finished_at: new Date().toISOString(),
+  source_revision: sourceRevision,
   source_tree_digest: sourceTreeDigest,
   working_tree_dirty: workingTreeDirty,
   working_tree_status_digest: workingTreeStatusDigest,
@@ -110,20 +146,26 @@ const summary = {
     errors: soak.errors.length,
     result: soak.result,
   },
+  manual_accessibility: {
+    result: manualAccessibility.result,
+    qualification: manualAccessibility.qualification,
+    evidence_digest: sha256(manualAccessibilityPath),
+    passed_flows: manualAccessibility.flows.filter((entry) => entry.result === 'PASS').length,
+  },
   findings: { open_p0: openP0, registry_digest: sha256(findingsPath) },
+  qualification_gates: qualificationGates,
+  remaining_holds: remainingHolds,
   level: 'MODULE',
   applicability: 'APPLICABLE',
-  result: operationalComplete ? 'HOLD' : (commandFailures.length > 0 ? 'FAIL' : 'HOLD'),
+  result: commandFailures.length > 0 ? 'FAIL' : 'HOLD',
   qualification: 'NOT_QUALIFIED',
   qualification_scope: operationalComplete
     ? 'DEC-044_OPERATIONAL_COMPLETE; FORMAL_GO_WEB_PAIRWISE_SYSTEM_PROTECTED_BASELINE_NOT_QUALIFIED'
-    : 'WEB_OPERATIONAL_GATES_INCOMPLETE',
+    : (manualAccessibility.result === 'PASS' ? 'WEB_OPERATIONAL_GATES_INCOMPLETE' : 'WEB_MANUAL_ACCESSIBILITY_REVIEW_NOT_RUN'),
   overall_module_complete: operationalComplete,
 }
 
 const schema = load(resolve(repoRoot, 'contracts/evidence/web-module/v1/schema.json'))
-const ajv = new Ajv2020({ allErrors: true, strict: false })
-addFormats(ajv)
 const validate = ajv.compile(schema)
 if (!validate(summary)) throw new Error(ajv.errorsText(validate.errors))
 if (summary.overall_module_complete && (summary.result === 'FAIL' || summary.result === 'NOT_RUN')) throw new Error('complete Web module has invalid result')

@@ -44,7 +44,7 @@ const fleet = reactive({
 })
 
 const title = computed(() => ({ register: 'Register stable target', lifecycle: 'Change target lifecycle', 'fleet-advance': 'Advance fleet wave gate' })[dialogKind.value])
-const digestPattern = /^sha256:[0-9a-f]{64}$/
+const digestPattern = /^sha256:(?!0{64}$)[0-9a-f]{64}$/
 
 function validationError(): string {
   if (dialogKind.value === 'register') {
@@ -96,8 +96,7 @@ const mutation = useMutation({
       : 'The target-control fact was accepted. Connection or primary state is not inferred.'
     errorMessage.value = ''
     dialogOpen.value = false
-    void queryClient.invalidateQueries({ queryKey: ['resource'] })
-    void queryClient.invalidateQueries({ queryKey: ['dashboard'] })
+    void queryClient.invalidateQueries({ queryKey: ['session-bound'] })
   },
   onError: (error) => { errorMessage.value = error instanceof Error ? error.message : 'Operation failed closed.' },
 })
@@ -219,7 +218,7 @@ function openFleetAdvance(item: Record<string, unknown>): void {
         <label class="wide"><span>Desired profile digest</span><input
           v-model="target.desiredProfileDigest"
           class="mono"
-          pattern="sha256:[0-9a-f]{64}"
+          pattern="sha256:(?!0{64}$)[0-9a-f]{64}"
           required
           autocomplete="off"
         ></label>
@@ -246,7 +245,7 @@ function openFleetAdvance(item: Record<string, unknown>): void {
         <label class="wide"><span>Frozen target-set digest</span><input
           v-model="target.targetSetDigest"
           class="mono"
-          pattern="sha256:[0-9a-f]{64}"
+          pattern="sha256:(?!0{64}$)[0-9a-f]{64}"
           required
           autocomplete="off"
         ></label>
@@ -276,7 +275,7 @@ function openFleetAdvance(item: Record<string, unknown>): void {
         <label><span>Frozen target-set digest</span><input
           v-model="target.targetSetDigest"
           class="mono"
-          pattern="sha256:[0-9a-f]{64}"
+          pattern="sha256:(?!0{64}$)[0-9a-f]{64}"
           required
           autocomplete="off"
         ></label>
@@ -316,7 +315,7 @@ function openFleetAdvance(item: Record<string, unknown>): void {
         <label><span>Frozen target-set digest</span><input
           v-model="fleet.targetSetDigest"
           class="mono"
-          pattern="sha256:[0-9a-f]{64}"
+          pattern="sha256:(?!0{64}$)[0-9a-f]{64}"
           required
           autocomplete="off"
         ></label>

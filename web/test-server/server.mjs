@@ -37,6 +37,12 @@ function projection(kind, items) {
   }
 }
 
+function exactProjection(kind, identityField, identity) {
+  const item = (fixtures[kind] ?? []).find((entry) => entry[identityField] === identity)
+  if (!item) return null
+  return { ...projection(kind, [item]), resource_id: identity, page_size: 1 }
+}
+
 const fixtures = {
   event: [{ event_id: 'evt-2026-0001', shard_id: 'shard-a', model_control_incarnation_id: 'inc-7', route_epoch: 9, commit_status: 'committed', quality: 'valid', reason_code: 'COMMITTED', decision: 'alert', predicted_label: 4, out_of_distribution: false, abstain: false, execution_status: 'ok', event_time_unix_ms: now() - 12_000 }],
   incident: [{ incident_id: 'inc-401', severity: 'high', status: 'investigating', created_at_unix_ms: now() - 60_000 }],
@@ -79,6 +85,20 @@ const paths = {
   '/api/audit': 'audit',
 }
 
+const exactProjectionPaths = [
+  [/^\/api\/events\/([^/]+)$/, 'event', 'event_id'],
+  [/^\/api\/effects\/decisions\/([^/]+)$/, 'decision', 'decision_id'],
+  [/^\/api\/effects\/intents\/([^/]+)$/, 'intent', 'effect_intent_id'],
+  [/^\/api\/targets\/([^/]+)$/, 'target', 'target_id'],
+  [/^\/api\/fleet\/operations\/([^/]+)$/, 'fleet-operation', 'fleet_operation_id'],
+  [/^\/api\/firewall\/revisions\/([^/]+)$/, 'firewall-revision', 'revision_id'],
+  [/^\/api\/models\/rollout-groups\/([^/]+)$/, 'model-rollout-group', 'group_id'],
+  [/^\/api\/models\/pools\/([^/]+)$/, 'model-pool', 'logical_pool_id'],
+  [/^\/api\/plugins\/statistics\/definitions\/([^/]+)$/, 'plugin-statistics-definition', 'definition_id'],
+  [/^\/api\/plugins\/statistics\/runs\/([^/]+)$/, 'plugin-statistics-run', 'run_id'],
+  [/^\/api\/plugins\/statistics\/schedules\/([^/]+)$/, 'plugin-statistics-schedule', 'schedule_id'],
+]
+
 const statisticsArtifact = {
   schema_version: 'masi-plugin-statistics/v1', record_type: 'artifact', record_id: 'stat-artifact-17',
   artifact_digest: d, run_id: 'statrun-17', definition_id: 'fixture.alert-rate', definition_digest: d,
@@ -116,14 +136,27 @@ const server = createServer(async (request, response) => {
   const url = new URL(request.url, `http://${request.headers.host}`)
   if (request.method === 'GET' && url.pathname === '/api/session') return json(response, 200, { schema_version: 'masi-web-projection/v1', actor_ref: 'actor:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', csrf_token: 'fixture-csrf-token-00000000000000000000000000000000', expires_at: Math.floor(Date.now() / 1000) + 3600, step_up: 'webauthn-fido2' })
   if (request.method === 'GET' && url.pathname === '/api/dashboard') return json(response, 200, { schema_version: 'masi-web-dashboard/v1', snapshot_id: `dashboard-${now()}`, snapshot_unix_ms: now(), generation: 7, state: 'partial', actor_ref: 'actor:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', authorized_scopes: ['scope-e2e'], counts: { events_24h: 2481, alerts_24h: 37, degraded_events_24h: 2, open_incidents: 4, targets_total: 3, targets_active: 2, targets_attention: 1, pending_approvals: 2, active_effects: 1, unknown_effects: 0, model_shards_ready: 2, model_shards_unavailable: 0, plugins_active: 2, analysis_attention: 0 }, recent_alerts: fixtures.event, active_operations: [{ effect_intent_id: 'intent-19', operation_id: 'operation-19', target_id: 'target-edge-a', effect_kind: 'firewall-overlay', risk_level: 'R2', claim_state: 'executing', deadline_unix_ms: now() + 120_000, reason_code: 'EXECUTING' }], target_health: [{ target_id: 'target-edge-a', display_name: 'Edge switch A', lifecycle: 'active', assignment_generation: 7, lease_expires_at_unix_ms: now() + 60_000 }, { target_id: 'target-edge-b', display_name: 'Edge switch B', lifecycle: 'quarantined', assignment_generation: null, lease_expires_at_unix_ms: null }], reason_code: 'DASHBOARD_ATTENTION' })
-  if (request.method === 'GET' && paths[url.pathname]) return json(response, 200, projection(paths[url.pathname], fixtures[paths[url.pathname]] ?? []))
+  if (request.method === 'GET' && paths[url.pathname]) {
+    const items = url.searchParams.get('cursor') === 'deep-link-page' ? [] : (fixtures[paths[url.pathname]] ?? [])
+    return json(response, 200, projection(paths[url.pathname], items))
+  }
+  if (request.method === 'GET') {
+    for (const [pattern, kind, identityField] of exactProjectionPaths) {
+      const match = url.pathname.match(pattern)
+      if (!match) continue
+      const detail = exactProjection(kind, identityField, decodeURIComponent(match[1]))
+      return detail ? json(response, 200, detail) : json(response, 404, { error: 'RESOURCE_NOT_FOUND' })
+    }
+  }
   if (request.method === 'GET' && url.pathname === '/api/effects/proposals/proposal-r2-41') return json(response, 200, { proposal_id: 'proposal-r2-41', proposal_digest: d, scope: 'scope-e2e', risk_level: 'R2', effect_kind: 'firewall-overlay', target_set_digest: d, target_ids: ['target-edge-a'], policy_digest: d, evidence_refs: ['evidence-88'], expires_at_unix_ms: now() + 300_000, note: 'Block the observed source for the bounded response window.', created_at_unix_ms: now() - 30_000, actor_ref: 'actor:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb', reason_code: 'PROPOSED', governance_status: 'pending', superseded_by_proposal_id: null, superseded_at_unix_ms: null, supersede_reason_code: null })
+  if (request.method === 'GET' && url.pathname === '/api/analysis/artifacts/analysis-artifact-8') return json(response, 200, fixtures['analysis-artifact'][0])
   if (request.method === 'GET' && url.pathname === '/api/plugins/statistics/artifacts/stat-artifact-17') return json(response, 200, statisticsArtifact)
   if (request.method === 'GET' && url.pathname === '/events') {
     response.writeHead(200, { ...securityHeaders, 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-store', Connection: 'keep-alive', 'X-Accel-Buffering': 'no' })
     let sequence = 1
     const emit = (type) => {
-      const event = { event_type: type, resource_kind: 'system-health', resource_id: type === 'heartbeat' ? 'heartbeat' : 'boot', cursor: `sse:7:${sequence}`, sequence, generation: 7, produced_at_unix_ms: now(), data_time_unix_ms: now(), payload_digest: d, bytes: 256, emitted_at_unix_ms: now() }
+      const event = { event_type: type, resource_kind: 'system-health', resource_id: type === 'heartbeat' ? 'heartbeat' : 'boot', cursor: `sse:7:${sequence}`, sequence, generation: 7, produced_at_unix_ms: now(), data_time_unix_ms: now(), payload_digest: d, bytes: 1, emitted_at_unix_ms: now() }
+      for (let index = 0; index < 3; index += 1) event.bytes = Buffer.byteLength(JSON.stringify(event))
       sequence += 1
       response.write(`event: ${type}\ndata: ${JSON.stringify(event)}\n\n`)
     }

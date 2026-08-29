@@ -1,4 +1,5 @@
 import type { DashboardSchema, Session } from '@masi/control-api'
+import { acceptProjectionContext } from './context'
 
 export type ProjectionState =
   | 'current'
@@ -44,11 +45,19 @@ export function asRecord(value: unknown, reason = 'RESPONSE_NOT_OBJECT'): Record
   return value as Record<string, unknown>
 }
 
-function asBoundedString(value: unknown, field: string, maximum: number): string {
-  if (typeof value !== 'string' || value.length === 0 || value.length > maximum) {
+function asBoundedString(value: unknown, field: string, maximum: number, minimum = 1): string {
+  if (typeof value !== 'string' || value.length < minimum || value.length > maximum) {
     throw new ContractError('RESPONSE_FIELD_INVALID', `${field} is missing or outside its bound.`)
   }
   return value
+}
+
+function asIdentity(value: unknown, field: string): string {
+  const identity = asBoundedString(value, field, 128)
+  if (!/^[A-Za-z0-9][A-Za-z0-9._:-]*$/.test(identity)) {
+    throw new ContractError('RESPONSE_FIELD_INVALID', `${field} is not a canonical identity.`)
+  }
+  return identity
 }
 
 function asNonNegativeInteger(value: unknown, field: string): number {
@@ -63,13 +72,26 @@ export function assertSession(value: unknown): Session {
   if (record.schema_version !== 'masi-web-projection/v1') {
     throw new ContractError('SESSION_MAJOR_UNSUPPORTED', 'The session contract major is unsupported.')
   }
-  asBoundedString(record.actor_ref, 'actor_ref', 128)
-  asBoundedString(record.csrf_token, 'csrf_token', 256)
-  asNonNegativeInteger(record.expires_at, 'expires_at')
+  const expectedFields = new Set(['schema_version', 'actor_ref', 'csrf_token', 'expires_at', 'step_up'])
+  if (Object.keys(record).some((field) => !expectedFields.has(field))) {
+    throw new ContractError('SESSION_FIELD_UNKNOWN', 'The session response contains an unknown field.')
+  }
+  const actorRef = asIdentity(record.actor_ref, 'actor_ref')
+  const csrfToken = asBoundedString(record.csrf_token, 'csrf_token', 256, 32)
+  const expiresAt = asNonNegativeInteger(record.expires_at, 'expires_at')
+  if (expiresAt < 1) {
+    throw new ContractError('RESPONSE_FIELD_INVALID', 'expires_at must be positive.')
+  }
   if (!['none', 'webauthn-fido2', 'passkey', 'hardware-key'].includes(String(record.step_up))) {
     throw new ContractError('SESSION_STEP_UP_UNSUPPORTED', 'The step-up state is unsupported.')
   }
-  return record as unknown as Session
+  return {
+    schema_version: 'masi-web-projection/v1',
+    actor_ref: actorRef,
+    csrf_token: csrfToken,
+    expires_at: expiresAt,
+    step_up: record.step_up as Session['step_up'],
+  }
 }
 
 export function assertProjection(value: unknown, expectedKind: string): Projection {
@@ -92,7 +114,11 @@ export function assertProjection(value: unknown, expectedKind: string): Projecti
   }
   const items = record.items.map((item) => asRecord(item, 'PROJECTION_ITEM_INVALID'))
   const cursor = record.cursor === '' ? '' : asBoundedString(record.cursor, 'cursor', 512)
-  return {
+  const generation = asNonNegativeInteger(record.generation, 'generation')
+  if (generation < 1) {
+    throw new ContractError('PROJECTION_GENERATION_INVALID', 'Projection generation must be positive.')
+  }
+  const projection: Projection = {
     schema_version: 'masi-web-projection/v1',
     projection_type: record.projection_type as ProjectionState,
     resource_kind: expectedKind,
@@ -101,7 +127,7 @@ export function assertProjection(value: unknown, expectedKind: string): Projecti
     page_size: pageSize,
     total_count: asNonNegativeInteger(record.total_count, 'total_count'),
     items,
-    generation: asNonNegativeInteger(record.generation, 'generation'),
+    generation,
     session_scope: asBoundedString(record.session_scope, 'session_scope', 4096),
     authorized_scope: asBoundedString(record.authorized_scope, 'authorized_scope', 4096),
     sse_event: record.sse_event === null ? null : asRecord(record.sse_event),
@@ -109,6 +135,13 @@ export function assertProjection(value: unknown, expectedKind: string): Projecti
     reason_code: asBoundedString(record.reason_code, 'reason_code', 64),
     trace_id: typeof record.trace_id === 'string' ? record.trace_id.slice(0, 128) : '',
   }
+  acceptProjectionContext(
+    projection.actor_ref,
+    projection.session_scope,
+    projection.authorized_scope,
+    projection.generation,
+  )
+  return projection
 }
 
 export function assertDashboard(value: unknown): DashboardSchema {
@@ -132,9 +165,17 @@ export function assertDashboard(value: unknown): DashboardSchema {
   if (!Array.isArray(record.authorized_scopes) || record.authorized_scopes.length === 0 || record.authorized_scopes.length > 256) {
     throw new ContractError('DASHBOARD_SCOPE_INVALID', 'Dashboard scopes are missing or outside their bound.')
   }
+  const authorizedScopes = record.authorized_scopes.map((scope) =>
+    asBoundedString(scope, 'authorized_scopes[]', 256),
+  )
   asRecord(record.counts, 'DASHBOARD_COUNTS_INVALID')
   asNonNegativeInteger(record.snapshot_unix_ms, 'snapshot_unix_ms')
-  asNonNegativeInteger(record.generation, 'generation')
+  const generation = asNonNegativeInteger(record.generation, 'generation')
+  if (generation < 1) {
+    throw new ContractError('DASHBOARD_GENERATION_INVALID', 'Dashboard generation must be positive.')
+  }
+  const actorRef = asBoundedString(record.actor_ref, 'actor_ref', 128)
+  acceptProjectionContext(actorRef, authorizedScopes.join(','), authorizedScopes.join(','), generation)
   return record as unknown as DashboardSchema
 }
 

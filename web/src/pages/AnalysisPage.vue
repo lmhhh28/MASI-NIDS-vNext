@@ -1,27 +1,92 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import type { LocationQueryRaw } from 'vue-router'
 import { useQuery } from '@tanstack/vue-query'
 import { ElButton } from 'element-plus'
 import { Refresh } from '@element-plus/icons-vue'
-import { fetchResource, resourceDefinitions, type ResourceKey } from '@/api/resources'
+import {
+  fetchResource,
+  fetchResourceDetail,
+  resourceDefinitions,
+  supportsResourceDetail,
+  type ResourceKey,
+} from '@/api/resources'
 import PageHeading from '@/components/PageHeading.vue'
 import ResourceTable from '@/components/ResourceTable.vue'
 import StatePanel from '@/components/StatePanel.vue'
 import FactDrawer from '@/components/FactDrawer.vue'
 import StatusMark from '@/components/StatusMark.vue'
+import { sessionBoundKey } from '@/api/context'
 
 type AnalysisTab = 'analysis-tasks' | 'analysis-artifacts'
-const tab = ref<AnalysisTab>('analysis-tasks')
+const route = useRoute()
+const router = useRouter()
+function routeTab(value: unknown): AnalysisTab {
+  return value === 'analysis-artifacts' ? 'analysis-artifacts' : 'analysis-tasks'
+}
+const tab = ref<AnalysisTab>(routeTab(route.query.tab))
 const queries = {
-  'analysis-tasks': useQuery({ queryKey: ['resource', 'analysis-tasks', '', 50], queryFn: () => fetchResource('analysis-tasks') }),
-  'analysis-artifacts': useQuery({ queryKey: ['resource', 'analysis-artifacts', '', 50], queryFn: () => fetchResource('analysis-artifacts') }),
+  'analysis-tasks': useQuery({ queryKey: sessionBoundKey('resource', 'analysis-tasks', '', 50), queryFn: () => fetchResource('analysis-tasks') }),
+  'analysis-artifacts': useQuery({ queryKey: sessionBoundKey('resource', 'analysis-artifacts', '', 50), queryFn: () => fetchResource('analysis-artifacts') }),
 }
 const query = computed(() => queries[tab.value])
 const definition = computed(() => resourceDefinitions[tab.value as ResourceKey])
-const selected = ref<Record<string, unknown> | null>(null)
-const drawerOpen = ref(false)
+const selectedID = computed(() => typeof route.query.fact === 'string' ? route.query.fact : '')
+const selectedFromPage = computed(() => query.value.data.value?.items.find((item) => {
+  const identity = item[definition.value.identityField]
+  return typeof identity === 'string' && identity === selectedID.value
+}) ?? null)
+const detail = useQuery({
+  queryKey: sessionBoundKey('resource-detail', tab, selectedID),
+  queryFn: () => fetchResourceDetail(tab.value, selectedID.value),
+  enabled: computed(() =>
+    selectedID.value !== ''
+    && query.value.isSuccess.value
+    && selectedFromPage.value === null
+    && supportsResourceDetail(tab.value),
+  ),
+})
+const selected = computed(() => selectedFromPage.value ?? detail.data.value ?? null)
+const drawerOpen = computed({
+  get: () => selectedID.value !== '',
+  set: (open: boolean) => {
+    if (!open) {
+      const next = { ...route.query }
+      delete next.fact
+      void router.replace({ query: next })
+    }
+  },
+})
+const detailLoading = computed(() =>
+  selectedID.value !== ''
+  && selectedFromPage.value === null
+  && supportsResourceDetail(tab.value)
+  && detail.isFetching.value,
+)
+const detailError = computed(() => {
+  if (!selectedID.value || selected.value) return ''
+  if (!supportsResourceDetail(tab.value)) {
+    return 'Analysis tasks have no read-only detail endpoint; select a task from the loaded bounded page.'
+  }
+  return detail.isError.value
+    ? (detail.error.value instanceof Error ? detail.error.value.message : 'The exact Analysis artifact failed closed.')
+    : ''
+})
+watch(() => route.query.tab, (value) => { tab.value = routeTab(value) })
 
-function inspect(item: Record<string, unknown>): void { selected.value = item; drawerOpen.value = true }
+function inspect(item: Record<string, unknown>): void {
+  const identity = item[definition.value.identityField]
+  if (typeof identity === 'string' && identity !== '') {
+    void router.push({ query: { ...route.query, tab: tab.value, fact: identity } })
+  }
+}
+function selectTab(value: AnalysisTab): void {
+  tab.value = value
+  const next: LocationQueryRaw = { ...route.query, tab: value }
+  delete next.fact
+  void router.push({ query: next })
+}
 function refresh(): void { void queries['analysis-tasks'].refetch(); void queries['analysis-artifacts'].refetch() }
 </script>
 
@@ -52,13 +117,13 @@ function refresh(): void { void queries['analysis-tasks'].refetch(); void querie
       <button
         type="button"
         :aria-current="tab === 'analysis-tasks' ? 'page' : undefined"
-        @click="tab = 'analysis-tasks'"
+        @click="selectTab('analysis-tasks')"
       >
         Tasks
       </button><button
         type="button"
         :aria-current="tab === 'analysis-artifacts' ? 'page' : undefined"
-        @click="tab = 'analysis-artifacts'"
+        @click="selectTab('analysis-artifacts')"
       >
         Artifacts
       </button>
@@ -90,8 +155,10 @@ function refresh(): void { void queries['analysis-tasks'].refetch(); void querie
     />
     <FactDrawer
       v-model:open="drawerOpen"
-      :title="selected ? String(selected[definition.identityField] ?? 'Analysis fact') : 'Analysis fact'"
+      :title="selected ? String(selected[definition.identityField] ?? selectedID) : (selectedID || 'Analysis fact')"
       :item="selected"
+      :loading="detailLoading"
+      :error="detailError"
     />
   </div>
 </template>

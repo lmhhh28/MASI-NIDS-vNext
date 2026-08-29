@@ -23,7 +23,7 @@ const form = reactive({
   bindingGeneration: 1, configDigest: '', capabilityDigest: '', resourceProfileDigest: '',
   scope: '', targetSetDigest: '', previousBindingGeneration: 1,
 })
-const digestPattern = /^sha256:[0-9a-f]{64}$/
+const digestPattern = /^sha256:(?!0{64}$)[0-9a-f]{64}$/
 const title = computed(() => ({ qualify: 'Record qualification', activate: 'Activate exact binding', drain: 'Drain active binding', revoke: 'Revoke active binding', rollback: 'Create rollback binding' })[action.value])
 
 function validationError(): string {
@@ -67,7 +67,7 @@ const mutation = useMutation({
   onSuccess: () => {
     successMessage.value = `${title.value} was accepted as a control fact. Runtime readiness remains separately observed.`
     errorMessage.value = ''; dialogOpen.value = false
-    void queryClient.invalidateQueries({ queryKey: ['resource'] }); void queryClient.invalidateQueries({ queryKey: ['dashboard'] })
+    void queryClient.invalidateQueries({ queryKey: ['session-bound'] })
   },
   onError: (error) => { errorMessage.value = error instanceof Error ? error.message : 'Plugin operation failed closed.' },
 })
@@ -154,7 +154,7 @@ function open(item: Record<string, unknown>): void {
         <label class="wide"><span>Frozen target-set digest</span><input
           v-model="form.targetSetDigest"
           class="mono"
-          pattern="sha256:[0-9a-f]{64}"
+          pattern="sha256:(?!0{64}$)[0-9a-f]{64}"
           required
           autocomplete="off"
         ></label>
@@ -182,25 +182,25 @@ function open(item: Record<string, unknown>): void {
           <label class="wide"><span>Manifest digest</span><input
             v-model="form.manifestDigest"
             class="mono"
-            pattern="sha256:[0-9a-f]{64}"
+            pattern="sha256:(?!0{64}$)[0-9a-f]{64}"
             required
           ></label>
           <label class="wide"><span>Config digest</span><input
             v-model="form.configDigest"
             class="mono"
-            pattern="sha256:[0-9a-f]{64}"
+            pattern="sha256:(?!0{64}$)[0-9a-f]{64}"
             required
           ></label>
           <label class="wide"><span>Capability digest</span><input
             v-model="form.capabilityDigest"
             class="mono"
-            pattern="sha256:[0-9a-f]{64}"
+            pattern="sha256:(?!0{64}$)[0-9a-f]{64}"
             required
           ></label>
           <label class="wide"><span>Resource profile digest</span><input
             v-model="form.resourceProfileDigest"
             class="mono"
-            pattern="sha256:[0-9a-f]{64}"
+            pattern="sha256:(?!0{64}$)[0-9a-f]{64}"
             required
           ></label>
         </template>

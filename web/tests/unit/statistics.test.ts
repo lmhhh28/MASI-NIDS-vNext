@@ -15,8 +15,22 @@ function artifact() {
 
 describe('statistics artifact guard', () => {
   it('accepts finite bounded artifacts', () => expect(assertStatisticsArtifact(artifact()).record_id).toBe('artifact-1'))
+  it('keeps the host actor distinct from producer provenance', () => {
+    expect(assertStatisticsArtifact({ ...artifact(), actor_ref: 'plugin-host' }).provenance.plugin_id).toBe('plugin-1')
+  })
   it('rejects NaN and unknown major', () => {
     expect(() => assertStatisticsArtifact({ ...artifact(), metrics: [{ ...artifact().metrics[0], value: Number.NaN }] })).toThrow('NaN')
     expect(() => assertStatisticsArtifact({ ...artifact(), schema_version: 'masi-plugin-statistics/v2' })).toThrow('unsupported')
+  })
+  it('rejects count, provenance, and closed-shape confusion', () => {
+    expect(() => assertStatisticsArtifact({
+      ...artifact(),
+      series: [{ series_id: 'series-1', labels: {}, point_count: 2, points: [{ timestamp_unix_ms: 1, value: 1 }] }],
+    })).toThrow('point_count')
+    expect(() => assertStatisticsArtifact({
+      ...artifact(),
+      provenance: { ...artifact().provenance, definition_digest: `sha256:${'b'.repeat(64)}` },
+    })).toThrow('do not match')
+    expect(() => assertStatisticsArtifact({ ...artifact(), executable_payload: 'forbidden' })).toThrow('closed contract')
   })
 })

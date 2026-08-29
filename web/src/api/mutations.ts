@@ -46,12 +46,12 @@ export async function submitProposal(draft: ProposalDraft, session: Session): Pr
     trace_id: requestIdentity('web-trace'),
     expires_at_unix_ms: draft.expiresAtUnixMS,
   }
-  const result: unknown = await withRequestSlot(() => createProposal({ client: controlClient, body, headers: mutationHeaders(session) }))
+  const result: unknown = await withRequestSlot((signal) => createProposal({ client: controlClient, body, headers: mutationHeaders(session), signal }))
   return responseData(result)
 }
 
 export async function loadProposal(proposalID: string): Promise<EffectProposalDetail> {
-  const result: unknown = await withRequestSlot(() => getProposal({ client: controlClient, path: { proposalID } }))
+  const result: unknown = await withRequestSlot((signal) => getProposal({ client: controlClient, path: { proposalID }, signal }))
   const record = asRecord(responseData(result), 'PROPOSAL_DETAIL_INVALID')
   if (record.proposal_id !== proposalID || !Array.isArray(record.target_ids) || record.target_ids.length > 128 || !Array.isArray(record.evidence_refs) || record.evidence_refs.length > 128) {
     throw new ContractError('PROPOSAL_DETAIL_INVALID', 'The exact proposal context is malformed or mismatched.')
@@ -72,8 +72,8 @@ export async function decideProposal(
     idempotency_key: requestIdentity('web-decision'),
   }
   const result: unknown = firewall
-    ? await withRequestSlot(() => decideFirewallActivationProposal({ client: controlClient, path: { proposalID }, body, headers: mutationHeaders(session) }))
-    : await withRequestSlot(() => recordDecision({ client: controlClient, body: { ...body, proposal_id: proposalID }, headers: mutationHeaders(session) }))
+    ? await withRequestSlot((signal) => decideFirewallActivationProposal({ client: controlClient, path: { proposalID }, body, headers: mutationHeaders(session), signal }))
+    : await withRequestSlot((signal) => recordDecision({ client: controlClient, body: { ...body, proposal_id: proposalID }, headers: mutationHeaders(session), signal }))
   return responseData(result)
 }
 
@@ -98,11 +98,12 @@ export async function submitFirewallActivationProposal(
     trace_id: requestIdentity('web-trace'),
     idempotency_key: requestIdentity('web-fw-proposal'),
   }
-  const result: unknown = await withRequestSlot(() => createFirewallActivationProposal({
+  const result: unknown = await withRequestSlot((signal) => createFirewallActivationProposal({
     client: controlClient,
     path: { revisionID: draft.revisionID },
     body,
     headers: mutationHeaders(session),
+    signal,
   }))
   return responseData(result)
 }
@@ -124,10 +125,11 @@ export async function submitFirewallActivation(draft: FirewallActivationDraft, s
     target_set_digest: draft.targetSetDigest,
     idempotency_key: requestIdentity('web-fw-activate'),
   }
-  const result: unknown = await withRequestSlot(() => prepareFirewallActivation({
+  const result: unknown = await withRequestSlot((signal) => prepareFirewallActivation({
     client: controlClient,
     body,
     headers: mutationHeaders(session),
+    signal,
   }))
   return responseData(result)
 }

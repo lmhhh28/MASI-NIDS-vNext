@@ -34,7 +34,9 @@ calculate_source_tree_digest() {
     --exclude='web/evidence' --exclude='web/.playwright-cli' --exclude='web/sbom.cdx.json' \
     -cf - -C "${repo_root}" web contracts/generated/typescript/control-api \
     contracts/web/v1 contracts/profiles/v1/web-spa.json contracts/profiles/v1/web-browser.json \
-    contracts/profiles/v1/web-performance.json contracts/supply-chain/v1/web-components.json | sha256sum | awk '{print "sha256:" $1}'
+    contracts/profiles/v1/web-performance.json contracts/evidence/web-performance/v1 contracts/evidence/web-soak/v1 \
+    contracts/evidence/web-manual-accessibility/v1 contracts/evidence/web-module/v1 \
+    contracts/supply-chain/v1/web-components.json | sha256sum | awk '{print "sha256:" $1}'
 }
 
 source_tree_digest="$(calculate_source_tree_digest)"
@@ -50,7 +52,7 @@ run_logged() {
   shift
   local log_path="${run_root}/logs/${command_id}.log"
   local command_path="${run_root}/commands/${command_id}.json"
-  local command_started command_finished start_ns finish_ns duration_ms status result qualification
+  local command_started command_finished start_ns finish_ns duration_ms status result qualification stable_reason
   local -a command=("$@")
   command_started="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
   start_ns="$(date +%s%N)"
@@ -63,15 +65,44 @@ run_logged() {
   duration_ms="$(((finish_ns - start_ns) / 1000000))"
   result="PASS"
   qualification="QUALIFIED"
-  if [[ "${status}" -ne 0 ]]; then result="FAIL"; qualification="NOT_QUALIFIED"; fi
-  jq -n --arg command_id "${command_id}" --arg started_at "${command_started}" --arg finished_at "${command_finished}" \
+  stable_reason="null"
+  if [[ "${status}" -eq 2 ]]; then
+    result="HOLD"
+    qualification="NOT_QUALIFIED"
+    stable_reason='"COMMAND_EXITED_HOLD"'
+  elif [[ "${status}" -ne 0 ]]; then
+    result="FAIL"
+    qualification="NOT_QUALIFIED"
+    stable_reason='"COMMAND_EXITED_FAILURE"'
+  fi
+  jq -n --arg run_id "${run_id}" --arg command_id "${command_id}" --arg started_at "${command_started}" --arg finished_at "${command_finished}" \
     --argjson duration_ms "${duration_ms}" --argjson exit_code "${status}" --arg result "${result}" \
-    --arg qualification "${qualification}" --arg log_digest "sha256:$(sha256sum "${log_path}" | awk '{print $1}')" \
-    --args '$ARGS.positional as $argv | {command_id:$command_id,started_at:$started_at,finished_at:$finished_at,
-      duration_ms:$duration_ms,exit_code:$exit_code,result:$result,qualification:$qualification,
-      log_digest:$log_digest,argv:$argv}' -- "${command[@]}" >"${command_path}"
-  if [[ "${status}" -ne 0 ]]; then
+    --arg qualification "${qualification}" --argjson stable_reason "${stable_reason}" \
+    --arg source_tree_digest "${source_tree_digest}" --arg working_tree_status_digest "${working_tree_status_digest}" \
+    --arg log_path "logs/${command_id}.log" --arg log_digest "sha256:$(sha256sum "${log_path}" | awk '{print $1}')" \
+    --argjson log_bytes "$(stat -c %s "${log_path}")" \
+    --args '$ARGS.positional as $argv | {schema_version:"edge-command-execution/v1",run_id:$run_id,
+      command_id:$command_id,started_at:$started_at,finished_at:$finished_at,duration_ms:$duration_ms,
+      working_directory:"web",argv:$argv,exit_code:$exit_code,result:$result,qualification:$qualification,
+      stable_reason:$stable_reason,source_tree_digest:$source_tree_digest,
+      working_tree_status_digest:$working_tree_status_digest,
+      log:{path:$log_path,sha256:$log_digest,bytes:$log_bytes,media_type:"text/plain"}}' \
+    -- "${command[@]}" >"${command_path}"
+  python3 - "${repo_root}/contracts/evidence/command/v1/schema.json" "${command_path}" <<'PY'
+import json
+import sys
+from jsonschema import Draft202012Validator, FormatChecker
+schema = json.load(open(sys.argv[1], encoding="utf-8"))
+document = json.load(open(sys.argv[2], encoding="utf-8"))
+errors = list(Draft202012Validator(schema, format_checker=FormatChecker()).iter_errors(document))
+if errors:
+    raise SystemExit("; ".join(error.message for error in errors))
+PY
+  if [[ "${status}" -ne 0 && "${status}" -ne 2 ]]; then
     tail -n 120 "${log_path}" >&2
+    python3 "${repo_root}/scripts/ci/write_module_failure.py" \
+      --repo "${repo_root}" --module web --run-dir "${run_root}" \
+      --command-sidecar "commands/${command_id}.json" --output "${run_root}/gate-failure.json"
     exit "${status}"
   fi
 }
@@ -99,16 +130,41 @@ MASI_WEB_BROWSER_EVIDENCE="${run_root}/browser.json" \
 MASI_WEB_PERFORMANCE_EVIDENCE="${run_root}/performance.json" \
 MASI_WEB_SOAK_EVIDENCE="${run_root}/soak.json" \
 MASI_WEB_SOAK_WARMUP_SECONDS=60 MASI_WEB_SOAK_PHASE_SECONDS=900 \
-MASI_WEB_OCI_PORT="${MASI_WEB_OCI_PORT:-4181}" \
+MASI_WEB_OCI_PORT="${MASI_WEB_OCI_PORT:-}" \
   run_logged real-oci-browser-performance-soak "${script_dir}/run-oci-smoke.sh"
 
+image_digest="$(jq -er '.image_digest' "${run_root}/oci.json")"
+run_logged manual-accessibility node "${script_dir}/validate-manual-accessibility.mjs" \
+  --input "${MASI_WEB_MANUAL_A11Y_EVIDENCE:-}" \
+  --output "${run_root}/manual-accessibility.json" \
+  --source-tree-digest "${source_tree_digest}" --image-digest "${image_digest}"
+
 source_tree_digest_end="$(calculate_source_tree_digest)"
+# shellcheck disable=SC2016 # positional parameters expand inside the nested shell
 run_logged source-integrity bash -c '[[ "$1" == "$2" ]]' _ "${source_tree_digest}" "${source_tree_digest_end}"
 
+set +e
 node "${script_dir}/build-module-summary.mjs" \
   --run-root "${run_root}" --run-id "${run_id}" --started-at "${started_at}" \
   --source-tree-digest "${source_tree_digest}" --working-tree-dirty "${working_tree_dirty}" \
   --working-tree-status-digest "${working_tree_status_digest}"
+summary_status=$?
+set -e
+if [[ "${summary_status}" -ne 0 && "${summary_status}" -ne 2 ]]; then exit "${summary_status}"; fi
+python3 - "${repo_root}/contracts/evidence/web-module/v1/schema.json" "${run_root}/gate-summary.json" <<'PY'
+import json
+import sys
+from jsonschema import Draft202012Validator, FormatChecker
+
+schema = json.load(open(sys.argv[1], encoding="utf-8"))
+document = json.load(open(sys.argv[2], encoding="utf-8"))
+errors = sorted(
+    Draft202012Validator(schema, format_checker=FormatChecker()).iter_errors(document),
+    key=lambda error: list(error.absolute_path),
+)
+if errors:
+    raise SystemExit("; ".join(f"{list(error.absolute_path)}: {error.message}" for error in errors))
+PY
 
 summary_digest="sha256:$(sha256sum "${run_root}/gate-summary.json" | awk '{print $1}')"
 temporary_summary="$(mktemp "${evidence_base}/.gate-summary.${run_id}.XXXXXX")"
@@ -119,3 +175,4 @@ jq -n --arg run_id "${run_id}" --arg evidence "runs/${run_id}/gate-summary.json"
   '{schema_version:"web-spa-module-gate-latest/v1",run_id:$run_id,evidence:$evidence,digest:$digest}' >"${temporary_latest}"
 mv -T -- "${temporary_latest}" "${evidence_base}/latest.json"
 jq . "${run_root}/gate-summary.json"
+exit "${summary_status}"

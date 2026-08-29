@@ -34,8 +34,8 @@ export async function submitPluginQualification(draft: PluginQualificationDraft,
     trace_id: identity('web-trace'),
     idempotency_key: identity('web-plugin-qualification'),
   }
-  const result: unknown = await withRequestSlot(() => qualifyPluginManifest({
-    client: controlClient, path: { pluginID: draft.pluginID }, body, headers: headers(session),
+  const result: unknown = await withRequestSlot((signal) => qualifyPluginManifest({
+    client: controlClient, path: { pluginID: draft.pluginID }, body, headers: headers(session), signal,
   }))
   return responseData(result)
 }
@@ -72,8 +72,8 @@ export async function submitPluginActivation(draft: PluginActivationDraft, sessi
     trace_id: identity('web-trace'),
     idempotency_key: identity('web-plugin-activate'),
   }
-  const result: unknown = await withRequestSlot(() => activatePluginBinding({
-    client: controlClient, path: { pluginID: draft.pluginID }, body, headers: headers(session),
+  const result: unknown = await withRequestSlot((signal) => activatePluginBinding({
+    client: controlClient, path: { pluginID: draft.pluginID }, body, headers: headers(session), signal,
   }))
   return responseData(result)
 }
@@ -96,10 +96,11 @@ export async function submitPluginLifecycle(
     ...(previousBindingGeneration === undefined ? {} : { previous_binding_generation: previousBindingGeneration }),
   }
   const options = { client: controlClient, path: { pluginID }, body, headers: headers(session) }
-  const result: unknown = await withRequestSlot(() => {
-    if (action === 'drain') return drainPluginBinding(options)
-    if (action === 'revoke') return revokePluginBinding(options)
-    return rollbackPluginBinding(options)
+  const result: unknown = await withRequestSlot((signal) => {
+    const requestOptions = { ...options, signal }
+    if (action === 'drain') return drainPluginBinding(requestOptions)
+    if (action === 'revoke') return revokePluginBinding(requestOptions)
+    return rollbackPluginBinding(requestOptions)
   })
   return responseData(result)
 }
