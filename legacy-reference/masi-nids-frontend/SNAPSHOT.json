@@ -1,0 +1,69 @@
+{
+  "schema_version": "legacy-source-snapshot/v1",
+  "snapshot_id": "masi-nids-frontend-working-tree-20260829T174324Z",
+  "purpose": "legacy-behavior-data-interaction-performance-reference-only",
+  "runtime_adoption": "REJECT",
+  "qualification": "NOT_QUALIFIED",
+  "source": {
+    "repository_name": "MASI-NIDS",
+    "configured_remote": null,
+    "subpath": "AEE_cuda/nids-frontend",
+    "branch": "feature/bounded-runtime-20260726",
+    "revision": "800944a41fdc6af9a2ea8547db6f958322b3b851",
+    "working_tree_dirty": true,
+    "status_encoding": "git-status-porcelain-v1-nul",
+    "status_sha256": "sha256:4bb158614b7ebbc41b790d5aba7cb099a1dab236989a57a8dea5d30ad3b31bdb",
+    "status_entries": [
+      {"status": "M", "path": "Dockerfile"},
+      {"status": "M", "path": "e2e/admin-operations.spec.ts"},
+      {"status": "M", "path": "package-lock.json"},
+      {"status": "M", "path": "package.json"},
+      {"status": "M", "path": "src/hooks/use-analysis-trace-v1.test.tsx"},
+      {"status": "M", "path": "src/hooks/use-demo-run-projection.test.tsx"},
+      {"status": "M", "path": "src/hooks/use-flow-evidence-v3.test.tsx"},
+      {"status": "M", "path": "src/hooks/use-live-v3.test.tsx"},
+      {"status": "M", "path": "src/hooks/use-trends-v3.test.tsx"},
+      {"status": "??", "path": "src/test/api-response.ts"}
+    ]
+  },
+  "capture": {
+    "captured_at": "2026-08-29T17:43:24Z",
+    "selection": "git ls-files --cached --others --exclude-standard -- AEE_cuda/nids-frontend",
+    "content_root": "source",
+    "file_count": 236,
+    "total_bytes": 1905214,
+    "file_manifest": "files.sha256",
+    "file_manifest_sha256": "sha256:e65aa4cbfbe0c6a67d47eef7afd8d3058e1dea7e2162252e0680e628c71e4d67",
+    "excluded": [
+      "ignored and generated files",
+      "node_modules",
+      ".next",
+      "coverage/build/dist/out/test-results",
+      "*.tsbuildinfo",
+      ".env*",
+      "source repository .git metadata",
+      "files outside AEE_cuda/nids-frontend"
+    ]
+  },
+  "technology": {
+    "node": "24.18.x",
+    "npm": "11.16.x",
+    "next": "16.3.0",
+    "react": "19.2.4",
+    "production_shape": "next-server-with-bff"
+  },
+  "license": {
+    "license_file_found": false,
+    "copying_file_found": false,
+    "notice_file_found": false,
+    "status": "UNDECLARED_IN_SOURCE_TREE",
+    "downstream_license_grant": false
+  },
+  "forbidden_uses": [
+    "vnext-build-input",
+    "vnext-runtime-dependency",
+    "next-server-or-bff-fallback",
+    "legacy-api-or-auth-compatibility-layer",
+    "module-pairwise-system-or-production-evidence"
+  ]
+}

@@ -18,3 +18,7 @@ evidence
 **/.playwright-cli
 .git
 out
+
+# Historical source snapshots are review material only. They are never inputs to
+# a vNext OCI build, even when the Docker build context is the repository root.
+legacy-reference

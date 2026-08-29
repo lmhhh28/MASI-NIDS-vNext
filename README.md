@@ -7,6 +7,7 @@ MASI-NIDS-vNext 是一个 greenfield、contract-first 的网络检测与受治�
 - 仓库不是 production qualified。模块、pairwise、System E2E 与 production 是互不继承的证据范围。
 - 当前可执行的是模块门禁、九组件 startup rehearsal、Go/PostgreSQL/Web rehearsal、Go/PostgreSQL/Analysis rehearsal，以及 fixture-assisted connected full-stack rehearsal。
 - `deploy/` 目前只有 module、acceptance 和 rehearsal 资产；没有可称为生产全栈部署的 Compose、Helm 或 Kubernetes 清单。
+- `legacy-reference/` 保存旧 MASI-NIDS 前端的只读参考快照；它不是第十个模块，也不进入当前 Vue SPA、OCI、CI 或运行依赖图。
 - CI 绿色、容器 healthy、URL 可达、本地 rehearsal 或历史 evidence 都不能自动产生正式 PASS。
 
 先阅读：
@@ -32,6 +33,13 @@ MASI-NIDS-vNext 是一个 greenfield、contract-first 的网络检测与受治�
 | `web/` | Vue 3/Vite SOC SPA |
 | `testkit/` | contract golden、fixture、fake、fault 与 rehearsal runner |
 | `deploy/` | module/acceptance/rehearsal 部署资产 |
+| `legacy-reference/` | 旧实现的完整性可验参考快照；禁止生产 build/runtime 依赖 |
+
+## 旧前端参考快照
+
+同级旧仓库 `../MASI-NIDS/AEE_cuda/nids-frontend` 的当前工作树已完整迁入 [`legacy-reference/masi-nids-frontend/`](legacy-reference/masi-nids-frontend/README.md)，包括 Next.js/React 源码、配置、lockfile、测试与审计脚本；`node_modules`、`.next`、coverage、test output、`.env*` 和其他 ignored/generated 文件均未迁入。快照附带源 revision、dirty status digest 和 236 个文件的 SHA-256 manifest。
+
+该代码依赖旧 Event/Workflow/Review/P4/Admin/MCP API，并包含 Next server BFF、浏览器登录状态和旧授权语义，因此只可用于行为、数据与性能对照。当前 [`web/`](web/README.md) 仍是唯一 vNext Frontend：Vue 3/Vite 静态 SPA，只访问同源 Go `/api`、`/events`、`/oidc`。禁止从参考快照向 `web/` 直接 import、运行旧 Dockerfile/Next server、恢复旧 BFF，或把旧测试结果解释为 vNext PASS。
 
 ## 最短开发初始化
 

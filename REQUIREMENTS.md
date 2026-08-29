@@ -98,6 +98,19 @@ P4、Mininet、PTF、Tcpreplay 和 netem 仅可用于隔离测试，不能成为
 
 关键 direct dependency 包括：Control 的 chi/pgx/gRPC/Protobuf；Edge 的 Tokio/Tonic/Prost；Plugin Host 的 Tokio/Tonic/Rustls/Wasmtime；Analysis 的 aiohttp/httpx/jsonschema/LangGraph/MCP/Pydantic；Offline ML 的 NumPy/ONNX/ORT/scikit-learn/SHAP/XGBoost CPU；Web 的 Vue/Router/Pinia/Element Plus/ECharts/TanStack Query/Virtual。具体 patch 版本必须从 manifest/lockfile读取，不从本文复制后单独演进。
 
+### 旧 MASI-NIDS 前端不是开发依赖
+
+[`legacy-reference/masi-nids-frontend/`](legacy-reference/masi-nids-frontend/README.md) 保存一份可校验的旧工作树快照。它原本使用 Node `24.18.x`、npm `11.16.x`、Next.js `16.3.0` 与 React `19.2.4`，并运行 Next server/BFF；这些版本、package-lock、Dockerfile 与依赖都不加入 vNext 工具链矩阵，也不得由根 bootstrap、CI、Docker build、module gate 或 production runtime安装。
+
+只允许执行不安装依赖的完整性检查：
+
+```bash
+cd legacy-reference/masi-nids-frontend/source
+sha256sum --check ../files.sha256
+```
+
+旧页面/测试只可提供行为、信息架构、数据与性能线索。需要保留的行为必须依照 vNext OpenAPI/Web contracts在 `web/` clean-room 重写并重新通过 Web 门禁；禁止复制旧 BFF、auth store、Workflow/Review/Event-v2 DTO、P4/Admin mutation或旧 API path。源仓库在快照时没有 LICENSE/COPYING/NOTICE，所以下游不得把入库本身解释为许可证授予或生产供应链准入。
+
 ## 一次性初始化
 
 ### 1. 验证宿主
@@ -272,6 +285,8 @@ Runner 会尽量分配动态 loopback 端口。不要依赖固定 host 端口发
 | Web | `cd web && npm run build` | `npm run dev` 或 production NGINX OCI；module gate | same-origin Go `/api`、`/events`、`/oidc`；三浏览器 |
 
 Contracts 没有独立的全仓统一 gate。当前验证由 Edge、Inference、Control、Plugin Host、Analysis、Offline ML、Web 和 P4 consumer 分别执行；OpenAPI TypeScript client 是明确的统一生成链。不要声称“运行一个 contracts 命令已完成全部 breaking/golden 跨语言门禁”。
+
+`legacy-reference/` 不在九模块表中：它没有启动命令、端口、健康检查、Module Complete 或 qualification scope，也不能作为 `web/` 构建失败时的 fallback。
 
 ## 启动步骤
 

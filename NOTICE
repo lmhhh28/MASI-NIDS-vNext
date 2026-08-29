@@ -1,4 +1,4 @@
-MASI-NIDS-vNext P4 Switch qualification notice
+MASI-NIDS-vNext source and qualification notice
 
 This repository does not use this notice to grant a project-wide source-code
 license. The P4 Switch qualification and test assets invoke or redistribute
@@ -9,3 +9,12 @@ license/source notice set is contracts/supply-chain/v1/third-party-notices.json.
 
 No third-party component receives production P4 writer, scheduler, core fact,
 or authorization ownership by virtue of inclusion in the qualification bundle.
+
+The historical frontend snapshot under
+legacy-reference/masi-nids-frontend/source was copied from the local MASI-NIDS
+working tree solely as a non-runtime behavior reference. The source repository
+contained no project LICENSE, COPYING, or NOTICE file at snapshot time. Its
+inclusion does not grant a project-wide or downstream license, does not adopt
+its npm dependencies, and does not qualify its Next.js server/BFF for use in
+MASI-NIDS-vNext. Exact provenance and per-file digests are recorded alongside
+the snapshot.
