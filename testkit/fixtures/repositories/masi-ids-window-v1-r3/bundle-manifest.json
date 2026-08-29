@@ -10,7 +10,7 @@
     "optimization_profile_id": "optimization-profile-central-cpu/v1",
     "output_adapter_digest": "sha256:b24aa57979d4473be9b8d1303a9bbb511eb164e898b898e0f342fcfd24d8d8ff",
     "revision": "0000000000000000000000000000000000000003",
-    "runtime_profile_digest": "sha256:cf25a38fb3e7d288ee918cfa83c4e112e89132ca172affca8d21161ab11faf13",
+    "runtime_profile_digest": "sha256:5a98295006738847241f4bd14cc1af49c4ce17119187fcb79739bf112dbc4ed0",
     "runtime_profile_id": "model-runtime-central-cpu/v1"
   },
   "bundle_digest": "sha256:d8844f9b47cffa2f433037546ae5a5e5dc3e883d3bf7671036c1be01a1210e19",
@@ -56,7 +56,7 @@
   },
   "model_digest": "sha256:d8844f9b47cffa2f433037546ae5a5e5dc3e883d3bf7671036c1be01a1210e19",
   "model_id": "masi-ids-window-v1",
-  "model_revision_digest": "sha256:9f706429b9bfb089b9ba57091621e88de3b159934af61be0efbcbbc05eae7fa5",
+  "model_revision_digest": "sha256:bd2992259e267906455e72f4a1a6b90af9a559dc4d63eb68ea57aa1ff88a45a2",
   "output_adapter": {
     "adapter_digest": "sha256:b24aa57979d4473be9b8d1303a9bbb511eb164e898b898e0f342fcfd24d8d8ff",
     "adapter_id": "masi-window-adapter-v1",

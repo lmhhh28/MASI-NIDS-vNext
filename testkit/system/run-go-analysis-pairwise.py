@@ -8,13 +8,16 @@ import hashlib
 import json
 import os
 import runpy
+import re
 import shutil
+import signal
 import socket
 import ssl
 import subprocess
 import sys
 import tempfile
 import time
+import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -76,11 +79,24 @@ def wait_ready(
     raise RuntimeError(f"readiness timeout: {url}")
 
 
+def stop_process_group(process: subprocess.Popen[str]) -> None:
+    if process.poll() is not None:
+        return
+    os.killpg(process.pid, signal.SIGTERM)
+    try:
+        process.wait(timeout=5)
+    except subprocess.TimeoutExpired:
+        os.killpg(process.pid, signal.SIGKILL)
+        process.wait(timeout=5)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--run-id", required=True)
     parser.add_argument("--evidence", type=Path, required=True)
     args = parser.parse_args()
+    if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._:-]{1,127}", args.run_id):
+        raise SystemExit("invalid run id")
     if args.evidence.exists() or args.evidence.is_symlink():
         raise SystemExit("evidence output already exists")
     args.evidence.parent.mkdir(parents=True, exist_ok=True)
@@ -88,8 +104,11 @@ def main() -> int:
     analysis_root = repo / "analysis-py"
     control_root = repo / "control-go"
     started_at = datetime.now(UTC_ZONE).isoformat().replace("+00:00", "Z")
-    project = f"masi-analysis-pairwise-{os.getpid()}"
-    dsn = "postgres://masi:masi@127.0.0.1:55433/masi_control_test?sslmode=disable"
+    resource_nonce = uuid.uuid4().hex[:12]
+    project = f"masi-analysis-pairwise-{resource_nonce}"
+    compose_environment = os.environ.copy()
+    compose_environment["MASI_POSTGRES_PUBLISH"] = "127.0.0.1:"
+    dsn = ""
     temporary = Path(tempfile.mkdtemp(prefix="masi-go-analysis-pairwise."))
     processes: list[subprocess.Popen[str]] = []
     log_handles: list[Any] = []
@@ -172,6 +191,7 @@ def main() -> int:
             stdout=fixture_log,
             stderr=subprocess.STDOUT,
             text=True,
+            start_new_session=True,
         )
         processes.append(fixture)
         analysis = subprocess.Popen(
@@ -184,6 +204,7 @@ def main() -> int:
             stdout=analysis_log,
             stderr=subprocess.STDOUT,
             text=True,
+            start_new_session=True,
         )
         processes.append(analysis)
         readiness_tls = ssl.create_default_context(cafile=pki["ca"])
@@ -204,7 +225,14 @@ def main() -> int:
             "-f",
             str(control_root / "testdata/compose.e2e.yaml"),
         ]
-        run([*compose, "up", "-d", "--wait"], cwd=repo)
+        run([*compose, "up", "-d", "--wait"], cwd=repo, env=compose_environment)
+        port_result = run(
+            [*compose, "port", "postgres", "5432"],
+            cwd=repo,
+            env=compose_environment,
+        ).stdout.strip()
+        postgres_port = int(port_result.rsplit(":", 1)[1])
+        dsn = f"postgres://masi:masi@127.0.0.1:{postgres_port}/masi_control_test?sslmode=disable"
         run(
             [
                 "go",
@@ -237,7 +265,15 @@ def main() -> int:
         )
         control_config["runtime_profile"] = "acceptance"
         control_config["external_clients"] = "test-fake"
-        control_config["public_origin"] = "http://127.0.0.1:18080"
+        control_http_port = free_port()
+        control_grpc_port = free_port()
+        while control_grpc_port == control_http_port:
+            control_grpc_port = free_port()
+        control_config["http_listen"] = f"127.0.0.1:{control_http_port}"
+        control_config["grpc_listen"] = f"127.0.0.1:{control_grpc_port}"
+        control_config["public_origin"] = f"http://127.0.0.1:{control_http_port}"
+        control_config["postgresql_dsn"] = dsn
+        control_config["postgresql_test_dsn"] = dsn
         control_config["role_mapping_path"] = str(
             control_root / "testdata/role-mapping-e2e.json"
         )
@@ -297,9 +333,7 @@ def main() -> int:
             )
         core_evidence = json.loads(core_evidence_path.read_text(encoding="utf-8"))
         for process in reversed(processes):
-            if process.poll() is None:
-                process.terminate()
-                process.wait(timeout=5)
+            stop_process_group(process)
         processes.clear()
         for handle in log_handles:
             handle.flush()
@@ -366,12 +400,7 @@ def main() -> int:
         return 0
     finally:
         for process in reversed(processes):
-            if process.poll() is None:
-                process.terminate()
-                try:
-                    process.wait(timeout=5)
-                except subprocess.TimeoutExpired:
-                    process.kill()
+            stop_process_group(process)
         for handle in log_handles:
             handle.close()
         for name in ("fixtures.log", "analysis.log", "go-test.log"):
@@ -394,6 +423,8 @@ def main() -> int:
             cwd=repo,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
+            env=compose_environment,
+            timeout=120,
             check=False,
         )
         shutil.rmtree(temporary, ignore_errors=True)

@@ -31,7 +31,12 @@ jobs:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
           fetch-depth: 0
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.12.13"
+      - run: python -m pip install jsonschema==4.26.0
       - run: python3 scripts/ci/check_repository_hygiene.py
+      - run: python3 -m unittest discover -s scripts/ci -p 'test_*.py' -v
 
   p4-contracts:
     name: p4-contracts
@@ -230,3 +235,83 @@ jobs:
         run: python scripts/validate-public-contracts.py --repo ..
       - working-directory: infer-cpp
         run: python scripts/run-numeric-golden.py --repo .. --evidence-dir "${RUNNER_TEMP}/inference-numeric"
+
+  quick-ci-summary:
+    name: quick-ci-summary
+    if: always()
+    needs:
+      - repository-hygiene
+      - p4-contracts
+      - edge-rust
+      - plugin-host-rust
+      - control-go
+      - postgresql-state
+      - analysis-python
+      - offline-ml-python
+      - web
+      - inference-contracts
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.12.13"
+      - run: python -m pip install jsonschema==4.26.0
+      - id: summary
+        name: Build explicit rehearsal-only CI summary
+        env:
+          JOB_RESULTS: ${{ toJSON(needs) }}
+          SOURCE_REVISION: ${{ github.sha }}
+          RUN_ID: gh-${{ github.run_id }}-${{ github.run_attempt }}-quick-ci
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          from jsonschema import Draft202012Validator, FormatChecker
+
+          jobs = json.loads(os.environ["JOB_RESULTS"])
+          results = {name: value["result"] for name, value in sorted(jobs.items())}
+          passed = all(result == "success" for result in results.values())
+          document = {
+              "schema_version": "quick-ci-rehearsal-summary/v1",
+              "run_id": os.environ["RUN_ID"],
+              "source_revision": os.environ["SOURCE_REVISION"],
+              "jobs": results,
+              "level": "REHEARSAL",
+              "applicability": "APPLICABLE",
+              "result": "PASS" if passed else "FAIL",
+              "qualification": "NOT_QUALIFIED",
+              "qualification_scope": "HOSTED_UNPRIVILEGED_FAST_FEEDBACK_ONLY; NO_MODULE_PAIRWISE_SYSTEM_OR_RELEASE_QUALIFICATION",
+          }
+          schema = json.loads(Path("contracts/evidence/quick-ci/v1/schema.json").read_text(encoding="utf-8"))
+          errors = sorted(
+              Draft202012Validator(schema, format_checker=FormatChecker()).iter_errors(document),
+              key=lambda error: list(error.path),
+          )
+          if errors:
+              raise SystemExit("; ".join(f"{list(error.path)}: {error.message}" for error in errors))
+          output = Path(os.environ["RUNNER_TEMP"]) / "quick-ci-summary.json"
+          output.write_text(json.dumps(document, sort_keys=True, indent=2) + "\n", encoding="utf-8")
+          with Path(os.environ["GITHUB_OUTPUT"]).open("a", encoding="utf-8") as stream:
+              stream.write(f"result={document['result']}\n")
+          PY
+      - name: Upload quick CI machine summary
+        id: upload
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: quick-ci-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/quick-ci-summary.json
+          if-no-files-found: error
+          retention-days: 14
+      - name: Adjudicate quick CI
+        if: always()
+        env:
+          SUMMARY_RESULT: ${{ steps.summary.outputs.result }}
+          UPLOAD_OUTCOME: ${{ steps.upload.outcome }}
+        run: |
+          [[ "${SUMMARY_RESULT}" == "PASS" ]] || { echo "one or more quick CI jobs failed" >&2; exit 1; }
+          [[ "${UPLOAD_OUTCOME}" == "success" ]] || { echo "quick CI summary upload failed" >&2; exit 1; }

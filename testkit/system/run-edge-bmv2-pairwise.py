@@ -7,10 +7,13 @@ import argparse
 import hashlib
 import json
 import os
+import re
 import shutil
+import signal
 import subprocess
 import tempfile
 import time
+import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -59,16 +62,20 @@ def wait_container(
         observed = run([*compose, "ps", "-aq", service], cwd=cwd, env=env)
         container_id = observed.stdout.strip()
         if container_id:
-            state = run(
-                [
-                    "docker",
-                    "inspect",
-                    "--format",
-                    "{{.State.Running}} {{.State.ExitCode}} {{if .State.Health}}{{.State.Health.Status}}{{end}}",
-                    container_id,
-                ],
-                cwd=cwd,
-            ).stdout.strip().split()
+            state = (
+                run(
+                    [
+                        "docker",
+                        "inspect",
+                        "--format",
+                        "{{.State.Running}} {{.State.ExitCode}} {{if .State.Health}}{{.State.Health.Status}}{{end}}",
+                        container_id,
+                    ],
+                    cwd=cwd,
+                )
+                .stdout.strip()
+                .split()
+            )
             running = state[0] == "true"
             exit_code = int(state[1])
             health = state[2] if len(state) > 2 else ""
@@ -89,6 +96,8 @@ def main() -> int:
     parser.add_argument("--run-id", required=True)
     parser.add_argument("--evidence", type=Path, required=True)
     args = parser.parse_args()
+    if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._:-]{1,127}", args.run_id):
+        raise SystemExit("invalid run id")
     if args.evidence.exists() or args.evidence.is_symlink():
         raise SystemExit("evidence output already exists")
     args.evidence.parent.mkdir(parents=True, exist_ok=True)
@@ -115,7 +124,7 @@ def main() -> int:
     runtime_path = runtime_dir / "runtime.json"
     pipeline_path = runtime_dir / "pipeline.json"
     started_at = datetime.now(UTC_ZONE).isoformat().replace("+00:00", "Z")
-    project = f"masiedgebmv2{os.getpid()}"
+    project = f"masiedgebmv2{uuid.uuid4().hex[:12]}"
     environment = os.environ.copy()
     environment.update(
         {
@@ -256,11 +265,14 @@ def main() -> int:
             stdout=edge_log_handle,
             stderr=subprocess.STDOUT,
             text=True,
+            start_new_session=True,
         )
         deadline = time.monotonic() + 180
         while time.monotonic() < deadline and not edge_ready_path.is_file():
             if edge_process.poll() is not None:
-                raise RuntimeError(f"Edge test exited before traffic readiness: {edge_process.returncode}")
+                raise RuntimeError(
+                    f"Edge test exited before traffic readiness: {edge_process.returncode}"
+                )
             time.sleep(0.05)
         if not edge_ready_path.is_file():
             raise RuntimeError("Edge traffic readiness timeout")
@@ -282,7 +294,10 @@ def main() -> int:
         )
         traffic_log_path.write_text(traffic.stdout, encoding="utf-8")
         traffic_done_path.write_text(
-            json.dumps(traffic_evidence := json.loads(traffic.stdout.strip().splitlines()[-1]), sort_keys=True)
+            json.dumps(
+                traffic_evidence := json.loads(traffic.stdout.strip().splitlines()[-1]),
+                sort_keys=True,
+            )
             + "\n",
             encoding="utf-8",
         )
@@ -348,12 +363,14 @@ def main() -> int:
             ),
         }
         schema = json.loads(
-            (repo / "contracts/evidence/edge-bmv2-pairwise-rehearsal/v1/schema.json").read_text(
-                encoding="utf-8"
-            )
+            (
+                repo / "contracts/evidence/edge-bmv2-pairwise-rehearsal/v1/schema.json"
+            ).read_text(encoding="utf-8")
         )
         errors = sorted(
-            Draft202012Validator(schema, format_checker=FormatChecker()).iter_errors(result),
+            Draft202012Validator(schema, format_checker=FormatChecker()).iter_errors(
+                result
+            ),
             key=lambda error: list(error.path),
         )
         if errors:
@@ -367,11 +384,12 @@ def main() -> int:
         return 0
     finally:
         if edge_process is not None and edge_process.poll() is None:
-            edge_process.terminate()
+            os.killpg(edge_process.pid, signal.SIGTERM)
             try:
                 edge_process.wait(timeout=10)
             except subprocess.TimeoutExpired:
-                edge_process.kill()
+                os.killpg(edge_process.pid, signal.SIGKILL)
+                edge_process.wait(timeout=10)
         if edge_log_handle is not None:
             edge_log_handle.close()
         if not switch_log_path.is_file():

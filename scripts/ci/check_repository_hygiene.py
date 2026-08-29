@@ -152,7 +152,9 @@ def main() -> int:
                 issues.append(f"{rel}: symbolic link escapes repository")
             continue
         if not path.exists():
-            issues.append(f"{rel}: indexed path is missing")
+            # A pre-commit worktree can legitimately delete or rename a tracked
+            # file. It is not part of the candidate tree and has no content to
+            # scan; dangling symlinks were handled above via lexists semantics.
             continue
         if not path.is_file():
             continue

@@ -93,7 +93,7 @@
     }
   },
   "purpose": "serving-framework-e2e-not-detection-accuracy",
-  "model_revision_digest": "sha256:9f706429b9bfb089b9ba57091621e88de3b159934af61be0efbcbbc05eae7fa5",
+  "model_revision_digest": "sha256:bd2992259e267906455e72f4a1a6b90af9a559dc4d63eb68ea57aa1ff88a45a2",
   "binding_identity": {
     "model_id": "masi-ids-window-v1",
     "revision": "0000000000000000000000000000000000000003",
@@ -104,7 +104,7 @@
     "output_adapter_digest": "sha256:b24aa57979d4473be9b8d1303a9bbb511eb164e898b898e0f342fcfd24d8d8ff",
     "inference_wire_profile_digest": "sha256:bdcc5401db309d22b703b36f615b68a9ecc81ee4e4e192862bc3bc9c971d6e8c",
     "runtime_profile_id": "model-runtime-central-cpu/v1",
-    "runtime_profile_digest": "sha256:cf25a38fb3e7d288ee918cfa83c4e112e89132ca172affca8d21161ab11faf13",
+    "runtime_profile_digest": "sha256:5a98295006738847241f4bd14cc1af49c4ce17119187fcb79739bf112dbc4ed0",
     "optimization_profile_id": "optimization-profile-central-cpu/v1",
     "optimization_profile_digest": "sha256:0ecee17e5a74d87baab1eeeae136dab57b7ecd6a1a23401ba7255719d1427a31"
   },

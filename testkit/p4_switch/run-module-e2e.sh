@@ -3,6 +3,12 @@
 set -euo pipefail
 
 repo_root=$(CDPATH= cd -- "$(dirname -- "$0")/../.." && pwd)
+if [ "${MASI_RUNTIME_SMOKE_WRAPPED:-0}" != 1 ]; then
+  exec python3 "$repo_root/scripts/ci/run_bounded_runtime_smoke.py" \
+    --repo "$repo_root" --module p4 \
+    --timeout-seconds "${MASI_P4_TOTAL_TIMEOUT_SECONDS:-21000}" -- \
+    "$repo_root/testkit/p4_switch/run-module-e2e.sh" "$@"
+fi
 run_id=${MASI_P4_RUN_ID:-"$(date -u +%Y%m%dT%H%M%SZ)-$$"}
 started_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 qualification_mode=${MASI_P4_QUALIFICATION_MODE:-formal}
@@ -19,9 +25,30 @@ project_name="masip4e2e${run_id//[^a-zA-Z0-9]/}"
 project_name=${project_name,,}
 project_name=${project_name:0:56}
 
+for fresh_path in "$evidence_dir" "${certificate_dir%/certs}"; do
+  if [ -e "$fresh_path" ] || [ -L "$fresh_path" ]; then
+    echo "P4 run path already exists: $fresh_path" >&2
+    exit 64
+  fi
+done
 mkdir -p "$evidence_dir" "$certificate_dir" "$compiled_artifact_dir" "$source_input_dir"
 chown 65532:65532 "$evidence_dir"
 chmod 0770 "$evidence_dir"
+source_identity_file="$source_input_dir/source-identity.json"
+PYTHONDONTWRITEBYTECODE=1 PYTHONPATH="$repo_root" \
+  python3 "$repo_root/testkit/p4_switch/lib/source_identity.py" "$repo_root" \
+  >"$source_identity_file.tmp"
+mv -T -- "$source_identity_file.tmp" "$source_identity_file"
+chmod 0444 "$source_identity_file"
+bind_phase() {
+  local phase_name=$1
+  local phase_path="$evidence_dir/$phase_name.json"
+  if [ -f "$phase_path" ] && [ ! -L "$phase_path" ]; then
+    python3 "$repo_root/testkit/p4_switch/scripts/bind-phase-evidence.py" \
+      --phase "$phase_path" --phase-name "$phase_name" --run-id "$run_id" \
+      --source-identity "$source_identity_file"
+  fi
+}
 "$repo_root/testkit/p4_switch/scripts/prepare-certs.sh" "$certificate_dir"
 
 readarray -t expected_images < <(
@@ -100,11 +127,14 @@ export MASI_P4_CERT_DIR="$certificate_dir"
 export MASI_P4_EVIDENCE_DIR="$evidence_dir"
 compose=(docker compose -p "$project_name" -f "$repo_root/deploy/p4-switch/compose.module-e2e.yaml")
 
-cleanup() {
-  docker rm -f "${project_name}-performance" "${project_name}-soak" >/dev/null 2>&1 || true
-  "${compose[@]}" down --volumes --remove-orphans >/dev/null 2>&1 || true
+cleanup_fallback() {
+  timeout --signal=TERM --kill-after=15s 60s \
+    docker rm -f "${project_name}-performance" "${project_name}-soak" \
+    >/dev/null 2>&1 || true
+  timeout --signal=TERM --kill-after=30s 180s \
+    "${compose[@]}" down --volumes --remove-orphans >/dev/null 2>&1 || true
 }
-trap cleanup EXIT
+trap cleanup_fallback EXIT
 
 wait_for_one_shot() {
   local service_name=$1
@@ -180,6 +210,7 @@ docker run --rm --network none --read-only --user 65532:65532 \
   >"$evidence_dir/runner-environment.log" 2>&1
 runner_environment_status=$?
 set -e
+bind_phase runner-environment
 
 set +e
 python3 -m unittest discover \
@@ -192,6 +223,7 @@ if [ "$unit_status" -ne 0 ]; then unit_result=FAIL; fi
 python3 "$repo_root/testkit/p4_switch/scripts/record-command.py" \
   unit TEST-P4-STATIC-CONTRACT-001 "$unit_result" "$unit_status" \
   "$evidence_dir/unit.log" "$evidence_dir/unit.json"
+bind_phase unit
 
 set +e
 "$repo_root/testkit/p4_switch/scripts/run-p4testgen.sh" "$evidence_dir"
@@ -202,6 +234,7 @@ if [ "$p4testgen_status" -ne 0 ]; then
     p4testgen TEST-P4TESTGEN-001 FAIL "$p4testgen_status" \
     "$evidence_dir/p4testgen.log" "$evidence_dir/p4testgen.json"
 fi
+bind_phase p4testgen
 
 set +e
 "$repo_root/p4/scripts/compile.sh" "$mininet_artifact_dir" \
@@ -218,6 +251,7 @@ if [ "$mininet_compile_status" -eq 0 ]; then
   mininet_status=$?
   set -e
 fi
+bind_phase mininet
 
 compiler_started_ms=$(date +%s%3N)
 "${compose[@]}" up -d compiler switch net-init
@@ -236,6 +270,7 @@ if [ "$compiler_status" -ne 0 ]; then compiler_result=FAIL; fi
 python3 "$repo_root/testkit/p4_switch/scripts/record-command.py" \
   compiler TEST-P4-COMPILE-001 "$compiler_result" "$compiler_status" \
   "$evidence_dir/compiler.log" "$evidence_dir/compiler.json" "$compiler_duration_ms"
+bind_phase compiler
 docker cp "$compiler_id:/artifacts/." "$compiled_artifact_dir/"
 wait_for_one_shot net-init
 wait_for_switch_health
@@ -249,6 +284,7 @@ set +e
   masi_switch_test.MasiSwitchE2E >"$evidence_dir/ptf-functional.log" 2>&1
 functional_status=$?
 set -e
+bind_phase functional
 
 performance_name="${project_name}-performance"
 performance_arguments=(
@@ -275,7 +311,17 @@ python3 "$repo_root/testkit/p4_switch/scripts/sample-container-resources.py" \
   --output "$evidence_dir/performance-resources.jsonl" \
   --interval-seconds 1 --max-samples 1200 &
 performance_sampler_pid=$!
-performance_status=$(docker wait "$performance_id")
+set +e
+performance_exit=$(timeout --signal=TERM --kill-after=30s \
+  "${MASI_P4_PERFORMANCE_TIMEOUT_SECONDS:-3600}" docker wait "$performance_id")
+performance_wait_status=$?
+set -e
+if [ "$performance_wait_status" -eq 0 ] && [[ "$performance_exit" =~ ^[0-9]+$ ]]; then
+  performance_status=$performance_exit
+else
+  performance_status=124
+  timeout --signal=KILL 30s docker kill "$performance_id" >/dev/null 2>&1 || true
+fi
 docker logs "$performance_id" >"$evidence_dir/performance-workload.log" 2>&1
 wait "$performance_sampler_pid"
 docker rm "$performance_id" >/dev/null
@@ -286,6 +332,7 @@ python3 "$repo_root/testkit/p4_switch/scripts/finalize-performance.py" \
   --compiler "$evidence_dir/compiler.json" --output "$evidence_dir/performance.json"
 performance_finalize_status=$?
 set -e
+bind_phase performance
 
 old_switch_id=$("${compose[@]}" ps -q switch)
 old_switch_started=$(docker inspect "$old_switch_id" --format '{{.State.StartedAt}}')
@@ -315,6 +362,8 @@ crash_orchestration_status=$?
   >"$evidence_dir/ptf-crash-recovery.log" 2>&1
 recovery_status=$?
 set -e
+bind_phase crash-orchestration
+bind_phase crash-recovery
 "${compose[@]}" logs --no-color switch >"$evidence_dir/bmv2-after-restart.log" 2>&1
 
 lifecycle_dir="$evidence_dir/lifecycle-cycles"
@@ -386,6 +435,7 @@ python3 "$repo_root/testkit/p4_switch/scripts/finalize-lifecycle.py" \
   --output "$evidence_dir/lifecycle.json"
 lifecycle_finalize_status=$?
 set -e
+bind_phase lifecycle
 
 soak_name="${project_name}-soak"
 soak_arguments=(
@@ -413,7 +463,17 @@ python3 "$repo_root/testkit/p4_switch/scripts/sample-container-resources.py" \
   --interval-seconds "$([ "$qualification_mode" = formal ] && echo 10 || echo 1)" \
   --max-samples "$([ "$qualification_mode" = formal ] && echo 400 || echo 120)" &
 soak_sampler_pid=$!
-soak_status=$(docker wait "$soak_id")
+set +e
+soak_exit=$(timeout --signal=TERM --kill-after=30s \
+  "${MASI_P4_SOAK_TIMEOUT_SECONDS:-4500}" docker wait "$soak_id")
+soak_wait_status=$?
+set -e
+if [ "$soak_wait_status" -eq 0 ] && [[ "$soak_exit" =~ ^[0-9]+$ ]]; then
+  soak_status=$soak_exit
+else
+  soak_status=124
+  timeout --signal=KILL 30s docker kill "$soak_id" >/dev/null 2>&1 || true
+fi
 docker logs "$soak_id" >"$evidence_dir/soak-workload.log" 2>&1
 wait "$soak_sampler_pid"
 soak_runner_removed=false
@@ -445,6 +505,7 @@ python3 "$repo_root/testkit/p4_switch/scripts/finalize-soak.py" \
   --listeners-released "$listeners_released"
 soak_finalize_status=$?
 set -e
+bind_phase soak
 
 supply_status=2
 if [ "$qualification_mode" = formal ]; then
@@ -471,19 +532,37 @@ else
     --reason SHORT_REHEARSAL_DOES_NOT_REUSE_FORMAL_SUPPLY_EVIDENCE \
     --output "$evidence_dir/supply-chain.json"
 fi
+bind_phase supply-chain
+
+set +e
+mininet_container_name="masi-p4-mininet-$(printf '%s' "$run_id" | tr -cd '[:alnum:]' | tr '[:upper:]' '[:lower:]' | cut -c1-48)"
+python3 "$repo_root/testkit/p4_switch/scripts/cleanup-project.py" \
+  --project "$project_name" \
+  --compose-file "$repo_root/deploy/p4-switch/compose.module-e2e.yaml" \
+  --run-id "$run_id" --source-identity "$source_identity_file" \
+  --mininet-evidence "$evidence_dir/mininet.json" \
+  --standalone-name "${project_name}-performance" \
+  --standalone-name "${project_name}-soak" \
+  --standalone-name "$mininet_container_name" \
+  --output "$evidence_dir/global-cleanup.json"
+global_cleanup_status=$?
+set -e
+
+if [ -n "$(find "$evidence_dir" -xdev -type l -print -quit)" ]; then
+  echo "P4 evidence tree contains a symlink before host aggregation" >&2
+  exit 1
+fi
+chown -R 0:0 "$evidence_dir"
+find "$evidence_dir" -xdev -type d -exec chmod 0750 {} +
+find "$evidence_dir" -xdev -type f -exec chmod 0640 {} +
 
 firewall_after=$(firewall_fingerprint)
 set +e
-docker run --rm --network none --read-only --user 65532:65532 \
-  --cap-drop ALL --security-opt no-new-privileges:true \
-  --env PYTHONDONTWRITEBYTECODE=1 \
-  --volume "$repo_root:/workspace:ro" \
-  --volume "$evidence_dir:/evidence" \
-  --volume "$compiled_artifact_dir:/artifacts:ro" \
-  "$runner_ref" python testkit/p4_switch/scripts/aggregate-evidence.py \
-  /workspace /evidence /artifacts "$run_id" "$started_at" \
+PYTHONDONTWRITEBYTECODE=1 python3 "$repo_root/testkit/p4_switch/scripts/aggregate-evidence.py" \
+  "$repo_root" "$evidence_dir" "$compiled_artifact_dir" "$run_id" "$started_at" \
   "$runner_image" "$runtime_image" "$firewall_before" "$firewall_after" \
-  /evidence/qualification-evidence.json
+  "$evidence_dir/global-cleanup.json" \
+  "$evidence_dir/qualification-evidence.json"
 aggregate_status=$?
 set -e
 
@@ -508,6 +587,7 @@ printf '%s\n' \
   "soak_status=$soak_status" \
   "soak_finalize_status=$soak_finalize_status" \
   "supply_status=$supply_status" \
+  "global_cleanup_status=$global_cleanup_status" \
   "aggregate_status=$aggregate_status" \
   "evidence=$evidence_dir/qualification-evidence.json"
 
@@ -527,6 +607,7 @@ if [ "$runner_environment_status" -ne 0 ] \
   || [ "$soak_status" -ne 0 ] \
   || { [ "$soak_finalize_status" -ne 0 ] && [ "$soak_finalize_status" -ne 2 ]; } \
   || { [ "$supply_status" -ne 0 ] && [ "$supply_status" -ne 2 ]; } \
+  || [ "$global_cleanup_status" -ne 0 ] \
   || { [ "$aggregate_status" -ne 0 ] && [ "$aggregate_status" -ne 2 ]; }; then
   exit 1
 fi

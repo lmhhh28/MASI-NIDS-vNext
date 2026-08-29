@@ -55,6 +55,7 @@ services:
 
   net-init:
     image: masi-nids/p4-switch-e2e-runner:local
+    pull_policy: never
     build:
       context: ../..
       dockerfile: deploy/p4-switch/Dockerfile.runner
@@ -73,6 +74,7 @@ services:
 
   runner:
     image: masi-nids/p4-switch-e2e-runner:local
+    pull_policy: never
     build:
       context: ../..
       dockerfile: deploy/p4-switch/Dockerfile.runner

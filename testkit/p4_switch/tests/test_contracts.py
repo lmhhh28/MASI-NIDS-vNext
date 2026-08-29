@@ -181,7 +181,9 @@ class ContractGoldenTests(unittest.TestCase):
         )
         self.assertEqual(3600, profile["performance_gate"]["soak_duration_seconds"])
         runner_profile = load("contracts/profiles/v1/e2e-runner-compose.json")
-        self.assertEqual(32 * 1024 * 1024 * 1024, runner_profile["supply_chain_minimum_free_bytes"])
+        self.assertEqual(
+            32 * 1024 * 1024 * 1024, runner_profile["supply_chain_minimum_free_bytes"]
+        )
         self.assertEqual(
             33554689, profile["pipeline"]["tables"]["response_overlay"]["id"]
         )
@@ -240,10 +242,18 @@ class ContractGoldenTests(unittest.TestCase):
     def test_evidence_schema_requires_orthogonal_test_status(self) -> None:
         schema = load("contracts/evidence/v1/schema.json")
         self.assertTrue(
-            {"findings", "completion", "overall_module_complete"}.issubset(
-                schema["required"]
-            )
+            {
+                "findings",
+                "completion",
+                "overall_module_complete",
+                "source_revision",
+                "source_tree_digest",
+                "working_tree_dirty",
+                "working_tree_status_digest",
+                "phase_bindings",
+            }.issubset(schema["required"])
         )
+        self.assertEqual(12, schema["properties"]["phase_bindings"]["minItems"])
         required = set(schema["properties"]["tests"]["items"]["required"])
         self.assertTrue(
             {
@@ -275,9 +285,9 @@ class ContractGoldenTests(unittest.TestCase):
         runner = (ROOT / "testkit/p4_switch/run-module-e2e.sh").read_text(
             encoding="utf-8"
         )
-        supply = (
-            ROOT / "testkit/p4_switch/scripts/run-supply-chain.sh"
-        ).read_text(encoding="utf-8")
+        supply = (ROOT / "testkit/p4_switch/scripts/run-supply-chain.sh").read_text(
+            encoding="utf-8"
+        )
         self.assertIn("source-inputs", runner)
         self.assertIn(".source_archive.filename", runner)
         self.assertIn(".source_archive.sha256", runner)

@@ -1,11 +1,11 @@
 {
   "schema_version": "masi-repository-closure/v1",
   "identity": "repo-masi-ids-window-v1-r3",
-  "closure_digest": "sha256:14b0f8f1a85ecc5e4e0f5d699ffa38285974ab98761e04d8a42cd8b8e0290b6a",
+  "closure_digest": "sha256:23b49097b1f1db3e089ccc313405bed445ba4ccb3bf188da161453afe022afe9",
   "members": [
     {
       "rel_path": "bundle-manifest.json",
-      "member_digest": "sha256:24e9cab4c4248455d8e683115c44553940a190fae7ded195eeeae38c125d26aa",
+      "member_digest": "sha256:f397a2dbff72b8051d5ab643ed0e68dc3880aaeecfe7fb718458d48efa686669",
       "role": "bundle-manifest"
     },
     {

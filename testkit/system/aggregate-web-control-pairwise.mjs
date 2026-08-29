@@ -8,6 +8,11 @@ function argument(name) {
 
 const inputs = argument('--inputs').split(',')
 const evidencePath = argument('--evidence')
+const sourceIdentity = JSON.parse(readFileSync(argument('--source-identity'), 'utf8'))
+const cleanup = JSON.parse(readFileSync(argument('--cleanup'), 'utf8'))
+if (cleanup.schema_version !== 'p9-runtime-cleanup/v1' || cleanup.result !== 'PASS' || cleanup.remaining_resources.length !== 0) {
+  throw new Error('P9 cleanup evidence is not a complete PASS')
+}
 if (inputs.length !== 3) throw new Error('exactly three browser evidence files are required')
 const documents = inputs.map((path) => JSON.parse(readFileSync(path, 'utf8')))
 const first = documents[0]
@@ -20,6 +25,9 @@ for (const document of documents) {
 }
 const result = {
   schema_version: 'web-control-pairwise-rehearsal/v1',
+  run_id: argument('--run-id'),
+  ...sourceIdentity,
+  cleanup,
   boundary: first.boundary,
   started_at: documents.map((document) => document.started_at).sort()[0],
   finished_at: documents.map((document) => document.finished_at).sort().at(-1),

@@ -60,7 +60,9 @@ PR 不运行来自 fork 的 secret、self-hosted privileged runner、P4 target�
 
 Runner 必须是带 `masi-ephemeral` 标签的一次性实例，并预装、固定模块 README 要求的 Docker、Go、Rust、Python/uv、Node、C++/gRPC/Triton、浏览器、Syft/Trivy/Cosign 等工具。P4 runner 另需隔离 target、root/capability、两个 exact source archive、离线 scan cache 和受控签名材料。Central 性能 runner 必须与 profile 的 CPU/NUMA/RAM 匹配；未来 CUDA 只能使用独立标签和独立 evidence，不能继承 CPU 结果。模块脚本完成 exact cleanup；无论 job 成败，外部 runner controller 随后销毁实例，避免用广域 Docker/process 清理误伤共享资源。
 
-每次 run 的完整目录作为 GitHub Artifact 上传；`latest.json` 只作为指向不可变 run 的指针。只有模块入口成功、canonical summary 存在且绑定同一 run ID、summary 仍能派生 `overall_module_complete=true` 后，job 才能成功。失败、`HOLD`、`NOT_RUN`、缺文件或上传失败均保留原结果，不允许 CI 生成“force pass”。
+Web 正式门禁还要求 exact candidate 的人工可访问性 evidence：screen reader、全键盘、200% zoom/reflow 与高风险对话框 focus 四项都必须由具名 reviewer 实测并绑定 source/image/artifact digest。`MASI_WEB_MANUAL_A11Y_EVIDENCE` 只能指向 self-hosted runner 上受保护的普通文件；缺失时稳定产生 `NOT_RUN/NOT_QUALIFIED`，不得由 axe 自动结果代替。
+
+每次 run 的完整目录作为 GitHub Artifact 上传；`latest.json` 只作为指向不可变 run 的指针。canonical verifier 必须先按模块公开 schema、run/source identity 和 pointer digest 复核 summary。命令提前失败时只允许上传经 `module-runner-failure/v1` 校验并绑定 command/log digest 的诊断 evidence。只有模块入口成功、canonical summary 存在且绑定同一 run ID、summary 仍能派生 `overall_module_complete=true` 后，job 才能成功。失败、`HOLD`、`NOT_RUN`、缺文件或上传失败均保留原结果，不允许 CI 生成“force pass”。
 
 ## 5. 正式集成与 CD 放行
 

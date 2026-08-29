@@ -3,6 +3,7 @@ name: masi-postgresql-state-module
 services:
   archive-init:
     image: ${MASI_DB_POSTGRES_IMAGE:-masi-postgres:module}
+    pull_policy: never
     restart: "no"
     network_mode: none
     user: "0:0"
@@ -18,6 +19,7 @@ services:
 
   postgres:
     image: ${MASI_DB_POSTGRES_IMAGE:-masi-postgres:module}
+    pull_policy: never
     restart: "no"
     cpus: 4.0
     mem_limit: 1g
@@ -64,6 +66,7 @@ services:
 
   postgres-disk-fault:
     image: ${MASI_DB_POSTGRES_IMAGE:-masi-postgres:module}
+    pull_policy: never
     profiles: [fault]
     restart: "no"
     cpus: 2.0
@@ -120,6 +123,7 @@ services:
 
   pgbouncer:
     image: ${MASI_DB_PGBOUNCER_IMAGE:-masi-pgbouncer:module}
+    pull_policy: never
     restart: "no"
     cpus: 1.0
     mem_limit: 256m
@@ -151,6 +155,7 @@ services:
 
   standby-init:
     image: ${MASI_DB_POSTGRES_IMAGE:-masi-postgres:module}
+    pull_policy: never
     profiles: [standby]
     restart: "no"
     network_mode: none
@@ -167,6 +172,7 @@ services:
 
   standby-basebackup:
     image: ${MASI_DB_POSTGRES_IMAGE:-masi-postgres:module}
+    pull_policy: never
     profiles: [standby]
     restart: "no"
     cpus: 2.0
@@ -209,6 +215,7 @@ services:
 
   standby:
     image: ${MASI_DB_POSTGRES_IMAGE:-masi-postgres:module}
+    pull_policy: never
     profiles: [standby]
     restart: "no"
     cpus: 4.0
@@ -252,6 +259,7 @@ services:
 
   pitr-basebackup-init:
     image: ${MASI_DB_POSTGRES_IMAGE:-masi-postgres:module}
+    pull_policy: never
     profiles: [restore]
     restart: "no"
     network_mode: none
@@ -268,6 +276,7 @@ services:
 
   pitr-basebackup:
     image: ${MASI_DB_POSTGRES_IMAGE:-masi-postgres:module}
+    pull_policy: never
     profiles: [restore]
     restart: "no"
     cpus: 2.0
@@ -310,6 +319,7 @@ services:
 
   restore-init:
     image: ${MASI_DB_POSTGRES_IMAGE:-masi-postgres:module}
+    pull_policy: never
     profiles: [restore]
     restart: "no"
     network_mode: none
@@ -326,6 +336,7 @@ services:
 
   restore-prepare:
     image: ${MASI_DB_POSTGRES_IMAGE:-masi-postgres:module}
+    pull_policy: never
     profiles: [restore]
     restart: "no"
     user: "70:70"
@@ -354,6 +365,7 @@ services:
 
   restore:
     image: ${MASI_DB_POSTGRES_IMAGE:-masi-postgres:module}
+    pull_policy: never
     profiles: [restore]
     restart: "no"
     cpus: 4.0

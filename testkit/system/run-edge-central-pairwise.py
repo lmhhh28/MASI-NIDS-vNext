@@ -7,6 +7,7 @@ import argparse
 import hashlib
 import json
 import os
+import re
 import signal
 import shutil
 import socket
@@ -14,6 +15,7 @@ import subprocess
 import tempfile
 import threading
 import time
+import uuid
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
@@ -23,6 +25,7 @@ from urllib.request import urlopen
 from jsonschema import Draft202012Validator, FormatChecker
 
 from validate_connected_system_evidence import validate_semantics
+from source_identity import current_source_identity
 
 UTC_ZONE = timezone.utc  # noqa: UP017 -- root Pyright targets a pre-3.11 stdlib surface
 
@@ -57,10 +60,35 @@ def run_checked(
     return result
 
 
-def free_port() -> int:
-    with socket.socket() as listener:
-        listener.bind(("127.0.0.1", 0))
-        return int(listener.getsockname()[1])
+class PortReservation:
+    def __init__(self) -> None:
+        self._listener: socket.socket | None = socket.socket()
+        self._listener.bind(("127.0.0.1", 0))
+        self.port = int(self._listener.getsockname()[1])
+
+    def release(self) -> None:
+        if self._listener is not None:
+            self._listener.close()
+            self._listener = None
+
+
+def stop_process_group(
+    process: subprocess.Popen[str], *, terminate_seconds: int = 10
+) -> None:
+    if process.poll() is not None:
+        return
+    try:
+        os.killpg(process.pid, signal.SIGTERM)
+    except (ProcessLookupError, PermissionError):
+        process.terminate()
+    try:
+        process.wait(timeout=terminate_seconds)
+    except subprocess.TimeoutExpired:
+        try:
+            os.killpg(process.pid, signal.SIGKILL)
+        except (ProcessLookupError, PermissionError):
+            process.kill()
+        process.wait(timeout=5)
 
 
 def write_json_atomic(path: Path, document: dict[str, Any]) -> None:
@@ -69,7 +97,46 @@ def write_json_atomic(path: Path, document: dict[str, Any]) -> None:
         output.write(json.dumps(document, sort_keys=True, indent=2) + "\n")
         output.flush()
         os.fsync(output.fileno())
-    os.replace(temporary, path)
+    try:
+        os.link(temporary, path, follow_symlinks=False)
+        parent_descriptor = os.open(path.parent, os.O_RDONLY | os.O_CLOEXEC)
+        try:
+            os.fsync(parent_descriptor)
+        finally:
+            os.close(parent_descriptor)
+    finally:
+        temporary.unlink(missing_ok=True)
+
+
+def write_json_replace(path: Path, document: dict[str, Any]) -> None:
+    if path.is_symlink():
+        raise ValueError("mutable runtime manifest cannot be a symlink")
+    temporary = path.with_name(f".{path.name}.{os.getpid()}.replace")
+    with temporary.open("x", encoding="utf-8") as output:
+        output.write(json.dumps(document, sort_keys=True, indent=2) + "\n")
+        output.flush()
+        os.fsync(output.fileno())
+    try:
+        os.replace(temporary, path)
+        parent_descriptor = os.open(path.parent, os.O_RDONLY | os.O_CLOEXEC)
+        try:
+            os.fsync(parent_descriptor)
+        finally:
+            os.close(parent_descriptor)
+    finally:
+        temporary.unlink(missing_ok=True)
+
+
+def prepare_new_output(path: Path) -> Path:
+    absolute = Path(os.path.abspath(path))
+    current = Path(absolute.anchor)
+    for part in absolute.parts[1:-1]:
+        current /= part
+        if current.is_symlink() or not current.is_dir():
+            raise ValueError("evidence output parent path is unsafe or absent")
+    if absolute.exists() or absolute.is_symlink():
+        raise ValueError("evidence output already exists")
+    return absolute
 
 
 def require_containers_running(repo: Path, containers: list[str]) -> None:
@@ -419,7 +486,13 @@ def wait_compose_container(
 ) -> str:
     deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:
-        observed = run_checked([*compose, "ps", "-aq", service], cwd=cwd, env=env)
+        command_timeout = max(0.1, min(5.0, deadline - time.monotonic()))
+        observed = run_checked(
+            [*compose, "ps", "-aq", service],
+            cwd=cwd,
+            env=env,
+            timeout=command_timeout,
+        )
         container_id = observed.stdout.strip()
         if container_id:
             state = (
@@ -432,6 +505,7 @@ def wait_compose_container(
                         container_id,
                     ],
                     cwd=cwd,
+                    timeout=command_timeout,
                 )
                 .stdout.strip()
                 .split()
@@ -489,7 +563,7 @@ def triton_inference_count(repo: Path, runtime: dict[str, Any]) -> int:
     return int(raw)
 
 
-def main() -> int:
+def main() -> int:  # pyright: ignore[reportGeneralTypeIssues] -- bounded orchestration state machine
     parser = argparse.ArgumentParser()
     parser.add_argument("--run-id", required=True)
     parser.add_argument("--evidence", type=Path, required=True)
@@ -499,7 +573,16 @@ def main() -> int:
     parser.add_argument("--with-sideplanes", action="store_true")
     parser.add_argument("--keep-alive-seconds", type=int, default=0)
     args = parser.parse_args()
-    args.evidence = args.evidence.resolve()
+    if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._:-]{1,127}", args.run_id):
+        raise SystemExit("invalid run id")
+    try:
+        args.evidence = prepare_new_output(args.evidence)
+    except ValueError as error:
+        raise SystemExit(str(error)) from error
+    artifact_directory = args.evidence.with_name(f"{args.evidence.name}.artifacts")
+    if artifact_directory.exists() or artifact_directory.is_symlink():
+        raise SystemExit("connected runner artifact directory already exists")
+    artifact_directory.mkdir(mode=0o700)
 
     def terminate_runner(signum: int, _frame: Any) -> None:
         raise SystemExit(128 + signum)
@@ -518,9 +601,6 @@ def main() -> int:
         )
     if args.keep_alive_seconds and not 60 <= args.keep_alive_seconds <= 21600:
         raise SystemExit("--keep-alive-seconds must be in 60..21600")
-    if args.evidence.exists() or args.evidence.is_symlink():
-        raise SystemExit("evidence output already exists")
-    args.evidence.parent.mkdir(parents=True, exist_ok=True)
     keep_alive = args.keep_alive_seconds > 0
     live_manifest_path = args.evidence.parent / "live-runtime.json"
     stop_token_path = args.evidence.parent / "stop-live-runtime"
@@ -536,6 +616,7 @@ def main() -> int:
     )
     central_hold_seconds = args.keep_alive_seconds + 1200 if keep_alive else 600
     repo = Path(__file__).resolve().parents[2]
+    source_identity = current_source_identity(repo)
     edge_root = repo / "edge-rs"
     inference_root = repo / "infer-cpp"
     control_root = repo / "control-go"
@@ -558,14 +639,18 @@ def main() -> int:
     p4_compiler_log_path = temporary / "p4-compiler.log"
     started_at = datetime.now(UTC_ZONE).isoformat().replace("+00:00", "Z")
     central: subprocess.Popen[str] | None = None
+    central_ever_started = False
     edge_process: subprocess.Popen[str] | None = None
+    edge_ever_started = False
     edge_log_handle: Any | None = None
     control_process: subprocess.Popen[str] | None = None
+    control_ever_started = False
     control_log: Any | None = None
     observer_stop = threading.Event()
     observer_errors: list[str] = []
     observer: threading.Thread | None = None
-    pg_project = f"masi-edge-central-control-{os.getpid()}"
+    resource_nonce = uuid.uuid4().hex[:12]
+    pg_project = f"masi-edge-central-control-{resource_nonce}"
     pg_compose = [
         "docker",
         "compose",
@@ -574,23 +659,26 @@ def main() -> int:
         "-f",
         str(control_root / "testdata/compose.e2e.yaml"),
     ]
+    pg_environment = os.environ.copy()
+    pg_environment["MASI_POSTGRES_PUBLISH"] = "127.0.0.1:"
     pg_started = False
     p4_started = False
     p4_pipeline: dict[str, Any] | None = None
     p4_traffic: dict[str, Any] | None = None
-    p4_project = f"masi-connected-p4-{os.getpid()}"
+    p4_project = f"masi-connected-p4-{resource_nonce}"
     p4_compose_file = repo / "deploy/p4-switch/compose.edge-rehearsal.yaml"
     p4_compose = ["docker", "compose", "-p", p4_project, "-f", str(p4_compose_file)]
     p4_environment = os.environ.copy()
     p4_runtime_path: Path | None = None
-    web_port = free_port() if args.with_web else 0
-    forwarder_port = free_port() if args.with_web else 0
-    while args.with_web and forwarder_port == web_port:
-        forwarder_port = free_port()
-    web_image = f"masi-nids/web:connected-{os.getpid()}"
-    web_network = f"masi-connected-web-{os.getpid()}"
-    web_container = f"masi-connected-web-{os.getpid()}"
-    forwarder_container = f"masi-connected-forwarder-{os.getpid()}"
+    web_port_reservation = PortReservation() if args.with_web else None
+    forwarder_port_reservation = PortReservation() if args.with_web else None
+    web_port = web_port_reservation.port if web_port_reservation is not None else 0
+    forwarder_port = (
+        forwarder_port_reservation.port if forwarder_port_reservation is not None else 0
+    )
+    web_image = f"masi-nids/web:connected-{resource_nonce}"
+    web_container = f"masi-connected-web-{resource_nonce}"
+    forwarder_container = f"masi-connected-forwarder-{resource_nonce}"
     web_started = False
     web_log_path = temporary / "web.log"
     forwarder_log_path = temporary / "web-forwarder.log"
@@ -600,6 +688,7 @@ def main() -> int:
     plugin_runtime: dict[str, Any] | None = None
     plugin_shutdown: dict[str, Any] | None = None
     plugin_export_process: subprocess.Popen[str] | None = None
+    plugin_ever_started = False
     plugin_export_log: Any | None = None
     plugin_export_dir = temporary / "plugin-host-runtime-export"
     plugin_export_log_path = temporary / "plugin-host-export.log"
@@ -609,6 +698,7 @@ def main() -> int:
     analysis_runtime: dict[str, Any] | None = None
     analysis_shutdown: dict[str, Any] | None = None
     analysis_export_process: subprocess.Popen[str] | None = None
+    analysis_ever_started = False
     analysis_export_log: Any | None = None
     analysis_export_dir = temporary / "analysis-runtime-export"
     analysis_export_log_path = temporary / "analysis-export.log"
@@ -617,6 +707,21 @@ def main() -> int:
     live_runtime_document: dict[str, Any] | None = None
     live_stop_reason = "runner-failure"
     run_completed = False
+    failure_error: BaseException | None = None
+    failure_stage = "central-startup"
+    dsn: str | None = None
+    control_config_path: Path | None = None
+    control_binary: Path | None = None
+    http_port = 0
+    grpc_port = 0
+    http_port_reservation: PortReservation | None = None
+    grpc_port_reservation: PortReservation | None = None
+    postgres_port = 0
+    p4_edge_ready_path: Path | None = None
+    p4_traffic_done_path: Path | None = None
+    p4_artifacts_dir: Path | None = None
+    switch_id: str | None = None
+    web_url: str | None = None
     central_log = central_log_path.open("w", encoding="utf-8")
     try:
         central_env = os.environ.copy()
@@ -625,8 +730,8 @@ def main() -> int:
                 "MASI_INF_EXPORT_RUNTIME_DIR": str(runtime_export),
                 "MASI_INF_HOLD_SECONDS": str(central_hold_seconds),
                 "MASI_INF_EVIDENCE_DIR": str(central_evidence),
-                "MASI_INF_IMAGE_REF": f"masi-inference:edge-central-{os.getpid()}",
-                "MASI_INF_BUILDER_IMAGE_REF": f"masi-inference-builder:edge-central-{os.getpid()}",
+                "MASI_INF_IMAGE_REF": f"masi-inference:edge-central-{resource_nonce}",
+                "MASI_INF_BUILDER_IMAGE_REF": f"masi-inference-builder:edge-central-{resource_nonce}",
             }
         )
         central = subprocess.Popen(
@@ -636,7 +741,9 @@ def main() -> int:
             stdout=central_log,
             stderr=subprocess.STDOUT,
             text=True,
+            start_new_session=True,
         )
+        central_ever_started = True
         runtime_path = runtime_export / "runtime.json"
         deadline = time.monotonic() + 900
         while time.monotonic() < deadline and not runtime_path.is_file():
@@ -651,11 +758,22 @@ def main() -> int:
         before_count = triton_inference_count(repo, runtime)
 
         if args.real_control:
-            dsn = (
-                "postgres://masi:masi@127.0.0.1:55433/masi_control_test?sslmode=disable"
+            failure_stage = "control-postgresql"
+            run_checked(
+                [*pg_compose, "up", "-d", "--wait"],
+                cwd=repo,
+                env=pg_environment,
+                timeout=120,
             )
             pg_started = True
-            run_checked([*pg_compose, "up", "-d", "--wait"], cwd=repo, timeout=120)
+            port_result = run_checked(
+                [*pg_compose, "port", "postgres", "5432"],
+                cwd=repo,
+                env=pg_environment,
+                timeout=30,
+            ).stdout.strip()
+            postgres_port = int(port_result.rsplit(":", 1)[1])
+            dsn = f"postgres://masi:masi@127.0.0.1:{postgres_port}/masi_control_test?sslmode=disable"
             run_checked(
                 [
                     "go",
@@ -684,7 +802,9 @@ def main() -> int:
                     stdout=plugin_export_log,
                     stderr=subprocess.STDOUT,
                     text=True,
+                    start_new_session=True,
                 )
+                plugin_ever_started = True
             control_binary = temporary / "control-core"
             run_checked(
                 [
@@ -723,6 +843,8 @@ def main() -> int:
                 plugin_runtime = json.loads(
                     plugin_runtime_path.read_text(encoding="utf-8")
                 )
+                if not isinstance(plugin_runtime, dict):
+                    raise RuntimeError("Plugin Host runtime export is not an object")
                 if (
                     plugin_runtime.get("schema_version")
                     != "plugin-host-runtime-export/v1"
@@ -732,7 +854,12 @@ def main() -> int:
                 ):
                     raise RuntimeError("Plugin Host runtime identity or TLS drifted")
             pki = generate_control_pki(temporary / "control-pki")
-            http_port, grpc_port = free_port(), free_port()
+            http_port_reservation = PortReservation()
+            grpc_port_reservation = PortReservation()
+            http_port, grpc_port = (
+                http_port_reservation.port,
+                grpc_port_reservation.port,
+            )
             control_config = json.loads(
                 (control_root / "testdata/control-e2e-config.json").read_text(
                     encoding="utf-8"
@@ -757,7 +884,9 @@ def main() -> int:
                     stdout=analysis_export_log,
                     stderr=subprocess.STDOUT,
                     text=True,
+                    start_new_session=True,
                 )
+                analysis_ever_started = True
                 analysis_runtime_path = analysis_export_dir / "runtime.json"
                 analysis_deadline = time.monotonic() + 60
                 while (
@@ -778,6 +907,8 @@ def main() -> int:
                 analysis_runtime = json.loads(
                     analysis_runtime_path.read_text(encoding="utf-8")
                 )
+                if not isinstance(analysis_runtime, dict):
+                    raise RuntimeError("Analysis runtime export is not an object")
                 if (
                     analysis_runtime.get("schema_version")
                     != "analysis-a2a-runtime-export/v1"
@@ -804,6 +935,8 @@ def main() -> int:
                         if args.with_web
                         else f"http://127.0.0.1:{http_port}"
                     ),
+                    "postgresql_dsn": dsn,
+                    "postgresql_test_dsn": dsn,
                     "role_mapping_path": str(role_mapping_path),
                     "role_mapping_digest": role_mapping_digest,
                     "contract_root": str(repo / "contracts"),
@@ -855,21 +988,72 @@ def main() -> int:
                 }
             )
             control_config_path = temporary / "control.json"
-            control_config_path.write_text(
-                json.dumps(control_config, sort_keys=True, separators=(",", ":"))
-                + "\n",
-                encoding="utf-8",
-            )
             seed_control(dsn, runtime)
-            control_log = control_log_path.open("w", encoding="utf-8")
-            control_process = subprocess.Popen(
-                [str(control_binary), "--config", str(control_config_path)],
-                cwd=control_root,
-                stdout=control_log,
-                stderr=subprocess.STDOUT,
-                text=True,
-            )
-            wait_http_ready(f"http://127.0.0.1:{http_port}/readyz", control_process)
+            control_start_errors: list[str] = []
+            for control_attempt in range(1, 4):
+                if control_attempt > 1:
+                    http_port_reservation = PortReservation()
+                    grpc_port_reservation = PortReservation()
+                    http_port, grpc_port = (
+                        http_port_reservation.port,
+                        grpc_port_reservation.port,
+                    )
+                control_config.update(
+                    {
+                        "http_listen": f"127.0.0.1:{http_port}",
+                        "grpc_listen": f"127.0.0.1:{grpc_port}",
+                        "public_origin": (
+                            f"http://127.0.0.1:{web_port}"
+                            if args.with_web
+                            else f"http://127.0.0.1:{http_port}"
+                        ),
+                    }
+                )
+                control_config_path.write_text(
+                    json.dumps(control_config, sort_keys=True, separators=(",", ":"))
+                    + "\n",
+                    encoding="utf-8",
+                )
+                control_log = control_log_path.open("a", encoding="utf-8")
+                http_port_reservation.release()
+                grpc_port_reservation.release()
+                control_process = subprocess.Popen(
+                    [str(control_binary), "--config", str(control_config_path)],
+                    cwd=control_root,
+                    stdout=control_log,
+                    stderr=subprocess.STDOUT,
+                    text=True,
+                    start_new_session=True,
+                )
+                control_ever_started = True
+                try:
+                    wait_http_ready(
+                        f"http://127.0.0.1:{http_port}/readyz",
+                        control_process,
+                        timeout=10,
+                    )
+                    if control_process.poll() is not None:
+                        raise RuntimeError(
+                            f"Control exited after readiness: {control_process.returncode}"
+                        )
+                    break
+                except RuntimeError as error:
+                    control_start_errors.append(
+                        f"attempt {control_attempt}: {type(error).__name__}: {error}"
+                    )
+                    if control_process.poll() is None:
+                        stop_process_group(control_process)
+                    control_process = None
+                    control_log.flush()
+                    control_log.close()
+                    control_log = None
+                    if control_attempt == 3:
+                        raise RuntimeError(
+                            "Control startup exhausted three bounded port attempts: "
+                            + "; ".join(control_start_errors)
+                        ) from error
+            if control_process is None or control_log is None:
+                raise RuntimeError("Control startup did not retain a live process")
             control_runtime = {
                 "schema_version": "control-core-acceptance-runtime/v1",
                 "state": "READY",
@@ -896,6 +1080,7 @@ def main() -> int:
             observer.start()
 
         if args.real_p4:
+            failure_stage = "p4-edge"
             p4_cert_dir = temporary / "p4-certs"
             p4_runtime_dir = temporary / "p4-runtime"
             p4_artifacts_dir = temporary / "p4-artifacts"
@@ -996,6 +1181,8 @@ def main() -> int:
             p4_pipeline = json.loads(
                 (p4_runtime_dir / "pipeline.json").read_text(encoding="utf-8")
             )
+            if not isinstance(p4_pipeline, dict):
+                raise RuntimeError("P4 pipeline export is not an object")
             host_port = int(
                 run_checked(["docker", "port", switch_id, "9559/tcp"], cwd=repo)
                 .stdout.strip()
@@ -1072,6 +1259,8 @@ def main() -> int:
             "--test-threads=1",
         ]
         if args.real_p4:
+            if p4_edge_ready_path is None or p4_traffic_done_path is None:
+                raise RuntimeError("P4 runtime synchronization paths are unavailable")
             edge_log_handle = edge_log_path.open("w", encoding="utf-8")
             edge_process = subprocess.Popen(
                 edge_command,
@@ -1082,6 +1271,7 @@ def main() -> int:
                 stderr=subprocess.STDOUT,
                 start_new_session=True,
             )
+            edge_ever_started = True
             edge_ready_deadline = time.monotonic() + 900
             while (
                 time.monotonic() < edge_ready_deadline
@@ -1197,7 +1387,15 @@ def main() -> int:
                 control_log.flush()
 
         if args.with_sideplanes:
-            if analysis_runtime is None or plugin_runtime is None:
+            failure_stage = "plugin-analysis-sideplanes"
+            if (
+                analysis_runtime is None
+                or plugin_runtime is None
+                or dsn is None
+                or control_config_path is None
+                or control_binary is None
+                or http_port == 0
+            ):
                 raise RuntimeError(
                     "connected side planes require live Host and Analysis runtimes"
                 )
@@ -1317,7 +1515,12 @@ def main() -> int:
             )
 
         if args.with_web:
-            if not control_event or not control_event.get("incident_id"):
+            failure_stage = "web-control"
+            if (
+                not control_event
+                or not control_event.get("incident_id")
+                or http_port == 0
+            ):
                 raise RuntimeError(
                     "connected Web requires one projected incident identity"
                 )
@@ -1378,6 +1581,8 @@ def main() -> int:
                 encoding="utf-8",
             )
             web_started = True
+            assert forwarder_port_reservation is not None
+            forwarder_port_reservation.release()
             run_checked(
                 [
                     "docker",
@@ -1393,6 +1598,8 @@ def main() -> int:
                 ],
                 cwd=repo,
             )
+            assert web_port_reservation is not None
+            web_port_reservation.release()
             run_checked(
                 [
                     "docker",
@@ -1526,6 +1733,11 @@ def main() -> int:
                 or p4_runtime_path is None
                 or plugin_runtime is None
                 or analysis_runtime is None
+                or web_url is None
+                or http_port == 0
+                or grpc_port == 0
+                or postgres_port == 0
+                or switch_id is None
             ):
                 raise RuntimeError("full connected live lifecycle state is incomplete")
             ready_time = datetime.now(UTC_ZONE)
@@ -1545,7 +1757,7 @@ def main() -> int:
                     "web": web_url,
                     "control_http": f"http://127.0.0.1:{http_port}",
                     "control_grpc": f"https://127.0.0.1:{grpc_port}",
-                    "postgresql": "postgresql://127.0.0.1:55433/masi_control_test",
+                    "postgresql": f"postgresql://127.0.0.1:{postgres_port}/masi_control_test",
                     "p4runtime": p4_runtime["p4runtime_endpoint"],
                     "central_gateway": runtime["gateway_endpoint"],
                     "triton": runtime["triton_host_endpoint"],
@@ -1598,7 +1810,7 @@ def main() -> int:
                             for error in live_errors
                         )
                     )
-                write_json_atomic(live_manifest_path, live_runtime_document)
+                write_json_replace(live_manifest_path, live_runtime_document)
 
             publish_live_runtime()
             print(
@@ -1706,6 +1918,8 @@ def main() -> int:
             plugin_shutdown = json.loads(
                 (plugin_export_dir / "shutdown.json").read_text(encoding="utf-8")
             )
+            if not isinstance(plugin_shutdown, dict):
+                raise RuntimeError("Plugin Host shutdown evidence is not an object")
             if not plugin_shutdown.get("clean_shutdown"):
                 raise RuntimeError("Plugin Host runtime did not shut down cleanly")
             Path(analysis_runtime["consumer_done_path"]).touch(
@@ -1720,6 +1934,8 @@ def main() -> int:
             analysis_shutdown = json.loads(
                 (analysis_export_dir / "shutdown.json").read_text(encoding="utf-8")
             )
+            if not isinstance(analysis_shutdown, dict):
+                raise RuntimeError("Analysis shutdown evidence is not an object")
             if not analysis_shutdown.get("clean_shutdown"):
                 raise RuntimeError("Analysis runtime did not shut down cleanly")
 
@@ -1751,6 +1967,8 @@ def main() -> int:
             "triton": digest(triton_log_path),
         }
         if args.real_p4:
+            if switch_id is None or p4_artifacts_dir is None:
+                raise RuntimeError("P4 participant identity is unavailable")
             participants.update(
                 {
                     "control_binary_digest": digest(temporary / "control-core"),
@@ -2000,6 +2218,173 @@ def main() -> int:
                     "DETERMINISTIC_P4_AND_CONTROL_FIXTURES; FORMAL_P2_P3_NOT_CLAIMED"
                 ),
             }
+        failure_stage = "runtime-cleanup"
+        cleanup_commands: list[dict[str, object]] = []
+
+        def cleanup_command(
+            name: str,
+            command: list[str],
+            *,
+            environment: dict[str, str] | None = None,
+            timeout_seconds: int = 120,
+        ) -> int:
+            completed = subprocess.run(
+                command,
+                cwd=repo,
+                env=environment,
+                text=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                timeout=timeout_seconds,
+                check=False,
+            )
+            cleanup_commands.append(
+                {
+                    "name": name,
+                    "exit_code": completed.returncode,
+                    "output_tail": completed.stdout[-1024:],
+                }
+            )
+            return completed.returncode
+
+        if control_process is not None and control_process.poll() is None:
+            stop_process_group(control_process)
+        control_process = None
+        if control_log is not None:
+            control_log.flush()
+            control_log.close()
+            control_log = None
+        if "control" in result["process_logs"]:
+            result["process_logs"]["control"] = digest(control_log_path)
+        observer_stop.set()
+        if observer is not None and observer.is_alive():
+            observer.join(timeout=5)
+        processes_reaped_or_not_started = {
+            "edge": edge_process is None,
+            "central": central is None,
+            "control": control_process is None,
+            "plugin_sideplane": plugin_export_process is None,
+            "analysis_sideplane": analysis_export_process is None,
+            "observer": observer is None or not observer.is_alive(),
+        }
+        cleanup_ok = True
+        if web_started:
+            cleanup_ok = (
+                cleanup_command(
+                    "web-containers",
+                    ["docker", "rm", "-f", web_container, forwarder_container],
+                    timeout_seconds=60,
+                )
+                == 0
+                and cleanup_ok
+            )
+        if pg_started:
+            cleanup_ok = (
+                cleanup_command(
+                    "postgresql-compose",
+                    [*pg_compose, "down", "--volumes", "--remove-orphans"],
+                    environment=pg_environment,
+                )
+                == 0
+                and cleanup_ok
+            )
+        if p4_started:
+            cleanup_ok = (
+                cleanup_command(
+                    "p4-compose",
+                    [*p4_compose, "down", "--volumes", "--remove-orphans"],
+                    environment=p4_environment,
+                )
+                == 0
+                and cleanup_ok
+            )
+
+        remaining_resources: list[str] = []
+        for container_name in (web_container, forwarder_container):
+            inspected = subprocess.run(
+                ["docker", "container", "inspect", container_name],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                timeout=30,
+                check=False,
+            )
+            if inspected.returncode == 0:
+                remaining_resources.append(f"container:{container_name}")
+        for project in (pg_project, p4_project):
+            for kind, command in (
+                (
+                    "container",
+                    [
+                        "docker",
+                        "ps",
+                        "-aq",
+                        "--filter",
+                        f"label=com.docker.compose.project={project}",
+                    ],
+                ),
+                (
+                    "network",
+                    [
+                        "docker",
+                        "network",
+                        "ls",
+                        "-q",
+                        "--filter",
+                        f"label=com.docker.compose.project={project}",
+                    ],
+                ),
+                (
+                    "volume",
+                    [
+                        "docker",
+                        "volume",
+                        "ls",
+                        "-q",
+                        "--filter",
+                        f"label=com.docker.compose.project={project}",
+                    ],
+                ),
+            ):
+                observed = subprocess.run(
+                    command,
+                    text=True,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.STDOUT,
+                    timeout=30,
+                    check=False,
+                )
+                if observed.returncode != 0:
+                    remaining_resources.append(f"query-error:{project}:{kind}")
+                else:
+                    remaining_resources.extend(
+                        f"{kind}:{project}:{identity}"
+                        for identity in observed.stdout.splitlines()
+                        if identity
+                    )
+        cleanup_ok = (
+            cleanup_ok
+            and not remaining_resources
+            and all(processes_reaped_or_not_started.values())
+        )
+        cleanup_evidence = {
+            "attempted": True,
+            "result": "PASS" if cleanup_ok else "FAIL",
+            "commands": cleanup_commands,
+            "remaining_resources": remaining_resources,
+            "processes_reaped_or_not_started": processes_reaped_or_not_started,
+        }
+        write_json_atomic(artifact_directory / "cleanup.json", cleanup_evidence)
+        if not cleanup_ok:
+            raise RuntimeError("connected runtime cleanup left residual resources")
+        web_started = False
+        pg_started = False
+        p4_started = False
+        result["cleanup"] = cleanup_evidence
+
+        failure_stage = "evidence-validation"
+        if current_source_identity(repo) != source_identity:
+            raise RuntimeError("connected-system source closure changed during execution")
+        result.update(source_identity)
         schema = json.loads(
             (
                 repo
@@ -2034,13 +2419,22 @@ def main() -> int:
             )
         if args.with_sideplanes:
             validate_semantics(result)
-        args.evidence.write_text(
-            json.dumps(result, sort_keys=True, indent=2) + "\n", encoding="utf-8"
-        )
+        write_json_atomic(args.evidence, result)
         run_completed = True
         print(json.dumps(result, sort_keys=True))
         return 0
+    except BaseException as error:
+        failure_error = error
+        raise
     finally:
+        for reservation in (
+            web_port_reservation,
+            forwarder_port_reservation,
+            http_port_reservation,
+            grpc_port_reservation,
+        ):
+            if reservation is not None:
+                reservation.release()
         if edge_process is not None:
             try:
                 os.killpg(edge_process.pid, signal.SIGTERM)
@@ -2084,13 +2478,6 @@ def main() -> int:
                 timeout=60,
                 check=False,
             )
-            subprocess.run(
-                ["docker", "network", "rm", web_network],
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-                timeout=30,
-                check=False,
-            )
         if analysis_export_process is not None:
             if analysis_runtime is not None:
                 try:
@@ -2104,12 +2491,7 @@ def main() -> int:
                 except subprocess.TimeoutExpired:
                     pass
             if analysis_export_process.poll() is None:
-                analysis_export_process.terminate()
-                try:
-                    analysis_export_process.wait(timeout=10)
-                except subprocess.TimeoutExpired:
-                    analysis_export_process.kill()
-                    analysis_export_process.wait(timeout=5)
+                stop_process_group(analysis_export_process)
         if analysis_export_log is not None:
             analysis_export_log.close()
         if plugin_export_process is not None:
@@ -2125,24 +2507,14 @@ def main() -> int:
                 except subprocess.TimeoutExpired:
                     pass
             if plugin_export_process.poll() is None:
-                plugin_export_process.terminate()
-                try:
-                    plugin_export_process.wait(timeout=15)
-                except subprocess.TimeoutExpired:
-                    plugin_export_process.kill()
-                    plugin_export_process.wait(timeout=5)
+                stop_process_group(plugin_export_process, terminate_seconds=15)
         if plugin_export_log is not None:
             plugin_export_log.close()
         observer_stop.set()
         if observer is not None and observer.is_alive():
             observer.join(timeout=5)
         if control_process is not None and control_process.poll() is None:
-            control_process.terminate()
-            try:
-                control_process.wait(timeout=10)
-            except subprocess.TimeoutExpired:
-                control_process.kill()
-                control_process.wait(timeout=5)
+            stop_process_group(control_process)
         if control_log is not None:
             control_log.close()
         try:
@@ -2152,12 +2524,7 @@ def main() -> int:
         except OSError:
             pass
         if central is not None and central.poll() is None:
-            central.terminate()
-            try:
-                central.wait(timeout=30)
-            except subprocess.TimeoutExpired:
-                central.kill()
-                central.wait(timeout=5)
+            stop_process_group(central, terminate_seconds=30)
         central_log.close()
         if p4_started and not p4_log_path.is_file():
             observed = subprocess.run(
@@ -2189,8 +2556,8 @@ def main() -> int:
             "plugin-host-go-test.log",
         ):
             source = temporary / name
-            destination = args.evidence.parent / name
-            if source.is_file() and not destination.exists():
+            destination = artifact_directory / name
+            if source.is_file():
                 shutil.copy2(source, destination)
         for source, destination_name in (
             (plugin_export_dir / "plugin-host.log", "plugin-host.log"),
@@ -2201,16 +2568,17 @@ def main() -> int:
                 "analysis-external-fixtures.log",
             ),
         ):
-            destination = args.evidence.parent / destination_name
-            if source.is_file() and not destination.exists():
+            destination = artifact_directory / destination_name
+            if source.is_file():
                 shutil.copy2(source, destination)
-        central_failure_evidence = args.evidence.parent / "central-runtime-evidence"
-        if central_evidence.is_dir() and not central_failure_evidence.exists():
+        central_failure_evidence = artifact_directory / "central-runtime-evidence"
+        if central_evidence.is_dir():
             shutil.copytree(central_evidence, central_failure_evidence)
         if pg_started:
             subprocess.run(
                 [*pg_compose, "down", "--volumes", "--remove-orphans"],
                 cwd=repo,
+                env=pg_environment,
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
                 timeout=120,
@@ -2234,9 +2602,48 @@ def main() -> int:
                 datetime.now(UTC_ZONE).isoformat().replace("+00:00", "Z")
             )
             try:
-                write_json_atomic(live_manifest_path, live_runtime_document)
+                write_json_replace(live_manifest_path, live_runtime_document)
             except OSError:
                 pass
+        if failure_error is not None and not args.evidence.exists():
+            failure_document = {
+                "schema_version": "connected-runner-failure/v1",
+                "runner_id": "run-edge-central-pairwise",
+                "run_id": args.run_id,
+                "started_at": started_at,
+                "finished_at": datetime.now(UTC_ZONE)
+                .isoformat()
+                .replace("+00:00", "Z"),
+                "failure_stage": failure_stage,
+                "error_type": type(failure_error).__name__,
+                "participants_started": {
+                    "central": central_ever_started,
+                    "edge": edge_ever_started,
+                    "control_postgresql": pg_started and control_ever_started,
+                    "p4": p4_started,
+                    "web": web_started,
+                    "plugin_sideplane": plugin_ever_started,
+                    "analysis_sideplane": analysis_ever_started,
+                },
+                "cleanup_attempted": True,
+                "level": "REHEARSAL",
+                "applicability": "APPLICABLE",
+                "result": "FAIL",
+                "qualification": "NOT_QUALIFIED",
+                "reason_code": "RUNNER_EXCEPTION",
+            }
+            failure_schema = json.loads(
+                (
+                    repo / "contracts/evidence/connected-runner-failure/v1/schema.json"
+                ).read_text(encoding="utf-8")
+            )
+            failure_errors = list(
+                Draft202012Validator(
+                    failure_schema, format_checker=FormatChecker()
+                ).iter_errors(failure_document)
+            )
+            if not failure_errors:
+                write_json_atomic(args.evidence, failure_document)
         shutil.rmtree(temporary, ignore_errors=True)
 
 

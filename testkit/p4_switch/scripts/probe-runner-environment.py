@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import importlib.metadata
 import json
 import platform
 import re
@@ -71,6 +72,11 @@ def observe() -> tuple[dict[str, object], dict[str, str]]:
         "distribution": release.get("NAME", ""),
         "distribution_version": alpine_release,
         "architecture": platform.machine(),
+        "python": platform.python_version(),
+        "p4runtime": importlib.metadata.version("p4runtime"),
+        "grpcio": importlib.metadata.version("grpcio"),
+        "ptf": importlib.metadata.version("ptf"),
+        "scapy": importlib.metadata.version("scapy"),
         "iproute2": {
             "tool_version": match_version(
                 r"iproute2-v([^\s,]+)", ip_output, "iproute2 tool version"
@@ -131,9 +137,7 @@ def phase(
                 "level": "MODULE",
                 "applicability": "APPLICABLE",
                 "result": result,
-                "qualification": (
-                    "QUALIFIED" if result == "PASS" else "NOT_QUALIFIED"
-                ),
+                "qualification": ("QUALIFIED" if result == "PASS" else "NOT_QUALIFIED"),
                 "evidence": evidence,
             }
         ],

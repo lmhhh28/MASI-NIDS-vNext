@@ -10,7 +10,7 @@ testkit/system/run-web-control-pairwise.sh
 
 The runner migrates a fresh PostgreSQL 18 test database, starts the real Control Core and production Web OCI images, then runs Chromium, Firefox, and WebKit as separate processes. Each engine verifies 25 authorized projections, opaque session/CSRF rules, one SPA SSE stream, and a target registration read back from PostgreSQL. It uses plaintext loopback `test-login`, so evidence is always `PASS/NOT_QUALIFIED`, never formal P9.
 
-Port `4189` is intentional. Port `4190` is registered for ManageSieve and is blocked by Firefox/WebKit as an unsafe port.
+Docker atomically allocates fresh loopback ports for each run. Control keeps its acceptance listeners loopback-only; a digest-pinned Nginx sidecar shares its network namespace and exposes only the bounded test HTTP port to the Web network and host. The runner does not guess or reuse a shared fixed host port.
 
 ## Go/PostgreSQL/Analysis P11 rehearsal
 
@@ -32,7 +32,9 @@ python3 testkit/system/run-edge-central-pairwise.py \
 
 This runner keeps one PostgreSQL 18/Control topology while real BMv2, Edge, Central Gateway, pinned Triton/ORT CPU, Plugin Host/Wasm, Analysis, the production Web image, and Chromium/Firefox/WebKit execute their public boundaries. The running `control-core` maintenance dispatcher—not the seed test process—claims the durable statistics run over TLS 1.3 mTLS; Go persists the validated current/history Artifact, and all three browsers read it through the fixed Vue renderer. The same Control process calls the real Analysis process over A2A mTLS, persists a non-executable/non-deployable Artifact, and all three browsers read the task and Artifact.
 
-The isolated one-shot pipeline loader closes before Edge becomes the long-lived P4Runtime owner, and the traffic sender has no P4Runtime credentials. External Analysis provider/MCP processes remain deterministic mTLS fixtures. The runner validates `connected-system-web-rehearsal/v1` plus cross-field identity, timeline, arithmetic, three-browser, cleanup, and secret-path semantics. Current source evidence is [`20260827T023500Z-rehearsal-005`](../../evidence/system-connected-full/20260827T023500Z-rehearsal-005/summary.json): operational rehearsal `PASS`, qualification `NOT_QUALIFIED`.
+The top-level system `source_tree_digest` covers the full connected runner closure. Component evidence deliberately records each module's narrower, independently reproducible source-closure digest; those digest values are not expected to equal the top-level digest. Audit joins them by the same revision/status identity plus the explicit component profile, never by pretending that distinct closure definitions are one hash domain.
+
+The isolated one-shot pipeline loader closes before Edge becomes the long-lived P4Runtime owner, and the traffic sender has no P4Runtime credentials. External Analysis provider/MCP processes remain deterministic mTLS fixtures. The runner validates `connected-system-web-rehearsal/v1` plus cross-field identity, timeline, arithmetic, three-browser, cleanup, and secret-path semantics. Committed rehearsal evidence is historical evidence for its recorded source digest only; it must not be described as current after the source tree changes.
 
 This is one connected happy-path rehearsal, not formal Full System E2E. It does not replace the twelve clean-environment pairwise runs, ten system waves, required traffic/fault/PITR/performance/soak matrices, protected baseline, hardware/HA qualification, or a real external provider. It must never be promoted beyond its recorded `REHEARSAL` scope.
 

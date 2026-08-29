@@ -13,7 +13,7 @@
   "role_mapping_path": "/run/masi/role-mapping-e2e.json",
   "role_mapping_digest": "sha256:e33fc6c4c041a5177dab636209325f53e901e507d48269e61971e256cf5e66d1",
   "contract_root": "/run/masi/contracts",
-  "schema_migration_digest": "sha256:7d19f7d01fa2f47734d08b5159d1a87b30c55c8a54b798f15cc754b5c68bb74a",
+  "schema_migration_digest": "sha256:e6b697e7dba9a0e080b32c5f67af9250b4973587727b2d536a2675ea67278b48",
   "profile_digests": {
     "openapi_rest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
     "grpc_service": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",

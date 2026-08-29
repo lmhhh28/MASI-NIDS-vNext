@@ -93,17 +93,71 @@ jobs:
       MASI_COSIGN_KEY_DIR: ${{ vars.MASI_COSIGN_KEY_DIR }}
       MASI_P4_RUNTIME_IMAGE: ${{ vars.MASI_P4_RUNTIME_IMAGE }}
       MASI_P4_RUNNER_IMAGE: ${{ vars.MASI_P4_RUNNER_IMAGE }}
+      MASI_WEB_MANUAL_A11Y_EVIDENCE: ${{ vars.MASI_WEB_MANUAL_A11Y_EVIDENCE }}
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
           clean: true
           fetch-depth: 0
           persist-credentials: false
-      - name: Run exact formal module gate
-        run: scripts/ci/run_module_gate.sh "${{ matrix.module }}" "${MASI_CI_RUN_ID}"
+      - name: Preflight formal inputs
+        id: preflight
+        env:
+          MODULE: ${{ matrix.module }}
+        run: |
+          preflight_log="${RUNNER_TEMP}/module-preflight-${MODULE}.log"
+          set +e
+          (
+            test -z "$(git status --porcelain=v1 --untracked-files=all)" || exit 78
+            if [[ "${MODULE}" == "p4" ]]; then
+              for variable in MASI_BMV2_SOURCE_ARCHIVE MASI_PI_SOURCE_ARCHIVE MASI_TRIVY_CACHE MASI_COSIGN_KEY_DIR MASI_P4_RUNTIME_IMAGE MASI_P4_RUNNER_IMAGE; do
+                [[ -n "${!variable:-}" ]] || { echo "missing protected P4 input: ${variable}" >&2; exit 78; }
+              done
+              [[ -f "${MASI_BMV2_SOURCE_ARCHIVE}" && ! -L "${MASI_BMV2_SOURCE_ARCHIVE}" ]] || exit 78
+              [[ -f "${MASI_PI_SOURCE_ARCHIVE}" && ! -L "${MASI_PI_SOURCE_ARCHIVE}" ]] || exit 78
+              [[ -d "${MASI_TRIVY_CACHE}" && ! -L "${MASI_TRIVY_CACHE}" ]] || exit 78
+              [[ -d "${MASI_COSIGN_KEY_DIR}" && ! -L "${MASI_COSIGN_KEY_DIR}" ]] || exit 78
+              [[ "${MASI_P4_RUNTIME_IMAGE}" =~ @sha256:[0-9a-f]{64}$ ]] || exit 78
+              [[ "${MASI_P4_RUNNER_IMAGE}" =~ @sha256:[0-9a-f]{64}$ ]] || exit 78
+              [[ ! "${MASI_P4_RUNTIME_IMAGE}" =~ @sha256:0{64}$ ]] || exit 78
+              [[ ! "${MASI_P4_RUNNER_IMAGE}" =~ @sha256:0{64}$ ]] || exit 78
+            fi
+          ) >"${preflight_log}" 2>&1
+          preflight_exit_code=$?
+          set -e
+          echo "exit_code=${preflight_exit_code}" >>"${GITHUB_OUTPUT}"
+          if [[ "${preflight_exit_code}" -ne 0 ]]; then
+            cat "${preflight_log}" >&2
+            python3 scripts/ci/write_preflight_failure.py \
+              --repo . --module "${MODULE}" --run-id "${MASI_CI_RUN_ID}" \
+              --exit-code "${preflight_exit_code}" --log "${preflight_log}"
+          fi
+      - id: formal_gate
+        name: Run exact formal module gate
+        run: |
+          if [[ "${{ steps.preflight.outputs.exit_code }}" -ne 0 ]]; then
+            echo "exit_code=${{ steps.preflight.outputs.exit_code }}" >>"${GITHUB_OUTPUT}"
+            exit 0
+          fi
+          set +e
+          scripts/ci/run_module_gate.sh "${{ matrix.module }}" "${MASI_CI_RUN_ID}"
+          gate_exit_code=$?
+          set -e
+          echo "exit_code=${gate_exit_code}" >>"${GITHUB_OUTPUT}"
       - name: Verify canonical gate summary
-        run: python3 scripts/ci/verify_module_gate_output.py "${{ matrix.module }}" "${MASI_CI_RUN_ID}"
+        id: verify
+        if: always()
+        env:
+          GATE_EXIT_CODE: ${{ steps.formal_gate.outputs.exit_code }}
+        run: |
+          verifier_args=(--require-clean)
+          if [[ "${GATE_EXIT_CODE:-}" != "0" ]]; then
+            verifier_args+=(--allow-incomplete)
+          fi
+          python3 scripts/ci/verify_module_gate_output.py \
+            "${{ matrix.module }}" "${MASI_CI_RUN_ID}" "${verifier_args[@]}"
       - name: Upload immutable gate evidence
+        id: evidence_upload
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
@@ -113,3 +167,17 @@ jobs:
             */evidence/module-gates/runs/${{ env.MASI_CI_RUN_ID }}/**
           if-no-files-found: error
           retention-days: 30
+      - name: Adjudicate gate, verifier, and evidence upload
+        if: always()
+        env:
+          GATE_EXIT_CODE: ${{ steps.formal_gate.outputs.exit_code }}
+          VERIFY_OUTCOME: ${{ steps.verify.outcome }}
+          UPLOAD_OUTCOME: ${{ steps.evidence_upload.outcome }}
+        run: |
+          [[ "${GATE_EXIT_CODE:-}" =~ ^[0-9]+$ ]] || { echo "formal gate did not report an exit code" >&2; exit 1; }
+          if [[ "${GATE_EXIT_CODE}" -ne 0 ]]; then
+            echo "formal gate failed or remained HOLD with exit ${GATE_EXIT_CODE}" >&2
+            exit "${GATE_EXIT_CODE}"
+          fi
+          [[ "${VERIFY_OUTCOME}" == "success" ]] || { echo "canonical verifier did not succeed" >&2; exit 1; }
+          [[ "${UPLOAD_OUTCOME}" == "success" ]] || { echo "immutable evidence upload did not succeed" >&2; exit 1; }

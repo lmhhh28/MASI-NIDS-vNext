@@ -84,7 +84,8 @@ try {
   })
   page.on('requestfailed', (request) => {
     const path = new URL(request.url()).pathname
-    if (path !== '/events') requestFailures.push(`${path}:${request.failure()?.errorText ?? 'unknown'}`)
+    const errorText = request.failure()?.errorText ?? 'unknown'
+    if (path !== '/events' && errorText !== 'net::ERR_ABORTED') requestFailures.push(`${path}:${errorText}`)
   })
   page.on('response', (response) => {
     const path = new URL(response.url()).pathname

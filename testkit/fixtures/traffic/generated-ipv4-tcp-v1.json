@@ -3,7 +3,7 @@
   "fixture_id": "generated-ipv4-tcp-v1",
   "fixture_revision": 1,
   "fixture_class": "generated-packet",
-  "manifest_digest": "sha256:f31cddad3731b9130389a139b1d687e186df10fce4d5e041c52b8813f415ae73",
+  "manifest_digest": "sha256:3ba3e591e3492d69b9a2da16190666592bc45d95dd8e1810398670a97ae29d80",
   "source": {
     "reference": "repo-generated://testkit/p4_switch/ptf/generated-ipv4-tcp",
     "acquired_at": "2026-08-12T00:00:00Z",
@@ -36,7 +36,7 @@
   "topology": {
     "target_class": "bmv2-software",
     "target_profile": "p4-stateless-firewall/v1",
-    "p4_program_digest": "sha256:b228cf7423f083711d9f5c1ee4f097df868b452119d6c56a2f263e30c443823c",
+    "p4_program_digest": "sha256:4e38d5bc749f3742e38ce5362536ad9af2cab8f232d0644bdb53d1e2e17507ec",
     "p4info_digest": "sha256:23b6d3554ca11843b7e0324352ed09752f068a05abbecf16c16d08a9839d2241",
     "runner_namespace": "compose-runner-shares-switch-netns",
     "switch_namespace": "compose-switch-netns",
@@ -83,6 +83,11 @@
       "distribution": "Alpine Linux",
       "distribution_version": "3.24.1",
       "architecture": "x86_64",
+      "python": "3.13.15",
+      "p4runtime": "1.4.1",
+      "grpcio": "1.80.0",
+      "ptf": "0.12.0",
+      "scapy": "2.6.1",
       "iproute2": {
         "tool_version": "7.0.0",
         "package_version": "7.0.0-r0"
